@@ -1,0 +1,119 @@
+{% extends "admin_base.html" %}
+{% set active = 'dienstleister' %}
+{% block title %}{% if d %}Dienstleister bearbeiten{% else %}Neuer Dienstleister{% endif %}{% endblock %}
+{% block content %}
+<div class="max-w-2xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="/admin/dienstleister" class="text-gray-400 hover:text-gray-600 text-sm">← Dienstleister</a>
+    <h1 class="text-2xl font-bold text-gray-800">{% if d %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %}</h1>
+  </div>
+
+  {% if error %}<div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{{ error }}</div>{% endif %}
+
+  <form method="post" action="{% if d %}/admin/dienstleister/{{ d.id }}/edit{% else %}/admin/dienstleister/new{% endif %}" class="space-y-5">
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+      <h2 class="font-semibold text-gray-700 border-b pb-2">Persönliche Daten</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Vorname *</label>
+          <input type="text" name="vorname" required value="{{ d.vorname if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nachname *</label>
+          <input type="text" name="nachname" required value="{{ d.nachname if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail *</label>
+          <input type="email" name="email" required value="{{ d.email if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+          <input type="text" name="telefon" value="{{ d.telefon if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Straße</label>
+          <input type="text" name="strasse" value="{{ d.strasse if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
+          <input type="text" name="plz" value="{{ d.plz if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Stadt</label>
+          <input type="text" name="stadt" value="{{ d.stadt if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Kleidergröße</label>
+          <input type="text" name="kleidergroesse" value="{{ d.kleidergroesse if d else '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+      <h2 class="font-semibold text-gray-700 border-b pb-2">Einsatz & Ranking</h2>
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Rolle</label>
+          <select name="rolle" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            {% for r in ['Teamer', 'Künstler', 'Beides'] %}
+            <option {% if d and d.rolle == r %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mobilität</label>
+          <select name="mobilitaet" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            {% for m in ['Auto', 'ÖPNV', 'Beides'] %}
+            <option {% if d and d.mobilitaet == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Erfahrungspunkte</label>
+          <input type="number" name="erfahrungspunkte" min="0" value="{{ d.erfahrungspunkte if d else 0 }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+      </div>
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="aktiv" value="true"
+          {% if not d or d.aktiv %}checked{% endif %}
+          class="rounded border-gray-300 text-green-600">
+        Aktiv (erscheint in Anfragen)
+      </label>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+      <h2 class="font-semibold text-gray-700 border-b pb-2 mb-4">Portal-Zugang</h2>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          {% if d and d.password_hash %}Neues Passwort (leer lassen = unverändert){% else %}Passwort setzen{% endif %}
+        </label>
+        <input type="password" name="portal_passwort" autocomplete="new-password"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm max-w-sm">
+        <p class="text-xs text-gray-400 mt-1">Login-E-Mail für das Portal: {{ d.email if d else 'wird nach Speichern gesetzt' }}</p>
+      </div>
+    </div>
+
+    <div class="flex gap-3 items-center">
+      <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-medium px-6 py-2 rounded-lg text-sm">Speichern</button>
+      <a href="/admin/dienstleister" class="text-gray-500 hover:text-gray-700 text-sm px-4 py-2">Abbrechen</a>
+      {% if d %}
+      <form method="post" action="/admin/dienstleister/{{ d.id }}/delete" class="ml-auto"
+            onsubmit="return confirm('Dienstleister wirklich löschen?')">
+        <button class="text-red-500 hover:text-red-700 text-sm">Löschen</button>
+      </form>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

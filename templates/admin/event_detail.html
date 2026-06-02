@@ -1,0 +1,117 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ ev.anlass }} – {{ ev.kunde_firma }}{% endblock %}
+{% block content %}
+<div class="max-w-4xl">
+  <div class="flex items-center gap-3 mb-2">
+    <a href="/admin/dashboard" class="text-gray-400 hover:text-gray-600 text-sm">← Dashboard</a>
+  </div>
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">{{ ev.anlass }}</h1>
+      <p class="text-gray-500 mt-1">{{ ev.kunde_firma }} · {{ ev.datum }} · {{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/admin/events/{{ ev.id }}/edit" class="border border-gray-200 hover:border-gray-300 text-gray-600 text-sm px-4 py-2 rounded-lg">✏️ Bearbeiten</a>
+      <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
+        <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg">📧 Briefing senden</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Event Info -->
+  <div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-3">Details</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Ort:</dt><dd class="text-gray-800">{{ ev.veranstaltungsort }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Aufbau ab:</dt><dd class="text-gray-800">{{ ev.aufbau_ab or '–' }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Outdoor/Indoor:</dt><dd class="text-gray-800">{{ ev.outdoor_indoor or '–' }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Parkplatz:</dt><dd class="text-gray-800">{{ ev.parkplatz or '–' }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Teamkleidung:</dt><dd class="text-gray-800">{{ 'Ja' if ev.teamkleidung else 'Nein' }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Verpflegung:</dt><dd class="text-gray-800">{{ 'Ja' if ev.verpflegung else 'Nein' }}</dd></div>
+        {% if ev.hinweise %}
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Hinweise:</dt><dd class="text-gray-800">{{ ev.hinweise }}</dd></div>
+        {% endif %}
+      </dl>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-3">Kunde</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Firma:</dt><dd class="text-gray-800 font-medium">{{ ev.kunde_firma }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Kontakt:</dt><dd class="text-gray-800">{{ ev.kunde_kontakt or '–' }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">Telefon:</dt><dd class="text-gray-800">{{ ev.kunde_telefon or '–' }}</dd></div>
+        <div class="flex gap-2"><dt class="text-gray-500 w-32">E-Mail:</dt><dd class="text-gray-800">{{ ev.kunde_email or '–' }}</dd></div>
+      </dl>
+      <div class="mt-4 pt-4 border-t border-gray-100">
+        <p class="text-sm text-gray-500">Produkte:</p>
+        <p class="text-sm text-gray-800 mt-1">{{ ev.produkte or '–' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verfügbarkeitsanfragen -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-semibold text-gray-700">Team ({{ ev.anzahl_teamer }}T / {{ ev.anzahl_kuenstler }}K benötigt)</h2>
+    </div>
+
+    {% if anfragen %}
+    <div class="mb-4">
+      <h3 class="text-sm font-medium text-gray-600 mb-2">Angefragte Dienstleister</h3>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-gray-500 uppercase bg-gray-50">
+          <tr>
+            <th class="px-3 py-2 text-left">Name</th>
+            <th class="px-3 py-2 text-left">Rolle</th>
+            <th class="px-3 py-2 text-left">Status</th>
+            <th class="px-3 py-2 text-left">Angefragt am</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for a in anfragen %}
+          <tr>
+            <td class="px-3 py-2 font-medium text-gray-800">{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}</td>
+            <td class="px-3 py-2 text-gray-500">{{ a.rolle_anfrage }}</td>
+            <td class="px-3 py-2">
+              {% if a.status == 'Ja' %}<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Ja</span>
+              {% elif a.status == 'Nein' %}<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">✗ Nein</span>
+              {% else %}<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">⏳ Ausstehend</span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-gray-400 text-xs">{{ a.erstellt_am or '–' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Neue Anfragen senden -->
+    <details class="mt-4">
+      <summary class="text-sm font-medium text-green-700 cursor-pointer">+ Verfügbarkeitsanfragen senden</summary>
+      <div class="mt-4 space-y-4">
+        {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
+        <form method="post" action="/admin/events/{{ ev.id }}/anfragen">
+          <input type="hidden" name="rolle" value="{{ rolle }}">
+          <h4 class="text-sm font-medium text-gray-700 mb-2">{{ rolle }} anfragen</h4>
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            {% for d in ranked %}
+            {% set already = d.id in anfragen_ids %}
+            <label class="flex items-center gap-2 text-sm {% if already %}opacity-40{% endif %}">
+              <input type="checkbox" name="dienstleister_ids" value="{{ d.id }}"
+                {% if already %}disabled{% endif %}
+                class="rounded border-gray-300 text-green-600">
+              <span>{{ d.vorname }} {{ d.nachname }}</span>
+              <span class="text-gray-400 text-xs">{{ d.stadt }} · {{ d.erfahrungspunkte }}XP</span>
+              {% if already %}<span class="text-xs text-gray-400">(bereits angefragt)</span>{% endif %}
+            </label>
+            {% endfor %}
+          </div>
+          <button type="submit" class="text-sm bg-green-700 hover:bg-green-800 text-white px-4 py-1.5 rounded-lg">Anfragen senden</button>
+        </form>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+</div>
+{% endblock %}
