@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ cfg.app_name }}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { brand: { 700: '#15803d', 600: '#16a34a', 50: '#f0fdf4' } } } } }</script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+{% block body %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Mein Portal – {{ cfg.app_name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen bg-gray-50">
+  <header class="bg-green-800 text-white px-6 py-4 flex items-center justify-between">
+    <div>
+      <span class="font-bold">{{ cfg.app_name }}</span>
+      <span class="text-green-300 text-sm ml-2">· Dienstleister-Portal</span>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <span class="text-green-200">👤 {{ dienstleister.vorname }} {{ dienstleister.nachname }}</span>
+      <a href="/portal/logout" class="text-green-300 hover:text-white">Abmelden</a>
+    </div>
+  </header>
+
+  <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
+
+    <!-- Offene Anfragen -->
+    {% if anfragen %}
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-3">📬 Offene Anfragen ({{ anfragen|length }})</h2>
+      <div class="space-y-3">
+        {% for a in anfragen %}
+        <div class="bg-white rounded-xl border border-yellow-200 shadow-sm p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="font-semibold text-gray-800">{{ a.event.anlass }} · {{ a.event.kunde_firma }}</p>
+              <p class="text-sm text-gray-500 mt-1">📅 {{ a.event.datum }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
+              <p class="text-sm text-gray-500">📍 {{ a.event.veranstaltungsort }}</p>
+              {% if a.event.produkte %}
+              <p class="text-sm text-gray-400 mt-1">🎯 {{ a.event.produkte }}</p>
+              {% endif %}
+            </div>
+            <div class="flex flex-col gap-2 shrink-0">
+              <form method="post" action="/portal/antwort/{{ a.id }}">
+                <input type="hidden" name="antwort" value="Ja">
+                <button class="w-24 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg">✓ Ich kann</button>
+              </form>
+              <form method="post" action="/portal/antwort/{{ a.id }}">
+                <input type="hidden" name="antwort" value="Nein">
+                <button class="w-24 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium py-2 rounded-lg">✗ Ich kann nicht</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- Bestätigte Jobs -->
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-3">✅ Meine bestätigten Jobs ({{ upcoming|length }})</h2>
+      {% if upcoming %}
+      <div class="space-y-3">
+        {% for a in upcoming %}
+        <div class="bg-white rounded-xl border border-green-100 shadow-sm p-5">
+          <p class="font-semibold text-gray-800">{{ a.event.anlass }} · {{ a.event.kunde_firma }}</p>
+          <p class="text-sm text-gray-500 mt-1">📅 {{ a.event.datum }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
+          <p class="text-sm text-gray-500">📍 {{ a.event.veranstaltungsort }}</p>
+          {% if a.event.aufbau_ab %}
+          <p class="text-sm text-gray-500">🔧 Aufbau ab {{ a.event.aufbau_ab }}</p>
+          {% endif %}
+          {% if a.event.produkte %}
+          <p class="text-sm text-gray-400 mt-1">🎯 {{ a.event.produkte }}</p>
+          {% endif %}
+          {% if a.event.hinweise %}
+          <p class="text-sm text-orange-600 mt-1 bg-orange-50 px-3 py-1.5 rounded-lg">💡 {{ a.event.hinweise }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="bg-white rounded-xl border border-dashed border-gray-200 p-6 text-center text-gray-400 text-sm">
+        Keine bevorstehenden Jobs.
+      </div>
+      {% endif %}
+    </section>
+
+    <!-- Vergangene Jobs -->
+    {% if past %}
+    <section>
+      <details>
+        <summary class="text-sm font-medium text-gray-500 cursor-pointer">Vergangene Jobs ({{ past|length }})</summary>
+        <div class="space-y-2 mt-3">
+          {% for a in past %}
+          <div class="bg-white rounded-xl border border-gray-100 p-4 opacity-60">
+            <p class="text-sm font-medium text-gray-700">{{ a.event.datum }} · {{ a.event.anlass }} · {{ a.event.kunde_firma }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+    </section>
+    {% endif %}
+
+    {% if not anfragen and not upcoming %}
+    <div class="text-center py-12 text-gray-400">
+      <div class="text-4xl mb-3">🎪</div>
+      <p>Keine offenen Anfragen oder Jobs.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

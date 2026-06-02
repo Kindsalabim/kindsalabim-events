@@ -1,0 +1,79 @@
+{% extends "admin_base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Dashboard – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+  <a href="/admin/events/new" class="bg-green-700 hover:bg-green-800 text-white text-sm font-medium px-4 py-2 rounded-lg">+ Neues Event</a>
+</div>
+
+{% macro status_badge(s) %}
+  {% if s == 'Abgeschlossen' %}<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ s }}</span>
+  {% elif s == 'Briefing gesendet' %}<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{{ s }}</span>
+  {% elif s == 'Bestätigt' %}<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{{ s }}</span>
+  {% else %}<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{{ s }}</span>
+  {% endif %}
+{% endmacro %}
+
+<h2 class="font-semibold text-gray-700 mb-3">Bevorstehende Events</h2>
+{% if upcoming %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left">Datum</th>
+        <th class="px-4 py-3 text-left">Anlass</th>
+        <th class="px-4 py-3 text-left">Kunde</th>
+        <th class="px-4 py-3 text-left">Ort</th>
+        <th class="px-4 py-3 text-left">Status</th>
+        <th class="px-4 py-3 text-left">Team</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for ev in upcoming %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{{ ev.datum }}</td>
+        <td class="px-4 py-3 text-gray-600">{{ ev.anlass }}</td>
+        <td class="px-4 py-3 text-gray-800 font-medium">{{ ev.kunde_firma }}</td>
+        <td class="px-4 py-3 text-gray-500 max-w-xs truncate">{{ ev.veranstaltungsort }}</td>
+        <td class="px-4 py-3">{{ status_badge(ev.status) }}</td>
+        <td class="px-4 py-3 text-gray-500">
+          {{ ev.anzahl_teamer }}T / {{ ev.anzahl_kuenstler }}K
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="/admin/events/{{ ev.id }}" class="text-green-700 hover:text-green-900 font-medium">Details →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center text-gray-400 mb-8">
+  Noch keine Events eingetragen.
+</div>
+{% endif %}
+
+{% if past %}
+<details class="mt-2">
+  <summary class="font-semibold text-gray-500 cursor-pointer text-sm mb-3">Abgeschlossene Events ({{ past|length }})</summary>
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-3">
+    <table class="w-full text-sm">
+      <tbody class="divide-y divide-gray-50">
+        {% for ev in past %}
+        <tr class="hover:bg-gray-50 opacity-60">
+          <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ ev.datum }}</td>
+          <td class="px-4 py-2 text-gray-600">{{ ev.anlass }}</td>
+          <td class="px-4 py-2 font-medium text-gray-700">{{ ev.kunde_firma }}</td>
+          <td class="px-4 py-2 text-right">
+            <a href="/admin/events/{{ ev.id }}" class="text-gray-400 hover:text-gray-600 text-xs">Details →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+{% endblock %}

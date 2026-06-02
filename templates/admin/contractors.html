@@ -1,0 +1,50 @@
+{% extends "admin_base.html" %}
+{% set active = 'dienstleister' %}
+{% block title %}Dienstleister – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Dienstleister</h1>
+  <a href="/admin/dienstleister/new" class="bg-green-700 hover:bg-green-800 text-white text-sm font-medium px-4 py-2 rounded-lg">+ Neuer Dienstleister</a>
+</div>
+
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left">Name</th>
+        <th class="px-4 py-3 text-left">E-Mail</th>
+        <th class="px-4 py-3 text-left">Ort / PLZ</th>
+        <th class="px-4 py-3 text-left">Rolle</th>
+        <th class="px-4 py-3 text-left">XP</th>
+        <th class="px-4 py-3 text-left">Mobilität</th>
+        <th class="px-4 py-3 text-left">Portal</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for d in dienstleister %}
+      <tr class="hover:bg-gray-50 {% if not d.aktiv %}opacity-40{% endif %}">
+        <td class="px-4 py-3 font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}</td>
+        <td class="px-4 py-3 text-gray-500">{{ d.email }}</td>
+        <td class="px-4 py-3 text-gray-500">{{ d.plz }} {{ d.stadt }}</td>
+        <td class="px-4 py-3 text-gray-600">{{ d.rolle }}</td>
+        <td class="px-4 py-3 text-gray-600">{{ d.erfahrungspunkte }}</td>
+        <td class="px-4 py-3 text-gray-600">{{ d.mobilitaet }}</td>
+        <td class="px-4 py-3">
+          {% if d.password_hash %}
+          <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ aktiv</span>
+          {% else %}
+          <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">kein Login</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="/admin/dienstleister/{{ d.id }}/edit" class="text-green-700 hover:text-green-900 text-sm">Bearbeiten</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Noch keine Dienstleister eingetragen.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
