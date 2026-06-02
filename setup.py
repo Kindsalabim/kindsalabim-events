@@ -4,10 +4,8 @@ Ausführen mit: python setup.py
 """
 import yaml
 import secrets
+import bcrypt
 from pathlib import Path
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 config_path = Path(__file__).parent / "config.yaml"
 with open(config_path, encoding="utf-8") as f:
@@ -20,7 +18,7 @@ if not password:
     print("Kein Passwort eingegeben. Abbruch.")
     exit(1)
 
-cfg["admin_password_hash"] = pwd_context.hash(password)
+cfg["admin_password_hash"] = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 cfg["secret_key"] = secrets.token_hex(32)
 
 with open(config_path, "w", encoding="utf-8") as f:
