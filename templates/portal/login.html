@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Dienstleister-Portal – {{ cfg.app_name }}{% endblock %}
 {% block body %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50">
+<div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
   <div class="w-full max-w-sm">
 
-    <!-- Header -->
     <div class="text-center mb-8">
       <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style="background-color: var(--brand-primary);">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -13,35 +12,59 @@
       <p class="text-sm text-gray-500 mt-1">Dienstleister-Portal</p>
     </div>
 
-    <!-- Card -->
     <div class="card p-7">
-      {% if error %}
-      <div class="rounded-lg px-4 py-3 mb-5 text-sm flex items-center gap-2" style="background: var(--brand-accent-light); color: var(--brand-accent);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        {{ error }}
-      </div>
-      {% endif %}
+      {% if sent %}
+        <!-- Bestätigung -->
+        <div class="text-center py-2">
+          <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+          <h2 class="font-semibold text-gray-900 mb-2">Link unterwegs!</h2>
+          <p class="text-sm text-gray-500 leading-relaxed">
+            Falls die E-Mail-Adresse bei uns hinterlegt ist, bekommst du in Kürze einen Anmelde-Link.
+            Bitte auch den Spam-Ordner prüfen.
+          </p>
+          <a href="/portal/login" class="text-sm mt-4 inline-block" style="color: var(--brand-primary);">
+            Nochmal versuchen
+          </a>
+        </div>
 
-      <form method="post" action="/portal/login" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail</label>
-          <input type="email" name="email" required autocomplete="email"
-            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring transition"
-            placeholder="deine@email.de">
+      {% elif request.query_params.get('error') %}
+        <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--brand-accent-light); color: var(--brand-accent);">
+          Der Link ist abgelaufen oder ungültig. Bitte neu anfordern.
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Passwort</label>
-          <input type="password" name="password" required autocomplete="current-password"
-            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring transition">
-        </div>
-        <button type="submit" class="btn-primary w-full justify-center py-2.5 mt-1">
-          Anmelden
-        </button>
-      </form>
+        <form method="post" action="/portal/login" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Deine E-Mail-Adresse</label>
+            <input type="email" name="email" required autocomplete="email"
+              class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring transition"
+              placeholder="deine@email.de">
+          </div>
+          <button type="submit" class="btn-primary w-full justify-center py-2.5">
+            Anmelde-Link senden
+          </button>
+        </form>
+
+      {% else %}
+        <form method="post" action="/portal/login" class="space-y-4">
+          <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+            Gib deine E-Mail-Adresse ein – wir schicken dir einen Link zum Anmelden. Kein Passwort nötig.
+          </p>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail-Adresse</label>
+            <input type="email" name="email" required autocomplete="email"
+              class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring transition"
+              placeholder="deine@email.de">
+          </div>
+          <button type="submit" class="btn-primary w-full justify-center py-2.5">
+            Anmelde-Link senden
+          </button>
+        </form>
+      {% endif %}
     </div>
 
     <p class="text-center text-xs text-gray-400 mt-5">
-      Zugangsdaten erhalten? Wende dich an das Büro.
+      Probleme? Melde dich bei <a href="mailto:{{ cfg.company_email }}" class="underline">{{ cfg.company_email }}</a>
     </p>
   </div>
 </div>

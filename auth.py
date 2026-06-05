@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -35,6 +36,25 @@ def get_admin_user(request: Request):
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER,
                             headers={"Location": "/admin/login"})
     return payload
+
+def create_magic_token(dienstleister, db) -> str:
+    """Generiert einen Magic-Link-Token (24h gültig) und speichert ihn."""
+    token = secrets.token_urlsafe(32)
+    expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+    dienstleister.magic_token = token
+    dienstleister.magic_token_expires = expires
+    db.commit()
+    return token
+
+def verify_magic_token(token: str, db) -> Optional[object]:
+    """Prüft Magic Token – gibt Dienstleister zurück oder None."""
+    from models import Dienstleister
+    d = db.query(Dienstleister).filter(Dienstleister.magic_token == token).first()
+    if not d or not d.magic_token_expires:
+        return None
+    if datetime.utcnow() > datetime.fromisoformat(d.magic_token_expires):
+        return None
+    return d
 
 def get_portal_user(request: Request):
     token = request.cookies.get("portal_token")

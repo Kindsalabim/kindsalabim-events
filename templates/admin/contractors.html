@@ -48,7 +48,12 @@
           {% endif %}
         </td>
         <td class="px-5 py-3.5 text-right">
-          <a href="/admin/dienstleister/{{ d.id }}/edit" class="text-sm font-medium hover:underline" style="color: var(--brand-primary);">Bearbeiten</a>
+          <div class="flex items-center justify-end gap-3">
+            <form method="post" action="/admin/dienstleister/{{ d.id }}/einladung">
+              <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors">Einladung senden</button>
+            </form>
+            <a href="/admin/dienstleister/{{ d.id }}/edit" class="text-sm font-medium hover:underline" style="color: var(--brand-primary);">Bearbeiten</a>
+          </div>
         </td>
       </tr>
       {% else %}
