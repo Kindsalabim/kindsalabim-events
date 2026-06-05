@@ -81,6 +81,59 @@ def _brand_color(marke: str) -> str:
     return "#1a7a1a" if marke == "Knallfrosch" else "#003864"
 
 
+def send_checklist_email(event, base_url: str):
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    url = f"{base_url}/checklist/{event.checklist_token}"
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Guten Tag,</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      vielen Dank für Ihre Buchung. Damit wir Ihr Event optimal vorbereiten können,
+      bitten wir Sie, die folgende Checkliste auszufüllen.
+    </p>
+
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Anlass', event.anlass)}
+        {_info_row('Datum', event.datum)}
+        {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
+      </table>
+    </div>
+
+    <a href="{url}"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Checkliste ausfüllen →
+    </a>
+
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
+      Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:<br>
+      <a href="{url}" style="color:#6b7280;">{url}</a>
+    </p>"""
+
+    subject = f"Checkliste: {event.anlass} am {event.datum} – bitte ausfüllen"
+    _send(event.kunde_email, subject, _wrap(content, color, cfg))
+
+
+def send_checklist_notification(event, admin_email: str, base_url: str):
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    detail_url = f"{base_url}/admin/events/{event.id}"
+    content = f"""
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;">
+      <strong>{event.kunde_firma}</strong> hat die Kunden-Checkliste für
+      <strong>{event.anlass}</strong> ({event.datum}) ausgefüllt.
+    </p>
+    <a href="{detail_url}"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;">
+      Event ansehen →
+    </a>"""
+
+    subject = f"Checkliste eingereicht: {event.anlass} – {event.kunde_firma}"
+    _send(admin_email, subject, _wrap(content, color, cfg))
+
+
 def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str):
     cfg = get_config()
     color = _brand_color(event.marke)

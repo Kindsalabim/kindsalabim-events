@@ -25,11 +25,17 @@
       </div>
       <p class="text-sm text-gray-500">{{ ev.kunde_firma }} · {{ ev.datum }} · {{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <a href="/admin/events/{{ ev.id }}/edit" class="btn-secondary">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Bearbeiten
       </a>
+      <form method="post" action="/admin/events/{{ ev.id }}/checklist">
+        <button class="btn-secondary" {% if not ev.kunde_email %}title="Keine Kunden-E-Mail hinterlegt" disabled style="opacity:.5"{% endif %}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Checkliste senden{% if ev.cl_eingereicht_am %} ✓{% endif %}
+        </button>
+      </form>
       <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
         <button class="btn-primary">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -39,6 +45,17 @@
     </div>
   </div>
 </div>
+
+{% if request.query_params.get('checklist_sent') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">
+  ✓ Checkliste wurde an {{ ev.kunde_email }} gesendet.
+</div>
+{% endif %}
+{% if request.query_params.get('error') == 'keine_email' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">
+  ✗ Keine E-Mail-Adresse für den Kunden hinterlegt. Bitte zuerst bearbeiten.
+</div>
+{% endif %}
 
 <!-- Info Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
@@ -113,6 +130,43 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Kunden-Angaben (Checkliste) -->
+{% if ev.cl_eingereicht_am %}
+<div class="card p-5 mb-5">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm font-semibold text-gray-700">Kunden-Angaben
+      <span class="ml-2 text-xs font-normal text-gray-400">eingereicht {{ ev.cl_eingereicht_am }}</span>
+    </h2>
+    {% if ev.checklist_token %}
+    <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Formular ansehen →</a>
+    {% endif %}
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+    {% macro cl_row(label, val) %}
+    {% if val %}<div class="flex gap-3"><dt class="text-gray-400 w-40 shrink-0">{{ label }}</dt><dd class="text-gray-800">{{ val }}</dd></div>{% endif %}
+    {% endmacro %}
+    {{ cl_row('Ansprechpartner', ev.cl_ansprechpartner_name) }}
+    {{ cl_row('Mobil', ev.cl_ansprechpartner_mobil) }}
+    {{ cl_row('Firma / Name', ev.cl_firma_name) }}
+    {{ cl_row('Straße', ev.cl_strasse) }}
+    {{ cl_row('PLZ / Ort', ev.cl_plz_ort) }}
+    {{ cl_row('Aufbau von', ev.cl_aufbau_von) }}
+    {{ cl_row('Aufbau bis', ev.cl_aufbau_bis) }}
+    {{ cl_row('Abbau von', ev.cl_abbau_von) }}
+    {{ cl_row('Abbau bis', ev.cl_abbau_bis) }}
+    {{ cl_row('Aufbauort', ev.cl_aufbauort) }}
+    {{ cl_row('Verpflegung', ev.cl_verpflegung) }}
+    {{ cl_row('Teamkleidung', ev.cl_teamkleidung) }}
+    {{ cl_row('Parkplatz', ev.cl_parkplatz) }}
+  </div>
+</div>
+{% elif ev.checklist_token %}
+<div class="card p-4 mb-5 flex items-center justify-between">
+  <p class="text-sm text-gray-500">Checkliste wurde gesendet – noch nicht ausgefüllt.</p>
+  <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Link ansehen →</a>
+</div>
+{% endif %}
 
 <!-- Team / Anfragen -->
 <div class="card p-5">

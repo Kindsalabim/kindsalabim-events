@@ -4,17 +4,36 @@ from fastapi.responses import RedirectResponse
 from database import engine, Base
 from routes.admin import router as admin_router
 from routes.portal import router as portal_router
+from routes.checklist import router as checklist_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu."""
     from sqlalchemy import text
+    new_columns = [
+        ("marke",                    "VARCHAR DEFAULT 'Kindsalabim'"),
+        ("checklist_token",          "VARCHAR"),
+        ("cl_ansprechpartner_name",  "VARCHAR"),
+        ("cl_ansprechpartner_mobil", "VARCHAR"),
+        ("cl_firma_name",            "VARCHAR"),
+        ("cl_strasse",               "VARCHAR"),
+        ("cl_plz_ort",               "VARCHAR"),
+        ("cl_aufbau_von",            "VARCHAR"),
+        ("cl_aufbau_bis",            "VARCHAR"),
+        ("cl_abbau_von",             "VARCHAR"),
+        ("cl_abbau_bis",             "VARCHAR"),
+        ("cl_aufbauort",             "VARCHAR"),
+        ("cl_verpflegung",           "VARCHAR"),
+        ("cl_teamkleidung",          "VARCHAR"),
+        ("cl_parkplatz",             "TEXT"),
+        ("cl_eingereicht_am",        "VARCHAR"),
+    ]
     with engine.connect() as conn:
-        # marke-Spalte hinzufügen falls nicht vorhanden
-        try:
-            conn.execute(text("ALTER TABLE events ADD COLUMN marke VARCHAR DEFAULT 'Kindsalabim'"))
-            conn.commit()
-        except Exception:
-            pass  # Spalte existiert bereits
+        for col, typedef in new_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE events ADD COLUMN {col} {typedef}"))
+                conn.commit()
+            except Exception:
+                pass  # Spalte existiert bereits
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,6 +44,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Knallfrosch Events", lifespan=lifespan)
 app.include_router(admin_router)
 app.include_router(portal_router)
+app.include_router(checklist_router)
 
 @app.get("/")
 def root():

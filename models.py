@@ -28,6 +28,23 @@ class Event(Base):
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
 
+    # Kunden-Checkliste
+    checklist_token = Column(String, unique=True, nullable=True)
+    cl_ansprechpartner_name  = Column(String)
+    cl_ansprechpartner_mobil = Column(String)
+    cl_firma_name            = Column(String)
+    cl_strasse               = Column(String)
+    cl_plz_ort               = Column(String)
+    cl_aufbau_von            = Column(String)
+    cl_aufbau_bis            = Column(String)
+    cl_abbau_von             = Column(String)
+    cl_abbau_bis             = Column(String)
+    cl_aufbauort             = Column(String)   # kommagetrennt: Indoor, Outdoor, …
+    cl_verpflegung           = Column(String)   # "Ja" / "Nein"
+    cl_teamkleidung          = Column(String)   # "Ja" / "Nein"
+    cl_parkplatz             = Column(Text)
+    cl_eingereicht_am        = Column(String)
+
     teamleiter = relationship("Dienstleister", foreign_keys=[teamleiter_id])
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="event", cascade="all, delete-orphan")
 
