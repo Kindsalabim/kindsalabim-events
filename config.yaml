@@ -1,14 +1,16 @@
-admin_email: a.malca@kindsalabim.de
-admin_password_hash: $2b$12$cABnX2pA96ID0t1CXM9U1uYjUDwSWXY95L7sN5DbYb2pFK8zRCuCW
-app_name: Kindsalabim Events
-company_address: Charlottenweg 55, 45289 Essen
-company_email: info@kindsalabim.de
-company_name: Kindsalabim Kinderevents
-company_phone: 0177/7442137
-primary_color: '#166534'
-secret_key: 66eca6c90bf970bd2001005d643b04982d6cfae2a66913823b74295d8ea3145d
-smtp_from: info@kindsalabim.de
-smtp_host: ''
-smtp_password: ''
+app_name: "Kindsalabim Events"
+company_name: "Kindsalabim Kinderevents"
+company_address: "Charlottenweg 55, 45289 Essen"
+company_email: "info@kindsalabim.de"
+company_phone: "0177/7442137"
+primary_color: "#166534"
+
+smtp_host: ""
 smtp_port: 587
-smtp_user: ''
+smtp_user: ""
+smtp_password: ""
+smtp_from: "info@kindsalabim.de"
+
+admin_email: "a.malca@kindsalabim.de"
+admin_password_hash: "$2b$12$qbYxmQYGFjfKPO5v9pVZxOWarR9JwypoTtDYNqgCtZtC65X75mCi6"
+secret_key: "cbc98c08464b3ed76ac7e0acf2804bf38da3464f909872b4b7c45595c199da20"
