@@ -3,77 +3,99 @@
 {% block title %}Dashboard – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 
+<!-- Header -->
 <div class="flex items-center justify-between mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">Events</h1>
-    <p class="text-sm text-gray-500 mt-0.5">Übersicht aller Veranstaltungen</p>
+    <h1 class="text-xl font-bold text-gray-900">Events</h1>
+    <p class="text-sm text-gray-400 mt-0.5">Übersicht aller Veranstaltungen</p>
   </div>
   <a href="/admin/events/new" class="btn-primary">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Neues Event
   </a>
 </div>
 
+<!-- Stats row -->
+{% set total = (upcoming|length) + (past|length) %}
+{% set confirmed = upcoming|selectattr('status','equalto','Bestätigt')|list|length %}
+{% set drafts = upcoming|selectattr('status','equalto','Entwurf')|list|length %}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
+  <div class="stat-chip">
+    <p class="text-xs text-gray-400 mb-1">Gesamt</p>
+    <p class="text-2xl font-bold text-gray-900">{{ total }}</p>
+  </div>
+  <div class="stat-chip">
+    <p class="text-xs text-gray-400 mb-1">Bevorstehend</p>
+    <p class="text-2xl font-bold" style="color: var(--brand-primary);">{{ upcoming|length }}</p>
+  </div>
+  <div class="stat-chip">
+    <p class="text-xs text-gray-400 mb-1">Bestätigt</p>
+    <p class="text-2xl font-bold text-green-600">{{ confirmed }}</p>
+  </div>
+  <div class="stat-chip">
+    <p class="text-xs text-gray-400 mb-1">In Planung</p>
+    <p class="text-2xl font-bold text-yellow-600">{{ drafts }}</p>
+  </div>
+</div>
+
+{% macro status_bar_class(s) %}{% if s == 'Bestätigt' %}status-bar-bestaetigt{% elif s == 'Briefing gesendet' %}status-bar-briefing{% elif s == 'Abgeschlossen' %}status-bar-abgeschlossen{% else %}status-bar-entwurf{% endif %}{% endmacro %}
+
 {% macro status_badge(s) %}
   {% if s == 'Abgeschlossen' %}
-    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-abgeschlossen">{{ s }}</span>
+    <span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full badge-status-abgeschlossen">{{ s }}</span>
   {% elif s == 'Briefing gesendet' %}
-    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-briefing">{{ s }}</span>
+    <span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full badge-status-briefing">{{ s }}</span>
   {% elif s == 'Bestätigt' %}
-    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-bestaetigt">{{ s }}</span>
+    <span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full badge-status-bestaetigt">{{ s }}</span>
   {% else %}
-    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-entwurf">{{ s }}</span>
-  {% endif %}
-{% endmacro %}
-
-{% macro marke_badge(m) %}
-  {% if m == 'Knallfrosch' %}
-    <span class="brand-tag-knallfrosch">Knallfrosch</span>
-  {% else %}
-    <span class="brand-tag-kindsalabim">Kindsalabim</span>
+    <span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full badge-status-entwurf">{{ s }}</span>
   {% endif %}
 {% endmacro %}
 
 <!-- Upcoming Events -->
 {% if upcoming %}
-<div class="card overflow-hidden mb-8">
-  <div class="px-5 py-4" style="border-bottom: 1px solid #f3f4f6;">
-    <span class="text-sm font-semibold text-gray-700">Bevorstehend</span>
-    <span class="ml-2 text-xs text-gray-400">{{ upcoming|length }} Event{% if upcoming|length != 1 %}s{% endif %}</span>
+<div class="mb-2">
+  <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Bevorstehend · {{ upcoming|length }}</p>
+  <div class="space-y-2.5">
+    {% for ev in upcoming %}
+    <a href="/admin/events/{{ ev.id }}" class="event-card">
+      <div class="event-card-bar {{ status_bar_class(ev.status) }}"></div>
+      <div class="event-card-body">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-semibold text-gray-900 text-sm">{{ ev.anlass }}</span>
+              {% if ev.marke == 'Knallfrosch' %}
+                <span class="brand-tag-knallfrosch">Knallfrosch</span>
+              {% else %}
+                <span class="brand-tag-kindsalabim">Kindsalabim</span>
+              {% endif %}
+              {{ status_badge(ev.status) }}
+            </div>
+            <p class="text-xs text-gray-500 mt-1">{{ ev.kunde_firma }} · {{ ev.veranstaltungsort }}</p>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-sm font-bold text-gray-800 whitespace-nowrap">{{ ev.datum }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 mt-2.5 pt-2.5" style="border-top: 1px solid #f3f4f6;">
+          <span class="text-xs text-gray-400 flex items-center gap-1">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            {{ ev.anzahl_teamer }} Teamer
+          </span>
+          <span class="text-xs text-gray-400 flex items-center gap-1">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            {{ ev.anzahl_kuenstler }} Künstler
+          </span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
   </div>
-  <table class="w-full text-sm">
-    <thead>
-      <tr style="border-bottom: 1px solid #f3f4f6; background: #fafafa;">
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Datum</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Event</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Kunde</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Marke</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Status</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Team</th>
-        <th class="px-5 py-3"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for ev in upcoming %}
-      <tr class="hover:bg-gray-50 transition-colors" style="border-bottom: 1px solid #f9fafb;">
-        <td class="px-5 py-3.5 font-medium text-gray-800 whitespace-nowrap">{{ ev.datum }}</td>
-        <td class="px-5 py-3.5 text-gray-700 font-medium">{{ ev.anlass }}</td>
-        <td class="px-5 py-3.5 text-gray-600">{{ ev.kunde_firma }}</td>
-        <td class="px-5 py-3.5">{{ marke_badge(ev.marke) }}</td>
-        <td class="px-5 py-3.5">{{ status_badge(ev.status) }}</td>
-        <td class="px-5 py-3.5 text-gray-400 text-xs whitespace-nowrap">
-          {{ ev.anzahl_teamer }}T · {{ ev.anzahl_kuenstler }}K
-        </td>
-        <td class="px-5 py-3.5 text-right">
-          <a href="/admin/events/{{ ev.id }}" class="text-sm font-medium hover:underline" style="color: var(--brand-primary);">Details →</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </div>
 {% else %}
-<div class="card p-12 text-center mb-8">
+<div class="card p-12 text-center mb-6">
   <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
   </div>
@@ -84,26 +106,32 @@
 
 <!-- Past Events -->
 {% if past %}
-<details class="mt-2">
-  <summary class="text-sm font-medium text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none">
-    Abgeschlossene Events ({{ past|length }})
+<details class="mt-6">
+  <summary class="text-xs font-semibold text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 transition-colors select-none">
+    Abgeschlossen · {{ past|length }}
   </summary>
-  <div class="card overflow-hidden mt-3">
-    <table class="w-full text-sm">
-      <tbody>
-        {% for ev in past %}
-        <tr class="hover:bg-gray-50 opacity-60" style="border-bottom: 1px solid #f9fafb;">
-          <td class="px-5 py-3 text-gray-500 whitespace-nowrap">{{ ev.datum }}</td>
-          <td class="px-5 py-3 text-gray-600">{{ ev.anlass }}</td>
-          <td class="px-5 py-3 text-gray-500">{{ ev.kunde_firma }}</td>
-          <td class="px-5 py-3">{{ marke_badge(ev.marke) }}</td>
-          <td class="px-5 py-3 text-right">
-            <a href="/admin/events/{{ ev.id }}" class="text-xs text-gray-400 hover:text-gray-600">Details →</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="space-y-2 mt-3">
+    {% for ev in past %}
+    <a href="/admin/events/{{ ev.id }}" class="event-card opacity-50 hover:opacity-80">
+      <div class="event-card-bar status-bar-abgeschlossen"></div>
+      <div class="event-card-body">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-medium text-gray-700 text-sm">{{ ev.anlass }}</span>
+              {% if ev.marke == 'Knallfrosch' %}
+                <span class="brand-tag-knallfrosch">Knallfrosch</span>
+              {% else %}
+                <span class="brand-tag-kindsalabim">Kindsalabim</span>
+              {% endif %}
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5">{{ ev.kunde_firma }}</p>
+          </div>
+          <p class="text-sm text-gray-500 whitespace-nowrap shrink-0">{{ ev.datum }}</p>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
   </div>
 </details>
 {% endif %}

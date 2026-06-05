@@ -61,6 +61,17 @@ def logout():
     return resp
 
 
+# ── Test E-Mail ────────────────────────────────────────────────────────────────
+@router.get("/test-email")
+def test_email(user=Depends(get_admin_user)):
+    from email_service import send_email
+    cfg = get_config()
+    try:
+        send_email(cfg["admin_email"], "Test E-Mail – Kindsalabim Events", "<p>Der E-Mail-Versand funktioniert! ✅</p>")
+        return HTMLResponse("<p style='font-family:sans-serif;padding:2rem'>✅ E-Mail erfolgreich gesendet an <b>" + cfg["admin_email"] + "</b>. Bitte Postfach prüfen.</p>")
+    except Exception as e:
+        return HTMLResponse(f"<p style='font-family:sans-serif;padding:2rem;color:red'>❌ Fehler: <b>{e}</b></p>")
+
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 @router.get("/dashboard", response_class=HTMLResponse)
