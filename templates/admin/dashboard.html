@@ -2,47 +2,70 @@
 {% set active = 'dashboard' %}
 {% block title %}Dashboard – {{ cfg.app_name }}{% endblock %}
 {% block content %}
+
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
-  <a href="/admin/events/new" class="bg-green-700 hover:bg-green-800 text-white text-sm font-medium px-4 py-2 rounded-lg">+ Neues Event</a>
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Events</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Übersicht aller Veranstaltungen</p>
+  </div>
+  <a href="/admin/events/new" class="btn-primary">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Neues Event
+  </a>
 </div>
 
 {% macro status_badge(s) %}
-  {% if s == 'Abgeschlossen' %}<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ s }}</span>
-  {% elif s == 'Briefing gesendet' %}<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{{ s }}</span>
-  {% elif s == 'Bestätigt' %}<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{{ s }}</span>
-  {% else %}<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{{ s }}</span>
+  {% if s == 'Abgeschlossen' %}
+    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-abgeschlossen">{{ s }}</span>
+  {% elif s == 'Briefing gesendet' %}
+    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-briefing">{{ s }}</span>
+  {% elif s == 'Bestätigt' %}
+    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-bestaetigt">{{ s }}</span>
+  {% else %}
+    <span class="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-entwurf">{{ s }}</span>
   {% endif %}
 {% endmacro %}
 
-<h2 class="font-semibold text-gray-700 mb-3">Bevorstehende Events</h2>
+{% macro marke_badge(m) %}
+  {% if m == 'Knallfrosch' %}
+    <span class="brand-tag-knallfrosch">Knallfrosch</span>
+  {% else %}
+    <span class="brand-tag-kindsalabim">Kindsalabim</span>
+  {% endif %}
+{% endmacro %}
+
+<!-- Upcoming Events -->
 {% if upcoming %}
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+<div class="card overflow-hidden mb-8">
+  <div class="px-5 py-4" style="border-bottom: 1px solid #f3f4f6;">
+    <span class="text-sm font-semibold text-gray-700">Bevorstehend</span>
+    <span class="ml-2 text-xs text-gray-400">{{ upcoming|length }} Event{% if upcoming|length != 1 %}s{% endif %}</span>
+  </div>
   <table class="w-full text-sm">
-    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
-      <tr>
-        <th class="px-4 py-3 text-left">Datum</th>
-        <th class="px-4 py-3 text-left">Anlass</th>
-        <th class="px-4 py-3 text-left">Kunde</th>
-        <th class="px-4 py-3 text-left">Ort</th>
-        <th class="px-4 py-3 text-left">Status</th>
-        <th class="px-4 py-3 text-left">Team</th>
-        <th class="px-4 py-3"></th>
+    <thead>
+      <tr style="border-bottom: 1px solid #f3f4f6; background: #fafafa;">
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Datum</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Event</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Kunde</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Marke</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Status</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Team</th>
+        <th class="px-5 py-3"></th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-gray-50">
+    <tbody>
       {% for ev in upcoming %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{{ ev.datum }}</td>
-        <td class="px-4 py-3 text-gray-600">{{ ev.anlass }}</td>
-        <td class="px-4 py-3 text-gray-800 font-medium">{{ ev.kunde_firma }}</td>
-        <td class="px-4 py-3 text-gray-500 max-w-xs truncate">{{ ev.veranstaltungsort }}</td>
-        <td class="px-4 py-3">{{ status_badge(ev.status) }}</td>
-        <td class="px-4 py-3 text-gray-500">
-          {{ ev.anzahl_teamer }}T / {{ ev.anzahl_kuenstler }}K
+      <tr class="hover:bg-gray-50 transition-colors" style="border-bottom: 1px solid #f9fafb;">
+        <td class="px-5 py-3.5 font-medium text-gray-800 whitespace-nowrap">{{ ev.datum }}</td>
+        <td class="px-5 py-3.5 text-gray-700 font-medium">{{ ev.anlass }}</td>
+        <td class="px-5 py-3.5 text-gray-600">{{ ev.kunde_firma }}</td>
+        <td class="px-5 py-3.5">{{ marke_badge(ev.marke) }}</td>
+        <td class="px-5 py-3.5">{{ status_badge(ev.status) }}</td>
+        <td class="px-5 py-3.5 text-gray-400 text-xs whitespace-nowrap">
+          {{ ev.anzahl_teamer }}T · {{ ev.anzahl_kuenstler }}K
         </td>
-        <td class="px-4 py-3 text-right">
-          <a href="/admin/events/{{ ev.id }}" class="text-green-700 hover:text-green-900 font-medium">Details →</a>
+        <td class="px-5 py-3.5 text-right">
+          <a href="/admin/events/{{ ev.id }}" class="text-sm font-medium hover:underline" style="color: var(--brand-primary);">Details →</a>
         </td>
       </tr>
       {% endfor %}
@@ -50,24 +73,32 @@
   </table>
 </div>
 {% else %}
-<div class="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center text-gray-400 mb-8">
-  Noch keine Events eingetragen.
+<div class="card p-12 text-center mb-8">
+  <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  </div>
+  <p class="text-gray-500 text-sm">Noch keine Events eingetragen.</p>
+  <a href="/admin/events/new" class="btn-primary mt-4 inline-flex">Erstes Event anlegen</a>
 </div>
 {% endif %}
 
+<!-- Past Events -->
 {% if past %}
 <details class="mt-2">
-  <summary class="font-semibold text-gray-500 cursor-pointer text-sm mb-3">Abgeschlossene Events ({{ past|length }})</summary>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-3">
+  <summary class="text-sm font-medium text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none">
+    Abgeschlossene Events ({{ past|length }})
+  </summary>
+  <div class="card overflow-hidden mt-3">
     <table class="w-full text-sm">
-      <tbody class="divide-y divide-gray-50">
+      <tbody>
         {% for ev in past %}
-        <tr class="hover:bg-gray-50 opacity-60">
-          <td class="px-4 py-2 text-gray-600 whitespace-nowrap">{{ ev.datum }}</td>
-          <td class="px-4 py-2 text-gray-600">{{ ev.anlass }}</td>
-          <td class="px-4 py-2 font-medium text-gray-700">{{ ev.kunde_firma }}</td>
-          <td class="px-4 py-2 text-right">
-            <a href="/admin/events/{{ ev.id }}" class="text-gray-400 hover:text-gray-600 text-xs">Details →</a>
+        <tr class="hover:bg-gray-50 opacity-60" style="border-bottom: 1px solid #f9fafb;">
+          <td class="px-5 py-3 text-gray-500 whitespace-nowrap">{{ ev.datum }}</td>
+          <td class="px-5 py-3 text-gray-600">{{ ev.anlass }}</td>
+          <td class="px-5 py-3 text-gray-500">{{ ev.kunde_firma }}</td>
+          <td class="px-5 py-3">{{ marke_badge(ev.marke) }}</td>
+          <td class="px-5 py-3 text-right">
+            <a href="/admin/events/{{ ev.id }}" class="text-xs text-gray-400 hover:text-gray-600">Details →</a>
           </td>
         </tr>
         {% endfor %}
@@ -76,4 +107,5 @@
   </div>
 </details>
 {% endif %}
+
 {% endblock %}

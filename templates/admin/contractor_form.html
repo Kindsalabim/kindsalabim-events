@@ -1,116 +1,129 @@
 {% extends "admin_base.html" %}
 {% set active = 'dienstleister' %}
-{% block title %}{% if d %}Dienstleister bearbeiten{% else %}Neuer Dienstleister{% endif %}{% endblock %}
+{% block title %}{% if d %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %} – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 <div class="max-w-2xl">
-  <div class="flex items-center gap-3 mb-6">
-    <a href="/admin/dienstleister" class="text-gray-400 hover:text-gray-600 text-sm">← Dienstleister</a>
-    <h1 class="text-2xl font-bold text-gray-800">{% if d %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %}</h1>
+
+  <div class="mb-6">
+    <a href="/admin/dienstleister" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-3 transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Dienstleister
+    </a>
+    <h1 class="text-2xl font-bold text-gray-900">{% if d %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %}</h1>
   </div>
 
-  {% if error %}<div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{{ error }}</div>{% endif %}
+  {% if error %}
+  <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--brand-accent-light); color: var(--brand-accent);">{{ error }}</div>
+  {% endif %}
 
-  <form method="post" action="{% if d %}/admin/dienstleister/{{ d.id }}/edit{% else %}/admin/dienstleister/new{% endif %}" class="space-y-5">
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-      <h2 class="font-semibold text-gray-700 border-b pb-2">Persönliche Daten</h2>
+  <form method="post" action="{% if d %}/admin/dienstleister/{{ d.id }}/edit{% else %}/admin/dienstleister/new{% endif %}" class="space-y-4">
+
+    <!-- Persönliche Daten -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Persönliche Daten</h2>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Vorname *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Vorname *</label>
           <input type="text" name="vorname" required value="{{ d.vorname if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nachname *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Nachname *</label>
           <input type="text" name="nachname" required value="{{ d.nachname if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail *</label>
           <input type="email" name="email" required value="{{ d.email if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
           <input type="text" name="telefon" value="{{ d.telefon if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
       <div class="grid grid-cols-3 gap-4">
         <div class="col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Straße</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Straße</label>
           <input type="text" name="strasse" value="{{ d.strasse if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">PLZ</label>
           <input type="text" name="plz" value="{{ d.plz if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Stadt</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Stadt</label>
           <input type="text" name="stadt" value="{{ d.stadt if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Kleidergröße</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Kleidergröße</label>
           <input type="text" name="kleidergroesse" value="{{ d.kleidergroesse if d else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-      <h2 class="font-semibold text-gray-700 border-b pb-2">Einsatz & Ranking</h2>
+    <!-- Einsatz & Ranking -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Einsatz & Ranking</h2>
       <div class="grid grid-cols-3 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Rolle</label>
-          <select name="rolle" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Rolle</label>
+          <select name="rolle" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
             {% for r in ['Teamer', 'Künstler', 'Beides'] %}
             <option {% if d and d.rolle == r %}selected{% endif %}>{{ r }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Mobilität</label>
-          <select name="mobilitaet" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Mobilität</label>
+          <select name="mobilitaet" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
             {% for m in ['Auto', 'ÖPNV', 'Beides'] %}
             <option {% if d and d.mobilitaet == m %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Erfahrungspunkte</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Erfahrungspunkte</label>
           <input type="number" name="erfahrungspunkte" min="0" value="{{ d.erfahrungspunkte if d else 0 }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2.5 text-sm cursor-pointer">
         <input type="checkbox" name="aktiv" value="true"
           {% if not d or d.aktiv %}checked{% endif %}
-          class="rounded border-gray-300 text-green-600">
-        Aktiv (erscheint in Anfragen)
+          class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+        Aktiv (erscheint bei Verfügbarkeitsanfragen)
       </label>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-      <h2 class="font-semibold text-gray-700 border-b pb-2 mb-4">Portal-Zugang</h2>
+    <!-- Portal-Zugang -->
+    <div class="card p-6">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3 mb-4" style="border-bottom: 1px solid #f3f4f6;">Portal-Zugang</h2>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          {% if d and d.password_hash %}Neues Passwort (leer lassen = unverändert){% else %}Passwort setzen{% endif %}
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">
+          {% if d and d.password_hash %}Neues Passwort <span class="text-gray-400 font-normal">(leer lassen = unverändert)</span>{% else %}Passwort setzen{% endif %}
         </label>
         <input type="password" name="portal_passwort" autocomplete="new-password"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm max-w-sm">
-        <p class="text-xs text-gray-400 mt-1">Login-E-Mail für das Portal: {{ d.email if d else 'wird nach Speichern gesetzt' }}</p>
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring max-w-sm">
+        <p class="text-xs text-gray-400 mt-2">
+          Login-E-Mail: <span class="text-gray-600">{{ d.email if d else 'wird nach Speichern gesetzt' }}</span>
+        </p>
       </div>
     </div>
 
-    <div class="flex gap-3 items-center">
-      <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-medium px-6 py-2 rounded-lg text-sm">Speichern</button>
-      <a href="/admin/dienstleister" class="text-gray-500 hover:text-gray-700 text-sm px-4 py-2">Abbrechen</a>
+    <!-- Actions -->
+    <div class="flex items-center gap-3 pt-1">
+      <button type="submit" class="btn-primary px-6 py-2.5">Speichern</button>
+      <a href="/admin/dienstleister" class="text-sm text-gray-400 hover:text-gray-600 px-3 py-2 transition-colors">Abbrechen</a>
       {% if d %}
       <form method="post" action="/admin/dienstleister/{{ d.id }}/delete" class="ml-auto"
             onsubmit="return confirm('Dienstleister wirklich löschen?')">
-        <button class="text-red-500 hover:text-red-700 text-sm">Löschen</button>
+        <button class="text-sm text-red-400 hover:text-red-600 transition-colors">Löschen</button>
       </form>
       {% endif %}
     </div>

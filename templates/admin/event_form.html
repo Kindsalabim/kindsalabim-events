@@ -2,161 +2,197 @@
 {% block title %}{% if event %}Event bearbeiten{% else %}Neues Event{% endif %} – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 <div class="max-w-3xl">
-  <div class="flex items-center gap-3 mb-6">
-    <a href="/admin/dashboard" class="text-gray-400 hover:text-gray-600 text-sm">← Dashboard</a>
-    <h1 class="text-2xl font-bold text-gray-800">{% if event %}Event bearbeiten{% else %}Neues Event{% endif %}</h1>
+
+  <div class="mb-6">
+    <a href="/admin/dashboard" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-3 transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Dashboard
+    </a>
+    <h1 class="text-2xl font-bold text-gray-900">{% if event %}Event bearbeiten{% else %}Neues Event anlegen{% endif %}</h1>
   </div>
 
-  {% if error %}<div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{{ error }}</div>{% endif %}
+  {% if error %}
+  <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--brand-accent-light); color: var(--brand-accent);">{{ error }}</div>
+  {% endif %}
 
-  <form method="post" action="{% if event %}/admin/events/{{ event.id }}/edit{% else %}/admin/events/new{% endif %}" class="space-y-6">
+  <form method="post" action="{% if event %}/admin/events/{{ event.id }}/edit{% else %}/admin/events/new{% endif %}" class="space-y-4">
 
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-      <h2 class="font-semibold text-gray-700 border-b pb-2">Veranstaltung</h2>
+    <!-- Marke & Grunddaten -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Marke & Veranstaltung</h2>
+
+      <!-- Marke -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Marke</label>
+        <div class="flex gap-3">
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <input type="radio" name="marke" value="Kindsalabim"
+              {% if not event or event.marke == 'Kindsalabim' %}checked{% endif %}
+              style="accent-color: var(--brand-primary);">
+            <span class="brand-tag-kindsalabim text-sm normal-case font-normal px-3 py-1">Kindsalabim</span>
+          </label>
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <input type="radio" name="marke" value="Knallfrosch"
+              {% if event and event.marke == 'Knallfrosch' %}checked{% endif %}
+              style="accent-color: #1a7a1a;">
+            <span class="brand-tag-knallfrosch text-sm normal-case font-normal px-3 py-1">Knallfrosch</span>
+          </label>
+        </div>
+      </div>
+
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Anlass *</label>
-          <select name="anlass" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlass *</label>
+          <select name="anlass" required class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
             {% for a in anlass_list %}
             <option value="{{ a }}" {% if event and event.anlass == a %}selected{% endif %}>{{ a }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-          <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+          <select name="status" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
             {% for s in ['Entwurf','Bestätigt','Briefing gesendet','Abgeschlossen'] %}
             <option value="{{ s }}" {% if event and event.status == s %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
           </select>
         </div>
       </div>
+
       <div class="grid grid-cols-3 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Datum *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Datum *</label>
           <input type="text" name="datum" placeholder="TT.MM.JJJJ" required value="{{ event.datum if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Startzeit *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Beginn *</label>
           <input type="text" name="startzeit" placeholder="10:00" required value="{{ event.startzeit if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Endzeit *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Ende *</label>
           <input type="text" name="endzeit" placeholder="14:00" required value="{{ event.endzeit if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
+
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Veranstaltungsort (mit PLZ) *</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Veranstaltungsort (mit PLZ) *</label>
         <input type="text" name="veranstaltungsort" required placeholder="Musterstraße 1, 45127 Essen"
           value="{{ event.veranstaltungsort if event else '' }}"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-      <h2 class="font-semibold text-gray-700 border-b pb-2">Kunde</h2>
+    <!-- Kunde -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Kundendaten</h2>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Firma / Name *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Firma / Name *</label>
           <input type="text" name="kunde_firma" required value="{{ event.kunde_firma if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Ansprechpartner vor Ort</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Ansprechpartner vor Ort</label>
           <input type="text" name="kunde_kontakt" value="{{ event.kunde_kontakt if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
           <input type="text" name="kunde_telefon" value="{{ event.kunde_telefon if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail</label>
           <input type="email" name="kunde_email" value="{{ event.kunde_email if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-      <h2 class="font-semibold text-gray-700 border-b pb-2">Produkte & Personal</h2>
-      <div class="grid grid-cols-2 gap-2">
-        {% set selected = (event.produkte.split(', ') if event and event.produkte else []) %}
-        {% for p in produkte_list %}
-        <label class="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="produkte" value="{{ p }}"
-            {% if p in selected %}checked{% endif %}
-            class="rounded border-gray-300 text-green-600">
-          {{ p }}
-        </label>
-        {% endfor %}
-      </div>
-      <div class="grid grid-cols-2 gap-4 mt-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Anzahl Teamer</label>
-          <input type="number" name="anzahl_teamer" min="0" value="{{ event.anzahl_teamer if event else 0 }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Anzahl Künstler</label>
-          <input type="number" name="anzahl_kuenstler" min="0" value="{{ event.anzahl_kuenstler if event else 0 }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+    <!-- Produkte & Personal -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Produkte & Personal</h2>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Gebuchte Aktionen</label>
+        <div class="grid grid-cols-2 gap-2">
+          {% set selected = (event.produkte.split(', ') if event and event.produkte else []) %}
+          {% for p in produkte_list %}
+          <label class="flex items-center gap-2.5 text-sm p-2.5 rounded-lg border border-gray-100 hover:border-gray-200 cursor-pointer transition-colors">
+            <input type="checkbox" name="produkte" value="{{ p }}"
+              {% if p in selected %}checked{% endif %}
+              class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+            {{ p }}
+          </label>
+          {% endfor %}
         </div>
       </div>
-    </div>
-
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-      <h2 class="font-semibold text-gray-700 border-b pb-2">Logistik</h2>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Aufbau möglich ab</label>
-          <input type="text" name="aufbau_ab" placeholder="z.B. 09:00 Uhr"
-            value="{{ event.aufbau_ab if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Anzahl Teamer</label>
+          <input type="number" name="anzahl_teamer" min="0" value="{{ event.anzahl_teamer if event else 0 }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Parkplatz / Ablademöglichkeit</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Anzahl Künstler</label>
+          <input type="number" name="anzahl_kuenstler" min="0" value="{{ event.anzahl_kuenstler if event else 0 }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+      </div>
+    </div>
+
+    <!-- Logistik -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Logistik & Details</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Aufbau möglich ab</label>
+          <input type="text" name="aufbau_ab" placeholder="z.B. 09:00 Uhr" value="{{ event.aufbau_ab if event else '' }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Parkplatz / Ablademöglichkeit</label>
           <input type="text" name="parkplatz" value="{{ event.parkplatz if event else '' }}"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Outdoor / Indoor</label>
-          <select name="outdoor_indoor" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Outdoor / Indoor</label>
+          <select name="outdoor_indoor" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
             {% for opt in ['', 'Indoor', 'Outdoor', 'Beides möglich'] %}
             <option {% if event and event.outdoor_indoor == opt %}selected{% endif %}>{{ opt }}</option>
             {% endfor %}
           </select>
         </div>
       </div>
-      <div class="flex gap-6 mt-2">
-        <label class="flex items-center gap-2 text-sm">
+      <div class="flex gap-5 pt-1">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" name="teamkleidung" value="true"
             {% if not event or event.teamkleidung %}checked{% endif %}
-            class="rounded border-gray-300 text-green-600">
+            class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
           Teamkleidung erlaubt
         </label>
-        <label class="flex items-center gap-2 text-sm">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" name="verpflegung" value="true"
             {% if event and event.verpflegung %}checked{% endif %}
-            class="rounded border-gray-300 text-green-600">
+            class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
           Verpflegung vorhanden
         </label>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Besondere Hinweise</label>
-        <textarea name="hinweise" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ event.hinweise if event else '' }}</textarea>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Besondere Hinweise</label>
+        <textarea name="hinweise" rows="3"
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none">{{ event.hinweise if event else '' }}</textarea>
       </div>
     </div>
 
-    <div class="flex gap-3">
-      <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-medium px-6 py-2 rounded-lg text-sm">
-        {% if event %}Speichern{% else %}Event anlegen{% endif %}
+    <!-- Actions -->
+    <div class="flex items-center gap-3 pt-1">
+      <button type="submit" class="btn-primary px-6 py-2.5">
+        {% if event %}Änderungen speichern{% else %}Event anlegen{% endif %}
       </button>
-      <a href="/admin/dashboard" class="text-gray-500 hover:text-gray-700 text-sm px-4 py-2">Abbrechen</a>
+      <a href="/admin/dashboard" class="text-sm text-gray-400 hover:text-gray-600 px-3 py-2 transition-colors">Abbrechen</a>
     </div>
   </form>
 </div>

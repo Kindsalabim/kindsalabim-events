@@ -25,6 +25,7 @@ class Event(Base):
     verpflegung = Column(Boolean, default=False)
     teamkleidung = Column(Boolean, default=True)
     status = Column(String, default="Entwurf")   # Entwurf, Bestätigt, Briefing gesendet, Abgeschlossen
+    marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
 
     teamleiter = relationship("Dienstleister", foreign_keys=[teamleiter_id])
