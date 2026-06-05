@@ -38,13 +38,13 @@
           <span class="text-xs font-semibold" style="color: var(--brand-primary);">{{ d.erfahrungspunkte }} XP</span>
         </td>
         <td class="px-5 py-3.5">
-          {% if d.password_hash %}
-          <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-bestaetigt">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-            aktiv
-          </span>
+          {% if d.password_hash or d.magic_token is not none %}
+            <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-bestaetigt">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              eingeladen
+            </span>
           {% else %}
-          <span class="text-xs text-gray-400">kein Login</span>
+            <span class="text-xs text-gray-400">noch nicht eingeladen</span>
           {% endif %}
         </td>
         <td class="px-5 py-3.5 text-right">

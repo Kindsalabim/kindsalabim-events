@@ -184,7 +184,7 @@
         <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Name</th>
         <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Rolle</th>
         <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Rückmeldung</th>
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Angefragt</th>
+        <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Frist</th>
       </tr>
     </thead>
     <tbody>
@@ -207,7 +207,19 @@
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-entwurf">Ausstehend</span>
           {% endif %}
         </td>
-        <td class="py-3 text-gray-400 text-xs">{{ a.erstellt_am or '–' }}</td>
+        <td class="py-3 text-xs">
+          {% if a.frist_datum %}
+            {% if a.status == 'Ausstehend' %}
+              <span class="{% if a.frist_verlaengert %}text-blue-500{% else %}text-gray-400{% endif %}">
+                {{ a.frist_datum }}{% if a.frist_verlaengert %} ↗{% endif %}
+              </span>
+            {% else %}
+              <span class="text-gray-300">{{ a.frist_datum }}</span>
+            {% endif %}
+          {% else %}
+            <span class="text-gray-300">–</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
