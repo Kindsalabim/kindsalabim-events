@@ -217,6 +217,24 @@ def send_anfragen(
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
+@router.post("/events/{event_id}/checklist")
+def send_checklist(
+    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)
+):
+    import uuid
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    if not ev.kunde_email:
+        return RedirectResponse(f"/admin/events/{event_id}?error=keine_email", status_code=303)
+    if not ev.checklist_token:
+        ev.checklist_token = str(uuid.uuid4())
+        db.commit()
+    base_url = str(request.base_url).rstrip("/")
+    from email_service import send_checklist_email
+    send_checklist_email(ev, base_url)
+    return RedirectResponse(f"/admin/events/{event_id}?checklist_sent=1", status_code=303)
+
+
 @router.post("/events/{event_id}/briefing")
 def send_briefing_route(
     request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)

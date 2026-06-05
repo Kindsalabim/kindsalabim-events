@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veranstaltungs-Checkliste</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    {% if ev.marke == 'Knallfrosch' %}
+    :root { --brand: #1a7a1a; --brand-light: #f0faf0; }
+    {% else %}
+    :root { --brand: #003864; --brand-light: #e8f0f7; }
+    {% endif %}
+    .btn { background: var(--brand); color: white; padding: .75rem 2rem; border-radius: .5rem; font-weight: 600; font-size: .95rem; border: none; cursor: pointer; width: 100%; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .field label { display: block; font-size: .8rem; font-weight: 600; color: #6b7280; margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+    .field input, .field textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .6rem .85rem; font-size: .9rem; font-family: inherit; background: white; transition: border-color .15s; box-sizing: border-box; }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--brand); }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .checkbox-group label { display: flex; align-items: center; gap: .5rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem .85rem; font-size: .875rem; cursor: pointer; transition: border-color .15s, background .15s; }
+    .checkbox-group input[type=checkbox]:checked + span { font-weight: 600; color: var(--brand); }
+    .checkbox-group label:has(input:checked) { border-color: var(--brand); background: var(--brand-light); }
+    .radio-group { display: flex; gap: .5rem; }
+    .radio-group label { flex: 1; display: flex; align-items: center; justify-content: center; gap: .5rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .6rem; font-size: .875rem; cursor: pointer; transition: border-color .15s, background .15s; }
+    .radio-group label:has(input:checked) { border-color: var(--brand); background: var(--brand-light); font-weight: 600; color: var(--brand); }
+    .radio-group input[type=radio] { accent-color: var(--brand); }
+    .section-title { font-size: .75rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid #f3f4f6; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen py-8 px-4">
+
+<div class="max-w-lg mx-auto">
+
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style="background: var(--brand);">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    </div>
+    <h1 class="text-xl font-bold text-gray-900">
+      {% if ev.marke == 'Knallfrosch' %}Knallfrosch{% else %}Kindsalabim{% endif %}
+      – Veranstaltungs-Checkliste
+    </h1>
+    <p class="text-sm text-gray-500 mt-1">{{ ev.anlass }} · {{ ev.datum }}</p>
+  </div>
+
+  {% if already_submitted %}
+  <!-- Danke-Karte -->
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+    <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-light);">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2 class="text-lg font-bold text-gray-900 mb-2">Vielen Dank!</h2>
+    <p class="text-gray-500 text-sm">Ihre Angaben wurden erfolgreich übermittelt. Wir melden uns bei Ihnen.</p>
+  </div>
+
+  {% else %}
+  <!-- Formular -->
+  <form method="post" class="space-y-6">
+
+    <!-- Ansprechpartner -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <p class="section-title">Ansprechpartner vor Ort</p>
+      <div class="space-y-4">
+        <div class="field">
+          <label>Name</label>
+          <input type="text" name="ansprechpartner_name" placeholder="Vor- und Nachname" required>
+        </div>
+        <div class="field">
+          <label>Mobil-Nr.</label>
+          <input type="tel" name="ansprechpartner_mobil" placeholder="+49 …">
+        </div>
+      </div>
+    </div>
+
+    <!-- Veranstaltungsanschrift -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <p class="section-title">Veranstaltungsanschrift</p>
+      <div class="space-y-4">
+        <div class="field">
+          <label>Firma / Name</label>
+          <input type="text" name="firma_name" placeholder="z.B. Mustermann GmbH">
+        </div>
+        <div class="field">
+          <label>Straße &amp; Hausnummer</label>
+          <input type="text" name="strasse" placeholder="z.B. Musterstraße 12">
+        </div>
+        <div class="field">
+          <label>PLZ &amp; Ort</label>
+          <input type="text" name="plz_ort" placeholder="z.B. 45289 Essen">
+        </div>
+      </div>
+    </div>
+
+    <!-- Auf- und Abbau -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <p class="section-title">Aufbau- und Abbauzeitraum</p>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>Aufbau von</label>
+            <input type="text" name="aufbau_von" placeholder="z.B. Mo 08:00">
+          </div>
+          <div class="field">
+            <label>Aufbau bis</label>
+            <input type="text" name="aufbau_bis" placeholder="z.B. Mo 10:00">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>Abbau von</label>
+            <input type="text" name="abbau_von" placeholder="z.B. Mo 18:00">
+          </div>
+          <div class="field">
+            <label>Abbau bis</label>
+            <input type="text" name="abbau_bis" placeholder="z.B. Mo 20:00">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aufbauort -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <p class="section-title">Aufbauort der Aktionen / Eventmodule</p>
+      <div class="checkbox-group">
+        <label><input type="checkbox" name="aufbauort" value="Indoor"><span>Indoor</span></label>
+        <label><input type="checkbox" name="aufbauort" value="Outdoor"><span>Outdoor</span></label>
+        <label><input type="checkbox" name="aufbauort" value="Überdacht"><span>Überdacht</span></label>
+        <label><input type="checkbox" name="aufbauort" value="Nicht überdacht"><span>Nicht überdacht</span></label>
+      </div>
+    </div>
+
+    <!-- Ja/Nein-Fragen -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+      <p class="section-title">Rahmenbedingungen</p>
+
+      <div>
+        <p class="text-sm font-medium text-gray-700 mb-2">Verpflegung für Mitarbeiter gewährleistet?</p>
+        <div class="radio-group">
+          <label><input type="radio" name="verpflegung" value="Ja" required><span>Ja</span></label>
+          <label><input type="radio" name="verpflegung" value="Nein"><span>Nein</span></label>
+        </div>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-gray-700 mb-2">
+          {% if ev.marke == 'Knallfrosch' %}Knallfrosch{% else %}Kindsalabim{% endif %}
+          – Teamkleidung gestattet?
+        </p>
+        <div class="radio-group">
+          <label><input type="radio" name="teamkleidung" value="Ja" required><span>Ja</span></label>
+          <label><input type="radio" name="teamkleidung" value="Nein"><span>Nein</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parkplatz -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <p class="section-title">Parkplatzsituation</p>
+      <div class="field">
+        <label>Beschreibung</label>
+        <textarea name="parkplatz" rows="3" placeholder="z.B. Parkhaus direkt nebenan, kostenlos für Mitarbeiter"></textarea>
+      </div>
+    </div>
+
+    <button type="submit" class="btn">Checkliste absenden</button>
+
+    <p class="text-xs text-center text-gray-400 pb-4">
+      Ihre Angaben werden sicher übertragen und nur intern verwendet.
+    </p>
+  </form>
+  {% endif %}
+
+</div>
+</body>
+</html>
