@@ -5,7 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{{ cfg.app_name }}{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { theme: { extend: { colors: { brand: { 700: '#15803d', 600: '#16a34a', 50: '#f0fdf4' } } } } }</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Kindsalabim Brand */
+    :root {
+      --brand-primary: #003864;
+      --brand-primary-dark: #002a4d;
+      --brand-primary-light: #e8f0f7;
+      --brand-accent: #ef3845;
+      --brand-accent-light: #fef2f2;
+    }
+
+    /* Knallfrosch Brand Override */
+    .brand-knallfrosch {
+      --brand-primary: #1a7a1a;
+      --brand-primary-dark: #145c14;
+      --brand-primary-light: #f0faf0;
+      --brand-accent: #e8131b;
+      --brand-accent-light: #fff0f0;
+    }
+
+    .btn-primary {
+      background-color: var(--brand-primary);
+      color: white;
+      padding: 0.5rem 1.25rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background-color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary:hover { background-color: var(--brand-primary-dark); }
+
+    .btn-secondary {
+      background-color: white;
+      color: #374151;
+      padding: 0.5rem 1.25rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: 1px solid #e5e7eb;
+      transition: border-color 0.15s, background-color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background-color: #f9fafb; border-color: #d1d5db; }
+
+    .badge-status-entwurf { background: #fef9c3; color: #854d0e; }
+    .badge-status-bestaetigt { background: #dcfce7; color: #166534; }
+    .badge-status-briefing { background: #dbeafe; color: #1e40af; }
+    .badge-status-abgeschlossen { background: #f3f4f6; color: #6b7280; }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      color: rgba(255,255,255,0.75);
+      transition: background-color 0.15s, color 0.15s;
+      text-decoration: none;
+    }
+    .sidebar-link:hover { background-color: rgba(255,255,255,0.1); color: white; }
+    .sidebar-link.active { background-color: rgba(255,255,255,0.15); color: white; }
+
+    .card {
+      background: white;
+      border-radius: 0.75rem;
+      border: 1px solid #f0f0f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .focus-ring:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--brand-primary-light), 0 0 0 4px var(--brand-primary);
+    }
+
+    .brand-tag-kindsalabim {
+      background: #e8f0f7;
+      color: #003864;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      letter-spacing: 0.025em;
+      text-transform: uppercase;
+    }
+    .brand-tag-knallfrosch {
+      background: #f0faf0;
+      color: #1a7a1a;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      letter-spacing: 0.025em;
+      text-transform: uppercase;
+    }
+  </style>
+  {% block head %}{% endblock %}
 </head>
 <body class="bg-gray-50 min-h-screen">
 {% block body %}{% endblock %}
