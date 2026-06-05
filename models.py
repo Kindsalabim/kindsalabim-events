@@ -65,7 +65,9 @@ class Dienstleister(Base):
     mobilitaet = Column(String, default="Auto")  # Auto, ÖPNV, Beides
     kleidergroesse = Column(String)
     aktiv = Column(Boolean, default=True)
-    password_hash = Column(String)               # für Portal-Login
+    password_hash = Column(String)               # für Portal-Login (Legacy)
+    magic_token = Column(String)                 # Magic-Link-Token
+    magic_token_expires = Column(String)         # ISO-Datetime
 
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="dienstleister")
 
@@ -80,6 +82,9 @@ class Verfuegbarkeitsanfrage(Base):
     status = Column(String, default="Ausstehend")      # Ausstehend, Ja, Nein
     notiz = Column(Text)
     erstellt_am = Column(String)
+    frist_datum = Column(String)        # DD.MM.YYYY – wann die Anfrage abläuft
+    frist_verlaengert = Column(Boolean, default=False)
+    erinnerung_gesendet = Column(Boolean, default=False)
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")

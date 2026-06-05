@@ -81,6 +81,96 @@ def _brand_color(marke: str) -> str:
     return "#1a7a1a" if marke == "Knallfrosch" else "#003864"
 
 
+def send_magic_link(dienstleister, token: str, base_url: str):
+    cfg = get_config()
+    url = f"{base_url}/portal/auth/{token}"
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      Klick auf den Button um dich in deinem Portal anzumelden.
+      Der Link ist <strong>24 Stunden gültig</strong>.
+    </p>
+    <a href="{url}"
+       style="display:inline-block;background:#003864;color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Jetzt anmelden →
+    </a>
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
+      Falls der Button nicht funktioniert:<br>
+      <a href="{url}" style="color:#6b7280;">{url}</a>
+    </p>
+    <p style="margin:16px 0 0;font-size:13px;color:#d1d5db;">
+      Falls du diese E-Mail nicht angefordert hast, kannst du sie ignorieren.
+    </p>"""
+    _send(dienstleister.email, f"Dein Anmelde-Link – {cfg['app_name']}", _wrap(content, "#003864", cfg))
+
+
+def send_einladung(dienstleister, base_url: str):
+    cfg = get_config()
+    login_url = f"{base_url}/portal/login"
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      Herzlich willkommen bei {cfg['company_name']}! Du hast jetzt Zugang zu deinem persönlichen
+      Dienstleister-Portal. Dort siehst du alle deine Anfragen, kannst zu- oder absagen
+      und hast eine Übersicht über deine gebuchten Jobs.
+    </p>
+    <a href="{login_url}"
+       style="display:inline-block;background:#003864;color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Zum Portal →
+    </a>
+    <p style="margin:24px 0 0;font-size:14px;color:#374151;">
+      <strong>So funktioniert der Login:</strong><br>
+      E-Mail-Adresse eingeben → du bekommst einen Link → klicken → fertig.<br>
+      Kein Passwort nötig.
+    </p>
+    <p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">
+      Tipp: Füge das Portal auf deinem Homescreen hinzu, dann hast du es immer griffbereit.
+    </p>"""
+    _send(dienstleister.email, f"Willkommen bei {cfg['company_name']} – Dein Portal-Zugang",
+          _wrap(content, "#003864", cfg))
+
+
+def send_erinnerung(dienstleister, event):
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      Du hast noch eine offene Anfrage – die Frist läuft <strong>morgen ab</strong>.
+    </p>
+    <div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', event.anlass)}
+        {_info_row('Datum', event.datum)}
+        {_info_row('Ort', event.veranstaltungsort)}
+      </table>
+    </div>
+    <a href="https://kindsalabim-events.onrender.com/portal"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Jetzt antworten →
+    </a>"""
+    _send(dienstleister.email,
+          f"⏰ Erinnerung: Anfrage läuft morgen ab – {event.anlass}",
+          _wrap(content, color, cfg))
+
+
+def send_frist_verlaengerung(dienstleister, event, admin_email: str):
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    content = f"""
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;">
+      <strong>{dienstleister.vorname} {dienstleister.nachname}</strong> hat für
+      <strong>{event.anlass}</strong> ({event.datum}) eine Fristverlängerung angefordert.
+    </p>
+    <p style="margin:0;font-size:14px;color:#6b7280;">Die Frist wurde automatisch um 2 Tage verlängert.</p>"""
+    _send(admin_email,
+          f"Fristverlängerung: {dienstleister.vorname} {dienstleister.nachname} – {event.anlass}",
+          _wrap(content, color, cfg))
+
+
 def send_checklist_email(event, base_url: str):
     cfg = get_config()
     color = _brand_color(event.marke)

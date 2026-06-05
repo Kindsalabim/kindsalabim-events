@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional
 
 from database import get_db
@@ -205,10 +205,12 @@ def send_anfragen(
             Verfuegbarkeitsanfrage.dienstleister_id == did
         ).first()
         if not existing:
+            frist = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
             a = Verfuegbarkeitsanfrage(
                 event_id=event_id, dienstleister_id=did,
                 rolle_anfrage=rolle, status="Ausstehend",
-                erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M")
+                erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
+                frist_datum=frist
             )
             db.add(a)
             d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
@@ -251,6 +253,19 @@ def send_briefing_route(
     ev.status = "Briefing gesendet"
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+
+# ── Dienstleister Einladung ────────────────────────────────────────────────────
+
+@router.post("/dienstleister/{did}/einladung")
+def dienstleister_einladung(request: Request, did: int,
+                             db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d: raise HTTPException(404)
+    base_url = str(request.base_url).rstrip("/")
+    from email_service import send_einladung
+    send_einladung(d, base_url)
+    return RedirectResponse(f"/admin/dienstleister?einladung_sent={d.id}", status_code=303)
 
 
 # ── Dienstleister ──────────────────────────────────────────────────────────────
