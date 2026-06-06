@@ -1,7 +1,6 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
+import base64
+import json
+import urllib.request
 from datetime import datetime
 from config import get_config
 
@@ -16,33 +15,40 @@ except ImportError:
     KF_B64 = ""
 
 
-def _smtp_send(to: str, msg):
-    """Verschickt eine fertig gebaute MIME-Nachricht über den konfigurierten SMTP-Server."""
+def _deliver(to: str, subject: str, html: str, attachments=None):
+    """Verschickt eine E-Mail über die Resend HTTP-API (Render blockt ausgehendes SMTP).
+    attachments: optionale Liste von (dateiname, bytes)."""
     cfg = get_config()
-    if cfg["smtp_port"] == 465:
-        with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"]) as server:
-            server.login(cfg["smtp_user"], cfg["smtp_password"])
-            server.sendmail(cfg["smtp_from"], to, msg.as_string())
-    else:
-        with smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"]) as server:
-            server.starttls()
-            server.login(cfg["smtp_user"], cfg["smtp_password"])
-            server.sendmail(cfg["smtp_from"], to, msg.as_string())
+    api_key = cfg.get("resend_api_key")
+    if not api_key:
+        info = f" | Anhänge: {[a[0] for a in attachments]}" if attachments else ""
+        print(f"[MOCK E-MAIL] An: {to} | Betreff: {subject}{info}")
+        return
+
+    payload = {
+        "from": f'{cfg.get("company_name", "Kindsalabim")} <{cfg["smtp_from"]}>',
+        "to": [to],
+        "subject": subject,
+        "html": html,
+    }
+    if attachments:
+        payload["attachments"] = [
+            {"filename": fn, "content": base64.b64encode(data).decode()}
+            for fn, data in attachments
+        ]
+
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        resp.read()
 
 
 def _send(to: str, subject: str, body_html: str):
-    cfg = get_config()
-    if not cfg.get("smtp_host"):
-        print(f"[MOCK E-MAIL] An: {to}\nBetreff: {subject}\n{body_html[:200]}\n")
-        return
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"]    = cfg["smtp_from"]
-    msg["To"]      = to
-    msg.attach(MIMEText(body_html, "html", "utf-8"))
-
-    _smtp_send(to, msg)
+    _deliver(to, subject, body_html)
 
 # Alias für die Test-Route
 send_email = _send
@@ -392,23 +398,5 @@ def send_backup(attachments, n_events: int, n_dienstleister: int):
       Tipp: Die CSV-Dateien lassen sich direkt in Excel öffnen (Umlaute inklusive).
     </p>"""
 
-    if not cfg.get("smtp_host"):
-        print(f"[MOCK BACKUP] An: {BACKUP_EMPFAENGER} – {n_events} Events, "
-              f"{n_dienstleister} Dienstleister, Anhänge: {[a[0] for a in attachments]}")
-        return
-
-    msg = MIMEMultipart("mixed")
-    msg["Subject"] = f"🗄️ Backup {datum} – Kindsalabim Events"
-    msg["From"]    = cfg["smtp_from"]
-    msg["To"]      = BACKUP_EMPFAENGER
-
-    alt = MIMEMultipart("alternative")
-    alt.attach(MIMEText(_wrap(content, color, cfg), "html", "utf-8"))
-    msg.attach(alt)
-
-    for filename, data in attachments:
-        part = MIMEApplication(data, _subtype="csv")
-        part.add_header("Content-Disposition", "attachment", filename=filename)
-        msg.attach(part)
-
-    _smtp_send(BACKUP_EMPFAENGER, msg)
+    _deliver(BACKUP_EMPFAENGER, f"🗄️ Backup {datum} – Kindsalabim Events",
+             _wrap(content, color, cfg), attachments)

@@ -22,6 +22,7 @@ def get_config():
             "ADMIN_EMAIL":        "admin_email",
             "ADMIN_PASSWORD_HASH":"admin_password_hash",
             "CRON_SECRET":        "cron_secret",
+            "RESEND_API_KEY":     "resend_api_key",
         }
         for env_key, cfg_key in env_map.items():
             val = os.environ.get(env_key)
