@@ -22,8 +22,13 @@
   <aside id="sidebar" style="background-color: var(--brand-primary);">
 
     <!-- Logo -->
-    <div class="px-5 py-5" style="border-bottom: 1px solid rgba(255,255,255,0.12);">
-      <div class="font-bold text-white text-base leading-tight tracking-tight">{{ cfg.app_name }}</div>
+    <div class="px-4 py-4" style="border-bottom: 1px solid rgba(255,255,255,0.12);">
+      <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='block'"
+           style="height:36px;width:auto;object-fit:contain;">
+      <div style="display:none;">
+        <div class="font-bold text-white text-base leading-tight tracking-tight">{{ cfg.app_name }}</div>
+      </div>
       <div class="text-xs mt-1" style="color: rgba(255,255,255,0.5);">Admin</div>
     </div>
 

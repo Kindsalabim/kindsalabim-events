@@ -30,7 +30,16 @@
     <tbody>
       {% for d in dienstleister %}
       <tr class="hover:bg-gray-50 transition-colors {% if not d.aktiv %}opacity-40{% endif %}" style="border-bottom: 1px solid #f9fafb;">
-        <td class="px-5 py-3.5 font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}</td>
+        <td class="px-5 py-3.5 font-medium text-gray-800">
+          <div class="flex items-center gap-1.5">
+            {{ d.vorname }} {{ d.nachname }}
+            {% if d.logistiker %}
+            <span title="Logistiker – Materialabholung möglich">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#003864" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </span>
+            {% endif %}
+          </div>
+        </td>
         <td class="px-5 py-3.5 text-gray-500">{{ d.email }}</td>
         <td class="px-5 py-3.5 text-gray-500">{{ d.plz }} {{ d.stadt }}</td>
         <td class="px-5 py-3.5 text-gray-600">{{ d.rolle }}</td>

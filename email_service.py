@@ -171,6 +171,31 @@ def send_frist_verlaengerung(dienstleister, event, admin_email: str):
           _wrap(content, color, cfg))
 
 
+def send_material_erinnerung(event, admin_email: str):
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    content = f"""
+    <p style="margin:0 0 16px;font-size:16px;color:#111827;">📦 Material-Erinnerung</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      In <strong>3 Wochen</strong> findet folgendes Event statt, bei dem eine
+      <strong>Bakerross-Bastelaktion</strong> gebucht wurde. Bitte Material rechtzeitig bestellen!
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', event.anlass)}
+        {_info_row('Datum', event.datum)}
+        {_info_row('Kunde', event.kunde_firma)}
+        {_info_row('Gebuchte Aktionen', event.produkte)}
+      </table>
+    </div>
+    <p style="margin:0;font-size:13px;color:#9ca3af;">
+      Diese Erinnerung wird automatisch 3 Wochen vor dem Event-Datum gesendet.
+    </p>"""
+    _send(admin_email,
+          f"📦 Material bestellen: {event.anlass} am {event.datum} – {event.kunde_firma}",
+          _wrap(content, color, cfg))
+
+
 def send_checklist_email(event, base_url: str):
     cfg = get_config()
     color = _brand_color(event.marke)
