@@ -1,6 +1,6 @@
 # Kindsalabim Events – Technischer Bericht & Entwicklungs-Roadmap
 
-*Stand: 06.06.2026 · Erstellt nach vollständigem Code-Audit*
+*Stand: 06.06.2026 · Erstellt nach vollständigem Code-Audit · Aktualisiert nach PostgreSQL-Migration*
 
 ---
 
@@ -17,7 +17,7 @@ Darüber hinaus gibt es mehrere Sicherheits- und Robustheits-Themen mittlerer Pr
 | Bereich | Status |
 |---------|--------|
 | Funktionsumfang | 🟢 Sehr gut |
-| Datensicherheit (Persistenz) | 🔴 Kritisch |
+| Datensicherheit (Persistenz) | 🟢 Gelöst (PostgreSQL Basic auf Render, 06.06.2026) |
 | Zugriffssicherheit | 🟡 Verbesserungswürdig |
 | Code-Qualität / Wartbarkeit | 🟢 Gut |
 | Design / UX / UI | 🟢 Gut |
@@ -27,29 +27,17 @@ Darüber hinaus gibt es mehrere Sicherheits- und Robustheits-Themen mittlerer Pr
 
 ## 1. Kritische Schwachstellen (sofort handeln)
 
-### 1.1 🔴 Datenverlust bei jedem Deployment (HÖCHSTE PRIORITÄT)
+### 1.1 ✅ Datenverlust bei jedem Deployment (GELÖST, 06.06.2026)
 
-**Problem:** Die App nutzt eine SQLite-Datei (`events.db`) im Projektverzeichnis. Diese Datei ist via `.gitignore` aus dem Repository ausgeschlossen. Render-Webservices haben standardmäßig ein **flüchtiges Dateisystem** (ephemeral filesystem).
+**Lösung umgesetzt:** Render PostgreSQL Basic-256mb (Virginia) als managed DB. `database.py` liest `DATABASE_URL` aus der Umgebung (psycopg3/`postgresql+psycopg://`), Fallback auf SQLite lokal. Persistenz-Test bestanden: Daten überleben Redeployments.
 
-**Konsequenz:** Bei **jedem** `git push` (= automatisches Re-Deployment auf Render) wird der Container neu gebaut. Die `events.db` existiert dann nicht mehr und wird leer neu erzeugt. **Alle Events, Dienstleister, Anfragen und Checklisten-Daten sind weg.**
+### 1.2 ⏳ Backup-Mechanismus (NÄCHSTER SCHRITT)
 
-In den letzten Tagen haben wir bei jeder Änderung gepusht – produktiv wäre damit jedes Mal die komplette Datenbank gelöscht worden. Aktuell fällt das nicht auf, weil hauptsächlich lokal getestet wurde.
+**Render-seitig bereits aktiv:** Basic PostgreSQL enthält tägliche Backups mit 7-Tage-Retention (Point-in-Time-Recovery). Das deckt den Hauptfall (Datenbankfehler, Render-Ausfall) ab.
 
-**Lösungsoptionen:**
+**Noch offen:** Menschenlesbarer Notfall-Export für den Fall, dass jemand versehentlich Datensätze löscht – Render-Backups sind nur über das Dashboard wiederherstellbar, nicht selbst abrufbar.
 
-| Option | Aufwand | Empfehlung |
-|--------|---------|------------|
-| **A) Render Persistent Disk** + SQLite-Datei darauf | Gering | Gut für Einzelinstanz, günstigste Lösung |
-| **B) Render PostgreSQL** (managed) | Mittel | **Empfohlen** – robust, Backups, skaliert |
-| C) Externe DB (Supabase/Neon free tier) | Mittel | Gute Alternative zu B |
-
-**Empfehlung:** Umstieg auf **PostgreSQL**. SQLAlchemy ist bereits im Einsatz – der Wechsel betrifft nur die Connection-URL und kleine Anpassungen. Persistent Disk (Option A) ist der schnellste Zwischenschritt für sofortige Sicherheit.
-
-### 1.2 🔴 Kein Backup-Mechanismus
-
-Selbst nach Behebung von 1.1 gibt es keine automatischen Backups. Ein versehentliches Löschen eines Events oder Dienstleisters ist unwiderruflich.
-
-**Lösung:** Bei PostgreSQL auf Render sind tägliche Backups (je nach Plan) inklusive. Zusätzlich: wöchentlicher CSV-Export aller Events/Dienstleister per Cron in eine E-Mail an das Büro.
+**Geplante Lösung:** Wöchentlicher Cron-Job (montags 08:00) → neuer Endpunkt `/cron/backup` → CSV-Export (Events + Dienstleister) per E-Mail an Admin.
 
 ---
 
@@ -184,8 +172,8 @@ Eine zentrale Wochenansicht: „Welches Material muss diese Woche bestellt werde
 ## 7. Empfohlene Roadmap (nächste Tage)
 
 ### Phase 1 – Fundament sichern (ZUERST, nicht verhandelbar)
-1. **Datenpersistenz lösen** (Persistent Disk sofort, dann PostgreSQL) — *Abschnitt 1.1*
-2. **Backup einrichten** — *1.2*
+1. ✅ **Datenpersistenz gelöst** (PostgreSQL Basic auf Render, 06.06.2026) — *Abschnitt 1.1*
+2. ⏳ **Backup einrichten** (wöchentlicher CSV-Export per Cron) — *1.2*
 3. **Cookie-Security** (`secure` + `samesite`) — *2.1*
 4. **Datum auf echten Date-Typ** umstellen — *3.1*
 

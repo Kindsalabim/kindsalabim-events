@@ -2,17 +2,17 @@
 
 > **Zweck dieses Dokuments:** Vollständige Übergabe für eine neue Claude-Session.
 > Lies dieses Dokument zuerst, dann `BERICHT_UND_ROADMAP.md`. Damit bist du vollständig im Bild.
-> *Letzte Aktualisierung: 06.06.2026*
+> *Letzte Aktualisierung: 06.06.2026 (nach PostgreSQL-Migration)*
 
 ---
 
 ## 0. Sofort-Kontext (in 30 Sekunden)
 
 - **Was:** Web-App für Event-Management von Kinderevents, zwei Marken (Kindsalabim = blau `#003864`, Knallfrosch = grün `#1a7a1a`).
-- **Stack:** FastAPI + SQLite (SQLAlchemy) + Jinja2 + Tailwind (CDN). Kein Build-Step, kein Node.
+- **Stack:** FastAPI + **PostgreSQL** (SQLAlchemy) + Jinja2 + Tailwind (CDN). Kein Build-Step, kein Node.
 - **Betreiber:** Aykut (a.malca@kindsalabim.de). Kein IT-Profi, aber versiert, lernt schnell. Kommuniziert auf Deutsch.
 - **Hosting:** Render (Auto-Deploy bei git push auf `master`).
-- **AKTUELLE AUFGABE:** Umstieg SQLite → PostgreSQL (Datenpersistenz-Fix). Siehe Abschnitt 6.
+- **AKTUELLE AUFGABE:** Backup-Strategie einrichten (Phase 1.2). Render-Backups bereits aktiv; wöchentlicher CSV-Export per Cron noch offen. Siehe Abschnitt 6.
 
 ---
 
@@ -155,34 +155,34 @@ git add . && git commit -m "..." && git push origin master
 
 ---
 
-## 6. AKTUELLE AUFGABE: PostgreSQL-Migration (Phase 1, Schritt 1)
+## 6. AKTUELLE AUFGABE: Backup-Strategie (Phase 1, Schritt 2)
 
-### Warum (KRITISCH)
-SQLite-Datei `events.db` liegt auf Renders **flüchtigem** Dateisystem und ist gitignored.
-→ **Bei JEDEM git push wird die Produktiv-Datenbank gelöscht** (Container-Rebuild, leere DB).
-Noch nicht aufgefallen, weil v. a. lokal getestet wurde. Vor Echtbetrieb zwingend zu lösen.
+### ✅ Phase 1.1 – PostgreSQL-Migration (ERLEDIGT, 06.06.2026)
+- Render PostgreSQL Basic-256mb (Virginia) angelegt.
+- `database.py`: `DATABASE_URL` aus ENV, Fallback auf SQLite für lokal.
+  - Dialekt-Fix: `postgres://` → `postgresql://` → `postgresql+psycopg://` (psycopg3).
+- `requirements.txt`: `psycopg[binary]>=3.1` (psycopg3, Python 3.14-kompatibel).
+- `main.py`: Migrationen Postgres-sicher (`DEFAULT false`, `ADD COLUMN IF NOT EXISTS`).
+- `render.yaml`: `DATABASE_URL` bei Web- und Cron-Service.
+- Persistenz-Test ✅: Event überlebt Redeploy.
 
-### Plan (mit Aykut so besprochen, er hat "ja bitte" gesagt)
-1. **PostgreSQL auf Render anlegen** (managed DB; Aykut muss das im Render-Dashboard klicken – Anleitung geben).
-2. **`database.py` anpassen:** `DATABASE_URL` aus ENV lesen, Fallback auf SQLite für lokal.
-   - `psycopg2-binary` (oder `psycopg`) zu requirements.txt.
-   - Postgres-URL-Format: `postgresql://...`. Render liefert die URL als ENV `DATABASE_URL`.
-3. **`config.py`:** `DATABASE_URL` ins ENV-Mapping (bzw. direkt in database.py via `os.environ`).
-4. **Migrationen:** Die ad-hoc `ALTER TABLE`-Logik in `main.py` ist SQLite-Syntax-tolerant – bei Postgres prüfen (z. B. `BOOLEAN DEFAULT 0` → `DEFAULT false`). Sauberer: jetzt auf **Alembic** umsteigen (optional, Aufwand abwägen).
-5. **Lokal testen:** Läuft die App mit SQLite weiterhin? (Fallback wichtig, damit lokale Entwicklung einfach bleibt.)
-6. **Render:** `DATABASE_URL` als ENV setzen (Render verknüpft managed DB meist automatisch), deployen, prüfen dass Daten persistent bleiben (Test: Event anlegen → kleines Redeploy → Event noch da).
+### Phase 1.2 – Backup-Strategie (JETZT)
+**Was bereits aktiv ist:** Render Basic PostgreSQL enthält automatische tägliche Backups (Point-in-Time-Recovery, 7-Tage-Retention). Das ist der Hauptschutz.
 
-### Wichtige Hinweise für die Migration
-- **Datum-Felder sind Strings** (`"TT.MM.JJJJ"`). Bei der Gelegenheit NICHT zwingend ändern (eigener Roadmap-Punkt 3.1), aber im Hinterkopf behalten – String-Vergleiche im Cron sind fragil.
-- Aykut ist kein IT-ler: Render-Schritte als **klare Klick-Anleitung** geben, nicht nur CLI.
-- Nach erfolgreicher Migration: Backup-Strategie ansprechen (Roadmap 1.2).
+**Was noch fehlt:** Menschenlesbarer Notfall-Export — falls Render komplett ausfällt oder jemand versehentlich alle Events löscht, will Aykut eine CSV in seiner E-Mail haben.
+
+**Plan:**
+1. Neuen Cron-Endpunkt `/cron/backup` (in `routes/cron.py`) bauen.
+2. Exportiert alle Events + Dienstleister als CSV.
+3. Schickt CSV per E-Mail an Admin (`a.malca@kindsalabim.de`) — wöchentlich, montags 08:00.
+4. Render-Cron-Service (`render.yaml`) um einen zweiten Cron-Job erweitern.
 
 ---
 
 ## 7. Roadmap (Kurzfassung – Details in BERICHT_UND_ROADMAP.md)
 
 **Phase 1 – Fundament (JETZT):**
-1. ⏳ PostgreSQL (aktuelle Aufgabe) · 2. Backups · 3. Cookie-Security (`secure`+`samesite`) · 4. Datum→Date-Typ
+1. ✅ PostgreSQL (erledigt 06.06.2026) · 2. ⏳ Backups (aktuelle Aufgabe) · 3. Cookie-Security (`secure`+`samesite`) · 4. Datum→Date-Typ
 
 **Phase 2 – Robustheit & Automatisierung:**
 5. Abgelaufene Anfragen auto-behandeln · 6. Logistiker-Pflicht & -Priorität im Ranking ·
