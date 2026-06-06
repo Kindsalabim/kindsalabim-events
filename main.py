@@ -9,36 +9,42 @@ from routes.checklist import router as checklist_router
 from routes.cron import router as cron_router
 
 def run_migrations():
-    """Fügt fehlende Spalten zur bestehenden Datenbank hinzu."""
+    """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
     from sqlalchemy import text
-    # Neue Spalten in Dienstleister
+
+    is_postgres = engine.dialect.name == "postgresql"
+
+    def add_column(table: str, col: str, typedef: str):
+        # Postgres kennt kein "BOOLEAN DEFAULT 0" – nur true/false.
+        if is_postgres:
+            typedef = typedef.replace("DEFAULT 0", "DEFAULT false")
+            sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typedef}"
+        else:
+            sql = f"ALTER TABLE {table} ADD COLUMN {col} {typedef}"
+        # Frische Verbindung pro Spalte: ein Fehler bricht so nicht die Folge-ALTERs ab.
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                conn.rollback()  # Spalte existiert bereits (SQLite wirft hier)
+
     dl_columns = [
         ("magic_token",         "VARCHAR"),
         ("magic_token_expires", "VARCHAR"),
         ("logistiker",          "BOOLEAN DEFAULT 0"),
         ("fuehrerschein",       "BOOLEAN DEFAULT 0"),
     ]
-    with engine.connect() as conn:
-        for col, typedef in dl_columns:
-            try:
-                conn.execute(text(f"ALTER TABLE dienstleister ADD COLUMN {col} {typedef}"))
-                conn.commit()
-            except Exception:
-                pass
+    for col, typedef in dl_columns:
+        add_column("dienstleister", col, typedef)
 
-    # Neue Spalten in Verfuegbarkeitsanfragen
     vf_columns = [
         ("frist_datum",          "VARCHAR"),
         ("frist_verlaengert",    "BOOLEAN DEFAULT 0"),
         ("erinnerung_gesendet",  "BOOLEAN DEFAULT 0"),
     ]
-    with engine.connect() as conn:
-        for col, typedef in vf_columns:
-            try:
-                conn.execute(text(f"ALTER TABLE verfuegbarkeitsanfragen ADD COLUMN {col} {typedef}"))
-                conn.commit()
-            except Exception:
-                pass
+    for col, typedef in vf_columns:
+        add_column("verfuegbarkeitsanfragen", col, typedef)
 
     new_columns = [
         ("marke",                    "VARCHAR DEFAULT 'Kindsalabim'"),
@@ -58,13 +64,8 @@ def run_migrations():
         ("cl_parkplatz",             "TEXT"),
         ("cl_eingereicht_am",        "VARCHAR"),
     ]
-    with engine.connect() as conn:
-        for col, typedef in new_columns:
-            try:
-                conn.execute(text(f"ALTER TABLE events ADD COLUMN {col} {typedef}"))
-                conn.commit()
-            except Exception:
-                pass  # Spalte existiert bereits
+    for col, typedef in new_columns:
+        add_column("events", col, typedef)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

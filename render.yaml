@@ -21,6 +21,8 @@ services:
         sync: false
       - key: CRON_SECRET
         sync: false
+      - key: DATABASE_URL
+        sync: false
 
   - type: cron
     name: erinnerungs-email
@@ -30,4 +32,6 @@ services:
     startCommand: python cron_runner.py
     envVars:
       - key: CRON_SECRET
+        sync: false
+      - key: DATABASE_URL
         sync: false
