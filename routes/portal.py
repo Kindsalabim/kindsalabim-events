@@ -130,6 +130,11 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
     if a and antwort in ("Ja", "Nein"):
         a.status = antwort
         db.commit()
+        # Event-Status automatisch aktualisieren
+        from routes.admin import auto_status
+        ev = a.event
+        ev.status = auto_status(ev, db)
+        db.commit()
     return RedirectResponse("/portal", status_code=303)
 
 

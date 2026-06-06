@@ -35,13 +35,12 @@
 
   <!-- Header -->
   <div class="text-center mb-8">
-    <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style="background: var(--brand);">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-    </div>
-    <h1 class="text-xl font-bold text-gray-900">
-      {% if ev.marke == 'Knallfrosch' %}Knallfrosch{% else %}Kindsalabim{% endif %}
-      – Veranstaltungs-Checkliste
-    </h1>
+    {% if ev.marke == 'Knallfrosch' %}
+      <img src="/static/img/logo-knallfrosch.png" alt="Knallfrosch" style="height:52px;width:auto;margin:0 auto 1rem;display:block;">
+    {% else %}
+      <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim" style="height:52px;width:auto;margin:0 auto 1rem;display:block;">
+    {% endif %}
+    <h1 class="text-xl font-bold text-gray-900">Veranstaltungs-Checkliste</h1>
     <p class="text-sm text-gray-500 mt-1">{{ ev.anlass }} · {{ ev.datum }}</p>
   </div>
 

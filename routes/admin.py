@@ -209,6 +209,37 @@ def event_delete(event_id: int, db: Session = Depends(get_db), _=Depends(get_adm
     return RedirectResponse("/admin/dashboard", status_code=303)
 
 
+# ── Status-Automatik ───────────────────────────────────────────────────────────
+
+def auto_status(ev, db) -> str:
+    """Berechnet automatischen Event-Status basierend auf dem Fortschritt."""
+    # Manuell gesetzte Endzustände nicht überschreiben
+    if ev.status in ("Abgeschlossen", "Briefing gesendet"):
+        return ev.status
+
+    anfragen = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.event_id == ev.id).all()
+    confirmed = [a for a in anfragen if a.status == "Ja"]
+
+    teamer_ok    = sum(1 for a in confirmed if a.rolle_anfrage == "Teamer")    >= ev.anzahl_teamer
+    kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler")  >= ev.anzahl_kuenstler
+
+    # Logistiker: mind. 1 bestätigter Logistiker nötig (außer nur Künstler)
+    nur_kuenstler = (ev.anzahl_teamer == 0 and ev.anzahl_kuenstler > 0)
+    logistiker_ok = nur_kuenstler or any(
+        a.dienstleister.logistiker for a in confirmed if a.dienstleister)
+
+    if teamer_ok and kuenstler_ok and logistiker_ok and ev.cl_eingereicht_am:
+        return "Planung fertig"
+    if ev.cl_eingereicht_am:
+        return "Checkliste eingegangen"
+    if ev.checklist_token and not ev.cl_eingereicht_am:
+        return "Checkliste geschickt"
+    if anfragen:
+        return "Dienstleister angefragt"
+    return ev.status  # bleibt "Entwurf" / manuell gesetzt
+
+
 # ── Verfügbarkeitsanfragen ─────────────────────────────────────────────────────
 
 @router.post("/events/{event_id}/anfragen")
@@ -239,6 +270,8 @@ def send_anfragen(
             if d:
                 send_verfuegbarkeitsanfrage(d, ev, a.id, base_url)
     db.commit()
+    ev.status = auto_status(ev, db)
+    db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
 @router.post("/events/{event_id}/checklist")
@@ -252,10 +285,12 @@ def send_checklist(
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_email", status_code=303)
     if not ev.checklist_token:
         ev.checklist_token = str(uuid.uuid4())
-        db.commit()
+    db.commit()
     base_url = str(request.base_url).rstrip("/")
     from email_service import send_checklist_email
     send_checklist_email(ev, base_url)
+    ev.status = auto_status(ev, db)
+    db.commit()
     return RedirectResponse(f"/admin/events/{event_id}?checklist_sent=1", status_code=303)
 
 
