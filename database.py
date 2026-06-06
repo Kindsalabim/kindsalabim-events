@@ -5,9 +5,13 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 # DATABASE_URL aus der Umgebung (Render-PostgreSQL); Fallback auf lokale SQLite-Datei.
 SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./events.db")
 
-# Render liefert die URL teils als "postgres://" – SQLAlchemy braucht "postgresql://".
+# Render liefert die URL teils als "postgres://" – normalisieren auf "postgresql://".
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# psycopg3 braucht den Dialekt "postgresql+psycopg://".
+if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
