@@ -66,6 +66,10 @@ def checklist_submit(
     ev.cl_parkplatz             = parkplatz
     ev.cl_eingereicht_am        = datetime.now().strftime("%d.%m.%Y %H:%M")
     db.commit()
+    # Status automatisch aktualisieren
+    from routes.admin import auto_status
+    ev.status = auto_status(ev, db)
+    db.commit()
 
     # Admin-Benachrichtigung
     from email_service import send_checklist_notification

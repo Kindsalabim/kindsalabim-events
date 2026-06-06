@@ -3,6 +3,13 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from config import get_config
 
+# Logos als Base64 (inline – funktioniert in allen E-Mail-Clients)
+try:
+    from logo_b64 import KS_B64, KF_B64
+except ImportError:
+    KS_B64 = ""
+    KF_B64 = ""
+
 
 def _send(to: str, subject: str, body_html: str):
     cfg = get_config()
@@ -30,8 +37,18 @@ def _send(to: str, subject: str, body_html: str):
 send_email = _send
 
 
+def _logo_img(brand_color: str) -> str:
+    """Gibt passendes Logo-Tag zurück (Base64 inline)."""
+    is_kf = brand_color == "#1a7a1a"
+    b64   = KF_B64 if is_kf else KS_B64
+    if not b64:
+        return ""
+    return f'<img src="data:image/png;base64,{b64}" alt="{"Knallfrosch" if is_kf else "KindSalabim"}" style="height:44px;width:auto;display:block;">'
+
+
 def _wrap(content: str, brand_color: str, cfg: dict) -> str:
-    """Hüllt E-Mail-Inhalt in ein sauberes HTML-Layout."""
+    """Hüllt E-Mail-Inhalt in ein sauberes HTML-Layout mit Logo."""
+    logo = _logo_img(brand_color)
     return f"""<!DOCTYPE html>
 <html lang="de">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -40,12 +57,10 @@ def _wrap(content: str, brand_color: str, cfg: dict) -> str:
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
-        <!-- Header -->
+        <!-- Header mit Logo -->
         <tr>
-          <td style="background:{brand_color};border-radius:12px 12px 0 0;padding:28px 36px;">
-            <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">
-              {cfg['company_name']}
-            </p>
+          <td style="background:{brand_color};border-radius:12px 12px 0 0;padding:24px 36px;">
+            {logo if logo else f'<p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">{cfg["company_name"]}</p>'}
           </td>
         </tr>
 
