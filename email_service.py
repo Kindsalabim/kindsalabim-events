@@ -1,7 +1,12 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+from datetime import datetime
 from config import get_config
+
+# Empfänger für den wöchentlichen CSV-Backup-Export
+BACKUP_EMPFAENGER = "a.malca@kindsalabim.de"
 
 # Logos als Base64 (inline – funktioniert in allen E-Mail-Clients)
 try:
@@ -9,6 +14,20 @@ try:
 except ImportError:
     KS_B64 = ""
     KF_B64 = ""
+
+
+def _smtp_send(to: str, msg):
+    """Verschickt eine fertig gebaute MIME-Nachricht über den konfigurierten SMTP-Server."""
+    cfg = get_config()
+    if cfg["smtp_port"] == 465:
+        with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"]) as server:
+            server.login(cfg["smtp_user"], cfg["smtp_password"])
+            server.sendmail(cfg["smtp_from"], to, msg.as_string())
+    else:
+        with smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"]) as server:
+            server.starttls()
+            server.login(cfg["smtp_user"], cfg["smtp_password"])
+            server.sendmail(cfg["smtp_from"], to, msg.as_string())
 
 
 def _send(to: str, subject: str, body_html: str):
@@ -23,15 +42,7 @@ def _send(to: str, subject: str, body_html: str):
     msg["To"]      = to
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
-    if cfg["smtp_port"] == 465:
-        with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"]) as server:
-            server.login(cfg["smtp_user"], cfg["smtp_password"])
-            server.sendmail(cfg["smtp_from"], to, msg.as_string())
-    else:
-        with smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"]) as server:
-            server.starttls()
-            server.login(cfg["smtp_user"], cfg["smtp_password"])
-            server.sendmail(cfg["smtp_from"], to, msg.as_string())
+    _smtp_send(to, msg)
 
 # Alias für die Test-Route
 send_email = _send
@@ -358,3 +369,46 @@ def send_briefing(dienstleister_list, event, base_url: str):
         </div>"""
 
         _send(d.email, subject, _wrap(content, color, cfg))
+
+
+def send_backup(attachments, n_events: int, n_dienstleister: int):
+    """Schickt die CSV-Dateien (Liste von (dateiname, bytes)) als Anhang an den Admin."""
+    cfg = get_config()
+    color = "#003864"
+    datum = datetime.today().strftime("%d.%m.%Y")
+    content = f"""
+    <p style="margin:0 0 16px;font-size:16px;color:#111827;">🗄️ Wöchentliches Daten-Backup</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      Im Anhang findest du den aktuellen CSV-Export vom <strong>{datum}</strong>.
+      Bewahre die E-Mail auf – sie dient als menschenlesbares Notfall-Backup.
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Events', str(n_events))}
+        {_info_row('Dienstleister', str(n_dienstleister))}
+      </table>
+    </div>
+    <p style="margin:0;font-size:13px;color:#9ca3af;">
+      Tipp: Die CSV-Dateien lassen sich direkt in Excel öffnen (Umlaute inklusive).
+    </p>"""
+
+    if not cfg.get("smtp_host"):
+        print(f"[MOCK BACKUP] An: {BACKUP_EMPFAENGER} – {n_events} Events, "
+              f"{n_dienstleister} Dienstleister, Anhänge: {[a[0] for a in attachments]}")
+        return
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = f"🗄️ Backup {datum} – Kindsalabim Events"
+    msg["From"]    = cfg["smtp_from"]
+    msg["To"]      = BACKUP_EMPFAENGER
+
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(_wrap(content, color, cfg), "html", "utf-8"))
+    msg.attach(alt)
+
+    for filename, data in attachments:
+        part = MIMEApplication(data, _subtype="csv")
+        part.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(part)
+
+    _smtp_send(BACKUP_EMPFAENGER, msg)
