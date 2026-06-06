@@ -65,6 +65,8 @@ class Dienstleister(Base):
     mobilitaet = Column(String, default="Auto")  # Auto, ÖPNV, Beides
     kleidergroesse = Column(String)
     aktiv = Column(Boolean, default=True)
+    logistiker = Column(Boolean, default=False)  # Kann Material transportieren
+    fuehrerschein = Column(Boolean, default=False)
     password_hash = Column(String)               # für Portal-Login (Legacy)
     magic_token = Column(String)                 # Magic-Link-Token
     magic_token_expires = Column(String)         # ISO-Datetime

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from database import engine, Base
 from routes.admin import router as admin_router
 from routes.portal import router as portal_router
@@ -14,6 +15,8 @@ def run_migrations():
     dl_columns = [
         ("magic_token",         "VARCHAR"),
         ("magic_token_expires", "VARCHAR"),
+        ("logistiker",          "BOOLEAN DEFAULT 0"),
+        ("fuehrerschein",       "BOOLEAN DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for col, typedef in dl_columns:
@@ -70,6 +73,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Knallfrosch Events", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin_router)
 app.include_router(portal_router)
 app.include_router(checklist_router)

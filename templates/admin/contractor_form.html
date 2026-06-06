@@ -93,12 +93,37 @@
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
-      <label class="flex items-center gap-2.5 text-sm cursor-pointer">
-        <input type="checkbox" name="aktiv" value="true"
-          {% if not d or d.aktiv %}checked{% endif %}
-          class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
-        Aktiv (erscheint bei Verfügbarkeitsanfragen)
-      </label>
+      <div class="pt-3 space-y-3" style="border-top: 1px solid #f3f4f6;">
+        <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+          <input type="checkbox" name="aktiv" value="true"
+            {% if not d or d.aktiv %}checked{% endif %}
+            class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+          Aktiv (erscheint bei Verfügbarkeitsanfragen)
+        </label>
+        <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+          <input type="checkbox" name="fuehrerschein" value="true"
+            {% if d and d.fuehrerschein %}checked{% endif %}
+            class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+          Führerschein vorhanden
+        </label>
+
+        <!-- Logistiker-Feld – prominent -->
+        <div class="flex items-start gap-3 p-3 rounded-xl border-2 {% if d and d.logistiker %}border-blue-300 bg-blue-50{% else %}border-gray-100{% endif %} transition-colors" id="logistiker-box">
+          <label class="flex items-start gap-2.5 text-sm cursor-pointer w-full">
+            <input type="checkbox" name="logistiker" value="true"
+              {% if d and d.logistiker %}checked{% endif %}
+              class="rounded border-gray-300 mt-0.5" style="accent-color: #003864;"
+              onchange="document.getElementById('logistiker-box').className='flex items-start gap-3 p-3 rounded-xl border-2 transition-colors ' + (this.checked ? 'border-blue-300 bg-blue-50' : 'border-gray-100')">
+            <div>
+              <div class="flex items-center gap-1.5 font-semibold text-gray-800">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#003864" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                Logistiker · Materialabholung möglich
+              </div>
+              <p class="text-xs text-gray-400 mt-0.5">Kann Material zum Event transportieren (Kastenwagen)</p>
+            </div>
+          </label>
+        </div>
+      </div>
     </div>
 
     <!-- Portal-Zugang -->

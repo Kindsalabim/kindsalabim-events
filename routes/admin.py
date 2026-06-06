@@ -76,18 +76,40 @@ def test_email(user=Depends(get_admin_user)):
 
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    today = datetime.today().strftime("%d.%m.%Y")
+    today_str = datetime.today().strftime("%d.%m.%Y")
+    today_dt  = datetime.today()
     events = db.query(Event).all()
-    # Sort by date ascending
+
     def parse_date(e):
         try:
             return datetime.strptime(e.datum, "%d.%m.%Y")
         except:
             return datetime.max
+
     upcoming = sorted([e for e in events if e.status != "Abgeschlossen"], key=parse_date)
-    past = sorted([e for e in events if e.status == "Abgeschlossen"], key=parse_date, reverse=True)
+    past     = sorted([e for e in events if e.status == "Abgeschlossen"], key=parse_date, reverse=True)
+
+    # Fehlende Dienstleister berechnen
+    def fehlende_dl(ev):
+        """Gibt (fehlende_teamer, fehlende_kuenstler) zurück."""
+        anfragen = db.query(Verfuegbarkeitsanfrage).filter(
+            Verfuegbarkeitsanfrage.event_id == ev.id,
+            Verfuegbarkeitsanfrage.status == "Ja"
+        ).all()
+        teamer    = sum(1 for a in anfragen if a.rolle_anfrage == "Teamer")
+        kuenstler = sum(1 for a in anfragen if a.rolle_anfrage == "Künstler")
+        return max(0, ev.anzahl_teamer - teamer), max(0, ev.anzahl_kuenstler - kuenstler)
+
+    upcoming_data = []
+    for ev in upcoming:
+        ft, fk = fehlende_dl(ev)
+        days_until = (parse_date(ev) - today_dt).days
+        upcoming_data.append({"ev": ev, "fehlende_teamer": ft,
+                               "fehlende_kuenstler": fk, "days_until": days_until})
+
     return templates.TemplateResponse("admin/dashboard.html",
-        tpl_context(request, upcoming=upcoming, past=past, today=today))
+        tpl_context(request, upcoming_data=upcoming_data, upcoming=upcoming,
+                    past=past, today=today_str))
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────
@@ -289,7 +311,8 @@ def dienstleister_create(
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
     rolle: str = Form("Teamer"), erfahrungspunkte: int = Form(0),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
-    aktiv: bool = Form(True), portal_passwort: str = Form(""),
+    aktiv: bool = Form(False), logistiker: bool = Form(False),
+    fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
 ):
     existing = db.query(Dienstleister).filter(Dienstleister.email == email).first()
     if existing:
@@ -300,7 +323,8 @@ def dienstleister_create(
         vorname=vorname, nachname=nachname, email=email, telefon=telefon,
         strasse=strasse, plz=plz, stadt=stadt, rolle=rolle,
         erfahrungspunkte=erfahrungspunkte, mobilitaet=mobilitaet,
-        kleidergroesse=kleidergroesse, aktiv=aktiv, password_hash=pw_hash
+        kleidergroesse=kleidergroesse, aktiv=aktiv, logistiker=logistiker,
+        fuehrerschein=fuehrerschein, password_hash=pw_hash
     )
     db.add(d); db.commit()
     return RedirectResponse("/admin/dienstleister", status_code=303)
@@ -320,14 +344,16 @@ def dienstleister_update(
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
     rolle: str = Form("Teamer"), erfahrungspunkte: int = Form(0),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
-    aktiv: bool = Form(True), portal_passwort: str = Form(""),
+    aktiv: bool = Form(False), logistiker: bool = Form(False),
+    fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
 ):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
     if not d: raise HTTPException(404)
     d.vorname = vorname; d.nachname = nachname; d.email = email
     d.telefon = telefon; d.strasse = strasse; d.plz = plz; d.stadt = stadt
     d.rolle = rolle; d.erfahrungspunkte = erfahrungspunkte
-    d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse; d.aktiv = aktiv
+    d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse
+    d.aktiv = aktiv; d.logistiker = logistiker; d.fuehrerschein = fuehrerschein
     if portal_passwort:
         d.password_hash = hash_password(portal_passwort)
     db.commit()
