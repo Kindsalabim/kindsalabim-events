@@ -1,6 +1,7 @@
 import base64
 import json
 import urllib.request
+import urllib.error
 from datetime import datetime
 from config import get_config
 
@@ -43,8 +44,12 @@ def _deliver(to: str, subject: str, html: str, attachments=None):
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")
+        raise RuntimeError(f"Resend HTTP {e.code}: {body}") from None
 
 
 def _send(to: str, subject: str, body_html: str):
