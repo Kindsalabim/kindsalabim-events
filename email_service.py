@@ -26,7 +26,7 @@ def _deliver(to: str, subject: str, html: str, attachments=None):
         return
 
     payload = {
-        "from": f'{cfg.get("company_name", "Kindsalabim")} <{cfg["smtp_from"]}>',
+        "from": f'{cfg.get("company_name", "Kindsalabim")} <{cfg["mail_from"]}>',
         "to": [to],
         "subject": subject,
         "html": html,

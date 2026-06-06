@@ -1,0 +1,17 @@
+# Nicht-geheime Standard-Konfiguration (committet, im Repo).
+# Secrets (secret_key, admin_password_hash, cron_secret, resend_api_key, …)
+# kommen NICHT hierher, sondern aus Environment-Variablen (Render) bzw. der
+# lokalen, gitignorierten config.yaml. Reihenfolge: defaults -> config.yaml -> ENV.
+
+app_name: "Kindsalabim Events"
+company_name: "Kindsalabim Kinderevents"
+company_address: "Charlottenweg 55, 45289 Essen"
+company_email: "info@kindsalabim.de"
+company_phone: "0177/7442137"
+primary_color: "#166534"
+admin_email: "a.malca@kindsalabim.de"
+
+# Absenderadresse für Resend (verifizierte Domain kindsalabim-events.de)
+mail_from: "noreply@kindsalabim-events.de"
+
+smtp_port: 465

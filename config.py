@@ -7,11 +7,19 @@ _cfg = None
 def get_config():
     global _cfg
     if _cfg is None:
-        path = Path(__file__).parent / "config.yaml"
-        with open(path, encoding="utf-8") as f:
-            _cfg = yaml.safe_load(f)
+        base = Path(__file__).parent
 
-        # Environment variables override yaml values (used on Render)
+        # 1. Nicht-geheime Defaults (committet, immer vorhanden)
+        with open(base / "config.defaults.yaml", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+
+        # 2. Lokale config.yaml mit Secrets (gitignored, nur lokal vorhanden)
+        local = base / "config.yaml"
+        if local.exists():
+            with open(local, encoding="utf-8") as f:
+                cfg.update(yaml.safe_load(f) or {})
+
+        # 3. Environment variables override yaml values (used on Render)
         env_map = {
             "SMTP_HOST":          "smtp_host",
             "SMTP_PORT":          "smtp_port",
@@ -27,6 +35,8 @@ def get_config():
         for env_key, cfg_key in env_map.items():
             val = os.environ.get(env_key)
             if val:
-                _cfg[cfg_key] = int(val) if cfg_key == "smtp_port" else val
+                cfg[cfg_key] = int(val) if cfg_key == "smtp_port" else val
+
+        _cfg = cfg
 
     return _cfg
