@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from database import get_db
 from models import Dienstleister, Verfuegbarkeitsanfrage, Event
-from auth import get_portal_user, create_token, create_magic_token, verify_magic_token
+from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
 
 router = APIRouter(prefix="/portal")
@@ -50,8 +50,8 @@ def portal_magic_auth(token: str, db: Session = Depends(get_db)):
         expires_minutes=60 * 24 * 30
     )
     resp = RedirectResponse("/portal", status_code=303)
-    resp.set_cookie("portal_token", session_token, httponly=True,
-                    max_age=60 * 60 * 24 * 30)
+    resp.set_cookie("portal_token", session_token, httponly=True, secure=COOKIE_SECURE,
+                    samesite="lax", max_age=60 * 60 * 24 * 30)
     return resp
 
 @router.get("/logout")
