@@ -16,14 +16,14 @@
   <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
     <div>
       <div class="flex items-center gap-2.5 mb-1 flex-wrap">
-        <h1 class="text-xl font-bold text-gray-900">{{ ev.anlass }}</h1>
+        <h1 class="text-xl font-bold text-gray-900">{{ ev.kunde_firma }}</h1>
         {% if ev.marke == 'Knallfrosch' %}
           <span class="brand-tag-knallfrosch">Knallfrosch</span>
         {% else %}
           <span class="brand-tag-kindsalabim">Kindsalabim</span>
         {% endif %}
       </div>
-      <p class="text-sm text-gray-500">{{ ev.kunde_firma }} · {{ ev.datum | de_date }} · {{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
+      <p class="text-sm text-gray-500">{{ ev.anlass }} · {{ ev.datum | de_date }} · {{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <a href="/admin/events/{{ ev.id }}/edit" class="btn-secondary">
@@ -80,8 +80,8 @@
 </div>
 
 {% if ev.hinweise %}
-<div class="mb-5 px-4 py-3 rounded-xl text-sm leading-relaxed flex items-start gap-2" style="background:#fffbeb;border-left:3px solid #f59e0b;color:#78350f;">
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" class="shrink-0 mt-0.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+<div class="mb-5 px-4 py-3 rounded-xl text-sm leading-relaxed flex items-start gap-2" style="background:var(--c-amber-bg);color:var(--c-amber);">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
   <span><strong>Hinweis:</strong> {{ ev.hinweise }}</span>
 </div>
 {% endif %}
