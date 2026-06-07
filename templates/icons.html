@@ -45,3 +45,56 @@
 {%- endif -%}
 </svg>
 {%- endmacro %}
+
+{# Linien-Icon-Paket (KINDSALABIM Event Pack, 2-Ton Blau, 128er-Viewbox).
+   Aufruf: {{ evt('team', 30) }} – semantische Namen: zeitplan, team, checkliste,
+   standort, fahrzeug, kreativaktion, kids_corner, dokument, einsatz, nachricht. #}
+{% macro evt(name, size=30) -%}
+{%- set s = size|string -%}
+<svg width="{{ s }}" height="{{ s }}" viewBox="0 0 128 128" fill="none" style="display:inline-block;vertical-align:middle;flex-shrink:0;">
+{%- if name == 'zeitplan' -%}
+  <circle cx="64" cy="64" r="38" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M64 42V66L80 78" stroke="#7FB3D9" stroke-width="6" stroke-linecap="round"/>
+{%- elif name == 'team' -%}
+  <circle cx="44" cy="44" r="14" stroke="#1D4E89" stroke-width="6"/>
+  <circle cx="84" cy="44" r="14" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M24 92C24 76 36 68 44 68C52 68 64 76 64 92" stroke="#1D4E89" stroke-width="6" stroke-linecap="round"/>
+  <path d="M64 92C64 76 76 68 84 68C92 68 104 76 104 92" stroke="#1D4E89" stroke-width="6" stroke-linecap="round"/>
+{%- elif name == 'checkliste' -%}
+  <rect x="28" y="18" width="72" height="92" rx="10" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M44 46L52 54L68 38" stroke="#7FB3D9" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M44 74L52 82L68 66" stroke="#7FB3D9" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+{%- elif name == 'standort' -%}
+  <path d="M64 108C64 108 92 78 92 54C92 38.536 79.464 26 64 26C48.536 26 36 38.536 36 54C36 78 64 108 64 108Z" stroke="#1D4E89" stroke-width="6"/>
+  <circle cx="64" cy="54" r="10" fill="#7FB3D9"/>
+{%- elif name == 'fahrzeug' -%}
+  <rect x="18" y="42" width="72" height="36" rx="8" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M90 54H108V78H90" stroke="#1D4E89" stroke-width="6"/>
+  <circle cx="38" cy="88" r="8" fill="#7FB3D9"/>
+  <circle cx="90" cy="88" r="8" fill="#7FB3D9"/>
+{%- elif name == 'kreativaktion' -%}
+  <circle cx="50" cy="50" r="24" stroke="#1D4E89" stroke-width="6"/>
+  <circle cx="80" cy="38" r="8" fill="#7FB3D9"/>
+  <circle cx="92" cy="62" r="8" fill="#A7D987"/>
+  <circle cx="74" cy="84" r="8" fill="#FFD16B"/>
+  <path d="M66 66L102 102" stroke="#1D4E89" stroke-width="6" stroke-linecap="round"/>
+{%- elif name == 'kids_corner' -%}
+  <path d="M20 54L64 24L108 54" stroke="#1D4E89" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M32 54V94H96V54" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M48 94V66H80V94" stroke="#7FB3D9" stroke-width="6"/>
+{%- elif name == 'dokument' -%}
+  <path d="M36 18H74L96 40V110H36V18Z" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M74 18V40H96" stroke="#7FB3D9" stroke-width="6"/>
+  <path d="M48 62H84" stroke="#1D4E89" stroke-width="6" stroke-linecap="round"/>
+  <path d="M48 82H72" stroke="#1D4E89" stroke-width="6" stroke-linecap="round"/>
+{%- elif name == 'einsatz' -%}
+  <rect x="20" y="24" width="88" height="84" rx="18" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M40 52H88" stroke="#1D4E89" stroke-width="6" stroke-linecap="round"/>
+  <path d="M40 72H72" stroke="#1D4E89" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="88" cy="76" r="10" fill="#7FB3D9"/>
+{%- elif name == 'nachricht' -%}
+  <rect x="20" y="28" width="88" height="64" rx="16" stroke="#1D4E89" stroke-width="6"/>
+  <path d="M32 40L64 66L96 40" stroke="#7FB3D9" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}

@@ -1,19 +1,12 @@
 {% extends "base.html" %}
 {% block body %}
 
-<!-- Mobile top bar -->
+<!-- Mobile top bar (logo only – navigation via bottom nav) -->
 <div id="mobile-topbar" class="fixed top-0 left-0 right-0 z-30 flex items-center px-4 h-14 bg-white border-b border-gray-100 shadow-sm md:hidden">
-  <button id="hamburger" onclick="openSidebar()" class="p-2 rounded-lg hover:bg-gray-100 transition-colors -ml-1">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="3" y1="6" x2="21" y2="6"/>
-      <line x1="3" y1="12" x2="21" y2="12"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  </button>
   <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim"
        onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"
-       style="height:28px;width:auto;object-fit:contain;margin-left:0.75rem;">
-  <span style="display:none;" class="ml-3 font-semibold text-gray-800 text-sm">{{ cfg.app_name }}</span>
+       style="height:30px;width:auto;object-fit:contain;">
+  <span style="display:none;" class="font-bold text-gray-800 text-sm">{{ cfg.app_name }}</span>
 </div>
 
 <!-- Sidebar overlay (mobile) -->
@@ -21,62 +14,124 @@
 
 <div class="flex min-h-screen">
 
-  <!-- Sidebar -->
-  <aside id="sidebar" style="background-color: var(--brand-primary);">
+  <!-- ── Sidebar (weiß, Desktop) ── -->
+  <aside id="sidebar">
 
-    <!-- Logo -->
-    <div class="px-4 py-4" style="border-bottom: 1px solid rgba(255,255,255,0.12);">
-      <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='block'"
-           style="height:36px;width:auto;object-fit:contain;">
-      <div style="display:none;">
-        <div class="font-bold text-white text-base leading-tight tracking-tight">{{ cfg.app_name }}</div>
+    <!-- Logos beider Marken -->
+    <div style="padding:1.125rem 1.25rem;border-bottom:1px solid var(--line);">
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:nowrap;">
+        <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"
+             style="height:26px;width:auto;max-width:110px;object-fit:contain;flex-shrink:0;">
+        <span style="display:none;font-family:'Poppins',sans-serif;font-weight:700;color:var(--brand-primary);font-size:0.9rem;">KindSalabim</span>
+
+        <div style="width:1px;height:20px;background:var(--line);flex-shrink:0;"></div>
+
+        <img src="/static/img/logo-knallfrosch.png" alt="Knallfrosch"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"
+             style="height:20px;width:auto;max-width:90px;object-fit:contain;flex-shrink:0;">
+        <span style="display:none;font-family:'Poppins',sans-serif;font-weight:700;color:#1a7a1a;font-size:0.85rem;">Knallfrosch</span>
       </div>
-      <div class="text-xs mt-1" style="color: rgba(255,255,255,0.5);">Admin</div>
+      <p style="font-size:0.68rem;color:var(--ink-4);margin-top:0.5rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">Event-Management</p>
     </div>
 
-    <!-- Nav -->
+    <!-- Navigation -->
     <nav class="flex-1 px-3 py-4 space-y-0.5">
-      <a href="/admin/dashboard" onclick="closeSidebar()" class="sidebar-link {% if active=='dashboard' %}active{% endif %}">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      <a href="/admin/dashboard" class="sidebar-link {% if active=='dashboard' %}active{% endif %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/>
+          <rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
+        </svg>
         Dashboard
       </a>
-      <a href="/admin/events/new" onclick="closeSidebar()" class="sidebar-link {% if active=='new_event' %}active{% endif %}">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <a href="/admin/events/new" class="sidebar-link {% if active=='new_event' %}active{% endif %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
         Neues Event
       </a>
-      <a href="/admin/dienstleister" onclick="closeSidebar()" class="sidebar-link {% if active=='dienstleister' %}active{% endif %}">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <a href="/admin/dienstleister" class="sidebar-link {% if active=='dienstleister' %}active{% endif %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
         Dienstleister
       </a>
     </nav>
 
     <!-- Logout -->
-    <div class="px-3 py-4" style="border-top: 1px solid rgba(255,255,255,0.12);">
+    <div class="px-3 py-4" style="border-top:1px solid var(--line);">
       <a href="/admin/logout" class="sidebar-link">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
         Abmelden
       </a>
     </div>
   </aside>
 
-  <!-- Main -->
-  <main class="flex-1 overflow-auto pt-14 md:pt-0">
-    <div class="px-4 py-6 md:px-8 md:py-7 max-w-5xl">
+  <!-- ── Main content ── -->
+  <main class="flex-1 overflow-auto pt-14 pb-20 md:pt-0 md:pb-0">
+    <div class="px-4 py-6 md:px-10 md:py-9 max-w-5xl">
       {% block content %}{% endblock %}
     </div>
   </main>
 </div>
 
+<!-- ── Mobile Bottom Navigation ── -->
+<nav id="bottom-nav">
+  <a href="/admin/dashboard" class="bn-item {% if active=='dashboard' %}active{% endif %}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/>
+      <rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
+    </svg>
+    <span>Übersicht</span>
+  </a>
+  <a href="/admin/events/new" class="bn-item {% if active=='new_event' %}active{% endif %}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+    </svg>
+    <span>Neues Event</span>
+  </a>
+  <a href="/admin/dienstleister" class="bn-item {% if active=='dienstleister' %}active{% endif %}">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    <span>Team</span>
+  </a>
+  <button type="button" class="bn-item" onclick="openMehr()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+      <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+      <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+    </svg>
+    <span>Mehr</span>
+  </button>
+</nav>
+
+<!-- ── Mehr Drawer (mobile) ── -->
+<div id="mehr-overlay" onclick="closeMehr()"></div>
+<div id="mehr-drawer">
+  <div class="mehr-handle"></div>
+  <p style="font-size:0.68rem;font-weight:700;color:var(--ink-4);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem;">Weitere Optionen</p>
+  <a href="/admin/logout" class="mehr-item">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+    Abmelden
+  </a>
+</div>
+
 <script>
-  function openSidebar() {
-    document.getElementById('sidebar').classList.add('open');
-    document.getElementById('sidebar-overlay').classList.add('open');
-  }
-  function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebar-overlay').classList.remove('open');
-  }
+  function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').classList.add('open'); }
+  function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('open'); }
+  function openMehr()     { document.getElementById('mehr-overlay').classList.add('open'); document.getElementById('mehr-drawer').classList.add('open'); }
+  function closeMehr()    { document.getElementById('mehr-overlay').classList.remove('open'); document.getElementById('mehr-drawer').classList.remove('open'); }
 </script>
 
 {% endblock %}
