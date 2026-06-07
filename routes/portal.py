@@ -8,11 +8,12 @@ from database import get_db
 from models import Dienstleister, Verfuegbarkeitsanfrage, Event
 from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
-from choices import de_date
+from choices import de_date, de_month
 
 router = APIRouter(prefix="/portal")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
+templates.env.filters["de_month"] = de_month
 
 def tpl_context(request: Request, **kwargs):
     return {"request": request, "cfg": get_config(), **kwargs}

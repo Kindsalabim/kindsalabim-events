@@ -5,61 +5,79 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Veranstaltungs-Checkliste</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; }
     {% if ev.marke == 'Knallfrosch' %}
-    :root { --brand: #1a7a1a; --brand-light: #f0faf0; }
+    :root { --brand: #1a7a1a; --brand-light: #E6F9EC; }
     {% else %}
-    :root { --brand: #003864; --brand-light: #e8f0f7; }
+    :root { --brand: #1D4E89; --brand-light: #EAF2FB; }
     {% endif %}
-    .btn { background: var(--brand); color: white; padding: .75rem 2rem; border-radius: .5rem; font-weight: 600; font-size: .95rem; border: none; cursor: pointer; width: 100%; transition: opacity .15s; }
-    .btn:hover { opacity: .85; }
-    .field label { display: block; font-size: .8rem; font-weight: 600; color: #6b7280; margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .04em; }
-    .field input, .field textarea, .field select { width: 100%; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .6rem .85rem; font-size: .9rem; font-family: inherit; background: white; transition: border-color .15s; box-sizing: border-box; }
-    .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--brand); }
+    :root {
+      --bg: #f0f5fc; --surface: #fff; --line: #e5ebf4;
+      --ink-1: #1a2332; --ink-2: #374151; --ink-3: #6b7280; --ink-4: #9ca3af;
+      --r-md: 0.875rem; --r-lg: 1.25rem;
+      --shadow-sm: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+      --shadow-md: 0 4px 20px rgba(16,24,40,0.09);
+    }
+    body { font-family: 'Nunito', system-ui, sans-serif; color: var(--ink-1); background: var(--bg); }
+    h1, h2, h3 { font-family: 'Poppins', 'Nunito', sans-serif; letter-spacing: -0.01em; }
+
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+
+    .btn { background: var(--brand); color: white; padding: .85rem 2rem; border-radius: var(--r-md); font-weight: 600; font-size: .95rem; border: none; cursor: pointer; width: 100%; transition: opacity .15s, transform .1s; box-shadow: 0 2px 8px rgba(29,78,137,0.22); }
+    .btn:hover  { opacity: .92; }
+    .btn:active { transform: translateY(1px); }
+
+    .field label { display: block; font-size: .78rem; font-weight: 700; color: var(--ink-3); margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .04em; }
+    .field input, .field textarea, .field select { width: 100%; border: 1px solid var(--line); border-radius: var(--r-md); padding: .65rem .9rem; font-size: .9rem; font-family: inherit; background: white; transition: border-color .15s, box-shadow .15s; box-sizing: border-box; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-light); }
+
     .checkbox-group { display: flex; flex-wrap: wrap; gap: .5rem; }
-    .checkbox-group label { display: flex; align-items: center; gap: .5rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem .85rem; font-size: .875rem; cursor: pointer; transition: border-color .15s, background .15s; }
-    .checkbox-group input[type=checkbox]:checked + span { font-weight: 600; color: var(--brand); }
+    .checkbox-group label { display: flex; align-items: center; gap: .5rem; background: #f8fafc; border: 1px solid var(--line); border-radius: var(--r-md); padding: .55rem .9rem; font-size: .875rem; cursor: pointer; transition: border-color .15s, background .15s; }
+    .checkbox-group input[type=checkbox]:checked + span { font-weight: 700; color: var(--brand); }
     .checkbox-group label:has(input:checked) { border-color: var(--brand); background: var(--brand-light); }
+
     .radio-group { display: flex; gap: .5rem; }
-    .radio-group label { flex: 1; display: flex; align-items: center; justify-content: center; gap: .5rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .6rem; font-size: .875rem; cursor: pointer; transition: border-color .15s, background .15s; }
-    .radio-group label:has(input:checked) { border-color: var(--brand); background: var(--brand-light); font-weight: 600; color: var(--brand); }
+    .radio-group label { flex: 1; display: flex; align-items: center; justify-content: center; gap: .5rem; background: #f8fafc; border: 1px solid var(--line); border-radius: var(--r-md); padding: .65rem; font-size: .875rem; cursor: pointer; transition: border-color .15s, background .15s; }
+    .radio-group label:has(input:checked) { border-color: var(--brand); background: var(--brand-light); font-weight: 700; color: var(--brand); }
     .radio-group input[type=radio] { accent-color: var(--brand); }
-    .section-title { font-size: .75rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid #f3f4f6; }
+
+    .section-title { font-family: 'Poppins', sans-serif; font-size: 1rem; font-weight: 600; color: var(--ink-1); margin-bottom: 1.1rem; }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen py-8 px-4">
+<body class="min-h-screen py-8 px-4">
 
 <div class="max-w-lg mx-auto">
 
   <!-- Header -->
   <div class="text-center mb-8">
     {% if ev.marke == 'Knallfrosch' %}
-      <img src="/static/img/logo-knallfrosch.png" alt="Knallfrosch" style="height:52px;width:auto;margin:0 auto 1rem;display:block;">
+      <img src="/static/img/logo-knallfrosch.png" alt="Knallfrosch" style="height:46px;width:auto;margin:0 auto 1rem;display:block;">
     {% else %}
       <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim" style="height:52px;width:auto;margin:0 auto 1rem;display:block;">
     {% endif %}
-    <h1 class="text-xl font-bold text-gray-900">Veranstaltungs-Checkliste</h1>
-    <p class="text-sm text-gray-500 mt-1">{{ ev.anlass }} · {{ ev.datum | de_date }}</p>
+    <h1 class="text-xl font-bold" style="color: var(--ink-1);">Veranstaltungs-Checkliste</h1>
+    <p class="text-sm mt-1" style="color: var(--ink-3);">{{ ev.anlass }} · {{ ev.datum | de_date }}</p>
   </div>
 
   {% if already_submitted %}
   <!-- Danke-Karte -->
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-    <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-light);">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <div class="card p-8 text-center">
+    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-light);">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
-    <h2 class="text-lg font-bold text-gray-900 mb-2">Vielen Dank!</h2>
-    <p class="text-gray-500 text-sm">Ihre Angaben wurden erfolgreich übermittelt. Wir melden uns bei Ihnen.</p>
+    <h2 class="text-lg font-bold mb-2" style="color: var(--ink-1);">Vielen Dank!</h2>
+    <p class="text-sm" style="color: var(--ink-3);">Ihre Angaben wurden erfolgreich übermittelt. Wir melden uns bei Ihnen.</p>
   </div>
 
   {% else %}
   <!-- Formular -->
-  <form method="post" class="space-y-6">
+  <form method="post" class="space-y-5">
 
     <!-- Ansprechpartner -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div class="card p-6">
       <p class="section-title">Ansprechpartner vor Ort</p>
       <div class="space-y-4">
         <div class="field">
@@ -74,7 +92,7 @@
     </div>
 
     <!-- Veranstaltungsanschrift -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div class="card p-6">
       <p class="section-title">Veranstaltungsanschrift</p>
       <div class="space-y-4">
         <div class="field">
@@ -93,7 +111,7 @@
     </div>
 
     <!-- Auf- und Abbau -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div class="card p-6">
       <p class="section-title">Aufbau- und Abbauzeitraum</p>
       <div class="space-y-4">
         <div class="grid grid-cols-2 gap-3">
@@ -120,7 +138,7 @@
     </div>
 
     <!-- Aufbauort -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div class="card p-6">
       <p class="section-title">Aufbauort der Aktionen / Eventmodule</p>
       <div class="checkbox-group">
         <label><input type="checkbox" name="aufbauort" value="Indoor"><span>Indoor</span></label>
@@ -131,11 +149,11 @@
     </div>
 
     <!-- Ja/Nein-Fragen -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+    <div class="card p-6 space-y-5">
       <p class="section-title">Rahmenbedingungen</p>
 
       <div>
-        <p class="text-sm font-medium text-gray-700 mb-2">Verpflegung für Mitarbeiter gewährleistet?</p>
+        <p class="text-sm font-semibold mb-2" style="color: var(--ink-2);">Verpflegung für Mitarbeiter gewährleistet?</p>
         <div class="radio-group">
           <label><input type="radio" name="verpflegung" value="Ja" required><span>Ja</span></label>
           <label><input type="radio" name="verpflegung" value="Nein"><span>Nein</span></label>
@@ -143,7 +161,7 @@
       </div>
 
       <div>
-        <p class="text-sm font-medium text-gray-700 mb-2">
+        <p class="text-sm font-semibold mb-2" style="color: var(--ink-2);">
           {% if ev.marke == 'Knallfrosch' %}Knallfrosch{% else %}Kindsalabim{% endif %}
           – Teamkleidung gestattet?
         </p>
@@ -155,7 +173,7 @@
     </div>
 
     <!-- Parkplatz -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div class="card p-6">
       <p class="section-title">Parkplatzsituation</p>
       <div class="field">
         <label>Beschreibung</label>
@@ -165,7 +183,7 @@
 
     <button type="submit" class="btn">Checkliste absenden</button>
 
-    <p class="text-xs text-center text-gray-400 pb-4">
+    <p class="text-xs text-center pb-4" style="color: var(--ink-4);">
       Ihre Angaben werden sicher übertragen und nur intern verwendet.
     </p>
   </form>
