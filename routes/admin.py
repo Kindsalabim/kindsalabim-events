@@ -84,7 +84,8 @@ def test_email(user=Depends(get_admin_user)):
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user),
+              month: str = "", day: str = ""):
     today = date.today()
     events = db.query(Event).all()
 
@@ -112,13 +113,39 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
         upcoming_data.append({"ev": ev, "fehlende_teamer": ft,
                                "fehlende_kuenstler": fk, "days_until": days_until})
 
-    # Mini-Monatskalender (aktueller Monat)
+    # Angezeigter Kalendermonat (Navigation per ?month=JJJJ-MM)
+    try:
+        cur = date.fromisoformat(month + "-01") if month else today.replace(day=1)
+    except ValueError:
+        cur = today.replace(day=1)
+    prev_m = (cur - timedelta(days=1)).replace(day=1)
+    next_m = (cur.replace(day=28) + timedelta(days=10)).replace(day=1)
+
+    # Events pro Tag im angezeigten Monat (für die Markierung im Kalender)
+    event_map = {}
+    for e in events:
+        if e.datum and e.datum.year == cur.year and e.datum.month == cur.month:
+            event_map.setdefault(e.datum.day, []).append(e)
+
+    # Ausgewählter Tag (?day=JJJJ-MM-TT) -> Events an diesem Tag
+    sel_day, sel_events = None, []
+    if day:
+        try:
+            sel_day = date.fromisoformat(day)
+            sel_events = sorted([e for e in events if e.datum == sel_day],
+                                key=lambda e: e.startzeit or "")
+        except ValueError:
+            sel_day = None
+
     kalender = {
-        "weeks": _calendar.Calendar(firstweekday=0).monthdayscalendar(today.year, today.month),
-        "event_days": {e.datum.day for e in events
-                       if e.datum and e.datum.year == today.year and e.datum.month == today.month},
-        "today_day": today.day,
-        "label": f"{MONATE[today.month - 1]} {today.year}",
+        "weeks": _calendar.Calendar(firstweekday=0).monthdayscalendar(cur.year, cur.month),
+        "event_map": event_map,
+        "year": cur.year, "month": cur.month,
+        "label": f"{MONATE[cur.month - 1]} {cur.year}",
+        "today": today,
+        "prev": prev_m.strftime("%Y-%m"),
+        "next": next_m.strftime("%Y-%m"),
+        "sel_day": sel_day, "sel_events": sel_events,
     }
 
     return templates.TemplateResponse("admin/dashboard.html",

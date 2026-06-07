@@ -175,18 +175,31 @@
     .stat-chip.green { background: var(--c-green-bg); border-color: transparent; }
     .stat-chip.coral { background: var(--c-coral-bg); border-color: transparent; }
 
-    /* Mini-Monatskalender */
-    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.25rem; }
-    .cal-dow { text-align: center; font-size: 0.68rem; font-weight: 700; color: #9aa3b2; padding-bottom: 0.35rem; text-transform: uppercase; }
+    /* Monatskalender */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.2rem; }
+    .cal-dow { text-align: center; font-size: 0.66rem; font-weight: 700; color: #9aa3b2; padding-bottom: 0.3rem; text-transform: uppercase; }
     .cal-cell {
-      aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      font-size: 0.85rem; color: #374151; border-radius: 0.6rem; position: relative; text-decoration: none;
+      min-height: 2.55rem; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 0.28rem; font-size: 0.82rem; color: #374151; border-radius: 0.55rem;
+      text-decoration: none; border: 1px solid transparent; transition: background 0.12s, border-color 0.12s;
     }
-    .cal-cell.muted { color: #cbd2dc; }
-    .cal-cell.today { background: var(--brand-primary); color: #fff; font-weight: 700; }
-    .cal-cell.has-event:not(.today) { background: var(--c-sky-bg); color: var(--brand-primary); font-weight: 700; }
-    .cal-cell .dot { width: 5px; height: 5px; border-radius: 9999px; background: var(--brand-accent); position: absolute; bottom: 0.32rem; }
-    .cal-cell.today .dot { background: #fff; }
+    a.cal-cell:hover { background: #f1f4f9; }
+    .cal-cell.muted { color: #cdd4de; pointer-events: none; }
+    .cal-cell .num { text-align: center; min-width: 1.5rem; }
+    .cal-cell.today { font-weight: 800; }
+    .cal-cell.today .num { display: inline-block; height: 1.5rem; line-height: 1.5rem; border-radius: 9999px; background: var(--brand-primary); color: #fff; }
+    .cal-cell.selected { border-color: var(--brand-primary); background: var(--brand-primary-light); }
+    .cal-dots { display: flex; gap: 2px; margin-top: 3px; align-items: center; height: 7px; }
+    .cd { width: 6px; height: 6px; border-radius: 9999px; display: inline-block; }
+    .cd.ks { background: #1d4e89; }   /* Kindsalabim – blau */
+    .cd.kf { background: #1a7a1a; }   /* Knallfrosch – grün */
+    .cal-more { font-size: 0.56rem; color: #8b94a3; font-weight: 700; margin-left: 1px; }
+    .cal-nav {
+      width: 1.9rem; height: 1.9rem; display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 0.55rem; color: var(--brand-primary); text-decoration: none; font-size: 1.15rem;
+      border: 1px solid var(--line); background: #fff; line-height: 1;
+    }
+    .cal-nav:hover { background: #f1f4f9; }
 
     /* Brand tags */
     .brand-tag-kindsalabim {
