@@ -133,6 +133,7 @@ def event_create(
     hinweise: str = Form(""), aufbau_ab: str = Form(""),
     parkplatz: str = Form(""), outdoor_indoor: str = Form(""),
     verpflegung: bool = Form(False), teamkleidung: bool = Form(True),
+    marke: str = Form("Kindsalabim"),
 ):
     ev = Event(
         anlass=anlass, datum=datum, startzeit=startzeit, endzeit=endzeit,
@@ -142,7 +143,7 @@ def event_create(
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, aufbau_ab=aufbau_ab, parkplatz=parkplatz,
         outdoor_indoor=outdoor_indoor, verpflegung=verpflegung,
-        teamkleidung=teamkleidung, status="Entwurf"
+        teamkleidung=teamkleidung, marke=marke, status="Entwurf"
     )
     db.add(ev); db.commit(); db.refresh(ev)
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
@@ -187,6 +188,7 @@ def event_update(
     parkplatz: str = Form(""), outdoor_indoor: str = Form(""),
     verpflegung: bool = Form(False), teamkleidung: bool = Form(True),
     status: str = Form("Entwurf"),
+    marke: str = Form("Kindsalabim"),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -198,7 +200,7 @@ def event_update(
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.aufbau_ab = aufbau_ab; ev.parkplatz = parkplatz
     ev.outdoor_indoor = outdoor_indoor; ev.verpflegung = verpflegung
-    ev.teamkleidung = teamkleidung; ev.status = status
+    ev.teamkleidung = teamkleidung; ev.marke = marke; ev.status = status
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
