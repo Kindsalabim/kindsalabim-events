@@ -208,7 +208,10 @@
     <tbody>
       {% for a in anfragen %}
       <tr style="border-bottom: 1px solid #f9fafb;">
-        <td class="py-3 font-medium text-gray-800">{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}</td>
+        <td class="py-3 font-medium text-gray-800">
+          {{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}
+          {% if a.notiz %}<span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span>{% endif %}
+        </td>
         <td class="py-3 text-gray-500">{{ a.rolle_anfrage }}</td>
         <td class="py-3">
           {% if a.status == 'Ja' %}
