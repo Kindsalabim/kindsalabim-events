@@ -1,12 +1,19 @@
 {% extends "base.html" %}
 {% block body %}
 
-<!-- Mobile top bar (logo only – navigation via bottom nav) -->
-<div id="mobile-topbar" class="fixed top-0 left-0 right-0 z-30 flex items-center px-4 h-14 bg-white border-b border-gray-100 shadow-sm md:hidden">
+<!-- Mobile top bar (beide Marken-Logos – Navigation via Bottom-Nav) -->
+<div id="mobile-topbar" class="fixed top-0 left-0 right-0 z-30 flex items-center justify-center gap-3 px-4 h-14 bg-white border-b border-gray-100 shadow-sm md:hidden">
   <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim"
        onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"
-       style="height:30px;width:auto;object-fit:contain;">
-  <span style="display:none;" class="font-bold text-gray-800 text-sm">{{ cfg.app_name }}</span>
+       style="height:26px;width:auto;max-width:120px;object-fit:contain;flex-shrink:0;">
+  <span style="display:none;font-family:'Poppins',sans-serif;font-weight:700;color:var(--brand-primary);font-size:0.9rem;">KindSalabim</span>
+
+  <div style="width:1px;height:20px;background:var(--line);flex-shrink:0;"></div>
+
+  <img src="/static/img/logo-knallfrosch.png" alt="Knallfrosch"
+       onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"
+       style="height:20px;width:auto;max-width:100px;object-fit:contain;flex-shrink:0;">
+  <span style="display:none;font-family:'Poppins',sans-serif;font-weight:700;color:#1a7a1a;font-size:0.85rem;">Knallfrosch</span>
 </div>
 
 <!-- Sidebar overlay (mobile) -->
