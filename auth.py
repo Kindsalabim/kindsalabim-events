@@ -1,3 +1,4 @@
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
@@ -6,6 +7,10 @@ import bcrypt
 from fastapi import Request, HTTPException, status
 from fastapi.responses import RedirectResponse
 from config import get_config
+
+# Auf Render (HTTPS) Session-Cookies als secure markieren; lokal (HTTP) nicht,
+# sonst sendet der Browser das Cookie über http://127.0.0.1 nicht mit.
+COOKIE_SECURE = bool(os.environ.get("RENDER"))
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()

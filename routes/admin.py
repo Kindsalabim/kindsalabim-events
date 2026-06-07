@@ -7,7 +7,7 @@ from typing import Optional
 
 from database import get_db
 from models import Event, Dienstleister, Verfuegbarkeitsanfrage
-from auth import get_admin_user, verify_password, hash_password, create_token
+from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
 from config import get_config
 from distance import rank_contractors
 from email_service import send_verfuegbarkeitsanfrage, send_briefing
@@ -51,7 +51,8 @@ def login(request: Request, email: str = Form(...), password: str = Form(...)):
             tpl_context(request, error="Ungültige Zugangsdaten"))
     token = create_token({"sub": email, "role": "admin"})
     resp = RedirectResponse("/admin/dashboard", status_code=303)
-    resp.set_cookie("admin_token", token, httponly=True, max_age=60*60*8)
+    resp.set_cookie("admin_token", token, httponly=True, secure=COOKIE_SECURE,
+                    samesite="lax", max_age=60*60*8)
     return resp
 
 @router.get("/logout")
