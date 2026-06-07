@@ -1,4 +1,5 @@
 {% extends "admin_base.html" %}
+{% from "icons.html" import ic %}
 {% set active = 'dashboard' %}
 {% block title %}Dashboard – {{ cfg.app_name }}{% endblock %}
 {% block content %}
@@ -50,29 +51,25 @@
 {% set dringend = upcoming_data|selectattr('days_until','lt',14)|selectattr('days_until','ge',0)|list|length %}
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
   <div class="stat-chip sky">
-    <div class="flex items-center gap-2 mb-1">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--c-sky)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <div class="flex items-center gap-2 mb-1">{{ ic('calendar', 20) }}
       <p class="text-xs font-semibold" style="color: var(--c-sky);">Gesamt</p>
     </div>
     <p class="text-2xl font-bold font-display" style="color: var(--c-sky);">{{ total }}</p>
   </div>
   <div class="stat-chip">
-    <div class="flex items-center gap-2 mb-1">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <div class="flex items-center gap-2 mb-1">{{ ic('clock', 20) }}
       <p class="text-xs font-semibold text-gray-500">Bevorstehend</p>
     </div>
     <p class="text-2xl font-bold font-display" style="color: var(--brand-primary);">{{ upcoming|length }}</p>
   </div>
   <div class="stat-chip green">
-    <div class="flex items-center gap-2 mb-1">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+    <div class="flex items-center gap-2 mb-1">{{ ic('check', 20) }}
       <p class="text-xs font-semibold" style="color: var(--c-green);">Bestätigt</p>
     </div>
     <p class="text-2xl font-bold font-display" style="color: var(--c-green);">{{ confirmed }}</p>
   </div>
   <div class="stat-chip {% if dringend > 0 %}coral{% else %}amber{% endif %}">
-    <div class="flex items-center gap-2 mb-1">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{% if dringend > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %}" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div class="flex items-center gap-2 mb-1">{{ ic('alert', 20) }}
       <p class="text-xs font-semibold" style="color: {% if dringend > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">In 14 Tagen</p>
     </div>
     <p class="text-2xl font-bold font-display" style="color: {% if dringend > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ dringend }}</p>
@@ -116,17 +113,17 @@
 
               <div class="flex items-center gap-3 mt-2 flex-wrap">
                 <span class="text-xs text-gray-400">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</span>
-                <span class="text-xs flex items-center gap-1 {% if ft > 0 %}text-red-500 font-medium{% else %}text-gray-400{% endif %}">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <span class="text-xs flex items-center gap-1.5 {% if ft > 0 %}text-red-500 font-medium{% else %}text-gray-400{% endif %}">
+                  {{ ic('users', 14) }}
                   {% if ft > 0 %}{{ ft }} Teamer fehlt{% if ft != 1 %}en{% endif %}{% else %}{{ ev.anzahl_teamer }} Teamer ✓{% endif %}
                 </span>
-                <span class="text-xs flex items-center gap-1 {% if fk > 0 %}text-red-500 font-medium{% else %}text-gray-400{% endif %}">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span class="text-xs flex items-center gap-1.5 {% if fk > 0 %}text-red-500 font-medium{% else %}text-gray-400{% endif %}">
+                  {{ ic('star', 14) }}
                   {% if fk > 0 %}{{ fk }} Künstler fehlt{% if fk != 1 %}en{% endif %}{% else %}{{ ev.anzahl_kuenstler }} Künstler ✓{% endif %}
                 </span>
                 {% if ev.material_mitnahme %}
-                <span class="text-xs flex items-center gap-1 text-purple-500">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                <span class="text-xs flex items-center gap-1.5 text-purple-600">
+                  {{ ic('box', 14) }}
                   Material
                 </span>
                 {% endif %}
@@ -146,8 +143,8 @@
     </div>
     {% else %}
     <div class="card p-10 text-center">
-      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
+        {{ ic('balloons', 34) }}
       </div>
       <h3 class="font-semibold text-gray-800 mb-1">Noch keine Events geplant</h3>
       <p class="text-gray-500 text-sm mb-5">Lege dein erstes Event an – der Rest geht von hier aus ganz leicht.</p>

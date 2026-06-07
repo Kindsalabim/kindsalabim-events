@@ -1,0 +1,47 @@
+{# Flache, zweifarbige Icons im Marken-/Pastell-Stil. Aufruf: {{ ic('calendar', 22) }} #}
+{% macro ic(name, size=22) -%}
+{%- set s = size|string -%}
+<svg width="{{ s }}" height="{{ s }}" viewBox="0 0 24 24" fill="none" style="display:inline-block;vertical-align:middle;flex-shrink:0;">
+{%- if name == 'calendar' -%}
+  <rect x="3" y="4.5" width="18" height="16" rx="3.2" fill="#1d4e89"/>
+  <path d="M3 9.5a3.2 3.2 0 0 1 3.2-5h11.6A3.2 3.2 0 0 1 21 9.5z" fill="#143a66"/>
+  <rect x="6.6" y="2.4" width="2" height="4.2" rx="1" fill="#143a66"/>
+  <rect x="15.4" y="2.4" width="2" height="4.2" rx="1" fill="#143a66"/>
+  <circle cx="8" cy="13" r="1.4" fill="#eaf2fb"/><circle cx="12" cy="13" r="1.4" fill="#eaf2fb"/>
+  <circle cx="16" cy="13" r="1.4" fill="#ffd16b"/><circle cx="8" cy="17" r="1.4" fill="#eaf2fb"/>
+  <circle cx="12" cy="17" r="1.4" fill="#eaf2fb"/>
+{%- elif name == 'clock' -%}
+  <circle cx="12" cy="12" r="9.2" fill="#1d4e89"/>
+  <circle cx="12" cy="12" r="6.6" fill="#eaf2fb"/>
+  <path d="M12 8.4v3.9l2.6 1.6" stroke="#1d4e89" stroke-width="1.9" stroke-linecap="round"/>
+{%- elif name == 'check' -%}
+  <circle cx="12" cy="12" r="9.2" fill="#1f7a44"/>
+  <path d="M7.8 12.4l2.7 2.7L16.4 9.4" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+{%- elif name == 'alert' -%}
+  <path d="M12 3.4 22 20.2H2z" fill="#ffb84d"/>
+  <rect x="11" y="9.2" width="2" height="6" rx="1" fill="#7a4f12"/>
+  <circle cx="12" cy="17.4" r="1.2" fill="#7a4f12"/>
+{%- elif name == 'users' -%}
+  <circle cx="9" cy="8.8" r="3.4" fill="#1d4e89"/>
+  <path d="M3.4 19.2c0-3.1 2.5-5.2 5.6-5.2s5.6 2.1 5.6 5.2z" fill="#1d4e89"/>
+  <circle cx="16.6" cy="10" r="2.6" fill="#72aee6"/>
+  <path d="M12.8 19.2c0-2.5 1.8-4.1 3.8-4.1s3.8 1.6 3.8 4.1z" fill="#72aee6"/>
+{%- elif name == 'star' -%}
+  <path d="M12 3l2.6 5.3 5.8.9-4.2 4.1 1 5.8L12 16.4 6.8 19l1-5.8-4.2-4.1 5.8-.9z" fill="#ffc83d"/>
+{%- elif name == 'box' -%}
+  <path d="M3.5 7.6 12 3.2l8.5 4.4v8.8L12 20.8l-8.5-4.4z" fill="#6b4ea8"/>
+  <path d="M3.6 7.7 12 12l8.4-4.3M12 12v8.6" stroke="#fff" stroke-width="1.3" opacity=".55"/>
+  <path d="M7.7 5.4 16.2 9.8v3" stroke="#fff" stroke-width="1.3" opacity=".35"/>
+{%- elif name == 'pin' -%}
+  <path d="M12 21.5S5 15.6 5 10a7 7 0 0 1 14 0c0 5.6-7 11.5-7 11.5z" fill="#3d7dbc"/>
+  <circle cx="12" cy="10" r="2.8" fill="#fff"/>
+{%- elif name == 'balloons' -%}
+  <ellipse cx="9" cy="8" rx="4.3" ry="5.2" fill="#3d7dbc"/>
+  <ellipse cx="15.4" cy="9.4" rx="3.6" ry="4.4" fill="#ffb7b7"/>
+  <path d="M9 13.2c.2 1.6-.6 2.3-.4 3.6M15.4 13.8c.2 1.4-.7 2-.5 3.2" stroke="#cbd2dc" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="6.3" cy="3.4" r="1" fill="#ffd16b"/><circle cx="18.4" cy="5" r="1" fill="#a7d9b7"/>
+{%- elif name == 'plus' -%}
+  <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
