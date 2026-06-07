@@ -48,6 +48,7 @@ def run_migrations():
 
     new_columns = [
         ("marke",                    "VARCHAR DEFAULT 'Kindsalabim'"),
+        ("material_mitnahme",        "BOOLEAN DEFAULT 0"),
         ("checklist_token",          "VARCHAR"),
         ("cl_ansprechpartner_name",  "VARCHAR"),
         ("cl_ansprechpartner_mobil", "VARCHAR"),
@@ -66,6 +67,38 @@ def run_migrations():
     ]
     for col, typedef in new_columns:
         add_column("events", col, typedef)
+
+    # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
+    def convert_date_column(table: str, col: str):
+        """VARCHAR 'TT.MM.JJJJ' -> echter DATE-Typ. Idempotent & crash-sicher."""
+        with engine.connect() as conn:
+            try:
+                if is_postgres:
+                    dtype = conn.execute(text(
+                        "SELECT data_type FROM information_schema.columns "
+                        "WHERE table_name=:t AND column_name=:c"
+                    ), {"t": table, "c": col}).scalar()
+                    if dtype in ("character varying", "text"):
+                        conn.execute(text(
+                            f"ALTER TABLE {table} ALTER COLUMN {col} TYPE date USING "
+                            f"CASE WHEN {col} ~ '^[0-9]{{2}}\\.[0-9]{{2}}\\.[0-9]{{4}}$' "
+                            f"THEN to_date({col}, 'DD.MM.YYYY') ELSE NULL END"
+                        ))
+                else:
+                    # SQLite ist lose typisiert -> Werte auf ISO 'JJJJ-MM-TT' umschreiben
+                    conn.execute(text(
+                        f"UPDATE {table} SET {col} = "
+                        f"substr({col},7,4)||'-'||substr({col},4,2)||'-'||substr({col},1,2) "
+                        f"WHERE {col} LIKE '__.__.____'"
+                    ))
+                    conn.execute(text(f"UPDATE {table} SET {col} = NULL WHERE {col} = ''"))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                print(f"Datums-Migration {table}.{col} übersprungen: {e}")
+
+    convert_date_column("events", "datum")
+    convert_date_column("verfuegbarkeitsanfragen", "frist_datum")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

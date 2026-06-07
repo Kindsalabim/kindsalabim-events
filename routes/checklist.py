@@ -8,9 +8,12 @@ from typing import Optional
 from database import get_db
 from models import Event
 from config import get_config
+from choices import ZEITEN, de_date
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["de_date"] = de_date
+templates.env.globals["zeiten"] = ZEITEN
 
 
 @router.get("/checklist/{token}", response_class=HTMLResponse)

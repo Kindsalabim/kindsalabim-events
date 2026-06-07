@@ -110,7 +110,7 @@
             <p class="text-xs text-gray-500 mt-1">{{ ev.kunde_firma }} · {{ ev.veranstaltungsort }}</p>
           </div>
           <div class="text-right shrink-0">
-            <p class="text-sm font-bold text-gray-800 whitespace-nowrap">{{ ev.datum }}</p>
+            <p class="text-sm font-bold text-gray-800 whitespace-nowrap">{{ ev.datum | de_date }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
             {% if item.days_until >= 0 and item.days_until <= 7 %}
               <p class="text-xs font-semibold text-red-500 mt-1">in {{ item.days_until }} Tag{% if item.days_until != 1 %}en{% endif %}</p>
@@ -130,7 +130,7 @@
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             {% if fk > 0 %}⚠ {{ fk }} Künstler fehlt{% if fk != 1 %}en{% endif %}{% else %}{{ ev.anzahl_kuenstler }} Künstler ✓{% endif %}
           </span>
-          {% if ev.produkte and 'Bakerross' in ev.produkte or ev.produkte and 'Spezielle Bastel' in ev.produkte %}
+          {% if ev.material_mitnahme %}
           <span class="text-xs flex items-center gap-1 text-purple-500">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
             Material bestellen
@@ -172,7 +172,7 @@
             </div>
             <p class="text-xs text-gray-400 mt-0.5">{{ ev.kunde_firma }}</p>
           </div>
-          <p class="text-sm text-gray-500 whitespace-nowrap shrink-0">{{ ev.datum }}</p>
+          <p class="text-sm text-gray-500 whitespace-nowrap shrink-0">{{ ev.datum | de_date }}</p>
         </div>
       </div>
     </a>
