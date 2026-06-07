@@ -11,9 +11,12 @@ from auth import get_admin_user, verify_password, hash_password, create_token, C
 from config import get_config
 from distance import rank_contractors
 from email_service import send_verfuegbarkeitsanfrage, send_briefing
+from choices import ZEITEN, de_date
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["de_date"] = de_date
+templates.env.globals["zeiten"] = ZEITEN
 
 PRODUKTE_LIST = [
     "Bunter Bastelspaß", "Spezielle Bastelaktionen (Bakerross)", "Glitzertattoos",
@@ -77,18 +80,14 @@ def test_email(user=Depends(get_admin_user)):
 
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    today_str = datetime.today().strftime("%d.%m.%Y")
-    today_dt  = datetime.today()
+    today = date.today()
     events = db.query(Event).all()
 
-    def parse_date(e):
-        try:
-            return datetime.strptime(e.datum, "%d.%m.%Y")
-        except:
-            return datetime.max
+    def event_date(e):
+        return e.datum or date.max
 
-    upcoming = sorted([e for e in events if e.status != "Abgeschlossen"], key=parse_date)
-    past     = sorted([e for e in events if e.status == "Abgeschlossen"], key=parse_date, reverse=True)
+    upcoming = sorted([e for e in events if e.status != "Abgeschlossen"], key=event_date)
+    past     = sorted([e for e in events if e.status == "Abgeschlossen"], key=event_date, reverse=True)
 
     # Fehlende Dienstleister berechnen
     def fehlende_dl(ev):
@@ -104,13 +103,13 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     upcoming_data = []
     for ev in upcoming:
         ft, fk = fehlende_dl(ev)
-        days_until = (parse_date(ev) - today_dt).days
+        days_until = (event_date(ev) - today).days
         upcoming_data.append({"ev": ev, "fehlende_teamer": ft,
                                "fehlende_kuenstler": fk, "days_until": days_until})
 
     return templates.TemplateResponse("admin/dashboard.html",
         tpl_context(request, upcoming_data=upcoming_data, upcoming=upcoming,
-                    past=past, today=today_str))
+                    past=past))
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────
@@ -130,20 +129,23 @@ def event_create(
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
-    hinweise: str = Form(""), aufbau_ab: str = Form(""),
-    parkplatz: str = Form(""), outdoor_indoor: str = Form(""),
-    verpflegung: bool = Form(False), teamkleidung: bool = Form(True),
+    hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     marke: str = Form("Kindsalabim"),
 ):
+    try:
+        datum_d = date.fromisoformat(datum)
+    except ValueError:
+        return templates.TemplateResponse("admin/event_form.html",
+            tpl_context(request, event=None, produkte_list=PRODUKTE_LIST,
+                        anlass_list=ANLASS_LIST, error="Bitte ein gültiges Datum wählen."))
     ev = Event(
-        anlass=anlass, datum=datum, startzeit=startzeit, endzeit=endzeit,
+        anlass=anlass, datum=datum_d, startzeit=startzeit, endzeit=endzeit,
         veranstaltungsort=veranstaltungsort, kunde_firma=kunde_firma,
         kunde_kontakt=kunde_kontakt, kunde_telefon=kunde_telefon,
         kunde_email=kunde_email, produkte=", ".join(produkte),
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
-        hinweise=hinweise, aufbau_ab=aufbau_ab, parkplatz=parkplatz,
-        outdoor_indoor=outdoor_indoor, verpflegung=verpflegung,
-        teamkleidung=teamkleidung, marke=marke, status="Entwurf"
+        hinweise=hinweise, material_mitnahme=material_mitnahme,
+        marke=marke, status="Entwurf"
     )
     db.add(ev); db.commit(); db.refresh(ev)
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
@@ -184,23 +186,25 @@ def event_update(
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
-    hinweise: str = Form(""), aufbau_ab: str = Form(""),
-    parkplatz: str = Form(""), outdoor_indoor: str = Form(""),
-    verpflegung: bool = Form(False), teamkleidung: bool = Form(True),
+    hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     status: str = Form("Entwurf"),
     marke: str = Form("Kindsalabim"),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
-    ev.anlass = anlass; ev.datum = datum; ev.startzeit = startzeit
+    try:
+        ev.datum = date.fromisoformat(datum)
+    except ValueError:
+        return templates.TemplateResponse("admin/event_form.html",
+            tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST,
+                        anlass_list=ANLASS_LIST, error="Bitte ein gültiges Datum wählen."))
+    ev.anlass = anlass; ev.startzeit = startzeit
     ev.endzeit = endzeit; ev.veranstaltungsort = veranstaltungsort
     ev.kunde_firma = kunde_firma; ev.kunde_kontakt = kunde_kontakt
     ev.kunde_telefon = kunde_telefon; ev.kunde_email = kunde_email
     ev.produkte = ", ".join(produkte); ev.anzahl_teamer = anzahl_teamer
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
-    ev.aufbau_ab = aufbau_ab; ev.parkplatz = parkplatz
-    ev.outdoor_indoor = outdoor_indoor; ev.verpflegung = verpflegung
-    ev.teamkleidung = teamkleidung; ev.marke = marke; ev.status = status
+    ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
@@ -261,7 +265,7 @@ def send_anfragen(
             Verfuegbarkeitsanfrage.dienstleister_id == did
         ).first()
         if not existing:
-            frist = (datetime.now() + timedelta(days=3)).strftime("%d.%m.%Y")
+            frist = date.today() + timedelta(days=3)
             a = Verfuegbarkeitsanfrage(
                 event_id=event_id, dienstleister_id=did,
                 rolle_anfrage=rolle, status="Ausstehend",

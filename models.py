@@ -7,7 +7,7 @@ class Event(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     anlass = Column(String, nullable=False)
-    datum = Column(String, nullable=False)       # DD.MM.YYYY
+    datum = Column(Date, nullable=False)         # echtes Datum (Anzeige TT.MM.JJJJ)
     startzeit = Column(String, nullable=False)   # HH:MM
     endzeit = Column(String, nullable=False)
     veranstaltungsort = Column(Text, nullable=False)
@@ -22,8 +22,9 @@ class Event(Base):
     aufbau_ab = Column(String)
     parkplatz = Column(String)
     outdoor_indoor = Column(String)
-    verpflegung = Column(Boolean, default=False)
-    teamkleidung = Column(Boolean, default=True)
+    verpflegung = Column(Boolean, default=False)     # Legacy: kommt jetzt aus der Checkliste (cl_verpflegung)
+    teamkleidung = Column(Boolean, default=True)     # Legacy: kommt jetzt aus der Checkliste (cl_teamkleidung)
+    material_mitnahme = Column(Boolean, default=False)  # Materialtransport nötig? steuert Logistik-Bedarf + 3-Wochen-Erinnerung
     status = Column(String, default="Entwurf")   # Entwurf, Bestätigt, Briefing gesendet, Abgeschlossen
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
@@ -84,7 +85,7 @@ class Verfuegbarkeitsanfrage(Base):
     status = Column(String, default="Ausstehend")      # Ausstehend, Ja, Nein
     notiz = Column(Text)
     erstellt_am = Column(String)
-    frist_datum = Column(String)        # DD.MM.YYYY – wann die Anfrage abläuft
+    frist_datum = Column(Date)          # echtes Datum – wann die Anfrage abläuft
     frist_verlaengert = Column(Boolean, default=False)
     erinnerung_gesendet = Column(Boolean, default=False)
 

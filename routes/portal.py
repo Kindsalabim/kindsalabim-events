@@ -2,15 +2,17 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 
 from database import get_db
 from models import Dienstleister, Verfuegbarkeitsanfrage, Event
 from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
+from choices import de_date
 
 router = APIRouter(prefix="/portal")
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["de_date"] = de_date
 
 def tpl_context(request: Request, **kwargs):
     return {"request": request, "cfg": get_config(), **kwargs}
@@ -68,22 +70,15 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
                      user=Depends(get_portal_user)):
     did = int(user["sub"])
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
-    today = datetime.today()
+    today = date.today()
 
     def parse_date(a):
-        try:
-            return datetime.strptime(a.event.datum, "%d.%m.%Y")
-        except:
-            return datetime.max
+        return a.event.datum or date.max
 
     def days_left(a):
         if not a.frist_datum:
             return None
-        try:
-            frist = datetime.strptime(a.frist_datum, "%d.%m.%Y")
-            return (frist - today).days
-        except:
-            return None
+        return (a.frist_datum - today).days
 
     # Offene Anfragen (inkl. abgelaufene anzeigen bis Dienstleister antwortet)
     anfragen_raw = db.query(Verfuegbarkeitsanfrage).filter(
@@ -151,12 +146,8 @@ def portal_verlaengern(anfrage_id: int, db: Session = Depends(get_db),
     ).first()
     if a:
         # Frist um 2 Tage verlängern
-        try:
-            frist = datetime.strptime(a.frist_datum, "%d.%m.%Y") if a.frist_datum else datetime.today()
-        except:
-            frist = datetime.today()
-        neue_frist = frist + timedelta(days=2)
-        a.frist_datum = neue_frist.strftime("%d.%m.%Y")
+        frist = a.frist_datum or date.today()
+        a.frist_datum = frist + timedelta(days=2)
         a.frist_verlaengert = True
         db.commit()
         # Admin benachrichtigen

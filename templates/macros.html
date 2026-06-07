@@ -1,0 +1,8 @@
+{% macro time_select(name, value, cls='', required=False) -%}
+<select name="{{ name }}"{% if required %} required{% endif %} class="{{ cls }}">
+  <option value="">–</option>
+  {%- for t in zeiten %}
+  <option value="{{ t }}"{% if value == t %} selected{% endif %}>{{ t }} Uhr</option>
+  {%- endfor %}
+</select>
+{%- endmacro %}

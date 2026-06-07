@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "macros.html" import time_select %}<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -16,8 +16,8 @@
     .btn { background: var(--brand); color: white; padding: .75rem 2rem; border-radius: .5rem; font-weight: 600; font-size: .95rem; border: none; cursor: pointer; width: 100%; transition: opacity .15s; }
     .btn:hover { opacity: .85; }
     .field label { display: block; font-size: .8rem; font-weight: 600; color: #6b7280; margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .04em; }
-    .field input, .field textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .6rem .85rem; font-size: .9rem; font-family: inherit; background: white; transition: border-color .15s; box-sizing: border-box; }
-    .field input:focus, .field textarea:focus { outline: none; border-color: var(--brand); }
+    .field input, .field textarea, .field select { width: 100%; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .6rem .85rem; font-size: .9rem; font-family: inherit; background: white; transition: border-color .15s; box-sizing: border-box; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--brand); }
     .checkbox-group { display: flex; flex-wrap: wrap; gap: .5rem; }
     .checkbox-group label { display: flex; align-items: center; gap: .5rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem .85rem; font-size: .875rem; cursor: pointer; transition: border-color .15s, background .15s; }
     .checkbox-group input[type=checkbox]:checked + span { font-weight: 600; color: var(--brand); }
@@ -41,7 +41,7 @@
       <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim" style="height:52px;width:auto;margin:0 auto 1rem;display:block;">
     {% endif %}
     <h1 class="text-xl font-bold text-gray-900">Veranstaltungs-Checkliste</h1>
-    <p class="text-sm text-gray-500 mt-1">{{ ev.anlass }} · {{ ev.datum }}</p>
+    <p class="text-sm text-gray-500 mt-1">{{ ev.anlass }} · {{ ev.datum | de_date }}</p>
   </div>
 
   {% if already_submitted %}
@@ -99,21 +99,21 @@
         <div class="grid grid-cols-2 gap-3">
           <div class="field">
             <label>Aufbau von</label>
-            <input type="text" name="aufbau_von" placeholder="z.B. Mo 08:00">
+            {{ time_select('aufbau_von', ev.cl_aufbau_von) }}
           </div>
           <div class="field">
             <label>Aufbau bis</label>
-            <input type="text" name="aufbau_bis" placeholder="z.B. Mo 10:00">
+            {{ time_select('aufbau_bis', ev.cl_aufbau_bis) }}
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="field">
             <label>Abbau von</label>
-            <input type="text" name="abbau_von" placeholder="z.B. Mo 18:00">
+            {{ time_select('abbau_von', ev.cl_abbau_von) }}
           </div>
           <div class="field">
             <label>Abbau bis</label>
-            <input type="text" name="abbau_bis" placeholder="z.B. Mo 20:00">
+            {{ time_select('abbau_bis', ev.cl_abbau_bis) }}
           </div>
         </div>
       </div>

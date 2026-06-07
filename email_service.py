@@ -4,6 +4,7 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 from config import get_config
+from choices import de_date
 
 # Empfänger für den wöchentlichen CSV-Backup-Export
 BACKUP_EMPFAENGER = "a.malca@kindsalabim.de"
@@ -187,7 +188,7 @@ def send_erinnerung(dienstleister, event):
     <div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Event', event.anlass)}
-        {_info_row('Datum', event.datum)}
+        {_info_row('Datum', de_date(event.datum))}
         {_info_row('Ort', event.veranstaltungsort)}
       </table>
     </div>
@@ -207,7 +208,7 @@ def send_frist_verlaengerung(dienstleister, event, admin_email: str):
     content = f"""
     <p style="margin:0 0 16px;font-size:15px;color:#374151;">
       <strong>{dienstleister.vorname} {dienstleister.nachname}</strong> hat für
-      <strong>{event.anlass}</strong> ({event.datum}) eine Fristverlängerung angefordert.
+      <strong>{event.anlass}</strong> ({de_date(event.datum)}) eine Fristverlängerung angefordert.
     </p>
     <p style="margin:0;font-size:14px;color:#6b7280;">Die Frist wurde automatisch um 2 Tage verlängert.</p>"""
     _send(admin_email,
@@ -227,7 +228,7 @@ def send_material_erinnerung(event, admin_email: str):
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Event', event.anlass)}
-        {_info_row('Datum', event.datum)}
+        {_info_row('Datum', de_date(event.datum))}
         {_info_row('Kunde', event.kunde_firma)}
         {_info_row('Gebuchte Aktionen', event.produkte)}
       </table>
@@ -236,7 +237,7 @@ def send_material_erinnerung(event, admin_email: str):
       Diese Erinnerung wird automatisch 3 Wochen vor dem Event-Datum gesendet.
     </p>"""
     _send(admin_email,
-          f"📦 Material bestellen: {event.anlass} am {event.datum} – {event.kunde_firma}",
+          f"📦 Material bestellen: {event.anlass} am {de_date(event.datum)} – {event.kunde_firma}",
           _wrap(content, color, cfg))
 
 
@@ -254,7 +255,7 @@ def send_checklist_email(event, base_url: str):
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', event.anlass)}
-        {_info_row('Datum', event.datum)}
+        {_info_row('Datum', de_date(event.datum))}
         {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
       </table>
     </div>
@@ -270,7 +271,7 @@ def send_checklist_email(event, base_url: str):
       <a href="{url}" style="color:#6b7280;">{url}</a>
     </p>"""
 
-    subject = f"Checkliste: {event.anlass} am {event.datum} – bitte ausfüllen"
+    subject = f"Checkliste: {event.anlass} am {de_date(event.datum)} – bitte ausfüllen"
     _send(event.kunde_email, subject, _wrap(content, color, cfg))
 
 
@@ -281,7 +282,7 @@ def send_checklist_notification(event, admin_email: str, base_url: str):
     content = f"""
     <p style="margin:0 0 16px;font-size:15px;color:#374151;">
       <strong>{event.kunde_firma}</strong> hat die Kunden-Checkliste für
-      <strong>{event.anlass}</strong> ({event.datum}) ausgefüllt.
+      <strong>{event.anlass}</strong> ({de_date(event.datum)}) ausgefüllt.
     </p>
     <a href="{detail_url}"
        style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
@@ -308,7 +309,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', event.anlass)}
         {_info_row('Kunde', event.kunde_firma)}
-        {_info_row('Datum', event.datum)}
+        {_info_row('Datum', de_date(event.datum))}
         {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
         {_info_row('Ort', event.veranstaltungsort)}
         {_info_row('Produkte', event.produkte)}
@@ -325,14 +326,14 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
       Bitte antworte innerhalb von 7 Tagen.
     </p>"""
 
-    subject = f"Anfrage: {event.anlass} bei {event.kunde_firma} am {event.datum}"
+    subject = f"Anfrage: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
 def send_briefing(dienstleister_list, event, base_url: str):
     cfg = get_config()
     color = _brand_color(event.marke)
-    subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {event.datum}"
+    subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
 
     for d in dienstleister_list:
         content = f"""
@@ -346,14 +347,15 @@ def send_briefing(dienstleister_list, event, base_url: str):
           <table cellpadding="0" cellspacing="0" width="100%">
             {_info_row('Anlass', event.anlass)}
             {_info_row('Kunde', event.kunde_firma)}
-            {_info_row('Datum', event.datum)}
+            {_info_row('Datum', de_date(event.datum))}
             {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
-            {_info_row('Aufbau ab', event.aufbau_ab)}
+            {_info_row('Aufbau', (event.cl_aufbau_von + ' – ' + event.cl_aufbau_bis) if event.cl_aufbau_von and event.cl_aufbau_bis else (event.cl_aufbau_von or ''))}
+            {_info_row('Abbau', (event.cl_abbau_von + ' – ' + event.cl_abbau_bis) if event.cl_abbau_von and event.cl_abbau_bis else (event.cl_abbau_von or ''))}
             {_info_row('Ort', event.veranstaltungsort)}
-            {_info_row('Indoor/Outdoor', event.outdoor_indoor)}
-            {_info_row('Parkplatz', event.parkplatz)}
-            {_info_row('Teamkleidung', 'Ja' if event.teamkleidung else 'Nein')}
-            {_info_row('Verpflegung', 'Ja' if event.verpflegung else 'Nein')}
+            {_info_row('Indoor/Outdoor', event.cl_aufbauort)}
+            {_info_row('Parkplatz', event.cl_parkplatz)}
+            {_info_row('Teamkleidung', event.cl_teamkleidung)}
+            {_info_row('Verpflegung', event.cl_verpflegung)}
             {_info_row('Produkte', event.produkte)}
           </table>
         </div>
