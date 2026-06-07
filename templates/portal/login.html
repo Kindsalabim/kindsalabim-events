@@ -1,14 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Dienstleister-Portal – {{ cfg.app_name }}{% endblock %}
 {% block body %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+<div class="min-h-screen flex items-center justify-center px-4" style="background: var(--bg);">
   <div class="w-full max-w-sm">
 
     <div class="text-center mb-8">
-      <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim"
-           onerror="this.style.display='none'"
-           style="height:52px;width:auto;margin:0 auto 1rem;display:block;">
-      <p class="text-sm text-gray-500">Dienstleister-Portal</p>
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim"
+             onerror="this.style.display='none'"
+             style="height:38px;width:auto;object-fit:contain;">
+        <div style="width:1px;height:26px;background:var(--line);"></div>
+        <img src="/static/img/logo-knallfrosch.png" alt="Knallfrosch"
+             onerror="this.style.display='none'"
+             style="height:28px;width:auto;object-fit:contain;">
+      </div>
+      <p class="text-sm" style="color: var(--ink-3);">Dienstleister-Portal</p>
     </div>
 
     <div class="card p-7">

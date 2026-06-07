@@ -190,11 +190,11 @@
 
   <!-- Monatskalender -->
   <div class="lg:col-span-1">
-    <div class="card p-5 lg:sticky lg:top-6">
+    <div id="kalender" class="card p-5 lg:sticky lg:top-6" style="scroll-margin-top:1rem;">
       <div class="flex items-center justify-between mb-3">
-        <a href="/admin/dashboard?month={{ kalender.prev }}" class="cal-nav" title="Voriger Monat">‹</a>
+        <a href="/admin/dashboard?month={{ kalender.prev }}#kalender" class="cal-nav" title="Voriger Monat">‹</a>
         <p class="font-display font-semibold" style="color:var(--ink-1);">{{ kalender.label }}</p>
-        <a href="/admin/dashboard?month={{ kalender.next }}" class="cal-nav" title="Nächster Monat">›</a>
+        <a href="/admin/dashboard?month={{ kalender.next }}#kalender" class="cal-nav" title="Nächster Monat">›</a>
       </div>
       <div class="cal-grid">
         {% for d in ['Mo','Di','Mi','Do','Fr','Sa','So'] %}<div class="cal-dow">{{ d }}</div>{% endfor %}

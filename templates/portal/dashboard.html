@@ -1,215 +1,214 @@
 {% extends "base.html" %}
+{% from "icons.html" import ic, evt %}
 {% block title %}Mein Portal – {{ cfg.app_name }}{% endblock %}
 {% block body %}
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen pb-10" style="background: var(--bg);">
 
-  <!-- Top Bar -->
-  <header style="background-color: var(--brand-primary);" class="px-5 py-4">
-    <div class="max-w-2xl mx-auto flex items-center justify-between">
-      <div>
-        <span class="font-semibold text-white text-sm">{{ cfg.app_name }}</span>
-        <span class="text-xs ml-2" style="color: rgba(255,255,255,0.5);">Mein Portal</span>
+  <!-- ── Header mit Begrüßung ── -->
+  <header style="background: var(--brand-primary); border-radius: 0 0 1.75rem 1.75rem; box-shadow: var(--shadow-md);">
+    <div class="max-w-2xl mx-auto px-5 pt-6 pb-8">
+      <div class="flex items-center justify-between mb-6">
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color: rgba(255,255,255,0.6);">Dienstleister-Portal</span>
+        <a href="/portal/logout" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+           style="background: rgba(255,255,255,0.14); color: #fff;">Abmelden</a>
       </div>
-      <div class="flex items-center gap-3">
-        <span class="text-sm" style="color: rgba(255,255,255,0.8);">{{ dienstleister.vorname }}</span>
-        <a href="/portal/logout" class="text-xs px-3 py-1.5 rounded-lg"
-           style="background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8);">
-          Abmelden
-        </a>
-      </div>
+      <p class="text-sm" style="color: rgba(255,255,255,0.7);">Schön, dass du da bist</p>
+      <h1 class="text-2xl font-bold text-white mt-0.5">Hallo {{ dienstleister.vorname }}!</h1>
     </div>
   </header>
 
-  <div class="max-w-2xl mx-auto px-4 py-6 space-y-6">
+  <div class="max-w-2xl mx-auto px-4 -mt-4 space-y-7">
 
-    <!-- Offene Anfragen -->
+    <!-- ── Offene Anfragen ── -->
     {% if anfragen_data %}
     <section>
-      <div class="flex items-center gap-2 mb-3">
-        <h2 class="text-base font-bold text-gray-900">Offene Anfragen</h2>
-        <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background: var(--brand-accent-light); color: var(--brand-accent);">{{ anfragen_data|length }}</span>
+      <div class="flex items-center gap-2.5 mb-3 px-1">
+        <span class="section-head">Offene Anfragen</span>
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background: var(--c-coral-bg); color: var(--c-coral);">{{ anfragen_data|length }}</span>
       </div>
+
       <div class="space-y-3">
         {% for item in anfragen_data %}
-        {% set a = item.anfrage %}
+        {% set a  = item.anfrage %}
         {% set dl = item.days_left %}
         {% set is_kf = a.event.marke == 'Knallfrosch' %}
-        {% set brand_color = '#1a7a1a' if is_kf else 'var(--brand-primary)' %}
-        <div class="card overflow-hidden">
-          <!-- Farbbalken oben -->
-          <div style="height:3px; background:{{ '#1a7a1a' if is_kf else '#003864' }};"></div>
-          <div class="p-5">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap mb-1">
-                  <p class="font-semibold text-gray-900 text-sm">{{ a.event.anlass }}</p>
-                  {% if is_kf %}
-                    <span class="brand-tag-knallfrosch">Knallfrosch</span>
-                  {% else %}
-                    <span class="brand-tag-kindsalabim">Kindsalabim</span>
-                  {% endif %}
-                  {% if a.frist_verlaengert %}
-                    <span class="text-xs text-gray-400 italic">Frist verlängert</span>
-                  {% endif %}
-                </div>
-                <p class="text-sm text-gray-500 mb-2">{{ a.event.kunde_firma }}</p>
-                <div class="space-y-1.5">
-                  <p class="text-xs text-gray-600 flex items-center gap-1.5 font-medium">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr
-                  </p>
-                  <p class="text-xs text-gray-500 flex items-center gap-1.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    {{ a.event.veranstaltungsort }}
-                  </p>
-                  {% if a.event.produkte %}
-                  <p class="text-xs text-gray-400 flex items-center gap-1.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                    {{ a.event.produkte }}
-                  </p>
-                  {% endif %}
-                </div>
 
-                <!-- Frist-Anzeige -->
-                {% if dl is not none %}
-                <div class="mt-3">
-                  {% if dl < 0 %}
-                    <span class="text-xs px-2 py-1 rounded-full font-medium" style="background:#fee2e2;color:#b91c1c;">Frist abgelaufen</span>
-                  {% elif dl == 0 %}
-                    <span class="text-xs px-2 py-1 rounded-full font-medium" style="background:#fee2e2;color:#b91c1c;">⏰ Läuft heute ab</span>
-                  {% elif dl == 1 %}
-                    <span class="text-xs px-2 py-1 rounded-full font-medium" style="background:#fef9c3;color:#854d0e;">⏳ Läuft morgen ab</span>
-                  {% else %}
-                    <span class="text-xs px-2 py-1 rounded-full font-medium" style="background:#f3f4f6;color:#6b7280;">⏳ Noch {{ dl }} Tage</span>
-                  {% endif %}
-                </div>
-                {% endif %}
+        <div class="card p-5">
+          <!-- Kopf: Date-Badge + Titel -->
+          <div class="flex items-start gap-3.5">
+            <div class="date-badge {% if is_kf %}date-badge-kf{% endif %}">
+              <span class="d">{% if a.event.datum %}{{ a.event.datum.day }}{% else %}–{% endif %}</span>
+              <span class="m">{{ a.event.datum | de_month }}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-semibold" style="color: var(--ink-1);">{{ a.event.kunde_firma }}</span>
+                {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
+                {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
               </div>
-
-              <!-- Buttons -->
-              <div class="flex flex-col gap-2 shrink-0">
-                <form method="post" action="/portal/antwort/{{ a.id }}">
-                  <input type="hidden" name="antwort" value="Ja">
-                  <button class="w-28 text-sm font-semibold py-2.5 rounded-lg text-white transition"
-                    style="background:{{ '#1a7a1a' if is_kf else '#003864' }};">
-                    ✓ Ich kann
-                  </button>
-                </form>
-                <form method="post" action="/portal/antwort/{{ a.id }}">
-                  <input type="hidden" name="antwort" value="Nein">
-                  <button class="w-28 text-sm font-medium py-2.5 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 transition">
-                    ✗ Nicht da
-                  </button>
-                </form>
-                {% if not a.frist_verlaengert %}
-                <form method="post" action="/portal/verlaengern/{{ a.id }}">
-                  <button class="w-28 text-xs font-medium py-2 rounded-lg text-gray-400 border border-gray-200 hover:border-gray-300 transition leading-tight">
-                    ⏸ Frist<br>verlängern
-                  </button>
-                </form>
-                {% endif %}
-              </div>
+              <p class="text-xs mt-1" style="color: var(--ink-3);">{{ a.event.veranstaltungsort }}{% if a.event.anlass %} · {{ a.event.anlass }}{% endif %}</p>
             </div>
           </div>
+
+          <!-- Eckdaten -->
+          <div class="mt-3.5 space-y-1.5 text-xs" style="color: var(--ink-2);">
+            <p class="flex items-center gap-2">{{ ic('clock', 14) }} {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
+            <p class="flex items-center gap-2">{{ ic('pin', 14) }} {{ a.event.veranstaltungsort }}</p>
+            {% if a.event.produkte %}
+            <p class="flex items-center gap-2" style="color: var(--ink-3);">{{ ic('check', 14) }} {{ a.event.produkte }}</p>
+            {% endif %}
+          </div>
+
+          <!-- Frist -->
+          {% if dl is not none %}
+          <div class="mt-3">
+            {% if dl < 0 %}
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:#fee2e2;color:#b91c1c;">Frist abgelaufen</span>
+            {% elif dl == 0 %}
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:#fee2e2;color:#b91c1c;">Läuft heute ab</span>
+            {% elif dl == 1 %}
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);">Läuft morgen ab</span>
+            {% else %}
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:#f3f4f6;color:var(--ink-3);">Noch {{ dl }} Tage Zeit</span>
+            {% endif %}
+            {% if a.frist_verlaengert %}<span class="text-xs italic ml-1" style="color: var(--ink-4);">· verlängert</span>{% endif %}
+          </div>
+          {% endif %}
+
+          <!-- Aktionen -->
+          <div class="mt-4 flex gap-2">
+            <form method="post" action="/portal/antwort/{{ a.id }}" class="flex-1">
+              <input type="hidden" name="antwort" value="Ja">
+              <button class="w-full text-sm font-semibold py-2.5 rounded-xl text-white transition"
+                style="background:{% if is_kf %}var(--kf){% else %}var(--brand-primary){% endif %};">
+                Ich kann
+              </button>
+            </form>
+            <form method="post" action="/portal/antwort/{{ a.id }}" class="flex-1">
+              <input type="hidden" name="antwort" value="Nein">
+              <button class="w-full text-sm font-semibold py-2.5 rounded-xl transition"
+                style="background:#f3f4f6;color:var(--ink-2);">
+                Nicht da
+              </button>
+            </form>
+          </div>
+          {% if not a.frist_verlaengert %}
+          <form method="post" action="/portal/verlaengern/{{ a.id }}" class="mt-2">
+            <button class="w-full text-xs font-medium py-2 rounded-lg transition" style="color: var(--ink-4);">
+              Ich brauche mehr Bedenkzeit (Frist verlängern)
+            </button>
+          </form>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
     </section>
     {% endif %}
 
-    <!-- Bestätigte Jobs -->
+    <!-- ── Meine Einsätze ── -->
     <section>
-      <h2 class="text-base font-bold text-gray-900 mb-3">
-        Meine Jobs
-        {% if upcoming %}<span class="text-sm font-normal text-gray-400 ml-1">{{ upcoming|length }}</span>{% endif %}
-      </h2>
+      <div class="flex items-center gap-2.5 mb-3 px-1">
+        <span class="section-head">Meine Einsätze</span>
+        {% if upcoming %}<span class="section-count">{{ upcoming|length }}</span>{% endif %}
+      </div>
+
       {% if upcoming %}
       <div class="space-y-3">
         {% for a in upcoming %}
         {% set is_kf = a.event.marke == 'Knallfrosch' %}
         <div class="card p-5">
-          <div class="flex items-start justify-between mb-2">
-            <div class="flex items-center gap-2 flex-wrap">
-              <p class="font-semibold text-gray-900 text-sm">{{ a.event.anlass }}</p>
-              {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
-              {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
+          <div class="flex items-start gap-3.5">
+            <div class="date-badge {% if is_kf %}date-badge-kf{% endif %}">
+              <span class="d">{% if a.event.datum %}{{ a.event.datum.day }}{% else %}–{% endif %}</span>
+              <span class="m">{{ a.event.datum | de_month }}</span>
             </div>
-            <span class="text-xs font-medium px-2 py-0.5 rounded-full badge-status-bestaetigt shrink-0">Bestätigt</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <span class="font-semibold" style="color: var(--ink-1);">{{ a.event.kunde_firma }}</span>
+                  {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
+                  {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
+                </div>
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-status-bestaetigt shrink-0">Bestätigt</span>
+              </div>
+              <p class="text-xs mt-1" style="color: var(--ink-3);">{{ a.event.veranstaltungsort }}{% if a.event.anlass %} · {{ a.event.anlass }}{% endif %}</p>
+            </div>
           </div>
-          <div class="space-y-1.5 text-xs text-gray-500">
-            <p class="flex items-center gap-1.5 font-medium text-gray-700">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr
-            </p>
-            <p class="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              {{ a.event.veranstaltungsort }}
-            </p>
+
+          <div class="mt-3.5 space-y-1.5 text-xs" style="color: var(--ink-2);">
+            <p class="flex items-center gap-2">{{ ic('clock', 14) }} {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
+            <p class="flex items-center gap-2">{{ ic('pin', 14) }} {{ a.event.veranstaltungsort }}</p>
             {% if a.event.cl_aufbau_von %}
-            <p class="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Aufbau ab {{ a.event.cl_aufbau_von }}
-            </p>
+            <p class="flex items-center gap-2" style="color: var(--ink-3);">{{ ic('calendar', 14) }} Aufbau ab {{ a.event.cl_aufbau_von }} Uhr</p>
             {% endif %}
           </div>
+
           {% if a.event.hinweise %}
-          <div class="mt-3 px-3 py-2 rounded-lg text-xs" style="background:#fffbeb;color:#92400e;">
-            {{ a.event.hinweise }}
+          <div class="mt-3 px-3.5 py-2.5 rounded-xl text-xs" style="background: var(--c-amber-bg); color: var(--c-amber);">
+            <span class="font-semibold">Hinweis:</span> {{ a.event.hinweise }}
           </div>
           {% endif %}
-          <div class="mt-3 px-3 py-2 rounded-lg text-xs" style="background:{% if is_kf %}#f0faf0{% else %}var(--brand-primary-light){% endif %};color:{% if is_kf %}#1a7a1a{% else %}var(--brand-primary){% endif %};">
+
+          <div class="mt-2.5 px-3.5 py-2 rounded-xl text-xs font-medium"
+               style="background: {% if is_kf %}var(--kf-bg){% else %}var(--brand-primary-light){% endif %}; color: {% if is_kf %}var(--kf){% else %}var(--brand-primary){% endif %};">
             Rechnung an: {% if is_kf %}Knallfrosch GmbH{% else %}Kindsalabim Kinderevents{% endif %}
           </div>
         </div>
         {% endfor %}
       </div>
       {% else %}
-      <div class="card p-8 text-center">
-        <p class="text-sm text-gray-400">Keine bevorstehenden Jobs.</p>
+      <div class="card p-10 text-center">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background: var(--c-sky-bg);">
+          {{ evt('einsatz', 36) }}
+        </div>
+        <h3 class="font-semibold mb-1" style="color: var(--ink-1);">Noch keine Einsätze</h3>
+        <p class="text-sm" style="color: var(--ink-3);">Sobald du eine Anfrage bestätigst, erscheint dein Einsatz hier.</p>
       </div>
       {% endif %}
     </section>
 
-    <!-- Abgesagte Jobs -->
+    <!-- ── Abgesagt ── -->
     {% if abgesagt %}
-    <details>
-      <summary class="text-sm font-medium text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none">
+    <details class="px-1">
+      <summary class="text-sm font-semibold cursor-pointer select-none transition-colors" style="color: var(--ink-4);">
         Abgesagt ({{ abgesagt|length }})
       </summary>
       <div class="space-y-2 mt-3">
         {% for a in abgesagt %}
-        <div class="card p-4 opacity-50">
-          <p class="text-sm font-medium text-gray-700">{{ a.event.datum | de_date }} · {{ a.event.anlass }}</p>
-          <p class="text-xs text-gray-400 mt-0.5">{{ a.event.kunde_firma }}</p>
+        <div class="card p-4 opacity-60">
+          <p class="text-sm font-medium" style="color: var(--ink-2);">{{ a.event.kunde_firma }}</p>
+          <p class="text-xs mt-0.5" style="color: var(--ink-4);">{{ a.event.datum | de_date }} · {{ a.event.anlass }}</p>
         </div>
         {% endfor %}
       </div>
     </details>
     {% endif %}
 
-    <!-- Vergangene Jobs -->
+    <!-- ── Vergangene Einsätze ── -->
     {% if past %}
-    <details>
-      <summary class="text-sm font-medium text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none">
-        Vergangene Jobs ({{ past|length }})
+    <details class="px-1">
+      <summary class="text-sm font-semibold cursor-pointer select-none transition-colors" style="color: var(--ink-4);">
+        Vergangene Einsätze ({{ past|length }})
       </summary>
       <div class="space-y-2 mt-3">
         {% for a in past %}
-        <div class="card p-4 opacity-40">
-          <p class="text-sm font-medium text-gray-700">{{ a.event.datum | de_date }} · {{ a.event.anlass }}</p>
-          <p class="text-xs text-gray-400 mt-0.5">{{ a.event.kunde_firma }}</p>
+        <div class="card p-4 opacity-50">
+          <p class="text-sm font-medium" style="color: var(--ink-2);">{{ a.event.kunde_firma }}</p>
+          <p class="text-xs mt-0.5" style="color: var(--ink-4);">{{ a.event.datum | de_date }} · {{ a.event.anlass }}</p>
         </div>
         {% endfor %}
       </div>
     </details>
     {% endif %}
 
+    <!-- ── Komplett leer ── -->
     {% if not anfragen_data and not upcoming %}
-    <div class="text-center py-16 text-gray-400">
-      <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <div class="card p-12 text-center">
+      <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5" style="background: var(--c-sky-bg);">
+        {{ evt('kreativaktion', 44) }}
       </div>
-      <p class="text-sm">Aktuell keine offenen Anfragen.</p>
+      <h3 class="font-semibold text-lg mb-1" style="color: var(--ink-1);">Alles erledigt</h3>
+      <p class="text-sm" style="color: var(--ink-3);">Aktuell hast du keine offenen Anfragen oder Einsätze.</p>
     </div>
     {% endif %}
 
