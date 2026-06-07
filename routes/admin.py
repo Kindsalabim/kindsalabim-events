@@ -3,7 +3,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
+import calendar as _calendar
 from typing import Optional
+
+MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+          "August", "September", "Oktober", "November", "Dezember"]
 
 from database import get_db
 from models import Event, Dienstleister, Verfuegbarkeitsanfrage
@@ -11,11 +15,12 @@ from auth import get_admin_user, verify_password, hash_password, create_token, C
 from config import get_config
 from distance import rank_contractors
 from email_service import send_verfuegbarkeitsanfrage, send_briefing
-from choices import ZEITEN, de_date
+from choices import ZEITEN, de_date, de_month
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
+templates.env.filters["de_month"] = de_month
 templates.env.globals["zeiten"] = ZEITEN
 
 PRODUKTE_LIST = [
@@ -107,9 +112,18 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
         upcoming_data.append({"ev": ev, "fehlende_teamer": ft,
                                "fehlende_kuenstler": fk, "days_until": days_until})
 
+    # Mini-Monatskalender (aktueller Monat)
+    kalender = {
+        "weeks": _calendar.Calendar(firstweekday=0).monthdayscalendar(today.year, today.month),
+        "event_days": {e.datum.day for e in events
+                       if e.datum and e.datum.year == today.year and e.datum.month == today.month},
+        "today_day": today.day,
+        "label": f"{MONATE[today.month - 1]} {today.year}",
+    }
+
     return templates.TemplateResponse("admin/dashboard.html",
         tpl_context(request, upcoming_data=upcoming_data, upcoming=upcoming,
-                    past=past))
+                    past=past, kalender=kalender))
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────
