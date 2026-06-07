@@ -35,12 +35,9 @@
   {%- endif %}
 {% endmacro %}
 
-<!-- Header / Begrüßung -->
-<div class="flex items-start justify-between gap-3 mb-6">
-  <div>
-    <h1 class="text-2xl font-bold text-gray-900">Schön, dass du da bist 👋</h1>
-    <p class="text-sm text-gray-500 mt-1">Hier sind alle Veranstaltungen auf einen Blick.</p>
-  </div>
+<!-- Header -->
+<div class="flex items-center justify-between gap-3 mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Events</h1>
   <a href="/admin/events/new" class="btn-primary shrink-0">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Neues Event
@@ -195,8 +192,9 @@
   <div class="lg:col-span-1">
     <div class="card p-5 lg:sticky lg:top-6">
       <div class="flex items-center justify-between mb-3">
+        <a href="/admin/dashboard?month={{ kalender.prev }}" class="cal-nav" title="Voriger Monat">‹</a>
         <p class="font-display font-semibold text-gray-800">{{ kalender.label }}</p>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa3b2" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <a href="/admin/dashboard?month={{ kalender.next }}" class="cal-nav" title="Nächster Monat">›</a>
       </div>
       <div class="cal-grid">
         {% for d in ['Mo','Di','Mi','Do','Fr','Sa','So'] %}<div class="cal-dow">{{ d }}</div>{% endfor %}
@@ -207,17 +205,45 @@
           {% if day == 0 %}
             <div class="cal-cell muted"></div>
           {% else %}
-            <div class="cal-cell {% if day == kalender.today_day %}today{% elif day in kalender.event_days %}has-event{% endif %}">
-              {{ day }}{% if day in kalender.event_days %}<span class="dot"></span>{% endif %}
-            </div>
+            {% set evs = kalender.event_map.get(day, []) %}
+            {% set is_today = day == kalender.today.day and kalender.month == kalender.today.month and kalender.year == kalender.today.year %}
+            {% set is_sel = kalender.sel_day and day == kalender.sel_day.day and kalender.month == kalender.sel_day.month and kalender.year == kalender.sel_day.year %}
+            <a href="/admin/dashboard?month={{ '%04d-%02d'|format(kalender.year, kalender.month) }}&day={{ '%04d-%02d-%02d'|format(kalender.year, kalender.month, day) }}#tag"
+               class="cal-cell{% if is_today %} today{% endif %}{% if is_sel %} selected{% endif %}">
+              <span class="num">{{ day }}</span>
+              {% if evs %}
+              <span class="cal-dots">
+                {% for e in evs[:3] %}<span class="cd {{ 'kf' if e.marke == 'Knallfrosch' else 'ks' }}"></span>{% endfor %}
+                {% if evs|length > 3 %}<span class="cal-more">+{{ evs|length - 3 }}</span>{% endif %}
+              </span>
+              {% endif %}
+            </a>
           {% endif %}
         {% endfor %}
       </div>
       {% endfor %}
-      <div class="flex items-center gap-4 mt-4 text-xs text-gray-400">
-        <span class="flex items-center gap-1.5"><span style="width:8px;height:8px;border-radius:9999px;background:var(--brand-primary);display:inline-block"></span>Heute</span>
-        <span class="flex items-center gap-1.5"><span style="width:8px;height:8px;border-radius:9999px;background:var(--brand-accent);display:inline-block"></span>Event</span>
+      <div class="flex items-center gap-4 mt-4 text-xs text-gray-500">
+        <span class="flex items-center gap-1.5"><span class="cd ks"></span>Kindsalabim</span>
+        <span class="flex items-center gap-1.5"><span class="cd kf"></span>Knallfrosch</span>
       </div>
+
+      {% if kalender.sel_day %}
+      <div id="tag" class="mt-4 pt-4" style="border-top: 1px solid var(--line);">
+        <p class="font-display font-semibold text-gray-800 text-sm mb-2">Events am {{ kalender.sel_day | de_date }}</p>
+        {% if kalender.sel_events %}
+        <div class="space-y-1">
+          {% for e in kalender.sel_events %}
+          <a href="/admin/events/{{ e.id }}" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+            <span class="cd {{ 'kf' if e.marke == 'Knallfrosch' else 'ks' }}" style="width:8px;height:8px;flex-shrink:0;"></span>
+            <span class="text-sm text-gray-700 truncate">{{ e.startzeit }} · {{ e.anlass }} <span class="text-gray-400">· {{ e.kunde_firma }}</span></span>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400">Keine Events an diesem Tag.</p>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
   </div>
 
