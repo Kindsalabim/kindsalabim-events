@@ -1,182 +1,185 @@
 {% extends "admin_base.html" %}
-{% from "icons.html" import ic %}
+{% from "icons.html" import ic, evt %}
 {% set active = 'dashboard' %}
 {% block title %}Dashboard – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 
-{# ── Status-Makros ── #}
-{% macro status_bar_class(s) %}
-  {%- if s == 'Bestätigt' %}status-bar-bestaetigt
-  {%- elif s == 'Briefing gesendet' %}status-bar-briefing
-  {%- elif s == 'Abgeschlossen' %}status-bar-abgeschlossen
-  {%- elif s == 'Dienstleister angefragt' %}status-bar-angefragt
-  {%- elif s == 'Planung fertig' %}status-bar-planung-fertig
-  {%- else %}status-bar-entwurf{%- endif %}
-{% endmacro %}
-
+{# ── Status-Badge-Makro ── #}
 {% macro status_badge(s) %}
   {%- if s == 'Abgeschlossen' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-abgeschlossen">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-abgeschlossen">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
   {%- elif s == 'Briefing gesendet' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-briefing">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-briefing">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>{{ s }}</span>
   {%- elif s == 'Bestätigt' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-bestaetigt">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-bestaetigt">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
   {%- elif s == 'Dienstleister angefragt' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-angefragt">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-angefragt">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.62 1.2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>{{ s }}</span>
   {%- elif s == 'Planung fertig' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-planung-fertig">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-planung-fertig">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
   {%- else -%}
-    <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full badge-status-entwurf">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-entwurf">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Event eingepflegt</span>
   {%- endif %}
 {% endmacro %}
 
 <!-- Header -->
-<div class="flex items-center justify-between gap-3 mb-6">
-  <h1 class="text-2xl font-bold text-gray-900">Events</h1>
+<div class="flex items-center justify-between gap-3 mb-8">
+  <h1 class="text-2xl font-bold" style="color:var(--ink-1);">Events</h1>
   <a href="/admin/events/new" class="btn-primary shrink-0">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Neues Event
   </a>
 </div>
 
 <!-- Stats -->
-{% set total = (upcoming|length) + (past|length) %}
+{% set total     = (upcoming|length) + (past|length) %}
 {% set confirmed = upcoming|selectattr('status','equalto','Bestätigt')|list|length %}
-{% set dringend = upcoming_data|selectattr('days_until','lt',14)|selectattr('days_until','ge',0)|list|length %}
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-  <div class="stat-chip sky">
-    <div class="flex items-center gap-2 mb-1">{{ ic('calendar', 20) }}
-      <p class="text-xs font-semibold" style="color: var(--c-sky);">Gesamt</p>
+{% set dringend  = upcoming_data|selectattr('days_until','lt',14)|selectattr('days_until','ge',0)|list|length %}
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="stat-card">
+    <div class="tile sky">{{ evt('einsatz', 32) }}</div>
+    <div>
+      <p class="stat-num" style="color:var(--c-sky);">{{ total }}</p>
+      <p class="stat-label">Events gesamt</p>
     </div>
-    <p class="text-2xl font-bold font-display" style="color: var(--c-sky);">{{ total }}</p>
   </div>
-  <div class="stat-chip">
-    <div class="flex items-center gap-2 mb-1">{{ ic('clock', 20) }}
-      <p class="text-xs font-semibold text-gray-500">Bevorstehend</p>
+  <div class="stat-card">
+    <div class="tile sky">{{ evt('zeitplan', 32) }}</div>
+    <div>
+      <p class="stat-num" style="color:var(--brand-primary);">{{ upcoming|length }}</p>
+      <p class="stat-label">Bevorstehend</p>
     </div>
-    <p class="text-2xl font-bold font-display" style="color: var(--brand-primary);">{{ upcoming|length }}</p>
   </div>
-  <div class="stat-chip green">
-    <div class="flex items-center gap-2 mb-1">{{ ic('check', 20) }}
-      <p class="text-xs font-semibold" style="color: var(--c-green);">Bestätigt</p>
+  <div class="stat-card">
+    <div class="tile green">{{ evt('checkliste', 32) }}</div>
+    <div>
+      <p class="stat-num" style="color:var(--c-green);">{{ confirmed }}</p>
+      <p class="stat-label">Bestätigt</p>
     </div>
-    <p class="text-2xl font-bold font-display" style="color: var(--c-green);">{{ confirmed }}</p>
   </div>
-  <div class="stat-chip {% if dringend > 0 %}coral{% else %}amber{% endif %}">
-    <div class="flex items-center gap-2 mb-1">{{ ic('alert', 20) }}
-      <p class="text-xs font-semibold" style="color: {% if dringend > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">In 14 Tagen</p>
+  <div class="stat-card">
+    <div class="tile {% if dringend > 0 %}coral{% else %}amber{% endif %}">{{ ic('alert', 26) }}</div>
+    <div>
+      <p class="stat-num" style="color:{% if dringend > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ dringend }}</p>
+      <p class="stat-label">In 14 Tagen</p>
     </div>
-    <p class="text-2xl font-bold font-display" style="color: {% if dringend > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ dringend }}</p>
   </div>
 </div>
 
-<div class="grid lg:grid-cols-3 gap-5">
+<div class="grid lg:grid-cols-3 gap-7">
 
   <!-- Bevorstehende Events -->
   <div class="lg:col-span-2">
-    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Bevorstehend · {{ upcoming|length }}</p>
+    <div class="flex items-center gap-2.5 mb-4">
+      <span class="section-head">Bevorstehend</span>
+      <span class="section-count">{{ upcoming|length }}</span>
+    </div>
 
     {% if upcoming_data %}
-    <div class="space-y-2.5">
+    <div class="space-y-3">
       {% for item in upcoming_data %}
-      {% set ev = item.ev %}
-      {% set ft = item.fehlende_teamer %}
-      {% set fk = item.fehlende_kuenstler %}
+      {% set ev    = item.ev %}
+      {% set ft    = item.fehlende_teamer %}
+      {% set fk    = item.fehlende_kuenstler %}
       {% set urgent = item.days_until >= 0 and item.days_until <= 14 %}
-      <a href="/admin/events/{{ ev.id }}" class="event-card {% if urgent and (ft > 0 or fk > 0) %}border-red-200{% endif %}">
-        <div class="event-card-bar {{ status_bar_class(ev.status) }}"></div>
-        <div class="event-card-body">
-          <div class="flex items-start gap-3.5">
-            <!-- Datums-Badge -->
-            <div class="date-badge">
-              <span class="d">{% if ev.datum %}{{ ev.datum.day }}{% else %}–{% endif %}</span>
-              <span class="m">{{ ev.datum | de_month }}</span>
-            </div>
+      {% set is_kf  = ev.marke == 'Knallfrosch' %}
 
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-semibold text-gray-900 text-sm">{{ ev.anlass }}</span>
-                {% if ev.marke == 'Knallfrosch' %}
-                  <span class="brand-tag-knallfrosch">Knallfrosch</span>
-                {% else %}
-                  <span class="brand-tag-kindsalabim">Kindsalabim</span>
-                {% endif %}
+      <a href="/admin/events/{{ ev.id }}"
+         class="event-card {% if urgent and (ft > 0 or fk > 0) %}border-red-200{% endif %}">
+
+        <!-- Datums-Badge mit Markenfarbe -->
+        <div class="date-badge {% if is_kf %}date-badge-kf{% endif %}">
+          <span class="d">{% if ev.datum %}{{ ev.datum.day }}{% else %}–{% endif %}</span>
+          <span class="m">{{ ev.datum | de_month }}</span>
+        </div>
+
+        <!-- Event-Infos -->
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-semibold" style="color:var(--ink-1);">{{ ev.anlass }}</span>
+                {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
+                {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
                 {{ status_badge(ev.status) }}
               </div>
-              <p class="text-xs text-gray-500 mt-1">{{ ev.kunde_firma }} · {{ ev.veranstaltungsort }}</p>
-
+              <p class="text-xs mt-1" style="color:var(--ink-3);">{{ ev.kunde_firma }} · {{ ev.veranstaltungsort }}</p>
               <div class="flex items-center gap-3 mt-2 flex-wrap">
-                <span class="text-xs text-gray-400">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</span>
-                <span class="text-xs flex items-center gap-1.5 {% if ft > 0 %}text-red-500 font-medium{% else %}text-gray-400{% endif %}">
-                  {{ ic('users', 14) }}
+                <span class="text-xs" style="color:var(--ink-4);">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</span>
+                <span class="text-xs flex items-center gap-1 {% if ft > 0 %}text-red-500 font-semibold{% endif %}" style="{% if ft == 0 %}color:var(--ink-4);{% endif %}">
+                  {{ ic('users', 13) }}
                   {% if ft > 0 %}{{ ft }} Teamer fehlt{% if ft != 1 %}en{% endif %}{% else %}{{ ev.anzahl_teamer }} Teamer ✓{% endif %}
                 </span>
-                <span class="text-xs flex items-center gap-1.5 {% if fk > 0 %}text-red-500 font-medium{% else %}text-gray-400{% endif %}">
-                  {{ ic('star', 14) }}
+                <span class="text-xs flex items-center gap-1 {% if fk > 0 %}text-red-500 font-semibold{% endif %}" style="{% if fk == 0 %}color:var(--ink-4);{% endif %}">
+                  {{ ic('star', 13) }}
                   {% if fk > 0 %}{{ fk }} Künstler fehlt{% if fk != 1 %}en{% endif %}{% else %}{{ ev.anzahl_kuenstler }} Künstler ✓{% endif %}
                 </span>
                 {% if ev.material_mitnahme %}
-                <span class="text-xs flex items-center gap-1.5 text-purple-600">
-                  {{ ic('box', 14) }}
-                  Material
+                <span class="text-xs flex items-center gap-1 text-purple-600">
+                  {{ ic('box', 13) }} Material
                 </span>
                 {% endif %}
               </div>
             </div>
 
-            <!-- Countdown -->
+            <!-- Countdown-Chip -->
             {% if item.days_until >= 0 and item.days_until <= 7 %}
-              <span class="shrink-0 text-xs font-semibold px-2 py-1 rounded-lg" style="background: var(--c-coral-bg); color: var(--c-coral);">in {{ item.days_until }} Tag{% if item.days_until != 1 %}en{% endif %}</span>
+              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:var(--c-coral-bg);color:var(--c-coral);">in {{ item.days_until }} Tag{% if item.days_until != 1 %}en{% endif %}</span>
             {% elif item.days_until >= 0 and item.days_until <= 14 %}
-              <span class="shrink-0 text-xs font-semibold px-2 py-1 rounded-lg" style="background: var(--c-amber-bg); color: var(--c-amber);">in {{ item.days_until }} Tagen</span>
+              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:var(--c-amber-bg);color:var(--c-amber);">in {{ item.days_until }} Tagen</span>
             {% endif %}
           </div>
         </div>
       </a>
       {% endfor %}
     </div>
+
     {% else %}
-    <div class="card p-10 text-center">
-      <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
-        {{ ic('balloons', 34) }}
+    <!-- Empty state -->
+    <div class="card p-12 text-center">
+      <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5" style="background:var(--c-sky-bg);">
+        {{ evt('kreativaktion', 44) }}
       </div>
-      <h3 class="font-semibold text-gray-800 mb-1">Noch keine Events geplant</h3>
-      <p class="text-gray-500 text-sm mb-5">Lege dein erstes Event an – der Rest geht von hier aus ganz leicht.</p>
+      <h3 class="font-semibold text-lg mb-1" style="color:var(--ink-1);">Noch keine Events geplant</h3>
+      <p class="text-sm mb-5" style="color:var(--ink-3);">Lege dein erstes Event an – der Rest geht von hier aus ganz leicht.</p>
       <a href="/admin/events/new" class="btn-primary inline-flex">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Erstes Event anlegen
       </a>
     </div>
     {% endif %}
 
-    <!-- Abgeschlossen -->
+    <!-- Abgeschlossene Events -->
     {% if past %}
     <details class="mt-6">
-      <summary class="text-xs font-semibold text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-600 transition-colors select-none">
+      <summary class="text-xs font-semibold uppercase tracking-wide cursor-pointer select-none transition-colors" style="color:var(--ink-4);">
         Abgeschlossen · {{ past|length }}
       </summary>
       <div class="space-y-2 mt-3">
         {% for ev in past %}
-        <a href="/admin/events/{{ ev.id }}" class="event-card opacity-60 hover:opacity-90">
-          <div class="event-card-bar status-bar-abgeschlossen"></div>
-          <div class="event-card-body">
-            <div class="flex items-center justify-between gap-3">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-medium text-gray-700 text-sm">{{ ev.anlass }}</span>
-                  {% if ev.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
-                  {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
-                </div>
-                <p class="text-xs text-gray-400 mt-0.5">{{ ev.kunde_firma }}</p>
+        <a href="/admin/events/{{ ev.id }}"
+           class="event-card opacity-60 hover:opacity-90"
+           style="padding:0.875rem 1.25rem;">
+          <div class="date-badge {% if ev.marke == 'Knallfrosch' %}date-badge-kf{% endif %}" style="width:3rem;height:3rem;border-radius:0.75rem;">
+            <span class="d" style="font-size:1.1rem;">{% if ev.datum %}{{ ev.datum.day }}{% else %}–{% endif %}</span>
+            <span class="m">{{ ev.datum | de_month }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-3 flex-1 min-w-0">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-medium text-sm" style="color:var(--ink-2);">{{ ev.anlass }}</span>
+                {% if ev.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
+                {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
               </div>
-              <p class="text-sm text-gray-500 whitespace-nowrap shrink-0">{{ ev.datum | de_date }}</p>
+              <p class="text-xs mt-0.5" style="color:var(--ink-4);">{{ ev.kunde_firma }}</p>
             </div>
+            <p class="text-sm whitespace-nowrap shrink-0" style="color:var(--ink-3);">{{ ev.datum | de_date }}</p>
           </div>
         </a>
         {% endfor %}
@@ -190,7 +193,7 @@
     <div class="card p-5 lg:sticky lg:top-6">
       <div class="flex items-center justify-between mb-3">
         <a href="/admin/dashboard?month={{ kalender.prev }}" class="cal-nav" title="Voriger Monat">‹</a>
-        <p class="font-display font-semibold text-gray-800">{{ kalender.label }}</p>
+        <p class="font-display font-semibold" style="color:var(--ink-1);">{{ kalender.label }}</p>
         <a href="/admin/dashboard?month={{ kalender.next }}" class="cal-nav" title="Nächster Monat">›</a>
       </div>
       <div class="cal-grid">
@@ -202,9 +205,9 @@
           {% if day == 0 %}
             <div class="cal-cell muted"></div>
           {% else %}
-            {% set evs = kalender.event_map.get(day, []) %}
+            {% set evs      = kalender.event_map.get(day, []) %}
             {% set is_today = day == kalender.today.day and kalender.month == kalender.today.month and kalender.year == kalender.today.year %}
-            {% set is_sel = kalender.sel_day and day == kalender.sel_day.day and kalender.month == kalender.sel_day.month and kalender.year == kalender.sel_day.year %}
+            {% set is_sel   = kalender.sel_day and day == kalender.sel_day.day and kalender.month == kalender.sel_day.month and kalender.year == kalender.sel_day.year %}
             <a href="/admin/dashboard?month={{ '%04d-%02d'|format(kalender.year, kalender.month) }}&day={{ '%04d-%02d-%02d'|format(kalender.year, kalender.month, day) }}#tag"
                class="cal-cell{% if is_today %} today{% endif %}{% if is_sel %} selected{% endif %}">
               <span class="num">{{ day }}</span>
@@ -219,25 +222,26 @@
         {% endfor %}
       </div>
       {% endfor %}
-      <div class="flex items-center gap-4 mt-4 text-xs text-gray-500">
+
+      <div class="flex items-center gap-4 mt-4 text-xs" style="color:var(--ink-3);">
         <span class="flex items-center gap-1.5"><span class="cd ks"></span>Kindsalabim</span>
         <span class="flex items-center gap-1.5"><span class="cd kf"></span>Knallfrosch</span>
       </div>
 
       {% if kalender.sel_day %}
-      <div id="tag" class="mt-4 pt-4" style="border-top: 1px solid var(--line);">
-        <p class="font-display font-semibold text-gray-800 text-sm mb-2">Events am {{ kalender.sel_day | de_date }}</p>
+      <div id="tag" class="mt-4 pt-4" style="border-top:1px solid var(--line);">
+        <p class="font-display font-semibold text-sm mb-2" style="color:var(--ink-1);">Events am {{ kalender.sel_day | de_date }}</p>
         {% if kalender.sel_events %}
         <div class="space-y-1">
           {% for e in kalender.sel_events %}
           <a href="/admin/events/{{ e.id }}" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
             <span class="cd {{ 'kf' if e.marke == 'Knallfrosch' else 'ks' }}" style="width:8px;height:8px;flex-shrink:0;"></span>
-            <span class="text-sm text-gray-700 truncate">{{ e.startzeit }} · {{ e.anlass }} <span class="text-gray-400">· {{ e.kunde_firma }}</span></span>
+            <span class="text-sm truncate" style="color:var(--ink-2);">{{ e.startzeit }} · {{ e.anlass }} <span style="color:var(--ink-4);">· {{ e.kunde_firma }}</span></span>
           </a>
           {% endfor %}
         </div>
         {% else %}
-        <p class="text-sm text-gray-400">Keine Events an diesem Tag.</p>
+        <p class="text-sm" style="color:var(--ink-4);">Keine Events an diesem Tag.</p>
         {% endif %}
       </div>
       {% endif %}

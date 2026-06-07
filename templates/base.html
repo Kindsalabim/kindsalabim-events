@@ -9,47 +9,76 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Nunito', system-ui, sans-serif; color: #1f2937; background: #f5f7fb; }
+    body { font-family: 'Nunito', system-ui, sans-serif; color: #1a2332; background: var(--bg); }
     h1, h2, h3, h4, .font-display { font-family: 'Poppins', 'Nunito', system-ui, sans-serif; letter-spacing: -0.01em; }
 
     :root {
-      --brand-primary: #003864;
-      --brand-primary-dark: #002a4d;
-      --brand-primary-light: #e8f0f7;
-      --brand-accent: #ef3845;
-      --brand-accent-light: #fef2f2;
+      /* Kindsalabim brand */
+      --brand-primary:        #1D4E89;
+      --brand-primary-dark:   #163b6e;
+      --brand-primary-light:  #EAF2FB;
+      --brand-accent:         #ef3845;
+      --brand-accent-light:   #fef2f2;
 
-      /* Weiche Flächen & Akzente (freundlicher Look) */
-      --surface: #f5f7fb;
-      --line: #eceff4;
-      --r-card: 1rem;
+      /* Semantic palette */
+      --c-sky:      #1D4E89;
+      --c-sky-bg:   #EAF2FB;
+      --c-sky-mid:  #3D7DBC;
+      --c-amber:    #b07d1a;
+      --c-amber-bg: #FFF4D6;
+      --c-green:    #1f7a44;
+      --c-green-bg: #E6F6EC;
+      --c-coral:    #c0473f;
+      --c-coral-bg: #FFECE9;
+
+      /* Knallfrosch */
+      --kf:    #1a7a1a;
+      --kf-bg: #E6F9EC;
+
+      /* Neutral ink */
+      --ink-1: #1a2332;
+      --ink-2: #374151;
+      --ink-3: #6b7280;
+      --ink-4: #9ca3af;
+
+      /* Surfaces */
+      --bg:      #f0f5fc;
+      --surface: #ffffff;
+      --line:    #e5ebf4;
+
+      /* Radii */
+      --r-sm: 0.5rem;
+      --r-md: 0.875rem;
       --r-lg: 1.25rem;
-      --shadow-sm: 0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05);
-      --shadow-md: 0 6px 22px rgba(16,24,40,0.09);
-      --c-sky-bg: #eaf2fb;   --c-sky: #1d4e89;
-      --c-amber-bg: #fff4d6; --c-amber: #b07d1a;
-      --c-green-bg: #e6f6ec; --c-green: #1f7a44;
-      --c-coral-bg: #ffece9; --c-coral: #c0473f;
+      --r-xl: 1.5rem;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+      --shadow-md: 0 4px 20px rgba(16,24,40,0.09), 0 2px 6px rgba(16,24,40,0.05);
+      --shadow-lg: 0 10px 40px rgba(16,24,40,0.13);
     }
 
+    /* Knallfrosch brand override */
     .brand-knallfrosch {
-      --brand-primary: #1a7a1a;
-      --brand-primary-dark: #145c14;
-      --brand-primary-light: #f0faf0;
-      --brand-accent: #e8131b;
-      --brand-accent-light: #fff0f0;
+      --brand-primary:       #1a7a1a;
+      --brand-primary-dark:  #145c14;
+      --brand-primary-light: #E6F9EC;
+      --brand-accent:        #e8131b;
+      --brand-accent-light:  #fff0f0;
+      --c-sky:               #1a7a1a;
+      --c-sky-bg:            #E6F9EC;
     }
 
-    /* Buttons */
+    /* ── Buttons ── */
     .btn-primary {
       background-color: var(--brand-primary);
       color: white;
-      padding: 0.62rem 1.4rem;
-      border-radius: 0.7rem;
+      padding: 0.625rem 1.375rem;
+      border-radius: var(--r-md);
       font-size: 0.875rem;
       font-weight: 600;
       transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
-      box-shadow: 0 2px 8px rgba(0,56,100,0.18);
+      box-shadow: 0 2px 8px rgba(29,78,137,0.22);
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
@@ -57,14 +86,14 @@
       border: none;
       text-decoration: none;
     }
-    .btn-primary:hover { background-color: var(--brand-primary-dark); box-shadow: 0 4px 14px rgba(0,56,100,0.24); }
+    .btn-primary:hover  { background-color: var(--brand-primary-dark); box-shadow: 0 4px 16px rgba(29,78,137,0.28); }
     .btn-primary:active { transform: translateY(1px); }
 
     .btn-secondary {
       background-color: white;
-      color: #374151;
-      padding: 0.62rem 1.4rem;
-      border-radius: 0.7rem;
+      color: var(--ink-2);
+      padding: 0.625rem 1.375rem;
+      border-radius: var(--r-md);
       font-size: 0.875rem;
       font-weight: 600;
       border: 1px solid var(--line);
@@ -75,57 +104,77 @@
       cursor: pointer;
       text-decoration: none;
     }
-    .btn-secondary:hover { background-color: #f9fafb; border-color: #d8dde6; }
+    .btn-secondary:hover { background-color: #f5f8fc; border-color: #c9d5e8; }
 
-    /* Status badges – neue Bezeichnungen */
-    .badge-status-entwurf        { background: #e8f0f7; color: #003864; }   /* Event eingepflegt */
-    .badge-status-bestaetigt     { background: #dcfce7; color: #166534; }   /* Bestätigt          */
-    .badge-status-briefing       { background: #dbeafe; color: #1e40af; }   /* Briefing gesendet  */
-    .badge-status-abgeschlossen  { background: #f3f4f6; color: #6b7280; }   /* Abgeschlossen      */
-    .badge-status-angefragt      { background: #fef9c3; color: #854d0e; }   /* DL angefragt       */
-    .badge-status-checkliste-out { background: #ede9fe; color: #5b21b6; }   /* Checkliste geschickt */
-    .badge-status-checkliste-in  { background: #d1fae5; color: #065f46; }   /* Checkliste eingegangen */
-    .badge-status-planung-fertig { background: #dcfce7; color: #14532d; }   /* Planung fertig     */
+    /* ── Status badges ── */
+    .badge-status-entwurf        { background: var(--brand-primary-light); color: var(--brand-primary); }
+    .badge-status-bestaetigt     { background: #dcfce7; color: #166534; }
+    .badge-status-briefing       { background: #dbeafe; color: #1e40af; }
+    .badge-status-abgeschlossen  { background: #f3f4f6; color: #6b7280; }
+    .badge-status-angefragt      { background: var(--c-amber-bg); color: var(--c-amber); }
+    .badge-status-checkliste-out { background: #ede9fe; color: #5b21b6; }
+    .badge-status-checkliste-in  { background: #d1fae5; color: #065f46; }
+    .badge-status-planung-fertig { background: #dcfce7; color: #14532d; }
 
-    /* Status left-bar colors for event cards */
-    .status-bar-entwurf          { background: #93c5fd; }
-    .status-bar-bestaetigt       { background: #16a34a; }
-    .status-bar-briefing         { background: #2563eb; }
-    .status-bar-abgeschlossen    { background: #9ca3af; }
-    .status-bar-angefragt        { background: #f59e0b; }
-    .status-bar-planung-fertig   { background: #14532d; }
+    /* ── Brand tags ── */
+    .brand-tag-kindsalabim {
+      background: var(--brand-primary-light);
+      color: var(--brand-primary);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.55rem;
+      border-radius: var(--r-xl);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .brand-tag-knallfrosch {
+      background: var(--kf-bg);
+      color: var(--kf);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.55rem;
+      border-radius: var(--r-xl);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
 
-    /* Sidebar */
+    /* ── Sidebar nav links (white sidebar) ── */
     .sidebar-link {
       display: flex;
       align-items: center;
       gap: 0.625rem;
       padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
+      border-radius: var(--r-sm);
       font-size: 0.875rem;
-      color: rgba(255,255,255,0.75);
+      font-weight: 500;
+      color: var(--ink-3);
       transition: background-color 0.15s, color 0.15s;
       text-decoration: none;
     }
-    .sidebar-link:hover { background-color: rgba(255,255,255,0.1); color: white; }
-    .sidebar-link.active  { background-color: rgba(255,255,255,0.18); color: white; font-weight: 500; }
+    .sidebar-link:hover  { background-color: var(--bg); color: var(--ink-1); }
+    .sidebar-link.active { background-color: var(--brand-primary-light); color: var(--brand-primary); font-weight: 600; }
 
-    /* Cards */
+    /* ── Cards ── */
     .card {
       background: white;
-      border-radius: var(--r-card);
+      border-radius: var(--r-lg);
       border: 1px solid var(--line);
       box-shadow: var(--shadow-sm);
     }
 
+    /* ── Event cards (brand-tinted date badge, no status bar) ── */
     .event-card {
       background: white;
       border-radius: var(--r-lg);
       border: 1px solid var(--line);
       box-shadow: var(--shadow-sm);
       display: flex;
-      overflow: hidden;
-      transition: box-shadow 0.2s, transform 0.2s;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1.25rem 1.375rem;
+      transition: box-shadow 0.2s, transform 0.15s;
       text-decoration: none;
       color: inherit;
     }
@@ -133,109 +182,125 @@
       box-shadow: var(--shadow-md);
       transform: translateY(-2px);
     }
-    .event-card-bar { width: 6px; flex-shrink: 0; }
-    .event-card-body { flex: 1; padding: 1.1rem 1.25rem; min-width: 0; }
 
-    /* Datums-Badge (Tag + Monat) */
+    /* ── Date badges ── */
     .date-badge {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      width: 3.4rem; height: 3.4rem; flex-shrink: 0;
-      border-radius: 0.9rem;
-      background: var(--brand-primary-light);
-      color: var(--brand-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 3.75rem;
+      height: 3.75rem;
+      flex-shrink: 0;
+      border-radius: var(--r-md);
       line-height: 1;
+      /* default: Kindsalabim */
+      background: var(--c-sky-bg);
+      color: var(--c-sky);
     }
-    .date-badge .d { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.25rem; }
-    .date-badge .m { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.18rem; }
+    .date-badge-kf { background: var(--kf-bg); color: var(--kf); }
+    .date-badge .d { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.375rem; }
+    .date-badge .m { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.15rem; opacity: 0.75; }
 
-    /* Info-Pill für Event-Detail */
+    /* ── Stat cards (circular icon tile) ── */
+    .stat-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      padding: 1.375rem 1.25rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: 1.125rem;
+    }
+    .stat-card .tile {
+      width: 3.625rem;
+      height: 3.625rem;
+      flex-shrink: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stat-card .tile.sky   { background: var(--c-sky-bg);   }
+    .stat-card .tile.amber { background: var(--c-amber-bg); }
+    .stat-card .tile.green { background: var(--c-green-bg); }
+    .stat-card .tile.coral { background: var(--c-coral-bg); }
+    .stat-num   { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2rem; line-height: 1; }
+    .stat-label { font-size: 0.8rem; font-weight: 600; color: var(--ink-3); margin-top: 0.3rem; }
+
+    /* ── Stat chips (legacy compact variant) ── */
+    .stat-chip            { background: white; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 0.9rem 1.1rem; box-shadow: var(--shadow-sm); }
+    .stat-chip.sky        { background: var(--c-sky-bg);   border-color: transparent; }
+    .stat-chip.amber      { background: var(--c-amber-bg); border-color: transparent; }
+    .stat-chip.green      { background: var(--c-green-bg); border-color: transparent; }
+    .stat-chip.coral      { background: var(--c-coral-bg); border-color: transparent; }
+
+    /* ── Info pill ── */
     .info-pill {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
       background: #f8f9fb;
       border: 1px solid #eef0f3;
-      border-radius: 0.5rem;
+      border-radius: var(--r-sm);
       padding: 0.45rem 0.75rem;
       font-size: 0.8rem;
-      color: #374151;
+      color: var(--ink-2);
     }
-    .info-pill svg { color: #9ca3af; flex-shrink: 0; }
+    .info-pill svg { color: var(--ink-4); flex-shrink: 0; }
 
-    /* Stats chips */
-    .stat-chip {
-      background: white;
-      border: 1px solid var(--line);
-      border-radius: var(--r-card);
-      padding: 0.95rem 1.2rem;
-      box-shadow: var(--shadow-sm);
+    /* ── Section header ── */
+    .section-head  { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1.05rem; color: var(--ink-1); }
+    .section-count {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--brand-primary);
+      background: var(--brand-primary-light);
+      border-radius: var(--r-xl);
+      padding: 0.1rem 0.6rem;
     }
-    .stat-chip.sky   { background: var(--c-sky-bg);   border-color: transparent; }
-    .stat-chip.amber { background: var(--c-amber-bg); border-color: transparent; }
-    .stat-chip.green { background: var(--c-green-bg); border-color: transparent; }
-    .stat-chip.coral { background: var(--c-coral-bg); border-color: transparent; }
 
-    /* Monatskalender */
-    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.2rem; }
-    .cal-dow { text-align: center; font-size: 0.66rem; font-weight: 700; color: #9aa3b2; padding-bottom: 0.3rem; text-transform: uppercase; }
-    .cal-cell {
-      min-height: 2.55rem; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-      padding-top: 0.28rem; font-size: 0.82rem; color: #374151; border-radius: 0.55rem;
-      text-decoration: none; border: 1px solid transparent; transition: background 0.12s, border-color 0.12s;
+    /* ── Monatskalender ── */
+    .cal-grid  { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.2rem; }
+    .cal-dow   { text-align: center; font-size: 0.63rem; font-weight: 700; color: var(--ink-4); padding-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .cal-cell  {
+      min-height: 2.55rem;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 0.28rem; font-size: 0.82rem; color: var(--ink-2);
+      border-radius: var(--r-sm); text-decoration: none;
+      border: 1px solid transparent; transition: background 0.12s, border-color 0.12s;
     }
-    a.cal-cell:hover { background: #f1f4f9; }
-    .cal-cell.muted { color: #cdd4de; pointer-events: none; }
-    .cal-cell .num { text-align: center; min-width: 1.5rem; }
-    .cal-cell.today { font-weight: 800; }
-    .cal-cell.today .num { display: inline-block; height: 1.5rem; line-height: 1.5rem; border-radius: 9999px; background: var(--brand-primary); color: #fff; }
-    .cal-cell.selected { border-color: var(--brand-primary); background: var(--brand-primary-light); }
-    .cal-dots { display: flex; gap: 2px; margin-top: 3px; align-items: center; height: 7px; }
-    .cd { width: 6px; height: 6px; border-radius: 9999px; display: inline-block; }
-    .cd.ks { background: #1d4e89; }   /* Kindsalabim – blau */
-    .cd.kf { background: #1a7a1a; }   /* Knallfrosch – grün */
-    .cal-more { font-size: 0.56rem; color: #8b94a3; font-weight: 700; margin-left: 1px; }
+    a.cal-cell:hover       { background: #f1f4f9; }
+    .cal-cell.muted        { color: #cdd4de; pointer-events: none; }
+    .cal-cell .num         { text-align: center; min-width: 1.5rem; }
+    .cal-cell.today        { font-weight: 800; }
+    .cal-cell.today .num   { display: inline-block; height: 1.5rem; line-height: 1.5rem; border-radius: var(--r-xl); background: var(--brand-primary); color: #fff; }
+    .cal-cell.selected     { border-color: var(--brand-primary); background: var(--brand-primary-light); }
+    .cal-dots              { display: flex; gap: 2px; margin-top: 3px; align-items: center; height: 7px; }
+    .cd                    { width: 6px; height: 6px; border-radius: var(--r-xl); display: inline-block; }
+    .cd.ks                 { background: var(--c-sky); }
+    .cd.kf                 { background: var(--kf); }
+    .cal-more              { font-size: 0.56rem; color: #8b94a3; font-weight: 700; margin-left: 1px; }
     .cal-nav {
-      width: 1.9rem; height: 1.9rem; display: inline-flex; align-items: center; justify-content: center;
-      border-radius: 0.55rem; color: var(--brand-primary); text-decoration: none; font-size: 1.15rem;
-      border: 1px solid var(--line); background: #fff; line-height: 1;
+      width: 1.9rem; height: 1.9rem;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: var(--r-sm); color: var(--brand-primary); text-decoration: none;
+      font-size: 1.15rem; border: 1px solid var(--line); background: white; line-height: 1;
     }
     .cal-nav:hover { background: #f1f4f9; }
 
-    /* Brand tags */
-    .brand-tag-kindsalabim {
-      background: #e8f0f7;
-      color: #003864;
-      font-size: 0.65rem;
-      font-weight: 600;
-      padding: 0.15rem 0.5rem;
-      border-radius: 9999px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-    .brand-tag-knallfrosch {
-      background: #f0faf0;
-      color: #1a7a1a;
-      font-size: 0.65rem;
-      font-weight: 600;
-      padding: 0.15rem 0.5rem;
-      border-radius: 9999px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
+    /* ── Focus ring ── */
     .focus-ring:focus {
       outline: none;
       box-shadow: 0 0 0 2px var(--brand-primary-light), 0 0 0 4px var(--brand-primary);
     }
 
-    /* Mobile sidebar overlay */
+    /* ── Sidebar layout ── */
     #sidebar-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0,0,0,0.35);
       z-index: 40;
     }
     #sidebar-overlay.open { display: block; }
@@ -243,12 +308,14 @@
     #sidebar {
       position: fixed;
       top: 0; left: 0; bottom: 0;
-      width: 220px;
+      width: 248px;
       z-index: 50;
-      transform: translateX(-100%);
-      transition: transform 0.25s ease;
+      background: white;
+      border-right: 1px solid var(--line);
       display: flex;
       flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
     }
     #sidebar.open { transform: translateX(0); }
 
@@ -259,11 +326,91 @@
         height: 100vh;
         transform: translateX(0) !important;
         flex-shrink: 0;
+        box-shadow: none;
       }
       #sidebar-overlay { display: none !important; }
-      #hamburger { display: none !important; }
-      #mobile-topbar { display: none !important; }
+      #mobile-topbar    { display: none !important; }
+      #bottom-nav       { display: none !important; }
+      #mehr-overlay     { display: none !important; }
+      #mehr-drawer      { display: none !important; }
     }
+
+    /* ── Mobile bottom navigation ── */
+    #bottom-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 64px;
+      background: white;
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -2px 12px rgba(16,24,40,0.06);
+      z-index: 50;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .bn-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      text-decoration: none;
+      color: var(--ink-4);
+      font-size: 0.62rem;
+      font-weight: 600;
+      transition: color 0.15s;
+      padding: 0.5rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-family: 'Nunito', sans-serif;
+    }
+    .bn-item.active { color: var(--brand-primary); }
+    .bn-item:hover  { color: var(--ink-3); }
+
+    /* ── Mehr drawer (mobile overflow) ── */
+    #mehr-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 60;
+    }
+    #mehr-overlay.open { display: block; }
+
+    #mehr-drawer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: white;
+      border-radius: var(--r-xl) var(--r-xl) 0 0;
+      padding: 0.875rem 1.5rem 1.5rem;
+      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+      z-index: 70;
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 0 -4px 30px rgba(16,24,40,0.13);
+    }
+    #mehr-drawer.open { transform: translateY(0); }
+
+    .mehr-handle {
+      width: 36px; height: 4px;
+      border-radius: 2px; background: var(--line);
+      margin: 0 auto 1.25rem;
+    }
+    .mehr-item {
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+      padding: 0.875rem 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink-2);
+      text-decoration: none;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .mehr-item:last-child { border-bottom: none; }
+    .mehr-item:hover      { color: var(--brand-primary); }
   </style>
   {% block head %}{% endblock %}
 </head>
