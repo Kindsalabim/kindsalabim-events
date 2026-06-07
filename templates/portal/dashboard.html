@@ -76,22 +76,23 @@
           {% endif %}
 
           <!-- Aktionen -->
-          <div class="mt-4 flex gap-2">
-            <form method="post" action="/portal/antwort/{{ a.id }}" class="flex-1">
-              <input type="hidden" name="antwort" value="Ja">
-              <button class="w-full text-sm font-semibold py-2.5 rounded-xl text-white transition"
+          <form method="post" action="/portal/antwort/{{ a.id }}" class="mt-4">
+            <textarea name="notiz" rows="2" placeholder="Bemerkung (optional) – z.B. „Ich habe an dem Tag kein Auto“"
+              class="w-full text-sm rounded-xl px-3.5 py-2.5 mb-2.5 resize-none transition"
+              style="border:1px solid var(--line); background:#f8fafc; color:var(--ink-1);"></textarea>
+            <div class="flex gap-2">
+              <button type="submit" name="antwort" value="Ja"
+                class="flex-1 text-sm font-semibold py-2.5 rounded-xl text-white transition"
                 style="background:{% if is_kf %}var(--kf){% else %}var(--brand-primary){% endif %};">
                 Ich kann
               </button>
-            </form>
-            <form method="post" action="/portal/antwort/{{ a.id }}" class="flex-1">
-              <input type="hidden" name="antwort" value="Nein">
-              <button class="w-full text-sm font-semibold py-2.5 rounded-xl transition"
+              <button type="submit" name="antwort" value="Nein"
+                class="flex-1 text-sm font-semibold py-2.5 rounded-xl transition"
                 style="background:#f3f4f6;color:var(--ink-2);">
                 Nicht da
               </button>
-            </form>
-          </div>
+            </div>
+          </form>
           {% if not a.frist_verlaengert %}
           <form method="post" action="/portal/verlaengern/{{ a.id }}" class="mt-2">
             <button class="w-full text-xs font-medium py-2 rounded-lg transition" style="color: var(--ink-4);">

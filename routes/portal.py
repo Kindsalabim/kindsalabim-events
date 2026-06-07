@@ -117,6 +117,7 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
 
 @router.post("/antwort/{anfrage_id}")
 def portal_antwort(anfrage_id: int, antwort: str = Form(...),
+                   notiz: str = Form(""),
                    db: Session = Depends(get_db), user=Depends(get_portal_user)):
     did = int(user["sub"])
     a = db.query(Verfuegbarkeitsanfrage).filter(
@@ -125,6 +126,7 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
     ).first()
     if a and antwort in ("Ja", "Nein"):
         a.status = antwort
+        a.notiz = notiz.strip() or None
         db.commit()
         # Event-Status automatisch aktualisieren
         from routes.admin import auto_status
