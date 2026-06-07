@@ -202,32 +202,44 @@
     .date-badge .d { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.375rem; }
     .date-badge .m { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.15rem; opacity: 0.75; }
 
-    /* ── Stat cards (circular icon tile) ── */
+    /* ── Stat cards (mobile: kompakt vertikal, 4 nebeneinander) ── */
     .stat-card {
       background: white;
       border: 1px solid var(--line);
-      border-radius: var(--r-lg);
-      padding: 1.375rem 1.25rem;
+      border-radius: var(--r-md);
       box-shadow: var(--shadow-sm);
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 1.125rem;
+      text-align: center;
+      gap: 0.4rem;
+      padding: 0.75rem 0.4rem;
     }
     .stat-card .tile {
-      width: 3.625rem;
-      height: 3.625rem;
+      width: 2.25rem;
+      height: 2.25rem;
       flex-shrink: 0;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
     }
+    .stat-card .tile svg   { width: 20px; height: 20px; }
     .stat-card .tile.sky   { background: var(--c-sky-bg);   }
     .stat-card .tile.amber { background: var(--c-amber-bg); }
     .stat-card .tile.green { background: var(--c-green-bg); }
     .stat-card .tile.coral { background: var(--c-coral-bg); }
-    .stat-num   { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 2rem; line-height: 1; }
-    .stat-label { font-size: 0.8rem; font-weight: 600; color: var(--ink-3); margin-top: 0.3rem; }
+    .stat-num   { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.4rem; line-height: 1; }
+    .stat-label { font-size: 0.62rem; font-weight: 600; color: var(--ink-3); margin-top: 0.1rem; line-height: 1.15; }
+
+    /* Desktop: großzügig horizontal mit Icon-Kreis */
+    @media (min-width: 1024px) {
+      .stat-card        { flex-direction: row; align-items: center; text-align: left; gap: 1.125rem; padding: 1.375rem 1.25rem; border-radius: var(--r-lg); }
+      .stat-card .tile  { width: 3.625rem; height: 3.625rem; }
+      .stat-card .tile svg { width: 32px; height: 32px; }
+      .stat-num         { font-size: 2rem; }
+      .stat-label       { font-size: 0.8rem; margin-top: 0.3rem; }
+    }
 
     /* ── Stat chips (legacy compact variant) ── */
     .stat-chip            { background: white; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 0.9rem 1.1rem; box-shadow: var(--shadow-sm); }

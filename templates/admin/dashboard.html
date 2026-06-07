@@ -41,7 +41,7 @@
 {% set confirmed = upcoming|selectattr('status','equalto','Bestätigt')|list|length %}
 {% set dringend  = upcoming_data|selectattr('days_until','lt',14)|selectattr('days_until','ge',0)|list|length %}
 
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<div class="grid grid-cols-4 gap-2 lg:gap-4 mb-8">
   <div class="stat-card">
     <div class="tile sky">{{ evt('einsatz', 32) }}</div>
     <div>
@@ -104,12 +104,12 @@
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-semibold" style="color:var(--ink-1);">{{ ev.anlass }}</span>
+                <span class="font-semibold" style="color:var(--ink-1);">{{ ev.kunde_firma }}</span>
                 {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
                 {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
                 {{ status_badge(ev.status) }}
               </div>
-              <p class="text-xs mt-1" style="color:var(--ink-3);">{{ ev.kunde_firma }} · {{ ev.veranstaltungsort }}</p>
+              <p class="text-xs mt-1" style="color:var(--ink-3);">{{ ev.veranstaltungsort }}{% if ev.anlass %} · {{ ev.anlass }}{% endif %}</p>
               <div class="flex items-center gap-3 mt-2 flex-wrap">
                 <span class="text-xs" style="color:var(--ink-4);">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</span>
                 <span class="text-xs flex items-center gap-1 {% if ft > 0 %}text-red-500 font-semibold{% endif %}" style="{% if ft == 0 %}color:var(--ink-4);{% endif %}">
@@ -173,11 +173,11 @@
           <div class="flex items-center justify-between gap-3 flex-1 min-w-0">
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-medium text-sm" style="color:var(--ink-2);">{{ ev.anlass }}</span>
+                <span class="font-medium text-sm" style="color:var(--ink-2);">{{ ev.kunde_firma }}</span>
                 {% if ev.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
                 {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
               </div>
-              <p class="text-xs mt-0.5" style="color:var(--ink-4);">{{ ev.kunde_firma }}</p>
+              <p class="text-xs mt-0.5" style="color:var(--ink-4);">{{ ev.anlass }}</p>
             </div>
             <p class="text-sm whitespace-nowrap shrink-0" style="color:var(--ink-3);">{{ ev.datum | de_date }}</p>
           </div>
