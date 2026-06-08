@@ -25,9 +25,18 @@ class Event(Base):
     verpflegung = Column(Boolean, default=False)     # Legacy: kommt jetzt aus der Checkliste (cl_verpflegung)
     teamkleidung = Column(Boolean, default=True)     # Legacy: kommt jetzt aus der Checkliste (cl_teamkleidung)
     material_mitnahme = Column(Boolean, default=False)  # Materialtransport nötig? steuert Logistik-Bedarf + 3-Wochen-Erinnerung
+    material_bestellt = Column(Boolean, default=False)  # Material wurde bestellt – Bedingung für "Planung fertig"
     status = Column(String, default="Entwurf")   # Entwurf, Bestätigt, Briefing gesendet, Abgeschlossen
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
+    rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
+
+    # Eventbericht (vom Teamleiter nach dem Event im Portal ausgefüllt)
+    bericht_eingereicht_am = Column(String)
+    bericht_anzahl_kinder  = Column(Integer)
+    bericht_verlauf        = Column(Text)
+    bericht_probleme       = Column(Text)
+    bericht_kundenfeedback = Column(Text)
 
     # Kunden-Checkliste
     checklist_token = Column(String, unique=True, nullable=True)

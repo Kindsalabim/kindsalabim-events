@@ -19,6 +19,37 @@
 
   <div class="max-w-2xl mx-auto px-4 -mt-4 space-y-7">
 
+    {% if request.query_params.get('bericht') %}
+    <div class="card p-4" style="background: var(--c-green-bg);">
+      <p class="text-sm font-medium" style="color: var(--c-green);">✓ Danke! Dein Eventbericht wurde gespeichert.</p>
+    </div>
+    {% endif %}
+
+    <!-- ── Offene Eventberichte (Teamleiter) ── -->
+    {% if berichte_offen %}
+    <section>
+      <div class="flex items-center gap-2.5 mb-3 px-1">
+        <span class="section-head">Eventbericht ausfüllen</span>
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background: var(--c-amber-bg); color: var(--c-amber);">{{ berichte_offen|length }}</span>
+      </div>
+      <div class="space-y-3">
+        {% for a in berichte_offen %}
+        {% set is_kf = a.event.marke == 'Knallfrosch' %}
+        <a href="/portal/bericht/{{ a.event.id }}" class="card p-5 flex items-center gap-3.5 hover:opacity-90 transition">
+          <div class="date-badge {% if is_kf %}date-badge-kf{% endif %}">
+            <span class="d">{% if a.event.datum %}{{ a.event.datum.day }}{% else %}–{% endif %}</span>
+            <span class="m">{{ a.event.datum | de_month }}</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="font-semibold" style="color: var(--ink-1);">{{ a.event.kunde_firma }}</p>
+            <p class="text-xs mt-1" style="color: var(--ink-3);">Du warst Teamleiter · jetzt Bericht ausfüllen →</p>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
     <!-- ── Offene Anfragen ── -->
     {% if anfragen_data %}
     <section>

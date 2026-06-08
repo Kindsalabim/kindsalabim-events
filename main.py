@@ -50,6 +50,7 @@ def run_migrations():
     new_columns = [
         ("marke",                    "VARCHAR DEFAULT 'Kindsalabim'"),
         ("material_mitnahme",        "BOOLEAN DEFAULT 0"),
+        ("material_bestellt",        "BOOLEAN DEFAULT 0"),
         ("checklist_token",          "VARCHAR"),
         ("cl_ansprechpartner_name",  "VARCHAR"),
         ("cl_ansprechpartner_mobil", "VARCHAR"),
@@ -65,6 +66,12 @@ def run_migrations():
         ("cl_teamkleidung",          "VARCHAR"),
         ("cl_parkplatz",             "TEXT"),
         ("cl_eingereicht_am",        "VARCHAR"),
+        ("rechnung_gestellt",        "BOOLEAN DEFAULT 0"),
+        ("bericht_eingereicht_am",   "VARCHAR"),
+        ("bericht_anzahl_kinder",    "INTEGER"),
+        ("bericht_verlauf",          "TEXT"),
+        ("bericht_probleme",         "TEXT"),
+        ("bericht_kundenfeedback",   "TEXT"),
     ]
     for col, typedef in new_columns:
         add_column("events", col, typedef)
