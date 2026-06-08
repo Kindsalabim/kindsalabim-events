@@ -101,8 +101,18 @@ def _build_custom_page(titel: str, foto_bytes_list: list[bytes], marke: str) -> 
         (464.9 + PAD, 138.55 + PAD, 321.5 - PAD * 2, 288.0 - PAD * 2),  # rechts
     ]
 
+    # Titelbereich: oberhalb der Fotos (y=426.5 bis y=595.28 in Reportlab)
+    # Mitte dieses Bereichs ≈ y=500; weiße Schrift auf dem Pinselstrich-Hintergrund
+    TITEL_Y = 490
+
     overlay_buf = io.BytesIO()
     c = rl_canvas.Canvas(overlay_buf, pagesize=(W, H))
+
+    # Titel
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont("Helvetica-Bold", 30)
+    text_w = c.stringWidth(titel, "Helvetica-Bold", 30)
+    c.drawString((W - text_w) / 2, TITEL_Y, titel)
 
     fotos = foto_bytes_list[:2]
     for i, fb in enumerate(fotos):
@@ -134,11 +144,17 @@ def _build_custom_page(titel: str, foto_bytes_list: list[bytes], marke: str) -> 
     return overlay_buf.read()
 
 
+MAX_PX = 1200  # Maximale Pixelbreite/-höhe für eingebettete Fotos
+
+
 def _draw_foto(c, foto_bytes: bytes, x: float, y: float, w: float, h: float):
     try:
         img = Image.open(io.BytesIO(foto_bytes)).convert("RGB")
+        # Auf MAX_PX verkleinern, falls größer
+        if img.width > MAX_PX or img.height > MAX_PX:
+            img.thumbnail((MAX_PX, MAX_PX), Image.LANCZOS)
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=85)
+        img.save(buf, format="JPEG", quality=72, optimize=True)
         buf.seek(0)
         reader = ImageReader(buf)
         iw, ih = reader.getSize()
@@ -168,6 +184,7 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
     form = await request.form()
 
     marke = form.get("marke", "Kindsalabim")
+    kundenname = form.get("kundenname", "").strip()
     aktionen_keys = form.getlist("aktionen_keys")
     custom_titel = form.getlist("custom_titel")
 
@@ -235,7 +252,9 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
     writer.write(out_buf)
     out_buf.seek(0)
 
-    filename = f"Angebot_{marke}.pdf"
+    import re
+    safe_name = re.sub(r'[^\w\-]', '_', kundenname) if kundenname else marke
+    filename = f"{safe_name}_Bildmaterial_Angebot.pdf"
     return StreamingResponse(
         out_buf,
         media_type="application/pdf",

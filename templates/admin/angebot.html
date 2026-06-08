@@ -10,6 +10,13 @@
 <form method="post" action="/admin/angebot/erstellen" enctype="multipart/form-data" id="angebotForm">
   <input type="hidden" name="foto_index" id="fotoIndex" value="[]">
 
+  <!-- Kundenname -->
+  <div class="card p-5 mb-4">
+    <h2 class="text-sm font-semibold text-gray-700 mb-3">Kundenname</h2>
+    <input type="text" name="kundenname" placeholder="z. B. Muster GmbH"
+           class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
+  </div>
+
   <!-- Schritt 1: Marke -->
   <div class="card p-5 mb-4">
     <h2 class="text-sm font-semibold text-gray-700 mb-3">1 · Marke</h2>
