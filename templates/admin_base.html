@@ -65,6 +65,13 @@
         </svg>
         Dienstleister
       </a>
+      <a href="/admin/buchhaltung" class="sidebar-link {% if active=='buchhaltung' %}active{% endif %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        Buchhaltung
+      </a>
     </nav>
 
     <!-- Logout -->
@@ -125,6 +132,13 @@
 <div id="mehr-drawer">
   <div class="mehr-handle"></div>
   <p style="font-size:0.68rem;font-weight:700;color:var(--ink-4);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem;">Weitere Optionen</p>
+  <a href="/admin/buchhaltung" class="mehr-item {% if active=='buchhaltung' %}active{% endif %}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/>
+      <line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+    Buchhaltung
+  </a>
   <a href="/admin/logout" class="mehr-item">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
