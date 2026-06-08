@@ -10,6 +10,7 @@ from routes.cron import router as cron_router
 from routes.buchhaltung import router as buchhaltung_router
 from routes.import_jira import router as import_router
 from routes.fotos import router as fotos_router
+from routes.angebot import router as angebot_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
@@ -140,6 +141,7 @@ app.include_router(cron_router)
 app.include_router(buchhaltung_router)
 app.include_router(import_router)
 app.include_router(fotos_router)
+app.include_router(angebot_router)
 
 @app.get("/")
 def root():
