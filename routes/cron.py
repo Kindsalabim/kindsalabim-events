@@ -48,7 +48,8 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     in_3_wochen = today + timedelta(weeks=3)
     material_events = db.query(Event).filter(
         Event.datum == in_3_wochen,
-        Event.material_mitnahme == True
+        Event.material_mitnahme == True,
+        Event.material_bestellt == False
     ).all()
     material_count = 0
     from email_service import send_material_erinnerung

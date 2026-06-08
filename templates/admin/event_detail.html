@@ -106,6 +106,25 @@
         <dt class="text-gray-400 w-28 shrink-0">Material-Mitnahme</dt>
         <dd class="text-gray-800">{{ 'Ja – Logistiker nötig' if ev.material_mitnahme else 'Nein' }}</dd>
       </div>
+      {% if ev.material_mitnahme %}
+      <div class="flex gap-3 items-center">
+        <dt class="text-gray-400 w-28 shrink-0">Material</dt>
+        <dd class="text-gray-800">
+          {% if ev.material_bestellt %}
+            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:#dcfce7;color:#166534;">✓ Bestellt</span>
+            <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
+              <input type="hidden" name="bestellt" value="0">
+              <button class="text-xs text-gray-400 hover:text-gray-600 ml-2 underline">rückgängig</button>
+            </form>
+          {% else %}
+            <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
+              <input type="hidden" name="bestellt" value="1">
+              <button class="btn-secondary text-xs px-3 py-1">Als bestellt markieren</button>
+            </form>
+          {% endif %}
+        </dd>
+      </div>
+      {% endif %}
     </dl>
     <p class="text-xs text-gray-400 mt-3">Aufbau, Parkplatz, Indoor/Outdoor, Verpflegung &amp; Teamkleidung füllt der Kunde in der Checkliste aus – siehe Kunden-Angaben unten.</p>
   </div>
@@ -294,6 +313,55 @@
       {% endfor %}
     </div>
   </details>
+</div>
+
+<!-- Abschluss -->
+<div class="card p-5 mt-5">
+  <div class="flex items-center gap-2 mb-4">
+    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <h2 class="text-sm font-semibold text-gray-700">Abschluss</h2>
+    {% if ev.status == 'Abgeschlossen' %}
+    <span class="ml-1 inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:#dcfce7;color:#166534;">✓ Abgeschlossen</span>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <!-- Eventbericht -->
+    <div>
+      <p class="text-xs text-gray-400 mb-2">Eventbericht <span class="text-gray-300">(Teamleiter)</span></p>
+      {% if ev.bericht_eingereicht_am %}
+        <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3" style="background:#dcfce7;color:#166534;">✓ eingereicht {{ ev.bericht_eingereicht_am }}</span>
+        <dl class="space-y-2 text-sm mt-1">
+          {% if ev.bericht_anzahl_kinder is not none %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Anzahl Kinder</dt><dd class="text-gray-800">{{ ev.bericht_anzahl_kinder }}</dd></div>{% endif %}
+          {% if ev.bericht_verlauf %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Verlauf</dt><dd class="text-gray-800">{{ ev.bericht_verlauf }}</dd></div>{% endif %}
+          {% if ev.bericht_probleme %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Besonderheiten</dt><dd class="text-gray-800">{{ ev.bericht_probleme }}</dd></div>{% endif %}
+          {% if ev.bericht_kundenfeedback %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Kundenfeedback</dt><dd class="text-gray-800">{{ ev.bericht_kundenfeedback }}</dd></div>{% endif %}
+        </dl>
+      {% else %}
+        <p class="text-sm text-gray-500">⏳ Offen – wird vom Teamleiter nach dem Event im Portal ausgefüllt.
+        {% if not ev.teamleiter_id %}<span class="block text-xs text-amber-600 mt-1">Noch kein Teamleiter festgelegt.</span>{% endif %}</p>
+      {% endif %}
+    </div>
+
+    <!-- Rechnung -->
+    <div>
+      <p class="text-xs text-gray-400 mb-2">Rechnung</p>
+      {% if ev.rechnung_gestellt %}
+        <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:#dcfce7;color:#166534;">✓ Rechnung gestellt</span>
+        <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
+          <input type="hidden" name="gestellt" value="0">
+          <button class="text-xs text-gray-400 hover:text-gray-600 ml-2 underline">rückgängig</button>
+        </form>
+      {% else %}
+        <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
+          <input type="hidden" name="gestellt" value="1">
+          <button class="btn-secondary text-xs px-3 py-1">Als gestellt markieren</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
 {% endblock %}

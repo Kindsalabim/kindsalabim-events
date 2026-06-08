@@ -107,10 +107,15 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
     past     = sorted([a for a in confirmed if parse_date(a) < today],  key=parse_date, reverse=True)
     abgesagt = sorted(abgesagt, key=parse_date, reverse=True)
 
+    # Offene Eventberichte: vergangene Einsätze, bei denen ich Teamleiter bin und noch kein Bericht vorliegt
+    berichte_offen = [a for a in past
+                      if a.event.teamleiter_id == did and not a.event.bericht_eingereicht_am]
+
     return templates.TemplateResponse("portal/dashboard.html",
         tpl_context(request, dienstleister=d,
                     anfragen_data=anfragen_data,
-                    upcoming=upcoming, past=past, abgesagt=abgesagt))
+                    upcoming=upcoming, past=past, abgesagt=abgesagt,
+                    berichte_offen=berichte_offen))
 
 
 # ── Antwort ────────────────────────────────────────────────────────────────────
@@ -134,6 +139,46 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
         ev.status = auto_status(ev, db)
         db.commit()
     return RedirectResponse("/portal", status_code=303)
+
+
+# ── Eventbericht (nur Teamleiter) ───────────────────────────────────────────────
+
+@router.get("/bericht/{event_id}", response_class=HTMLResponse)
+def portal_bericht_form(request: Request, event_id: int,
+                        db: Session = Depends(get_db), user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev or ev.teamleiter_id != did:
+        return RedirectResponse("/portal", status_code=303)
+    return templates.TemplateResponse("portal/bericht.html",
+        tpl_context(request, ev=ev))
+
+
+@router.post("/bericht/{event_id}")
+def portal_bericht_save(event_id: int,
+                        anzahl_kinder: str = Form(""),
+                        verlauf: str = Form(""),
+                        probleme: str = Form(""),
+                        kundenfeedback: str = Form(""),
+                        db: Session = Depends(get_db), user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev or ev.teamleiter_id != did:
+        return RedirectResponse("/portal", status_code=303)
+    try:
+        ev.bericht_anzahl_kinder = int(anzahl_kinder) if anzahl_kinder.strip() else None
+    except ValueError:
+        ev.bericht_anzahl_kinder = None
+    ev.bericht_verlauf = verlauf.strip() or None
+    ev.bericht_probleme = probleme.strip() or None
+    ev.bericht_kundenfeedback = kundenfeedback.strip() or None
+    ev.bericht_eingereicht_am = date.today().strftime("%d.%m.%Y")
+    db.commit()
+    # Automatischer Abschluss prüfen
+    from routes.admin import auto_status
+    ev.status = auto_status(ev, db)
+    db.commit()
+    return RedirectResponse("/portal?bericht=1", status_code=303)
 
 
 # ── Frist verlängern ───────────────────────────────────────────────────────────

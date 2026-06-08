@@ -275,8 +275,13 @@ def event_delete(event_id: int, db: Session = Depends(get_db), _=Depends(get_adm
 
 def auto_status(ev, db) -> str:
     """Berechnet automatischen Event-Status basierend auf dem Fortschritt."""
-    # Manuell gesetzte Endzustände nicht überschreiben
-    if ev.status in ("Abgeschlossen", "Briefing gesendet"):
+    # "Abgeschlossen" ist final (schützt auch Altdaten ohne Bericht/Rechnung)
+    if ev.status == "Abgeschlossen":
+        return ev.status
+    # Nach dem Briefing: automatischer Abschluss, sobald Bericht da UND Rechnung gestellt
+    if ev.status == "Briefing gesendet":
+        if ev.bericht_eingereicht_am and ev.rechnung_gestellt:
+            return "Abgeschlossen"
         return ev.status
 
     anfragen = db.query(Verfuegbarkeitsanfrage).filter(
@@ -291,7 +296,10 @@ def auto_status(ev, db) -> str:
     logistiker_ok = nur_kuenstler or any(
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
 
-    if teamer_ok and kuenstler_ok and logistiker_ok and ev.cl_eingereicht_am:
+    # Material: wenn Mitnahme nötig, muss es auch bestellt sein
+    material_ok = (not ev.material_mitnahme) or ev.material_bestellt
+
+    if teamer_ok and kuenstler_ok and logistiker_ok and material_ok and ev.cl_eingereicht_am:
         return "Planung fertig"
     if ev.cl_eingereicht_am:
         return "Checkliste eingegangen"
@@ -331,6 +339,32 @@ def send_anfragen(
             d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
             if d:
                 send_verfuegbarkeitsanfrage(d, ev, a.id, base_url)
+    db.commit()
+    ev.status = auto_status(ev, db)
+    db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+@router.post("/events/{event_id}/material-bestellt")
+def toggle_material_bestellt(
+    event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    bestellt: str = Form(""),
+):
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    ev.material_bestellt = (bestellt == "1")
+    db.commit()
+    ev.status = auto_status(ev, db)
+    db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+@router.post("/events/{event_id}/rechnung-gestellt")
+def toggle_rechnung_gestellt(
+    event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    gestellt: str = Form(""),
+):
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    ev.rechnung_gestellt = (gestellt == "1")
     db.commit()
     ev.status = auto_status(ev, db)
     db.commit()
