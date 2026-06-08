@@ -16,3 +16,12 @@ _MONATE_KURZ = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN",
 def de_month(d) -> str:
     """Deutsches Monatskürzel (z. B. MAI) aus einem date-Objekt."""
     return _MONATE_KURZ[d.month - 1] if d else ""
+
+
+def de_euro(value) -> str:
+    """Zahl als deutsches Euro-Format: 1.234,56 – oder '–' bei None."""
+    if value is None:
+        return "–"
+    # Python {:,.2f} → "1,234.56" → Trennzeichen tauschen → "1.234,56"
+    s = f"{float(value):,.2f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")

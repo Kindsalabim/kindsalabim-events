@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean, Float
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -101,3 +101,17 @@ class Verfuegbarkeitsanfrage(Base):
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")
+
+
+class Rechnung(Base):
+    __tablename__ = "rechnungen"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    datum          = Column(Date, nullable=False)
+    kunde          = Column(String)
+    rgnr           = Column(String)       # Rechnungsnummer, z. B. RE-2026-001
+    brutto         = Column(Float, default=0.0)
+    bezahlt        = Column(Boolean, default=False)
+    personalkosten = Column(Float, default=0.0)
+    materialkosten = Column(Float, default=0.0)
+    notiz          = Column(Text)

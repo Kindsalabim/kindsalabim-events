@@ -7,6 +7,7 @@ from routes.admin import router as admin_router
 from routes.portal import router as portal_router
 from routes.checklist import router as checklist_router
 from routes.cron import router as cron_router
+from routes.buchhaltung import router as buchhaltung_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
@@ -120,6 +121,7 @@ app.include_router(admin_router)
 app.include_router(portal_router)
 app.include_router(checklist_router)
 app.include_router(cron_router)
+app.include_router(buchhaltung_router)
 
 @app.get("/")
 def root():
