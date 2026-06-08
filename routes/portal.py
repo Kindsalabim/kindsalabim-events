@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
 
 from database import get_db
-from models import Dienstleister, Verfuegbarkeitsanfrage, Event
+from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei
+from routes.fotos import generate_presigned_url
 from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
 from choices import de_date, de_month
@@ -150,8 +151,12 @@ def portal_bericht_form(request: Request, event_id: int,
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev or ev.teamleiter_id != did:
         return RedirectResponse("/portal", status_code=303)
+    fotos = db.query(EventDatei).filter(
+        EventDatei.event_id == event_id, EventDatei.typ == "bericht_foto"
+    ).order_by(EventDatei.uploaded_at).all()
+    foto_urls = [(f, generate_presigned_url(f.r2_key)) for f in fotos]
     return templates.TemplateResponse("portal/bericht.html",
-        tpl_context(request, ev=ev))
+        tpl_context(request, ev=ev, foto_urls=foto_urls))
 
 
 @router.post("/bericht/{event_id}")

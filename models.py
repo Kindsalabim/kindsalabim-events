@@ -57,6 +57,7 @@ class Event(Base):
 
     teamleiter = relationship("Dienstleister", foreign_keys=[teamleiter_id])
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="event", cascade="all, delete-orphan")
+    dateien  = relationship("EventDatei", back_populates="event", cascade="all, delete-orphan")
 
 
 class Dienstleister(Base):
@@ -111,6 +112,19 @@ class Verfuegbarkeitsanfrage(Base):
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")
+
+
+class EventDatei(Base):
+    __tablename__ = "event_dateien"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    event_id    = Column(Integer, ForeignKey("events.id"), nullable=False)
+    r2_key      = Column(String, nullable=False)   # Pfad im R2-Bucket
+    filename    = Column(String, nullable=False)   # Originaldateiname
+    typ         = Column(String, nullable=False)   # "planung" oder "bericht_foto"
+    uploaded_at = Column(String, nullable=False)   # ISO-Datetime
+
+    event = relationship("Event", back_populates="dateien")
 
 
 class Rechnung(Base):

@@ -29,8 +29,12 @@ def get_config():
             "SECRET_KEY":         "secret_key",
             "ADMIN_EMAIL":        "admin_email",
             "ADMIN_PASSWORD_HASH":"admin_password_hash",
-            "CRON_SECRET":        "cron_secret",
-            "RESEND_API_KEY":     "resend_api_key",
+            "CRON_SECRET":           "cron_secret",
+            "RESEND_API_KEY":        "resend_api_key",
+            "R2_ACCOUNT_ID":         "r2_account_id",
+            "R2_BUCKET":             "r2_bucket",
+            "R2_ACCESS_KEY_ID":      "r2_access_key_id",
+            "R2_SECRET_ACCESS_KEY":  "r2_secret_access_key",
         }
         for env_key, cfg_key in env_map.items():
             val = os.environ.get(env_key)

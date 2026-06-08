@@ -358,7 +358,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
-def send_briefing(dienstleister_list, event, base_url: str):
+def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
     cfg = get_config()
     color = _brand_color(event.marke)
     subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
@@ -431,7 +431,7 @@ def send_briefing(dienstleister_list, event, base_url: str):
           </p>
         </div>"""
 
-        _send(d.email, subject, _wrap(content, color, cfg))
+        _deliver(d.email, subject, _wrap(content, color, cfg), anhaenge)
 
 
 def send_backup(attachments, n_events: int, n_dienstleister: int):
