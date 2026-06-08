@@ -75,8 +75,13 @@ def import_dienstleister(content: bytes, db: Session):
 
         email = _str(row[8])
 
+        # Ohne E-Mail kein Import möglich (Pflichtfeld + Portal-Login)
+        if not email:
+            skipped += 1
+            continue
+
         # Duplikat-Check per E-Mail
-        if email and db.query(Dienstleister).filter(
+        if db.query(Dienstleister).filter(
                 Dienstleister.email == email).first():
             skipped += 1
             continue
@@ -122,8 +127,10 @@ def import_dienstleister(content: bytes, db: Session):
                 aktiv=True,
             )
             db.add(d)
+            db.flush()   # Constraint-Fehler sofort erkennen
             imported += 1
         except Exception as exc:
+            db.rollback()
             errors.append(f"Zeile {lineno} ({name}): {exc}")
 
     db.commit()
