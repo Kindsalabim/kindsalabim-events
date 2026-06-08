@@ -10,7 +10,8 @@ MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
           "August", "September", "Oktober", "November", "Dezember"]
 
 from database import get_db
-from models import Event, Dienstleister, Verfuegbarkeitsanfrage
+from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei
+from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
 from config import get_config
 from distance import rank_contractors
@@ -219,10 +220,16 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         for a in konflikte:
             gebucht_map[a.dienstleister_id] = a.event
 
+    planungsdateien = db.query(EventDatei).filter(
+        EventDatei.event_id == event_id,
+        EventDatei.typ == "planung"
+    ).order_by(EventDatei.uploaded_at).all()
+    planungs_urls = [(d, generate_presigned_url(d.r2_key)) for d in planungsdateien]
+
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
-                    gebucht_map=gebucht_map))
+                    gebucht_map=gebucht_map, planungs_urls=planungs_urls))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
@@ -414,7 +421,13 @@ def send_briefing_route(
     ).all()
     dienstleister = [a.dienstleister for a in confirmed]
     base_url = str(request.base_url).rstrip("/")
-    send_briefing(dienstleister, ev, base_url)
+    # Planungsdateien (Lageplan etc.) als Anhang mitschicken
+    planung = db.query(EventDatei).filter(
+        EventDatei.event_id == event_id, EventDatei.typ == "planung"
+    ).all()
+    anhaenge = [(d.filename, download_file(d.r2_key)) for d in planung]
+    anhaenge = [(fn, data) for fn, data in anhaenge if data]
+    send_briefing(dienstleister, ev, base_url, anhaenge or None)
     ev.status = "Briefing gesendet"
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)

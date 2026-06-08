@@ -45,6 +45,41 @@
 
       <button type="submit" class="w-full btn-primary py-3">Bericht absenden</button>
     </form>
+
+    <!-- Fotos hochladen -->
+    <div class="card p-5 mt-4">
+      <h2 class="text-sm font-semibold mb-1" style="color: var(--ink-2);">Fotos vom Event</h2>
+      <p class="text-xs mb-4" style="color: var(--ink-4);">Optional – lade Fotos vom Einsatz hoch.</p>
+
+      {% if foto_urls %}
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        {% for foto, url in foto_urls %}
+        <div class="relative group rounded-xl overflow-hidden" style="aspect-ratio: 1;">
+          {% if url %}
+          <a href="{{ url }}" target="_blank" rel="noopener">
+            <img src="{{ url }}" alt="{{ foto.filename }}" class="w-full h-full object-cover">
+          </a>
+          {% endif %}
+          <form method="post" action="/portal/events/{{ ev.id }}/fotos/{{ foto.id }}/delete"
+                onsubmit="return confirm('Foto löschen?')"
+                class="absolute top-1.5 right-1.5">
+            <button type="submit" class="w-6 h-6 rounded-full flex items-center justify-center bg-white shadow text-red-400">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <form method="post" action="/portal/events/{{ ev.id }}/fotos" enctype="multipart/form-data">
+        <label class="flex items-center justify-center gap-2 cursor-pointer btn-secondary w-full py-2.5 text-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          Foto hochladen
+          <input type="file" name="file" accept="image/*" capture="environment" class="hidden" onchange="this.closest('form').submit()">
+        </label>
+      </form>
+    </div>
   </div>
 </div>
 {% endblock %}
