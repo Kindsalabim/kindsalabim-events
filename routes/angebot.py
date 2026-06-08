@@ -8,7 +8,6 @@ Ablauf:
 """
 import base64
 import io
-import pikepdf
 from pypdf import PdfReader, PdfWriter
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -223,16 +222,17 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
     if not pages_data:
         return HTMLResponse("<p>Keine Seiten ausgewählt.</p>", status_code=400)
 
-    output = pikepdf.Pdf.new()
+    writer = PdfWriter()
     for pdf_bytes in pages_data:
         try:
-            src = pikepdf.Pdf.open(io.BytesIO(pdf_bytes))
-            output.pages.extend(src.pages)
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            for page in reader.pages:
+                writer.add_page(page)
         except Exception:
             continue
 
     out_buf = io.BytesIO()
-    output.save(out_buf)
+    writer.write(out_buf)
     out_buf.seek(0)
 
     filename = f"Angebot_{marke}.pdf"
