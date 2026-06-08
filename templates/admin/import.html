@@ -1,0 +1,66 @@
+{% extends "admin_base.html" %}
+{% set active = 'dienstleister' %}
+{% block title %}Jira-Import – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="flex items-center gap-3 mb-6">
+  <a href="/admin/dienstleister" class="text-sm font-semibold" style="color:var(--ink-3);">← Dienstleister</a>
+  <h1 class="text-2xl font-bold" style="color:var(--ink-1);">Jira-Import</h1>
+</div>
+
+{% if result %}
+  {% if result.imported > 0 or result.skipped > 0 %}
+  <div class="card p-5 mb-5" style="background:var(--c-green-bg);">
+    <p class="font-semibold" style="color:var(--c-green);">
+      ✓ {{ result.imported }} Dienstleister importiert
+      {% if result.skipped %} · {{ result.skipped }} übersprungen (E-Mail bereits vorhanden){% endif %}
+    </p>
+    {% if result.imported > 0 %}
+    <a href="/admin/dienstleister" class="mt-2 inline-block text-sm font-semibold"
+       style="color:var(--c-green);">→ Zur Dienstleister-Liste</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if result.errors %}
+  <div class="card p-4 mb-5" style="background:#fff5f5;">
+    <p class="text-sm font-semibold mb-2" style="color:var(--c-coral);">Fehler bei einzelnen Zeilen:</p>
+    <ul class="text-xs space-y-1" style="color:var(--c-coral);">
+      {% for e in result.errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{% endif %}
+
+<div class="card p-6 max-w-lg">
+  <p class="text-sm mb-1 font-semibold" style="color:var(--ink-2);">Jira CSV-Export hochladen</p>
+  <p class="text-xs mb-5" style="color:var(--ink-4);">
+    Exportiere aus Jira Service Management → Dienstleister-Projekt → Export als CSV.
+    Bereits vorhandene E-Mail-Adressen werden automatisch übersprungen.
+  </p>
+
+  <form method="post" action="/admin/import" enctype="multipart/form-data" class="space-y-4">
+    <div>
+      <label class="block text-sm font-semibold mb-1.5" style="color:var(--ink-2);">CSV-Datei</label>
+      <input type="file" name="file" accept=".csv" required
+             class="w-full text-sm rounded-xl border border-gray-200 px-3.5 py-2.5"
+             style="color:var(--ink-2);">
+    </div>
+    <button type="submit" class="btn-primary w-full">Import starten</button>
+  </form>
+</div>
+
+<div class="mt-6 card p-4 max-w-lg">
+  <p class="text-xs font-semibold mb-2" style="color:var(--ink-4);">Was wird importiert?</p>
+  <ul class="text-xs space-y-1" style="color:var(--ink-3);">
+    <li>✓ Name (Vor- + Nachname)</li>
+    <li>✓ E-Mail, Telefon, Adresse, Stadt, Gebiet</li>
+    <li>✓ Rolle (Teamer / Künstler / Beides)</li>
+    <li>✓ Führerschein, Eigenes Auto</li>
+    <li>✓ Kleidergröße, Verfügbarkeit, Vertragstyp</li>
+    <li>✓ Stundensatz (Teamer + Künstler)</li>
+    <li>✓ DSGVO-Status, Website, Notizen</li>
+  </ul>
+</div>
+
+{% endblock %}

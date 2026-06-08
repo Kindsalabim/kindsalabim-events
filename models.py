@@ -81,6 +81,16 @@ class Dienstleister(Base):
     magic_token = Column(String)                 # Magic-Link-Token
     magic_token_expires = Column(String)         # ISO-Datetime
 
+    # Erweiterte Felder (aus Jira-Import)
+    gebiet           = Column(String)            # Ruhrgebiet, Rheinland, …
+    verfuegbarkeit   = Column(String)            # Flexibel, Nur Wochenende, …
+    vertragstyp      = Column(String)            # Freelancer, Selbstständig
+    stundensatz_teamer   = Column(Float)
+    stundensatz_kuenstler = Column(Float)
+    dsgvo_unterzeichnet  = Column(Boolean, default=False)
+    website          = Column(String)
+    notizen          = Column(Text)
+
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="dienstleister")
 
 
