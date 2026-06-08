@@ -109,7 +109,7 @@
 <!-- ── Rechnungsliste ── -->
 {% if rows %}
 <div class="card overflow-x-auto">
-  <table class="w-full text-sm" style="min-width:900px;">
+  <table class="w-full text-sm" style="min-width:1000px;">
     <thead>
       <tr style="border-bottom:2px solid var(--line);">
         <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">#</th>
@@ -125,6 +125,7 @@
         <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Gewinn</th>
         <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--c-amber);">Steuer 40%</th>
         <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--c-sky);">Invest 10%</th>
+        <th class="px-3 py-2.5 text-center text-xs font-semibold" style="color:var(--ink-4);" title="Steuerrücklage überwiesen?">Rückl.</th>
         <th class="px-3 py-2.5"></th>
       </tr>
     </thead>
@@ -159,8 +160,29 @@
             style="color:{% if row.nettogewinn >= 0 %}var(--c-green){% else %}var(--c-coral){% endif %};">
           {{ row.nettogewinn | de_euro }} €
         </td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--c-amber);">{{ row.steuer | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--c-sky);">{{ row.invest | de_euro }} €</td>
+        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
+            style="color:var(--c-amber);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
+          {{ row.steuer | de_euro }} €
+        </td>
+        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
+            style="color:var(--c-sky);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
+          {{ row.invest | de_euro }} €
+        </td>
+        <td class="px-3 py-2.5 text-center">
+          <form method="post" action="/admin/buchhaltung/{{ r.id }}/steuer">
+            <button type="submit"
+                    title="{{ 'Rücklage erledigt – klicken zum Rückgängig' if r.steuer_erledigt else 'Rücklage als überwiesen markieren' }}"
+                    class="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition"
+                    style="background:{% if r.steuer_erledigt %}var(--c-green-bg){% else %}#f3f4f6{% endif %};
+                           color:{% if r.steuer_erledigt %}var(--c-green){% else %}var(--ink-4){% endif %};">
+              {% if r.steuer_erledigt %}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              {% else %}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+              {% endif %}
+            </button>
+          </form>
+        </td>
         <td class="px-3 py-2.5">
           <div class="flex items-center gap-1 justify-end">
             <a href="/admin/buchhaltung/{{ r.id }}/edit"
@@ -197,6 +219,7 @@
         <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--c-green);">{{ totals.gewinn | de_euro }} €</td>
         <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--c-amber);">{{ totals.steuer | de_euro }} €</td>
         <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--c-sky);">{{ totals.invest | de_euro }} €</td>
+        <td></td>
         <td></td>
       </tr>
     </tfoot>
