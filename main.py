@@ -8,6 +8,7 @@ from routes.portal import router as portal_router
 from routes.checklist import router as checklist_router
 from routes.cron import router as cron_router
 from routes.buchhaltung import router as buchhaltung_router
+from routes.import_jira import router as import_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
@@ -31,10 +32,18 @@ def run_migrations():
                 conn.rollback()  # Spalte existiert bereits (SQLite wirft hier)
 
     dl_columns = [
-        ("magic_token",         "VARCHAR"),
-        ("magic_token_expires", "VARCHAR"),
-        ("logistiker",          "BOOLEAN DEFAULT 0"),
-        ("fuehrerschein",       "BOOLEAN DEFAULT 0"),
+        ("magic_token",              "VARCHAR"),
+        ("magic_token_expires",      "VARCHAR"),
+        ("logistiker",               "BOOLEAN DEFAULT 0"),
+        ("fuehrerschein",            "BOOLEAN DEFAULT 0"),
+        ("gebiet",                   "VARCHAR"),
+        ("verfuegbarkeit",           "VARCHAR"),
+        ("vertragstyp",              "VARCHAR"),
+        ("stundensatz_teamer",       "FLOAT"),
+        ("stundensatz_kuenstler",    "FLOAT"),
+        ("dsgvo_unterzeichnet",      "BOOLEAN DEFAULT 0"),
+        ("website",                  "VARCHAR"),
+        ("notizen",                  "TEXT"),
     ]
     for col, typedef in dl_columns:
         add_column("dienstleister", col, typedef)
@@ -128,6 +137,7 @@ app.include_router(portal_router)
 app.include_router(checklist_router)
 app.include_router(cron_router)
 app.include_router(buchhaltung_router)
+app.include_router(import_router)
 
 @app.get("/")
 def root():
