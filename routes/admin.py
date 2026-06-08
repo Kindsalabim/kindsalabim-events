@@ -15,12 +15,13 @@ from auth import get_admin_user, verify_password, hash_password, create_token, C
 from config import get_config
 from distance import rank_contractors
 from email_service import send_verfuegbarkeitsanfrage, send_briefing
-from choices import ZEITEN, de_date, de_month
+from choices import ZEITEN, de_date, de_month, de_euro
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
 templates.env.filters["de_month"] = de_month
+templates.env.filters["de_euro"] = de_euro
 templates.env.globals["zeiten"] = ZEITEN
 
 PRODUKTE_LIST = [
@@ -455,18 +456,34 @@ def dienstleister_create(
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
+    gebiet: str = Form(""), verfuegbarkeit: str = Form(""),
+    vertragstyp: str = Form(""), stundensatz_teamer: str = Form(""),
+    stundensatz_kuenstler: str = Form(""),
+    dsgvo_unterzeichnet: bool = Form(False),
+    website: str = Form(""), notizen: str = Form(""),
 ):
     existing = db.query(Dienstleister).filter(Dienstleister.email == email).first()
     if existing:
         return templates.TemplateResponse("admin/contractor_form.html",
             tpl_context(request, d=None, error="E-Mail bereits vorhanden"))
     pw_hash = hash_password(portal_passwort) if portal_passwort else None
+
+    def _f(s):
+        try: return float(s.replace(",", ".")) if s.strip() else None
+        except: return None
+
     d = Dienstleister(
         vorname=vorname, nachname=nachname, email=email, telefon=telefon,
         strasse=strasse, plz=plz, stadt=stadt, rolle=rolle,
         erfahrungspunkte=erfahrungspunkte, mobilitaet=mobilitaet,
         kleidergroesse=kleidergroesse, aktiv=aktiv, logistiker=logistiker,
-        fuehrerschein=fuehrerschein, password_hash=pw_hash
+        fuehrerschein=fuehrerschein, password_hash=pw_hash,
+        gebiet=gebiet.strip() or None, verfuegbarkeit=verfuegbarkeit.strip() or None,
+        vertragstyp=vertragstyp.strip() or None,
+        stundensatz_teamer=_f(stundensatz_teamer),
+        stundensatz_kuenstler=_f(stundensatz_kuenstler),
+        dsgvo_unterzeichnet=dsgvo_unterzeichnet,
+        website=website.strip() or None, notizen=notizen.strip() or None,
     )
     db.add(d); db.commit()
     return RedirectResponse("/admin/dienstleister", status_code=303)
@@ -488,14 +505,32 @@ def dienstleister_update(
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
+    gebiet: str = Form(""), verfuegbarkeit: str = Form(""),
+    vertragstyp: str = Form(""), stundensatz_teamer: str = Form(""),
+    stundensatz_kuenstler: str = Form(""),
+    dsgvo_unterzeichnet: bool = Form(False),
+    website: str = Form(""), notizen: str = Form(""),
 ):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
     if not d: raise HTTPException(404)
+
+    def _f(s):
+        try: return float(s.replace(",", ".")) if s.strip() else None
+        except: return None
+
     d.vorname = vorname; d.nachname = nachname; d.email = email
     d.telefon = telefon; d.strasse = strasse; d.plz = plz; d.stadt = stadt
     d.rolle = rolle; d.erfahrungspunkte = erfahrungspunkte
     d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse
     d.aktiv = aktiv; d.logistiker = logistiker; d.fuehrerschein = fuehrerschein
+    d.gebiet = gebiet.strip() or None
+    d.verfuegbarkeit = verfuegbarkeit.strip() or None
+    d.vertragstyp = vertragstyp.strip() or None
+    d.stundensatz_teamer = _f(stundensatz_teamer)
+    d.stundensatz_kuenstler = _f(stundensatz_kuenstler)
+    d.dsgvo_unterzeichnet = dsgvo_unterzeichnet
+    d.website = website.strip() or None
+    d.notizen = notizen.strip() or None
     if portal_passwort:
         d.password_hash = hash_password(portal_passwort)
     db.commit()

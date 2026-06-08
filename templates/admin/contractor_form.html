@@ -126,6 +126,65 @@
       </div>
     </div>
 
+    <!-- Konditionen & DSGVO -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Konditionen & DSGVO</h2>
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Gebiet</label>
+          <input type="text" name="gebiet" placeholder="z. B. Ruhrgebiet"
+            value="{{ d.gebiet or '' if d else '' }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Verfügbarkeit</label>
+          <input type="text" name="verfuegbarkeit" placeholder="z. B. Wochenende"
+            value="{{ d.verfuegbarkeit or '' if d else '' }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Vertragstyp</label>
+          <select name="vertragstyp" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+            <option value="">– wählen –</option>
+            {% for vt in ['Freelancer', 'Selbstständig', 'Honorar', 'Sonstige'] %}
+            <option {% if d and d.vertragstyp == vt %}selected{% endif %}>{{ vt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Stundensatz Teamer (€)</label>
+          <input type="text" name="stundensatz_teamer" placeholder="0,00"
+            value="{{ '%.2f'|format(d.stundensatz_teamer) | replace('.', ',') if d and d.stundensatz_teamer else '' }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Stundensatz Künstler (€)</label>
+          <input type="text" name="stundensatz_kuenstler" placeholder="0,00"
+            value="{{ '%.2f'|format(d.stundensatz_kuenstler) | replace('.', ',') if d and d.stundensatz_kuenstler else '' }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Website</label>
+        <input type="url" name="website" placeholder="https://"
+          value="{{ d.website or '' if d else '' }}"
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Notizen</label>
+        <textarea name="notizen" rows="3" placeholder="Interne Notizen …"
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none">{{ d.notizen or '' if d else '' }}</textarea>
+      </div>
+      <label class="flex items-center gap-2.5 text-sm cursor-pointer pt-1">
+        <input type="checkbox" name="dsgvo_unterzeichnet" value="true"
+          {% if d and d.dsgvo_unterzeichnet %}checked{% endif %}
+          class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+        DSGVO-Vereinbarung unterzeichnet
+      </label>
+    </div>
+
     <!-- Portal-Zugang -->
     <div class="card p-6">
       <h2 class="text-sm font-semibold text-gray-700 pb-3 mb-4" style="border-bottom: 1px solid #f3f4f6;">Portal-Zugang</h2>
