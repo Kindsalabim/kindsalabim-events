@@ -63,6 +63,35 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     return JSONResponse({"erinnerungen_gesendet": count, "material_erinnerungen": material_count, "datum": morgen.strftime("%d.%m.%Y")})
 
 
+@router.get("/einsatz-erinnerung")
+def send_einsatz_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
+    """Wird täglich (18:00 lokal) von Render Cron aufgerufen. Erinnert bestätigte
+    Dienstleister 2 Tage vor ihrem Einsatz."""
+    if not _check_secret(secret):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    in_2_tagen = date.today() + timedelta(days=2)
+    zusagen = db.query(Verfuegbarkeitsanfrage).join(
+        Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
+        Verfuegbarkeitsanfrage.status == "Ja",
+        Verfuegbarkeitsanfrage.einsatz_erinnerung_gesendet == False,
+        Event.datum == in_2_tagen,
+    ).all()
+
+    from email_service import send_einsatz_erinnerung
+    count = 0
+    for a in zusagen:
+        try:
+            send_einsatz_erinnerung(a.dienstleister, a.event)
+            a.einsatz_erinnerung_gesendet = True
+            count += 1
+        except Exception as e:
+            print(f"Einsatz-Erinnerung fehlgeschlagen für {a.dienstleister.email}: {e}")
+
+    db.commit()
+    return JSONResponse({"einsatz_erinnerungen_gesendet": count, "datum": in_2_tagen.strftime("%d.%m.%Y")})
+
+
 def _model_to_csv(rows, model) -> bytes:
     """Exportiert alle Zeilen eines Modells als CSV (alle Spalten, ; getrennt, UTF-8 mit BOM für Excel)."""
     cols = [c.name for c in model.__table__.columns]

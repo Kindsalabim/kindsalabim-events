@@ -202,6 +202,34 @@ def send_erinnerung(dienstleister, event):
           _wrap(content, color, cfg))
 
 
+def send_einsatz_erinnerung(dienstleister, event):
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      kleine Erinnerung: In <strong>2 Tagen</strong> hast du folgenden Einsatz. Wir freuen uns auf dich!
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Anlass', event.anlass)}
+        {_info_row('Kunde', event.kunde_firma)}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
+        {_info_row('Ort', event.veranstaltungsort)}
+      </table>
+    </div>
+    <p style="margin:0 0 8px;font-size:14px;color:#374151;">Alle Details findest du in deinem Briefing und im Portal:</p>
+    <a href="https://kindsalabim-events.onrender.com/portal"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Zum Portal →
+    </a>"""
+    _send(dienstleister.email,
+          f"📅 In 2 Tagen: {event.anlass} bei {event.kunde_firma}",
+          _wrap(content, color, cfg))
+
+
 def send_frist_verlaengerung(dienstleister, event, admin_email: str):
     cfg = get_config()
     color = _brand_color(event.marke)
@@ -335,6 +363,19 @@ def send_briefing(dienstleister_list, event, base_url: str):
     color = _brand_color(event.marke)
     subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
 
+    # Team-Roster (für alle Empfänger gleich): Name + Telefon, Teamleiter markiert
+    team_rows = ""
+    for m in dienstleister_list:
+        name = f"{m.vorname} {m.nachname}"
+        if event.teamleiter_id and m.id == event.teamleiter_id:
+            name += ' <span style="display:inline-block;margin-left:6px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">★ Teamleiter</span>'
+        team_rows += _info_row(name, m.telefon or "–")
+    team_section = f"""
+        <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+          <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Dein Team</p>
+          <table cellpadding="0" cellspacing="0" width="100%">{team_rows}</table>
+        </div>"""
+
     for d in dienstleister_list:
         content = f"""
         <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {d.vorname},</p>
@@ -367,6 +408,8 @@ def send_briefing(dienstleister_list, event, base_url: str):
             {_info_row('Telefon', event.kunde_telefon)}
           </table>
         </div>
+
+        {team_section}
 
         {"" if not event.hinweise else f'<div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;">{event.hinweise}</p></div>'}
 

@@ -49,3 +49,16 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+
+  # 16:00 UTC = 18:00 (Sommerzeit) / 17:00 (Winterzeit) in DE
+  - type: cron
+    name: einsatz-erinnerung
+    runtime: python
+    schedule: "0 16 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python einsatz_runner.py
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
