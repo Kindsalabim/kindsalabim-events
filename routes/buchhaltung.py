@@ -166,6 +166,19 @@ def buchhaltung_bezahlt(rid: int, db: Session = Depends(get_db),
     return RedirectResponse(f"/admin/buchhaltung?jahr={jahr}", status_code=303)
 
 
+# ── Steuerrücklage erledigt-Toggle ────────────────────────────────────────────
+
+@router.post("/{rid}/steuer")
+def buchhaltung_steuer(rid: int, db: Session = Depends(get_db),
+                       user=Depends(get_admin_user)):
+    r = db.query(Rechnung).filter(Rechnung.id == rid).first()
+    if r:
+        r.steuer_erledigt = not r.steuer_erledigt
+        db.commit()
+    jahr = r.datum.year if r else date.today().year
+    return RedirectResponse(f"/admin/buchhaltung?jahr={jahr}", status_code=303)
+
+
 # ── Löschen ────────────────────────────────────────────────────────────────────
 
 @router.post("/{rid}/loeschen")

@@ -111,7 +111,8 @@ class Rechnung(Base):
     kunde          = Column(String)
     rgnr           = Column(String)       # Rechnungsnummer, z. B. RE-2026-001
     brutto         = Column(Float, default=0.0)
-    bezahlt        = Column(Boolean, default=False)
-    personalkosten = Column(Float, default=0.0)
-    materialkosten = Column(Float, default=0.0)
-    notiz          = Column(Text)
+    bezahlt          = Column(Boolean, default=False)
+    steuer_erledigt  = Column(Boolean, default=False)
+    personalkosten   = Column(Float, default=0.0)
+    materialkosten   = Column(Float, default=0.0)
+    notiz            = Column(Text)

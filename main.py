@@ -77,6 +77,12 @@ def run_migrations():
     for col, typedef in new_columns:
         add_column("events", col, typedef)
 
+    rechnungen_columns = [
+        ("steuer_erledigt", "BOOLEAN DEFAULT 0"),
+    ]
+    for col, typedef in rechnungen_columns:
+        add_column("rechnungen", col, typedef)
+
     # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
     def convert_date_column(table: str, col: str):
         """VARCHAR 'TT.MM.JJJJ' -> echter DATE-Typ. Idempotent & crash-sicher."""
