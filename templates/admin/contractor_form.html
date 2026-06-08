@@ -39,29 +39,29 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
-          <input type="text" name="telefon" value="{{ d.telefon if d else '' }}"
+          <input type="text" name="telefon" value="{{ (d.telefon or '') if d else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
       <div class="grid grid-cols-3 gap-4">
         <div class="col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Straße</label>
-          <input type="text" name="strasse" value="{{ d.strasse if d else '' }}"
+          <input type="text" name="strasse" value="{{ (d.strasse or '') if d else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">PLZ</label>
-          <input type="text" name="plz" value="{{ d.plz if d else '' }}"
+          <input type="text" name="plz" value="{{ (d.plz or '') if d else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Stadt</label>
-          <input type="text" name="stadt" value="{{ d.stadt if d else '' }}"
+          <input type="text" name="stadt" value="{{ (d.stadt or '') if d else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Kleidergröße</label>
-          <input type="text" name="kleidergroesse" value="{{ d.kleidergroesse if d else '' }}"
+          <input type="text" name="kleidergroesse" value="{{ (d.kleidergroesse or '') if d else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
