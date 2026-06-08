@@ -42,6 +42,7 @@ def run_migrations():
         ("frist_datum",          "VARCHAR"),
         ("frist_verlaengert",    "BOOLEAN DEFAULT 0"),
         ("erinnerung_gesendet",  "BOOLEAN DEFAULT 0"),
+        ("einsatz_erinnerung_gesendet", "BOOLEAN DEFAULT 0"),
     ]
     for col, typedef in vf_columns:
         add_column("verfuegbarkeitsanfragen", col, typedef)

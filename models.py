@@ -88,6 +88,7 @@ class Verfuegbarkeitsanfrage(Base):
     frist_datum = Column(Date)          # echtes Datum – wann die Anfrage abläuft
     frist_verlaengert = Column(Boolean, default=False)
     erinnerung_gesendet = Column(Boolean, default=False)
+    einsatz_erinnerung_gesendet = Column(Boolean, default=False)  # Einsatz-Erinnerung 2 Tage vorher
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")

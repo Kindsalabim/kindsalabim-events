@@ -205,9 +205,23 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     ranked_kuenstler = rank_contractors([d for d in active if d.rolle in ("Künstler", "Beides")], ev.veranstaltungsort)
 
     anfragen_ids = {a.dienstleister_id: a for a in anfragen}
+
+    # Doppelbuchung: bestätigte Einsätze anderer Events am selben Tag
+    gebucht_map = {}
+    if ev.datum:
+        konflikte = db.query(Verfuegbarkeitsanfrage).join(
+            Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
+            Verfuegbarkeitsanfrage.status == "Ja",
+            Verfuegbarkeitsanfrage.event_id != ev.id,
+            Event.datum == ev.datum,
+        ).all()
+        for a in konflikte:
+            gebucht_map[a.dienstleister_id] = a.event
+
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
-                    ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler))
+                    ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
+                    gebucht_map=gebucht_map))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
@@ -319,6 +333,17 @@ def send_anfragen(
                 send_verfuegbarkeitsanfrage(d, ev, a.id, base_url)
     db.commit()
     ev.status = auto_status(ev, db)
+    db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+@router.post("/events/{event_id}/teamleiter")
+def set_teamleiter(
+    event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    teamleiter_id: str = Form(""),
+):
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    ev.teamleiter_id = int(teamleiter_id) if teamleiter_id else None
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
