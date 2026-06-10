@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import json
 from pathlib import Path
-import markdown as md
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
 
 from database import get_db
 from models import Wissensartikel, Dienstleister
@@ -18,17 +18,24 @@ templates = Jinja2Templates(directory="templates")
 ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
     "p", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "hr", "br",
     "img", "table", "thead", "tbody", "tr", "th", "td", "span", "div",
+    "u", "s", "strong", "em", "blockquote", "ol", "ul", "li",
 ]
 ALLOWED_ATTRS = {
     **bleach.sanitizer.ALLOWED_ATTRIBUTES,
     "a": ["href", "title", "target", "rel"],
-    "img": ["src", "alt", "title", "width"],
+    "img": ["src", "alt", "title", "width", "style"],
+    "p": ["class", "style"], "span": ["class", "style"], "div": ["class", "style"],
+    "h1": ["class", "style"], "h2": ["class", "style"], "h3": ["class", "style"],
+    "li": ["class"], "ol": ["class"], "ul": ["class"],
 }
+_CSS = CSSSanitizer(allowed_css_properties=["color", "background-color", "text-align", "font-weight", "text-decoration"])
 
 
 def render_markdown(text: str) -> str:
-    raw = md.markdown(text or "", extensions=["extra", "sane_lists", "nl2br"])
-    return bleach.clean(raw, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS, strip=True)
+    """Inhalt ist HTML (WYSIWYG/Import) – nur gegen XSS säubern, Farben + Bild-Daten erlauben."""
+    return bleach.clean(text or "", tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS,
+                        css_sanitizer=_CSS, protocols=["http", "https", "mailto", "data"],
+                        strip=True)
 
 
 def tpl_context(request, **kw):
@@ -163,21 +170,14 @@ def wissen_set_sichtbarkeit(aid: int, sichtbarkeit: str = Form(...),
 
 # ── Einmaliger Confluence-Import (aus wissen_seed.json) ───────────────────────
 
-@admin_router.post("/import-seed")
-def wissen_import_seed(db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    if db.query(Wissensartikel).count() > 0:
-        return RedirectResponse("/admin/wissen?fehler=nicht_leer", status_code=303)
+def _load_seed(db) -> bool:
     seed_path = Path(__file__).parent.parent / "wissen_seed.json"
     if not seed_path.exists():
-        return RedirectResponse("/admin/wissen?fehler=kein_seed", status_code=303)
+        return False
     seed = json.loads(seed_path.read_text(encoding="utf-8"))
-
-    # Wurzel (parent_id None) ermitteln – deren Kinder werden Top-Level
     root_pid = next((s["page_id"] for s in seed if s["parent_id"] is None), None)
     now = datetime.now().isoformat(timespec="seconds")
     pid_to_db = {}
-
-    # Pass 1: alle außer Wurzel anlegen
     for s in seed:
         if s["page_id"] == root_pid:
             continue
@@ -191,8 +191,6 @@ def wissen_import_seed(db: Session = Depends(get_db), _=Depends(get_admin_user))
         )
         db.add(a); db.flush()
         pid_to_db[s["page_id"]] = a.id
-
-    # Pass 2: Eltern verknüpfen (Kinder der Wurzel bleiben Top-Level)
     for s in seed:
         if s["page_id"] == root_pid or s["page_id"] not in pid_to_db:
             continue
@@ -201,6 +199,25 @@ def wissen_import_seed(db: Session = Depends(get_db), _=Depends(get_admin_user))
             db.query(Wissensartikel).filter(Wissensartikel.id == pid_to_db[s["page_id"]]).update(
                 {"parent_id": pid_to_db[ppid]})
     db.commit()
+    return True
+
+
+@admin_router.post("/import-seed")
+def wissen_import_seed(db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    if db.query(Wissensartikel).count() > 0:
+        return RedirectResponse("/admin/wissen?fehler=nicht_leer", status_code=303)
+    if not _load_seed(db):
+        return RedirectResponse("/admin/wissen?fehler=kein_seed", status_code=303)
+    return RedirectResponse("/admin/wissen?import=ok", status_code=303)
+
+
+@admin_router.post("/reimport")
+def wissen_reimport(db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Verwirft ALLE Wissensartikel und lädt das Seed neu (überschreibt Anpassungen!)."""
+    db.query(Wissensartikel).delete()
+    db.commit()
+    if not _load_seed(db):
+        return RedirectResponse("/admin/wissen?fehler=kein_seed", status_code=303)
     return RedirectResponse("/admin/wissen?import=ok", status_code=303)
 
 
