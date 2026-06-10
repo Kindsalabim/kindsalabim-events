@@ -1,6 +1,46 @@
 # Kindsalabim Events – Technischer Bericht & Entwicklungs-Roadmap
 
-*Stand: 06.06.2026 · Erstellt nach vollständigem Code-Audit · Aktualisiert nach PostgreSQL-Migration*
+*Ursprünglich: 06.06.2026 (Code-Audit) · **Letztes Update: 11.06.2026***
+
+---
+
+## ⭐ Aktueller Stand (11.06.2026)
+
+Seit dem ursprünglichen Audit wurde die App massiv ausgebaut. Die meisten kritischen und mittleren Punkte sind **erledigt**, dazu kamen mehrere große neue Module.
+
+### Erledigt seit dem Audit
+| Thema | Status | Abschnitt |
+|-------|--------|-----------|
+| Datenpersistenz (PostgreSQL) | ✅ | 1.1 |
+| Wöchentliches CSV-Backup (Cron) | ✅ | 1.2 |
+| Cookie-Security (`secure`+`samesite`) | ✅ | 2.1 |
+| Echter Date-Typ (Event/Frist) | ✅ | 3.1 |
+| Single-Admin → **Mehr-Admin-Tabelle + Passwort-Reset** | ✅ | 2.5 |
+| E-Mail SMTP → Resend HTTP-API | ✅ | — |
+| Logistiker-Pflicht (an `material_mitnahme` gekoppelt) + Warnung | ✅ | 4.1 |
+| Dienstleister: Detailansicht, CSV-Export, Sortierung, Lösch-Buttons | ✅ | 6 |
+| Nachträgliche Absage im Portal + Admin-Mail | ✅ | — |
+| Magic-Link direkt in Anfrage-E-Mail (1-Klick-Login) | ✅ | — |
+| Buchhaltungsbereich (Rechnungen, Steuer-/Investrücklage, CSV) | ✅ | — |
+| Jira-Import Dienstleister (54 importiert) | ✅ | — |
+| Cloudflare R2 Dateiupload (Planung/Eventfotos) | ✅ | — |
+| Angebots-PDF-Generator (`/admin/angebot`) | ✅ | — |
+| **Wissensdatenbank** (Hierarchie, Karten, WYSIWYG, Sichtbarkeit, Confluence-Import) | ✅ | NEU |
+| **Ticket-/Sprint-System** (Kanban, Backlog, Kategorien, Jira-CSV-Import) | ✅ | NEU |
+
+### Noch offen / als Nächstes
+| Priorität | Thema |
+|-----------|-------|
+| 🔜 **Nächste Session** | **Customer-Management-Tool (CRM)** – Kundenverwaltung |
+| 🟡 | Auto-Nachbesetzung bei Absage (Teil der „2.0"-Automatisierung) |
+| 🟡 | Abgelaufene Anfragen automatisch markieren (3.3) |
+| 🟢 | Material-/Logistik-Cockpit (4.4) |
+| 🟢 | Geocoding statt PLZ-Liste (3.4) |
+| 🔒 | **R2-Secrets rotieren** (upload_*.py hatten Klartext-Keys, jetzt gitignored) |
+| 🔒 | CSRF-Token, Cron-Secret härten, Checklisten-Token-Ablauf (2.2–2.4) |
+| 🤖 | KI-Module: BakerRoss-Recherche, KI-Angebots-PDF (5.1/5.2) |
+
+*Die folgenden Abschnitte sind der historische Audit-Stand (06.06.2026) und dienen als Kontext.*
 
 ---
 
