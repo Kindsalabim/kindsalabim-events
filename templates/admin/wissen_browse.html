@@ -38,6 +38,15 @@
   </div>
 </div>
 
+{% if aktuell is none and kinder %}
+<div class="flex justify-end mb-4">
+  <form method="post" action="/admin/wissen/reimport"
+        onsubmit="return confirm('Achtung: Alle Wissens-Seiten werden gelöscht und frisch aus dem Confluence-Export geladen. Deine manuellen Änderungen gehen verloren. Fortfahren?')">
+    <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors">↻ Aus Confluence neu laden (überschreibt alles)</button>
+  </form>
+</div>
+{% endif %}
+
 {% if request.query_params.get('import') == 'ok' %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">✓ Confluence-Inhalte importiert. Alle Seiten stehen auf „Nur Admin" – gib die für Dienstleister relevanten frei.</div>
 {% endif %}
@@ -113,5 +122,8 @@
 .prose-wissen table{border-collapse:collapse;margin:.5em 0}
 .prose-wissen th,.prose-wissen td{border:1px solid #e5e7eb;padding:.4em .7em}
 .prose-wissen img{max-width:100%;border-radius:8px;margin:.5em 0}
+.prose-wissen .ql-align-center{text-align:center}
+.prose-wissen .ql-align-right{text-align:right}
+.prose-wissen .ql-align-justify{text-align:justify}
 </style>
 {% endblock %}

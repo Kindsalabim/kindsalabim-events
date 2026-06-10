@@ -1,17 +1,18 @@
 {% extends "admin_base.html" %}
 {% set active = 'wissen' %}
-{% block title %}{{ 'Artikel bearbeiten' if a else 'Neuer Artikel' }} – {{ cfg.app_name }}{% endblock %}
+{% block title %}{{ 'Seite bearbeiten' if a else 'Neue Seite' }} – {{ cfg.app_name }}{% endblock %}
 {% block content %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 
 <div class="mb-6">
   <a href="{% if a and a.parent_id %}/admin/wissen/b/{{ a.parent_id }}{% else %}/admin/wissen{% endif %}" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     Zurück
   </a>
-  <h1 class="text-xl font-bold text-gray-900">{{ 'Artikel bearbeiten' if a else 'Neuer Artikel' }}</h1>
+  <h1 class="text-xl font-bold text-gray-900">{{ 'Seite bearbeiten' if a else 'Neue Seite' }}</h1>
 </div>
 
-<form method="post" action="{% if a %}/admin/wissen/{{ a.id }}/edit{% else %}/admin/wissen/new{% endif %}" class="space-y-5 max-w-3xl">
+<form method="post" action="{% if a %}/admin/wissen/{{ a.id }}/edit{% else %}/admin/wissen/new{% endif %}" class="space-y-5 max-w-3xl" onsubmit="document.getElementById('inhalt').value = quill.root.innerHTML;">
 
   <div class="card p-6 space-y-4">
     <div>
@@ -47,11 +48,23 @@
       </div>
     </div>
 
+    <!-- Karten-Bild -->
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1.5">Karten-Bild (Pfad, optional)</label>
-      <input type="text" name="cover_bild" value="{{ (a.cover_bild or '') if a else '' }}"
-        placeholder="/static/img/wissen/cover_xyz.png"
-        class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Karten-Bild</label>
+      <div class="flex items-center gap-4">
+        <div id="cover-wrap" class="rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shrink-0"
+             style="width:160px;aspect-ratio:1.82;{% if not (a and a.cover_bild) %}display:none;{% endif %}">
+          <img id="cover-preview" src="{{ (a.cover_bild or '') if a else '' }}" alt="" class="w-full h-full object-cover">
+        </div>
+        <div class="space-y-2">
+          <input type="file" accept="image/*" id="cover-file" class="text-sm">
+          <div>
+            <button type="button" onclick="clearCover()" class="text-xs text-red-400 hover:text-red-600">Bild entfernen</button>
+          </div>
+          <p class="text-xs text-gray-400">JPG/PNG · wird automatisch verkleinert.</p>
+        </div>
+      </div>
+      <input type="hidden" name="cover_bild" id="cover_bild" value="{{ (a.cover_bild or '') if a else '' }}">
     </div>
 
     <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer">
@@ -63,14 +76,10 @@
   </div>
 
   <div class="card p-6">
-    <div class="flex items-center justify-between mb-2">
-      <label class="block text-sm font-medium text-gray-700">Inhalt (Markdown)</label>
-      <button type="button" onclick="togglePreview()" id="prev-btn" class="text-xs font-medium" style="color: var(--brand-primary);">Vorschau anzeigen</button>
-    </div>
-    <textarea name="inhalt" id="md-input" rows="16" oninput="if(prevOn) renderPrev()"
-      class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm font-mono focus-ring"
-      placeholder="# Überschrift&#10;&#10;Text mit **fett**, *kursiv*, [Link](https://...) und Listen.">{{ (a.inhalt if a else '') }}</textarea>
-    <div id="md-preview" class="prose-wissen mt-4 p-4 rounded-lg border border-gray-100 bg-gray-50 hidden"></div>
+    <label class="block text-sm font-medium text-gray-700 mb-2">Inhalt</label>
+    <div id="editor" style="min-height:280px;"></div>
+    <textarea name="inhalt" id="inhalt" class="hidden">{{ (a.inhalt if a else '') }}</textarea>
+    <p class="text-xs text-gray-400 mt-2">Formatieren wie in Word: Überschriften, Fett/Kursiv/Unterstrichen, Farbe, Listen, Bilder.</p>
   </div>
 
   <div class="flex items-center gap-3">
@@ -79,26 +88,74 @@
   </div>
 </form>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
-let prevOn = false;
-function togglePreview() {
-  prevOn = !prevOn;
-  document.getElementById('md-preview').classList.toggle('hidden', !prevOn);
-  document.getElementById('prev-btn').textContent = prevOn ? 'Vorschau ausblenden' : 'Vorschau anzeigen';
-  if (prevOn) renderPrev();
+// Bild auf maxW verkleinern → data-URL (JPEG)
+function resizeToDataURL(file, maxW, cb) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      cb(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
-function renderPrev() {
-  document.getElementById('md-preview').innerHTML = marked.parse(document.getElementById('md-input').value || '');
+
+// Quill mit Word-ähnlicher Toolbar
+const quill = new Quill('#editor', {
+  theme: 'snow',
+  modules: {
+    toolbar: {
+      container: [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline'],
+        [{ color: [] }, { background: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['link', 'image'],
+        ['clean'],
+      ],
+      handlers: {
+        image: function () {
+          const input = document.createElement('input');
+          input.type = 'file'; input.accept = 'image/*';
+          input.onchange = () => {
+            if (input.files[0]) resizeToDataURL(input.files[0], 1000, url => {
+              const range = quill.getSelection(true);
+              quill.insertEmbed(range.index, 'image', url);
+            });
+          };
+          input.click();
+        }
+      }
+    }
+  }
+});
+// Bestehenden Inhalt laden
+quill.root.innerHTML = document.getElementById('inhalt').value;
+
+// Cover-Upload
+document.getElementById('cover-file').addEventListener('change', function () {
+  if (this.files[0]) resizeToDataURL(this.files[0], 700, url => {
+    document.getElementById('cover_bild').value = url;
+    document.getElementById('cover-preview').src = url;
+    document.getElementById('cover-wrap').style.display = '';
+  });
+});
+function clearCover() {
+  document.getElementById('cover_bild').value = '';
+  document.getElementById('cover-wrap').style.display = 'none';
+  document.getElementById('cover-file').value = '';
 }
 </script>
 <style>
-.prose-wissen h1{font-size:1.4rem;font-weight:700;margin:.6em 0 .3em}
-.prose-wissen h2{font-size:1.15rem;font-weight:600;margin:.6em 0 .3em}
-.prose-wissen p{margin:.5em 0;line-height:1.65}
-.prose-wissen ul,.prose-wissen ol{margin:.5em 0;padding-left:1.4em}
-.prose-wissen a{color:var(--brand-primary);text-decoration:underline}
-.prose-wissen img{max-width:100%;border-radius:8px}
-.prose-wissen table{border-collapse:collapse}.prose-wissen th,.prose-wissen td{border:1px solid #e5e7eb;padding:.4em .7em}
+#editor .ql-editor { min-height: 280px; font-size: 15px; }
+#editor img { max-width: 100%; }
 </style>
 {% endblock %}
