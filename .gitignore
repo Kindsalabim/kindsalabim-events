@@ -8,3 +8,11 @@ __pycache__/
 .env
 venv/
 .venv/
+Confluence Wissensdatenbank/
+
+# Lokale Helfer-Skripte (enthalten z.T. Secrets) – nie committen
+run_preview.py
+upload_aktionen.py
+upload_blanko.py
+import_confluence.py
+kindsalabim_event_icons/
