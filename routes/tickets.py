@@ -81,7 +81,7 @@ def ticket_create(
     return RedirectResponse("/admin/tickets", status_code=303)
 
 
-@router.get("/{tid}", response_class=HTMLResponse)
+@router.get("/{tid:int}", response_class=HTMLResponse)
 def ticket_detail(request: Request, tid: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     t = db.query(Ticket).filter(Ticket.id == tid).first()
     if not t: raise HTTPException(404)
