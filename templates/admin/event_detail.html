@@ -62,6 +62,12 @@
   ✗ Keine E-Mail-Adresse für den Kunden hinterlegt. Bitte zuerst bearbeiten.
 </div>
 {% endif %}
+{% if logistiker_warnung %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm leading-relaxed flex items-start gap-2" style="background:#fef3c7;color:#92400e;">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+  <span><strong>Logistiker fehlt:</strong> Für dieses Event muss Material transportiert werden, aber es hat noch <strong>kein Logistiker</strong> zugesagt. Bitte mindestens einen Logistiker (🚚) anfragen.</span>
+</div>
+{% endif %}
 
 <!-- Info Pills – schnelle Übersicht -->
 <div class="flex flex-wrap gap-2 mb-5">
@@ -235,6 +241,7 @@
       <tr style="border-bottom: 1px solid #f9fafb;">
         <td class="py-3 font-medium text-gray-800">
           {{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}
+          {% if a.dienstleister.logistiker %}<span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}
           {% if a.dienstleister_id == ev.teamleiter_id %}<span class="inline-flex items-center gap-1 ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">★ Teamleiter</span>{% endif %}
           {% if a.notiz %}<span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span>{% endif %}
         </td>
@@ -306,7 +313,7 @@
               {% if already %}disabled{% endif %}
               class="mt-0.5 rounded border-gray-300" style="accent-color: var(--brand-primary);">
             <span>
-              <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}</span>
+              <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
               <span class="block text-xs text-gray-400 mt-0.5">{{ d.stadt }} · {{ d.erfahrungspunkte }} XP</span>
               {% if gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#b91c1c;">⚠ Bereits gebucht ({{ gebucht.startzeit }}–{{ gebucht.endzeit }} Uhr · {{ gebucht.kunde_firma }})</span>{% endif %}
             </span>
