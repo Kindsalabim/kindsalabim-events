@@ -150,6 +150,31 @@ def send_magic_link(dienstleister, token: str, base_url: str):
     _send(dienstleister.email, f"Dein Anmelde-Link – {cfg['app_name']}", _wrap(content, "#003864", cfg))
 
 
+def send_admin_reset(admin, token: str, base_url: str):
+    cfg = get_config()
+    url = f"{base_url}/admin/reset/{token}"
+    color = "#1D4E89"
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {admin.name or 'Admin'},</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      Es wurde ein Zurücksetzen deines Admin-Passworts angefordert.
+      Klick auf den Button, um ein neues Passwort zu vergeben. Der Link ist <strong>1 Stunde gültig</strong>.
+    </p>
+    <a href="{url}"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Neues Passwort festlegen →
+    </a>
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
+      Falls der Button nicht funktioniert:<br>
+      <a href="{url}" style="color:#6b7280;">{url}</a>
+    </p>
+    <p style="margin:16px 0 0;font-size:13px;color:#d1d5db;">
+      Falls du das nicht warst, ignoriere diese E-Mail – dein Passwort bleibt unverändert.
+    </p>"""
+    _send(admin.email, f"Passwort zurücksetzen – {cfg['app_name']}", _wrap(content, color, cfg))
+
+
 def send_einladung(dienstleister, base_url: str):
     cfg = get_config()
     login_url = f"{base_url}/portal/login"

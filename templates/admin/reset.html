@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Neues Passwort – {{ cfg.app_name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center px-4" style="background: var(--bg);">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <p class="text-sm" style="color: var(--ink-3);">Event-Management · Admin-Bereich</p>
+    </div>
+
+    <div class="card p-7">
+      {% if not gueltig %}
+        <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--brand-accent-light); color: var(--brand-accent);">
+          Dieser Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.
+        </div>
+        <a href="/admin/forgot" class="btn-primary w-full justify-center py-2.5">Neuen Link anfordern</a>
+      {% else %}
+        <h2 class="font-semibold text-gray-900 mb-1">Neues Passwort festlegen</h2>
+        <p class="text-sm text-gray-500 mb-5">Wähle ein sicheres Passwort (mind. 8 Zeichen).</p>
+        <form method="post" action="/admin/reset/{{ token }}" class="space-y-4">
+          <input type="password" name="password" required minlength="8" autocomplete="new-password"
+            placeholder="Neues Passwort"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring transition">
+          <button type="submit" class="btn-primary w-full justify-center py-2.5">Passwort speichern</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

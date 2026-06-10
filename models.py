@@ -127,6 +127,19 @@ class EventDatei(Base):
     event = relationship("Event", back_populates="dateien")
 
 
+class Admin(Base):
+    __tablename__ = "admins"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    email               = Column(String, unique=True, nullable=False)
+    name                = Column(String)
+    password_hash       = Column(String, nullable=False)
+    reset_token         = Column(String)
+    reset_token_expires = Column(String)   # ISO-Datetime
+    aktiv               = Column(Boolean, default=True)
+    erstellt_am         = Column(String)
+
+
 class Wissensartikel(Base):
     __tablename__ = "wissensartikel"
 
