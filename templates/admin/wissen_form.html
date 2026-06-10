@@ -1,0 +1,99 @@
+{% extends "admin_base.html" %}
+{% set active = 'wissen' %}
+{% block title %}{{ 'Artikel bearbeiten' if a else 'Neuer Artikel' }} – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/admin/wissen" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Wissensdatenbank
+  </a>
+  <h1 class="text-xl font-bold text-gray-900">{{ 'Artikel bearbeiten' if a else 'Neuer Artikel' }}</h1>
+</div>
+
+<form method="post" action="{% if a %}/admin/wissen/{{ a.id }}/edit{% else %}/admin/wissen/new{% endif %}" class="space-y-5 max-w-3xl">
+
+  <div class="card p-6 space-y-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Titel</label>
+      <input type="text" name="titel" required value="{{ (a.titel if a else '') }}"
+        class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Kategorie</label>
+        <input type="text" name="kategorie" list="kat-list" value="{{ (a.kategorie if a else 'Allgemein') }}"
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <datalist id="kat-list">
+          {% for k in kategorien %}<option value="{{ k }}">{% endfor %}
+        </datalist>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Sichtbar für</label>
+        <select name="sichtbarkeit" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus-ring">
+          {% set sv = a.sichtbarkeit if a else 'beide' %}
+          <option value="beide" {% if sv=='beide' %}selected{% endif %}>Admin + Dienstleister</option>
+          <option value="dienstleister" {% if sv=='dienstleister' %}selected{% endif %}>Nur Dienstleister</option>
+          <option value="admin" {% if sv=='admin' %}selected{% endif %}>Nur Admin</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Reihenfolge</label>
+        <input type="number" name="sortierung" value="{{ (a.sortierung if a else 0) }}"
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+    </div>
+
+    <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer">
+      <input type="checkbox" name="veroeffentlicht" value="true"
+        {% if (a and a.veroeffentlicht) or not a %}checked{% endif %}
+        class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+      Veröffentlicht (sonst nur als Entwurf für dich sichtbar)
+    </label>
+  </div>
+
+  <div class="card p-6">
+    <div class="flex items-center justify-between mb-2">
+      <label class="block text-sm font-medium text-gray-700">Inhalt (Markdown)</label>
+      <button type="button" onclick="togglePreview()" id="prev-btn" class="text-xs font-medium" style="color: var(--brand-primary);">Vorschau anzeigen</button>
+    </div>
+    <textarea name="inhalt" id="md-input" rows="16" oninput="if(prevOn) renderPrev()"
+      class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm font-mono focus-ring"
+      placeholder="# Überschrift&#10;&#10;Text mit **fett**, *kursiv*, [Link](https://...) und Listen:&#10;- Punkt 1&#10;- Punkt 2">{{ (a.inhalt if a else '') }}</textarea>
+    <div id="md-preview" class="prose-wissen mt-4 p-4 rounded-lg border border-gray-100 bg-gray-50 hidden"></div>
+    <p class="text-xs text-gray-400 mt-2">Markdown: <code># H1</code>, <code>## H2</code>, <code>**fett**</code>, <code>- Liste</code>, <code>[Text](URL)</code></p>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <button type="submit" class="btn-primary">Speichern</button>
+    <a href="/admin/wissen" class="btn-secondary">Abbrechen</a>
+  </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+let prevOn = false;
+function togglePreview() {
+  prevOn = !prevOn;
+  document.getElementById('md-preview').classList.toggle('hidden', !prevOn);
+  document.getElementById('prev-btn').textContent = prevOn ? 'Vorschau ausblenden' : 'Vorschau anzeigen';
+  if (prevOn) renderPrev();
+}
+function renderPrev() {
+  document.getElementById('md-preview').innerHTML = marked.parse(document.getElementById('md-input').value || '');
+}
+</script>
+<style>
+.prose-wissen h1{font-size:1.4rem;font-weight:700;margin:.6em 0 .3em}
+.prose-wissen h2{font-size:1.15rem;font-weight:600;margin:.6em 0 .3em}
+.prose-wissen h3{font-size:1rem;font-weight:600;margin:.5em 0 .2em}
+.prose-wissen p{margin:.5em 0;line-height:1.65}
+.prose-wissen ul,.prose-wissen ol{margin:.5em 0;padding-left:1.4em}
+.prose-wissen li{margin:.2em 0}
+.prose-wissen a{color:var(--brand-primary);text-decoration:underline}
+.prose-wissen code{background:#f1f5f9;padding:.1em .3em;border-radius:4px;font-size:.85em}
+.prose-wissen table{border-collapse:collapse;margin:.5em 0}
+.prose-wissen th,.prose-wissen td{border:1px solid #e5e7eb;padding:.4em .7em}
+</style>
+{% endblock %}
