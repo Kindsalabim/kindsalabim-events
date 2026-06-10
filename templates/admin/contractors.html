@@ -9,6 +9,7 @@
     <p class="text-sm text-gray-500 mt-0.5">{{ dienstleister | length }} Einträge</p>
   </div>
   <div class="flex items-center gap-3">
+    <a href="/admin/dienstleister/export.csv" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">↓ CSV-Export</a>
     <a href="/admin/import" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">↑ CSV-Import</a>
     <a href="/admin/dienstleister/new" class="btn-primary">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -35,6 +36,12 @@
     <option value="ja">DSGVO: unterzeichnet</option>
     <option value="nein">DSGVO: fehlt</option>
   </select>
+  <select id="dl-sort" onchange="sortTable()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring">
+    <option value="name">Sortieren: Name</option>
+    <option value="exp">Erfahrungspunkte (absteigend)</option>
+    <option value="ort">Wohnort</option>
+  </select>
   <button onclick="clearFilter()" class="text-xs text-gray-400 hover:text-gray-600 transition-colors px-2">zurücksetzen</button>
 </div>
 
@@ -60,10 +67,12 @@
           data-email="{{ d.email | lower }}"
           data-ort="{{ ((d.stadt or '') ~ ' ' ~ (d.gebiet or '')) | lower }}"
           data-rolle="{{ d.rolle | lower }}"
-          data-dsgvo="{{ 'ja' if d.dsgvo_unterzeichnet else 'nein' }}">
+          data-dsgvo="{{ 'ja' if d.dsgvo_unterzeichnet else 'nein' }}"
+          data-exp="{{ d.erfahrungspunkte or 0 }}"
+          data-stadt="{{ (d.stadt or '') | lower }}">
         <td class="px-5 py-3.5 font-medium text-gray-800">
           <div class="flex items-center gap-1.5">
-            {{ d.vorname }} {{ d.nachname }}
+            <a href="/admin/dienstleister/{{ d.id }}" class="hover:underline" style="color:var(--brand-primary);">{{ d.vorname }} {{ d.nachname }}</a>
             {% if d.logistiker %}
             <span title="Logistiker – Materialabholung möglich">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D4E89" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
@@ -152,11 +161,27 @@ function filterTable() {
     row.style.display = (matchText && matchRolle && matchDsgvo) ? '' : 'none';
   });
 }
+function sortTable() {
+  const mode = document.getElementById('dl-sort').value;
+  const tbody = document.querySelector('#dl-table tbody');
+  const rows = Array.from(tbody.querySelectorAll('.dl-row'));
+  rows.sort((a, b) => {
+    if (mode === 'exp') {
+      return (parseInt(b.dataset.exp) || 0) - (parseInt(a.dataset.exp) || 0);
+    } else if (mode === 'ort') {
+      return a.dataset.stadt.localeCompare(b.dataset.stadt, 'de');
+    }
+    return a.dataset.name.localeCompare(b.dataset.name, 'de');
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
 function clearFilter() {
   document.getElementById('dl-search').value = '';
   document.getElementById('dl-rolle').value = '';
   document.getElementById('dl-dsgvo').value = '';
+  document.getElementById('dl-sort').value = 'name';
   filterTable();
+  sortTable();
 }
 </script>
 {% endblock %}
