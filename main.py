@@ -12,6 +12,7 @@ from routes.import_jira import router as import_router
 from routes.fotos import router as fotos_router
 from routes.angebot import router as angebot_router
 from routes.wissen import admin_router as wissen_admin_router, portal_router as wissen_portal_router
+from routes.tickets import router as tickets_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
@@ -173,6 +174,7 @@ app.include_router(fotos_router)
 app.include_router(angebot_router)
 app.include_router(wissen_admin_router)
 app.include_router(wissen_portal_router)
+app.include_router(tickets_router)
 
 @app.get("/")
 def root():
