@@ -457,6 +457,41 @@ def dienstleister_list(request: Request, db: Session = Depends(get_db), _=Depend
     return templates.TemplateResponse("admin/contractors.html",
         tpl_context(request, dienstleister=all_d))
 
+@router.get("/dienstleister/export.csv")
+def dienstleister_export(db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    import io, csv
+    from fastapi.responses import StreamingResponse
+    alle = db.query(Dienstleister).order_by(Dienstleister.nachname).all()
+    out = io.StringIO()
+    out.write("sep=;\n")  # Excel-Hint
+    w = csv.writer(out, delimiter=";")
+    w.writerow([
+        "Vorname", "Nachname", "E-Mail", "Telefon", "Straße", "PLZ", "Stadt",
+        "Rolle", "Erfahrungspunkte", "Mobilität", "Kleidergröße", "Gebiet",
+        "Verfügbarkeit", "Vertragstyp", "Stundensatz Teamer", "Stundensatz Künstler",
+        "DSGVO", "Logistiker", "Führerschein", "Website", "Aktiv", "Notizen",
+    ])
+    for d in alle:
+        def euro(v):
+            return f"{v:.2f}".replace(".", ",") if v else ""
+        w.writerow([
+            d.vorname or "", d.nachname or "", d.email or "", d.telefon or "",
+            d.strasse or "", d.plz or "", d.stadt or "", d.rolle or "",
+            d.erfahrungspunkte or 0, d.mobilitaet or "", d.kleidergroesse or "",
+            d.gebiet or "", d.verfuegbarkeit or "", d.vertragstyp or "",
+            euro(d.stundensatz_teamer), euro(d.stundensatz_kuenstler),
+            "ja" if d.dsgvo_unterzeichnet else "nein",
+            "ja" if d.logistiker else "nein",
+            "ja" if d.fuehrerschein else "nein",
+            d.website or "", "ja" if d.aktiv else "nein", d.notizen or "",
+        ])
+    content = "﻿" + out.getvalue()
+    return StreamingResponse(
+        io.BytesIO(content.encode("utf-8")),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=dienstleister.csv"},
+    )
+
 @router.get("/dienstleister/new", response_class=HTMLResponse)
 def dienstleister_new(request: Request, _=Depends(get_admin_user)):
     return templates.TemplateResponse("admin/contractor_form.html",
@@ -503,6 +538,17 @@ def dienstleister_create(
     )
     db.add(d); db.commit()
     return RedirectResponse("/admin/dienstleister", status_code=303)
+
+@router.get("/dienstleister/{did}", response_class=HTMLResponse)
+def dienstleister_detail(request: Request, did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d: raise HTTPException(404)
+    anfragen = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.dienstleister_id == did
+    ).all()
+    anfragen = sorted(anfragen, key=lambda a: a.event.datum or date.min, reverse=True)
+    return templates.TemplateResponse("admin/contractor_detail.html",
+        tpl_context(request, d=d, anfragen=anfragen))
 
 @router.get("/dienstleister/{did}/edit", response_class=HTMLResponse)
 def dienstleister_edit(request: Request, did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
