@@ -127,6 +127,68 @@ class EventDatei(Base):
     event = relationship("Event", back_populates="dateien")
 
 
+class TicketKategorie(Base):
+    __tablename__ = "ticket_kategorien"
+    id    = Column(Integer, primary_key=True, index=True)
+    name  = Column(String, nullable=False)
+    farbe = Column(String, default="#1D4E89")
+
+
+class Sprint(Base):
+    __tablename__ = "sprints"
+    id          = Column(Integer, primary_key=True, index=True)
+    name        = Column(String, nullable=False)
+    start_datum = Column(Date)
+    end_datum   = Column(Date)
+    status      = Column(String, default="geplant")   # geplant | aktiv | abgeschlossen
+    erstellt_am = Column(String)
+
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+    id              = Column(Integer, primary_key=True, index=True)
+    titel           = Column(String, nullable=False)
+    beschreibung    = Column(Text, default="")
+    kategorie_id    = Column(Integer, ForeignKey("ticket_kategorien.id"), nullable=True)
+    wichtigkeit     = Column(String, default="mittel")  # niedrig | mittel | hoch | kritisch
+    aufwand         = Column(String)                     # S | M | L | XL
+    status          = Column(String, default="todo")     # todo | doing | done
+    sprint_id       = Column(Integer, ForeignKey("sprints.id"), nullable=True)  # None = Backlog
+    admin_id        = Column(Integer, ForeignKey("admins.id"), nullable=True)
+    faellig         = Column(Date, nullable=True)
+    reihenfolge     = Column(Integer, default=0)
+    erstellt_am     = Column(String)
+    aktualisiert_am = Column(String)
+
+    kategorie = relationship("TicketKategorie")
+    sprint    = relationship("Sprint")
+    admin     = relationship("Admin")
+    subtasks  = relationship("TicketSubtask", back_populates="ticket",
+                             cascade="all, delete-orphan", order_by="TicketSubtask.reihenfolge")
+    kommentare = relationship("TicketKommentar", back_populates="ticket",
+                             cascade="all, delete-orphan", order_by="TicketKommentar.erstellt_am")
+
+
+class TicketSubtask(Base):
+    __tablename__ = "ticket_subtasks"
+    id          = Column(Integer, primary_key=True, index=True)
+    ticket_id   = Column(Integer, ForeignKey("tickets.id"), nullable=False)
+    text        = Column(String, nullable=False)
+    erledigt    = Column(Boolean, default=False)
+    reihenfolge = Column(Integer, default=0)
+    ticket = relationship("Ticket", back_populates="subtasks")
+
+
+class TicketKommentar(Base):
+    __tablename__ = "ticket_kommentare"
+    id          = Column(Integer, primary_key=True, index=True)
+    ticket_id   = Column(Integer, ForeignKey("tickets.id"), nullable=False)
+    text        = Column(Text, nullable=False)
+    autor       = Column(String)
+    erstellt_am = Column(String)
+    ticket = relationship("Ticket", back_populates="kommentare")
+
+
 class Admin(Base):
     __tablename__ = "admins"
 

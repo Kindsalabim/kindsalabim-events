@@ -1,0 +1,232 @@
+{% extends "admin_base.html" %}
+{% set active = 'tickets' %}
+{% block title %}Tickets – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+{% set tab = request.query_params.get('tab', 'board') %}
+
+{% macro wicht_badge(w) %}
+  {% set m = {'niedrig': ('#f3f4f6','#6b7280','Niedrig'), 'mittel': ('#dbeafe','#1d4ed8','Mittel'), 'hoch': ('#fef3c7','#b45309','Hoch'), 'kritisch': ('#fee2e2','#b91c1c','Kritisch')} %}
+  {% set c = m.get(w, m['mittel']) %}
+  <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:{{ c[0] }};color:{{ c[1] }};">{{ c[2] }}</span>
+{% endmacro %}
+
+{% macro ticket_card(t) %}
+<a href="/admin/tickets/{{ t.id }}" class="ticket-card block card p-3 mb-2.5" draggable="true" data-id="{{ t.id }}">
+  <div class="flex items-start justify-between gap-2 mb-1.5">
+    <span class="text-sm font-medium text-gray-800 leading-snug">{{ t.titel }}</span>
+    {% if t.aufwand %}<span class="text-xs font-bold px-1.5 py-0.5 rounded shrink-0" style="background:#eef2ff;color:#4338ca;">{{ t.aufwand }}</span>{% endif %}
+  </div>
+  <div class="flex items-center gap-1.5 flex-wrap">
+    {{ wicht_badge(t.wichtigkeit) }}
+    {% if t.kategorie %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:{{ t.kategorie.farbe }}22;color:{{ t.kategorie.farbe }};">{{ t.kategorie.name }}</span>{% endif %}
+    {% if t.subtasks %}<span class="text-xs text-gray-400">✓ {{ t.subtasks|selectattr('erledigt')|list|length }}/{{ t.subtasks|length }}</span>{% endif %}
+  </div>
+  {% if t.faellig or t.admin %}
+  <div class="flex items-center justify-between mt-2 text-xs text-gray-400">
+    <span>{% if t.faellig %}📅 {{ t.faellig | de_date }}{% endif %}</span>
+    {% if t.admin %}<span class="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style="background:var(--brand-primary);">{{ (t.admin.name or t.admin.email)[0]|upper }}</span>{% endif %}
+  </div>
+  {% endif %}
+</a>
+{% endmacro %}
+
+<!-- Header + Tabs -->
+<div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl font-bold text-gray-900">Tickets</h1>
+  <button onclick="document.getElementById('new-ticket').showModal()" class="btn-primary">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Neues Ticket
+  </button>
+</div>
+
+<div class="flex items-center gap-1 mb-6 border-b border-gray-100">
+  {% for key, lbl in [('board','Board'), ('sprints','Sprints'), ('kategorien','Kategorien')] %}
+  <a href="/admin/tickets?tab={{ key }}" class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors
+     {% if tab == key %}border-current{% else %}border-transparent text-gray-400 hover:text-gray-600{% endif %}"
+     style="{% if tab == key %}color:var(--brand-primary);{% endif %}">{{ lbl }}</a>
+  {% endfor %}
+</div>
+
+{% if tab == 'sprints' %}
+<!-- ── SPRINTS ── -->
+<div class="card p-6 mb-5 max-w-lg">
+  <h2 class="text-sm font-semibold text-gray-700 mb-4">Neuen Sprint anlegen</h2>
+  <form method="post" action="/admin/tickets/sprints/new" class="grid grid-cols-2 gap-3">
+    <input type="text" name="name" required placeholder="z. B. Sprint KW 24" class="col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    <label class="text-xs text-gray-500">Start<input type="date" name="start" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring mt-1"></label>
+    <label class="text-xs text-gray-500">Ende<input type="date" name="ende" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring mt-1"></label>
+    <button class="btn-primary col-span-2 justify-center">Sprint anlegen</button>
+  </form>
+  <p class="text-xs text-gray-400 mt-2">Ohne Datum: heute + 7 Tage.</p>
+</div>
+<div class="space-y-2">
+  {% for s in sprints %}
+  <div class="card p-4 flex items-center justify-between gap-3">
+    <div>
+      <span class="font-medium text-gray-800">{{ s.name }}</span>
+      {% if s.status == 'aktiv' %}<span class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#dcfce7;color:#166534;">aktiv</span>
+      {% elif s.status == 'abgeschlossen' %}<span class="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">abgeschlossen</span>{% endif %}
+      <div class="text-xs text-gray-400 mt-0.5">{{ s.start_datum | de_date }} – {{ s.end_datum | de_date }}</div>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if s.status != 'aktiv' and s.status != 'abgeschlossen' %}
+      <form method="post" action="/admin/tickets/sprints/{{ s.id }}/activate"><button class="btn-secondary text-xs px-3 py-1.5">Aktivieren</button></form>{% endif %}
+      {% if s.status == 'aktiv' %}
+      <form method="post" action="/admin/tickets/sprints/{{ s.id }}/close" onsubmit="return confirm('Sprint abschließen? Nicht erledigte Tickets gehen zurück in den Backlog.')"><button class="btn-secondary text-xs px-3 py-1.5">Abschließen</button></form>{% endif %}
+      <form method="post" action="/admin/tickets/sprints/{{ s.id }}/delete" onsubmit="return confirm('Sprint löschen? Tickets gehen in den Backlog.')"><button class="text-xs text-red-400 hover:text-red-600">Löschen</button></form>
+    </div>
+  </div>
+  {% else %}<p class="text-sm text-gray-400">Noch keine Sprints.</p>{% endfor %}
+</div>
+
+{% elif tab == 'kategorien' %}
+<!-- ── KATEGORIEN ── -->
+<div class="card p-6 mb-5 max-w-lg">
+  <h2 class="text-sm font-semibold text-gray-700 mb-4">Neue Kategorie</h2>
+  <form method="post" action="/admin/tickets/kategorien/new" class="flex items-end gap-3">
+    <label class="flex-1 text-xs text-gray-500">Name<input type="text" name="name" required placeholder="z. B. Webseite" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring mt-1"></label>
+    <label class="text-xs text-gray-500">Farbe<input type="color" name="farbe" value="#1D4E89" class="block w-12 h-9 rounded border border-gray-200 mt-1"></label>
+    <button class="btn-primary">Anlegen</button>
+  </form>
+</div>
+<div class="flex flex-wrap gap-2">
+  {% for k in kategorien %}
+  <div class="card px-3 py-2 flex items-center gap-2">
+    <span class="w-3 h-3 rounded-full" style="background:{{ k.farbe }};"></span>
+    <span class="text-sm text-gray-700">{{ k.name }}</span>
+    <form method="post" action="/admin/tickets/kategorien/{{ k.id }}/delete" onsubmit="return confirm('Kategorie löschen?')"><button class="text-xs text-red-400 hover:text-red-600 ml-1">✕</button></form>
+  </div>
+  {% else %}<p class="text-sm text-gray-400">Noch keine Kategorien.</p>{% endfor %}
+</div>
+
+{% else %}
+<!-- ── BOARD ── -->
+{% if aktiv %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+  <div>
+    <span class="text-sm font-semibold text-gray-700">{{ aktiv.name }}</span>
+    <span class="text-xs text-gray-400 ml-2">{{ aktiv.start_datum | de_date }} – {{ aktiv.end_datum | de_date }}</span>
+  </div>
+  {% set done = spalten['done']|length %}{% set total = spalten['todo']|length + spalten['doing']|length + done %}
+  <span class="text-xs text-gray-500">{{ done }} / {{ total }} erledigt</span>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  {% for s in STATUS %}
+  <div class="kanban-col" data-status="{{ s }}">
+    <div class="flex items-center justify-between mb-3 px-1">
+      <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ STATUS_LABEL[s] }}</span>
+      <span class="text-xs text-gray-400">{{ spalten[s]|length }}</span>
+    </div>
+    <div class="kanban-drop rounded-xl p-2 min-h-[120px]" data-status="{{ s }}" style="background:#f8fafc;border:1px dashed #e5e7eb;">
+      {% for t in spalten[s] %}{{ ticket_card(t) }}{% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card p-6 mb-6 text-center">
+  <p class="text-sm text-gray-500">Kein aktiver Sprint. Lege unter <a href="/admin/tickets?tab=sprints" class="underline" style="color:var(--brand-primary);">Sprints</a> einen an und aktiviere ihn, um das Kanban-Board zu nutzen.</p>
+</div>
+{% endif %}
+
+<!-- Backlog -->
+<div class="flex items-center gap-2 mb-3">
+  <h2 class="text-sm font-semibold text-gray-700">Backlog</h2>
+  <span class="text-xs text-gray-400">{{ backlog|length }}</span>
+</div>
+<div class="space-y-2">
+  {% for t in backlog %}
+  <div class="card p-3 flex items-center justify-between gap-3">
+    <a href="/admin/tickets/{{ t.id }}" class="min-w-0 flex items-center gap-2 flex-wrap">
+      <span class="text-sm font-medium text-gray-800">{{ t.titel }}</span>
+      {{ wicht_badge(t.wichtigkeit) }}
+      {% if t.kategorie %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:{{ t.kategorie.farbe }}22;color:{{ t.kategorie.farbe }};">{{ t.kategorie.name }}</span>{% endif %}
+      {% if t.aufwand %}<span class="text-xs font-bold px-1.5 py-0.5 rounded" style="background:#eef2ff;color:#4338ca;">{{ t.aufwand }}</span>{% endif %}
+    </a>
+    {% if aktiv %}
+    <form method="post" action="/admin/tickets/{{ t.id }}/sprint" class="shrink-0">
+      <input type="hidden" name="sprint_id" value="{{ aktiv.id }}">
+      <button class="btn-secondary text-xs px-3 py-1.5">→ in Sprint</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}<p class="text-sm text-gray-400">Backlog ist leer.</p>{% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Modal: Neues Ticket ── -->
+<dialog id="new-ticket" class="rounded-2xl p-0 w-full max-w-lg backdrop:bg-black/30">
+  <form method="post" action="/admin/tickets/new" class="p-6 space-y-4">
+    <h2 class="text-lg font-bold text-gray-900">Neues Ticket</h2>
+    <input type="text" name="titel" required placeholder="Titel" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    <textarea name="beschreibung" rows="3" placeholder="Beschreibung (optional)" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none"></textarea>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="text-xs text-gray-500">Kategorie
+        <select name="kategorie_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+          <option value="">—</option>
+          {% for k in kategorien %}<option value="{{ k.id }}">{{ k.name }}</option>{% endfor %}
+        </select></label>
+      <label class="text-xs text-gray-500">Wichtigkeit
+        <select name="wichtigkeit" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+          <option value="niedrig">Niedrig</option><option value="mittel" selected>Mittel</option>
+          <option value="hoch">Hoch</option><option value="kritisch">Kritisch</option>
+        </select></label>
+      <label class="text-xs text-gray-500">Aufwand
+        <select name="aufwand" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+          <option value="">—</option><option>S</option><option>M</option><option>L</option><option>XL</option>
+        </select></label>
+      <label class="text-xs text-gray-500">Zuständig
+        <select name="admin_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+          <option value="">—</option>
+          {% for ad in admins %}<option value="{{ ad.id }}">{{ ad.name or ad.email }}</option>{% endfor %}
+        </select></label>
+      <label class="text-xs text-gray-500">Fällig
+        <input type="date" name="faellig" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring mt-1"></label>
+      <label class="text-xs text-gray-500">Sprint
+        <select name="sprint_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+          <option value="">Backlog</option>
+          {% for s in sprints %}{% if s.status != 'abgeschlossen' %}<option value="{{ s.id }}" {% if s.status=='aktiv' %}selected{% endif %}>{{ s.name }}</option>{% endif %}{% endfor %}
+        </select></label>
+    </div>
+    <div class="flex items-center gap-3 justify-end">
+      <button type="button" onclick="document.getElementById('new-ticket').close()" class="btn-secondary">Abbrechen</button>
+      <button type="submit" class="btn-primary">Ticket anlegen</button>
+    </div>
+  </form>
+</dialog>
+
+<style>
+.ticket-card{cursor:grab;}
+.ticket-card.dragging{opacity:.4;}
+.kanban-drop.over{background:#eef4fb !important;border-color:var(--brand-primary) !important;}
+</style>
+<script>
+let dragged = null;
+document.querySelectorAll('.ticket-card').forEach(c => {
+  c.addEventListener('dragstart', e => { dragged = c; c.classList.add('dragging'); });
+  c.addEventListener('dragend', e => { c.classList.remove('dragging'); });
+});
+document.querySelectorAll('.kanban-drop').forEach(zone => {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', e => zone.classList.remove('over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('over');
+    if (!dragged) return;
+    zone.appendChild(dragged);
+    const status = zone.dataset.status;
+    const ids = [...zone.querySelectorAll('.ticket-card')].map(c => c.dataset.id);
+    const fd = new FormData();
+    fd.append('status', status); fd.append('order', ids.join(','));
+    fetch(`/admin/tickets/${dragged.dataset.id}/move`, { method: 'POST', body: fd });
+    dragged = null;
+  });
+});
+// Klick auf Karte beim Draggen unterdrücken
+document.querySelectorAll('.ticket-card').forEach(c => {
+  let moved = false;
+  c.addEventListener('dragstart', () => moved = true);
+  c.addEventListener('click', e => { if (moved) { e.preventDefault(); moved = false; } });
+});
+</script>
+{% endblock %}

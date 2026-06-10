@@ -1,0 +1,112 @@
+{% extends "admin_base.html" %}
+{% set active = 'tickets' %}
+{% block title %}{{ t.titel }} – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/admin/tickets" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Tickets
+  </a>
+  <h1 class="text-xl font-bold text-gray-900">{{ t.titel }}</h1>
+</div>
+
+<div class="grid gap-5 md:grid-cols-3">
+  <!-- Hauptspalte: Bearbeiten -->
+  <div class="md:col-span-2 space-y-5">
+    <form method="post" action="/admin/tickets/{{ t.id }}/edit" class="card p-6 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Titel</label>
+        <input type="text" name="titel" required value="{{ t.titel }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Beschreibung</label>
+        <textarea name="beschreibung" rows="5" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-y">{{ t.beschreibung or '' }}</textarea>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <label class="text-xs text-gray-500">Status
+          <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+            {% for s in STATUS %}<option value="{{ s }}" {% if t.status==s %}selected{% endif %}>{{ STATUS_LABEL[s] }}</option>{% endfor %}
+          </select></label>
+        <label class="text-xs text-gray-500">Wichtigkeit
+          <select name="wichtigkeit" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+            {% for w in WICHTIGKEIT %}<option value="{{ w }}" {% if t.wichtigkeit==w %}selected{% endif %}>{{ w|capitalize }}</option>{% endfor %}
+          </select></label>
+        <label class="text-xs text-gray-500">Aufwand
+          <select name="aufwand" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+            <option value="">—</option>{% for a in ['S','M','L','XL'] %}<option {% if t.aufwand==a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+          </select></label>
+        <label class="text-xs text-gray-500">Kategorie
+          <select name="kategorie_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+            <option value="">—</option>{% for k in kategorien %}<option value="{{ k.id }}" {% if t.kategorie_id==k.id %}selected{% endif %}>{{ k.name }}</option>{% endfor %}
+          </select></label>
+        <label class="text-xs text-gray-500">Zuständig
+          <select name="admin_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+            <option value="">—</option>{% for ad in admins %}<option value="{{ ad.id }}" {% if t.admin_id==ad.id %}selected{% endif %}>{{ ad.name or ad.email }}</option>{% endfor %}
+          </select></label>
+        <label class="text-xs text-gray-500">Fällig
+          <input type="date" name="faellig" value="{{ t.faellig.isoformat() if t.faellig else '' }}" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring mt-1"></label>
+        <label class="text-xs text-gray-500 md:col-span-3">Sprint
+          <select name="sprint_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring mt-1">
+            <option value="">Backlog</option>
+            {% for s in sprints %}<option value="{{ s.id }}" {% if t.sprint_id==s.id %}selected{% endif %}>{{ s.name }}{% if s.status=='aktiv' %} (aktiv){% endif %}</option>{% endfor %}
+          </select></label>
+      </div>
+      <div class="flex items-center gap-3">
+        <button type="submit" class="btn-primary">Speichern</button>
+        <span class="flex-1"></span>
+      </div>
+    </form>
+
+    <!-- Kommentare -->
+    <div class="card p-6">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4">Notizen & Kommentare</h2>
+      <div class="space-y-3 mb-4">
+        {% for c in t.kommentare %}
+        <div class="rounded-lg px-3.5 py-2.5" style="background:#f8fafc;">
+          <p class="text-sm text-gray-700 whitespace-pre-line">{{ c.text }}</p>
+          <p class="text-xs text-gray-400 mt-1">{{ c.autor }} · {{ c.erstellt_am[:16].replace('T',' ') }}</p>
+        </div>
+        {% else %}<p class="text-sm text-gray-400">Noch keine Notizen.</p>{% endfor %}
+      </div>
+      <form method="post" action="/admin/tickets/{{ t.id }}/kommentar" class="flex gap-2">
+        <input type="text" name="text" required placeholder="Notiz hinzufügen…" class="flex-1 border border-gray-200 rounded-lg px-3.5 py-2 text-sm focus-ring">
+        <button class="btn-secondary text-sm">Hinzufügen</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Seitenspalte: Subtasks + Löschen -->
+  <div class="space-y-5">
+    <div class="card p-6">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4">Checkliste
+        {% if t.subtasks %}<span class="text-xs font-normal text-gray-400 ml-1">{{ t.subtasks|selectattr('erledigt')|list|length }}/{{ t.subtasks|length }}</span>{% endif %}
+      </h2>
+      <div class="space-y-1.5 mb-4">
+        {% for st in t.subtasks %}
+        <div class="flex items-center gap-2 group">
+          <form method="post" action="/admin/tickets/subtask/{{ st.id }}/toggle" class="flex items-center gap-2 flex-1">
+            <button class="w-4 h-4 rounded border flex items-center justify-center shrink-0" style="border-color:{% if st.erledigt %}var(--brand-primary){% else %}#d1d5db{% endif %};background:{% if st.erledigt %}var(--brand-primary){% else %}#fff{% endif %};">
+              {% if st.erledigt %}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>{% endif %}
+            </button>
+            <span class="text-sm {% if st.erledigt %}line-through text-gray-400{% else %}text-gray-700{% endif %}">{{ st.text }}</span>
+          </form>
+          <form method="post" action="/admin/tickets/subtask/{{ st.id }}/delete"><button class="text-xs text-gray-300 hover:text-red-500">✕</button></form>
+        </div>
+        {% endfor %}
+      </div>
+      <form method="post" action="/admin/tickets/{{ t.id }}/subtask/new" class="flex gap-2">
+        <input type="text" name="text" required placeholder="Unteraufgabe…" class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus-ring">
+        <button class="btn-secondary text-xs px-3">+</button>
+      </form>
+    </div>
+
+    <div class="card p-6">
+      <form method="post" action="/admin/tickets/{{ t.id }}/delete" onsubmit="return confirm('Ticket „{{ t.titel }}“ wirklich löschen?')">
+        <button class="text-sm text-red-500 hover:text-red-700 font-medium">Ticket löschen</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
