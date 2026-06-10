@@ -322,15 +322,50 @@ def send_checklist_notification(event, admin_email: str, base_url: str):
     _send(admin_email, subject, _wrap(content, color, cfg))
 
 
-def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str):
+def send_absage_admin(dienstleister, event, grund: str, base_url: str):
+    """Benachrichtigt den Admin wenn ein bestätigter Dienstleister nachträglich absagt."""
+    cfg = get_config()
+    admin_email = cfg.get("admin_email", BACKUP_EMPFAENGER)
+    color = _brand_color(event.marke)
+    event_url = f"{base_url}/admin/events/{event.id}"
+    grund_html = f"<p style='margin:12px 0 0;font-size:14px;color:#374151;'><strong>Grund:</strong> {grund}</p>" if grund else ""
+
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#b91c1c;font-weight:600;">⚠️ Nachträgliche Absage</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      <strong>{dienstleister.vorname} {dienstleister.nachname}</strong> hat seinen bestätigten
+      Einsatz für <strong>{event.kunde_firma}</strong> abgesagt.
+    </p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', f"{event.anlass} – {event.kunde_firma}")}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Dienstleister', f"{dienstleister.vorname} {dienstleister.nachname}")}
+        {_info_row('Telefon', dienstleister.telefon or '–')}
+      </table>
+      {grund_html}
+    </div>
+    <a href="{event_url}"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;">
+      Zum Event →
+    </a>"""
+
+    subject = f"⚠️ Absage: {dienstleister.vorname} {dienstleister.nachname} – {event.kunde_firma} ({de_date(event.datum)})"
+    _send(admin_email, subject, _wrap(content, color, cfg))
+
+
+def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str,
+                                magic_url: str = ""):
     cfg = get_config()
     color = _brand_color(event.marke)
+    portal_url = magic_url or f"{base_url}/portal/login"
 
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
-      wir würden dich gerne für folgendes Event anfragen. Bitte melde dich in deinem Portal an
-      und bestätige deine Verfügbarkeit.
+      wir würden dich gerne für folgendes Event anfragen. Klick auf den Button – du bist
+      sofort in deinem Portal und kannst deine Verfügbarkeit bestätigen.
     </p>
 
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
@@ -344,13 +379,17 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
       </table>
     </div>
 
-    <a href="{base_url}/portal/login"
+    <a href="{portal_url}"
        style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
               padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
-      Zum Portal →
+      Jetzt antworten →
     </a>
 
-    <p style="margin:24px 0 0;font-size:14px;color:#6b7280;">
+    <p style="margin:20px 0 4px;font-size:13px;color:#9ca3af;">
+      Der Link ist <strong>24 Stunden gültig</strong>. Danach kannst du dich jederzeit unter
+      <a href="{base_url}/portal/login" style="color:#6b7280;">{base_url}/portal/login</a> anmelden.
+    </p>
+    <p style="margin:0 0 0;font-size:14px;color:#6b7280;">
       Bitte antworte innerhalb von 7 Tagen.
     </p>"""
 

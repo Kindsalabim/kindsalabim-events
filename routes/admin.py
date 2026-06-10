@@ -346,7 +346,10 @@ def send_anfragen(
             db.add(a)
             d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
             if d:
-                send_verfuegbarkeitsanfrage(d, ev, a.id, base_url)
+                from auth import create_magic_token
+                token = create_magic_token(d, db)
+                magic_url = f"{base_url}/portal/auth/{token}"
+                send_verfuegbarkeitsanfrage(d, ev, a.id, base_url, magic_url=magic_url)
     db.commit()
     ev.status = auto_status(ev, db)
     db.commit()
