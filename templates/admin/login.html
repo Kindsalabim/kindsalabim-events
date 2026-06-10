@@ -20,6 +20,11 @@
 
     <!-- Card -->
     <div class="card p-7">
+      {% if request.query_params.get('reset') == 'ok' %}
+      <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background:#dcfce7;color:#166534;">
+        ✓ Passwort geändert. Du kannst dich jetzt anmelden.
+      </div>
+      {% endif %}
       {% if error %}
       <div class="rounded-lg px-4 py-3 mb-5 text-sm flex items-center gap-2" style="background: var(--brand-accent-light); color: var(--brand-accent);">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -43,6 +48,9 @@
           Anmelden
         </button>
       </form>
+      <div class="text-center mt-4">
+        <a href="/admin/forgot" class="text-xs font-medium" style="color: var(--ink-3);">Passwort vergessen?</a>
+      </div>
     </div>
   </div>
 </div>

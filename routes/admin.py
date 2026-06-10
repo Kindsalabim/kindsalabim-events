@@ -10,7 +10,8 @@ MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
           "August", "September", "Oktober", "November", "Dezember"]
 
 from database import get_db
-from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei
+from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin
+import secrets
 from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
 from config import get_config
@@ -51,15 +52,13 @@ def login_page(request: Request):
     return templates.TemplateResponse("admin/login.html", tpl_context(request))
 
 @router.post("/login")
-def login(request: Request, email: str = Form(...), password: str = Form(...)):
-    cfg = get_config()
-    if email != cfg["admin_email"]:
+def login(request: Request, email: str = Form(...), password: str = Form(...),
+          db: Session = Depends(get_db)):
+    a = db.query(Admin).filter(Admin.email == email, Admin.aktiv == True).first()
+    if not a or not verify_password(password, a.password_hash):
         return templates.TemplateResponse("admin/login.html",
             tpl_context(request, error="Ungültige Zugangsdaten"))
-    if not cfg.get("admin_password_hash") or not verify_password(password, cfg["admin_password_hash"]):
-        return templates.TemplateResponse("admin/login.html",
-            tpl_context(request, error="Ungültige Zugangsdaten"))
-    token = create_token({"sub": email, "role": "admin"})
+    token = create_token({"sub": a.email, "role": "admin"})
     resp = RedirectResponse("/admin/dashboard", status_code=303)
     resp.set_cookie("admin_token", token, httponly=True, secure=COOKIE_SECURE,
                     samesite="lax", max_age=60*60*8)
@@ -70,6 +69,79 @@ def logout():
     resp = RedirectResponse("/admin/login", status_code=303)
     resp.delete_cookie("admin_token")
     return resp
+
+
+# ── Passwort vergessen / zurücksetzen ───────────────────────────────────────────
+
+@router.get("/forgot", response_class=HTMLResponse)
+def forgot_page(request: Request, sent: str = ""):
+    return templates.TemplateResponse("admin/forgot.html", tpl_context(request, sent=sent))
+
+@router.post("/forgot")
+def forgot_post(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
+    a = db.query(Admin).filter(Admin.email == email, Admin.aktiv == True).first()
+    if a:
+        token = secrets.token_urlsafe(32)
+        a.reset_token = token
+        a.reset_token_expires = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+        db.commit()
+        from email_service import send_admin_reset
+        send_admin_reset(a, token, str(request.base_url).rstrip("/"))
+    # Immer gleiche Antwort – keine Auskunft, ob die Adresse existiert
+    return RedirectResponse("/admin/forgot?sent=1", status_code=303)
+
+@router.get("/reset/{token}", response_class=HTMLResponse)
+def reset_page(request: Request, token: str, db: Session = Depends(get_db)):
+    a = db.query(Admin).filter(Admin.reset_token == token).first()
+    gueltig = bool(a and a.reset_token_expires and
+                   datetime.utcnow() <= datetime.fromisoformat(a.reset_token_expires))
+    return templates.TemplateResponse("admin/reset.html",
+        tpl_context(request, token=token, gueltig=gueltig))
+
+@router.post("/reset/{token}")
+def reset_post(request: Request, token: str, password: str = Form(...),
+               db: Session = Depends(get_db)):
+    a = db.query(Admin).filter(Admin.reset_token == token).first()
+    if not a or not a.reset_token_expires or datetime.utcnow() > datetime.fromisoformat(a.reset_token_expires):
+        return templates.TemplateResponse("admin/reset.html",
+            tpl_context(request, token=token, gueltig=False))
+    a.password_hash = hash_password(password)
+    a.reset_token = None
+    a.reset_token_expires = None
+    db.commit()
+    return RedirectResponse("/admin/login?reset=ok", status_code=303)
+
+
+# ── Admin-Zugänge verwalten ──────────────────────────────────────────────────
+
+@router.get("/admins", response_class=HTMLResponse)
+def admins_list(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    admins = db.query(Admin).order_by(Admin.email).all()
+    return templates.TemplateResponse("admin/admins.html",
+        tpl_context(request, admins=admins, me=user.get("sub")))
+
+@router.post("/admins/new")
+def admins_create(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user),
+                  email: str = Form(...), name: str = Form(""), password: str = Form(...)):
+    email = email.strip().lower()
+    if db.query(Admin).filter(Admin.email == email).first():
+        return RedirectResponse("/admin/admins?fehler=vorhanden", status_code=303)
+    db.add(Admin(email=email, name=name.strip() or None,
+                 password_hash=hash_password(password), aktiv=True,
+                 erstellt_am=datetime.now().isoformat(timespec="seconds")))
+    db.commit()
+    return RedirectResponse("/admin/admins?ok=angelegt", status_code=303)
+
+@router.post("/admins/{aid}/delete")
+def admins_delete(aid: int, db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    a = db.query(Admin).filter(Admin.id == aid).first()
+    if not a:
+        return RedirectResponse("/admin/admins", status_code=303)
+    # Schutz: nicht sich selbst, nicht den letzten Admin löschen
+    if a.email == user.get("sub") or db.query(Admin).count() <= 1:
+        return RedirectResponse("/admin/admins?fehler=geschuetzt", status_code=303)
+    db.delete(a); db.commit()
+    return RedirectResponse("/admin/admins?ok=geloescht", status_code=303)
 
 
 # ── Test E-Mail ────────────────────────────────────────────────────────────────

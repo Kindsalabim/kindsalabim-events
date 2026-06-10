@@ -134,10 +134,31 @@ def run_migrations():
     convert_date_column("events", "datum")
     convert_date_column("verfuegbarkeitsanfragen", "frist_datum")
 
+def seed_admin():
+    """Übernimmt den bestehenden Config/ENV-Admin einmalig in die admins-Tabelle."""
+    from database import SessionLocal
+    from models import Admin
+    from config import get_config
+    from datetime import datetime
+    cfg = get_config()
+    db = SessionLocal()
+    try:
+        if db.query(Admin).count() == 0 and cfg.get("admin_email") and cfg.get("admin_password_hash"):
+            db.add(Admin(
+                email=cfg["admin_email"], name="Admin",
+                password_hash=cfg["admin_password_hash"], aktiv=True,
+                erstellt_am=datetime.now().isoformat(timespec="seconds"),
+            ))
+            db.commit()
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     run_migrations()
+    seed_admin()
     yield
 
 app = FastAPI(title="Knallfrosch Events", lifespan=lifespan)

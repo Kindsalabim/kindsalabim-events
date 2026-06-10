@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Passwort vergessen – {{ cfg.app_name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center px-4" style="background: var(--bg);">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <p class="text-sm" style="color: var(--ink-3);">Event-Management · Admin-Bereich</p>
+    </div>
+
+    <div class="card p-7">
+      {% if sent %}
+        <div class="text-center py-2">
+          <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--brand-primary-light);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <h2 class="font-semibold text-gray-900 mb-2">E-Mail unterwegs</h2>
+          <p class="text-sm text-gray-500 leading-relaxed">
+            Falls die Adresse als Admin hinterlegt ist, bekommst du gleich einen Link zum Zurücksetzen (1 Stunde gültig).
+            Bitte auch den Spam-Ordner prüfen.
+          </p>
+          <a href="/admin/login" class="text-sm mt-4 inline-block" style="color: var(--brand-primary);">Zurück zum Login</a>
+        </div>
+      {% else %}
+        <h2 class="font-semibold text-gray-900 mb-1">Passwort vergessen</h2>
+        <p class="text-sm text-gray-500 mb-5">Gib deine Admin-E-Mail ein – wir schicken dir einen Link.</p>
+        <form method="post" action="/admin/forgot" class="space-y-4">
+          <input type="email" name="email" required autocomplete="email" placeholder="deine@email.de"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring transition">
+          <button type="submit" class="btn-primary w-full justify-center py-2.5">Link senden</button>
+        </form>
+        <div class="text-center mt-4">
+          <a href="/admin/login" class="text-xs font-medium" style="color: var(--ink-3);">Zurück zum Login</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
