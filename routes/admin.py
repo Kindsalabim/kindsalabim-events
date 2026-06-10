@@ -226,10 +226,17 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     ).order_by(EventDatei.uploaded_at).all()
     planungs_urls = [(d, generate_presigned_url(d.r2_key)) for d in planungsdateien]
 
+    # Logistiker-Warnung: Material-Mitnahme nötig, aber kein Logistiker zugesagt
+    logistiker_zugesagt = any(
+        a.dienstleister.logistiker for a in anfragen
+        if a.status == "Ja" and a.dienstleister)
+    logistiker_warnung = bool(ev.material_mitnahme and not logistiker_zugesagt)
+
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
-                    gebucht_map=gebucht_map, planungs_urls=planungs_urls))
+                    gebucht_map=gebucht_map, planungs_urls=planungs_urls,
+                    logistiker_warnung=logistiker_warnung))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
@@ -299,9 +306,8 @@ def auto_status(ev, db) -> str:
     teamer_ok    = sum(1 for a in confirmed if a.rolle_anfrage == "Teamer")    >= ev.anzahl_teamer
     kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler")  >= ev.anzahl_kuenstler
 
-    # Logistiker: mind. 1 bestätigter Logistiker nötig (außer nur Künstler)
-    nur_kuenstler = (ev.anzahl_teamer == 0 and ev.anzahl_kuenstler > 0)
-    logistiker_ok = nur_kuenstler or any(
+    # Logistiker: nur nötig, wenn Material transportiert werden muss
+    logistiker_ok = (not ev.material_mitnahme) or any(
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
 
     # Material: wenn Mitnahme nötig, muss es auch bestellt sein
