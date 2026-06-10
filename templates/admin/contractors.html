@@ -119,6 +119,10 @@
               <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors">Einladung</button>
             </form>
             <a href="/admin/dienstleister/{{ d.id }}/edit" class="text-sm font-medium hover:underline" style="color: var(--brand-primary);">Bearbeiten</a>
+            <form method="post" action="/admin/dienstleister/{{ d.id }}/delete"
+                  onsubmit="return confirm('{{ d.vorname }} {{ d.nachname }} wirklich löschen?')">
+              <button class="text-xs text-red-400 hover:text-red-600 transition-colors">Löschen</button>
+            </form>
           </div>
         </td>
       </tr>

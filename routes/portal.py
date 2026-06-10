@@ -142,6 +142,30 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
     return RedirectResponse("/portal", status_code=303)
 
 
+# ── Nachträgliche Absage (bestätigte Einsätze) ────────────────────────────────
+
+@router.post("/absage/{anfrage_id}")
+def portal_absage(request: Request, anfrage_id: int, grund: str = Form(""),
+                  db: Session = Depends(get_db), user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    a = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.id == anfrage_id,
+        Verfuegbarkeitsanfrage.dienstleister_id == did,
+        Verfuegbarkeitsanfrage.status == "Ja"
+    ).first()
+    if a:
+        a.status = "Nein"
+        a.notiz = f"[Nachträgliche Absage] {grund}".strip() if grund else "[Nachträgliche Absage]"
+        db.commit()
+        from routes.admin import auto_status
+        a.event.status = auto_status(a.event, db)
+        db.commit()
+        from email_service import send_absage_admin
+        base_url = str(request.base_url).rstrip("/")
+        send_absage_admin(a.dienstleister, a.event, grund, base_url)
+    return RedirectResponse("/portal?absage=1", status_code=303)
+
+
 # ── Eventbericht (nur Teamleiter) ───────────────────────────────────────────────
 
 @router.get("/bericht/{event_id}", response_class=HTMLResponse)

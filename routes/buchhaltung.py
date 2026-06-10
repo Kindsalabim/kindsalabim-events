@@ -209,6 +209,7 @@ def buchhaltung_export(jahr: int = 0, db: Session = Depends(get_db),
     )
 
     out = io.StringIO()
+    out.write("sep=;\n")  # Excel-Hint: Semikolon als Trennzeichen
     w = csv.writer(out, delimiter=";")
     w.writerow([
         "Nr", "Datum", "Kunde", "Rgnr", "Brutto", "Noch offen",
