@@ -127,6 +127,20 @@ class EventDatei(Base):
     event = relationship("Event", back_populates="dateien")
 
 
+class Wissensartikel(Base):
+    __tablename__ = "wissensartikel"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    titel           = Column(String, nullable=False)
+    inhalt          = Column(Text, default="")        # Markdown
+    kategorie       = Column(String, default="Allgemein")
+    sichtbarkeit    = Column(String, default="beide")  # admin | dienstleister | beide
+    veroeffentlicht = Column(Boolean, default=True)
+    sortierung      = Column(Integer, default=0)
+    erstellt_am     = Column(String)                   # ISO-Datetime
+    aktualisiert_am = Column(String)                   # ISO-Datetime
+
+
 class Rechnung(Base):
     __tablename__ = "rechnungen"
 

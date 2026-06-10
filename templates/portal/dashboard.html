@@ -9,8 +9,15 @@
     <div class="max-w-2xl mx-auto px-5 pt-6 pb-8">
       <div class="flex items-center justify-between mb-6">
         <span class="text-xs font-semibold uppercase tracking-wider" style="color: rgba(255,255,255,0.6);">Dienstleister-Portal</span>
-        <a href="/portal/logout" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-           style="background: rgba(255,255,255,0.14); color: #fff;">Abmelden</a>
+        <div class="flex items-center gap-2">
+          <a href="/portal/wissen" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1.5"
+             style="background: rgba(255,255,255,0.14); color: #fff;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Wissen
+          </a>
+          <a href="/portal/logout" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+             style="background: rgba(255,255,255,0.14); color: #fff;">Abmelden</a>
+        </div>
       </div>
       <p class="text-sm" style="color: rgba(255,255,255,0.7);">Schön, dass du da bist</p>
       <h1 class="text-2xl font-bold text-white mt-0.5">Hallo {{ dienstleister.vorname }}!</h1>
