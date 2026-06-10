@@ -157,6 +157,7 @@ class Ticket(Base):
     admin_id        = Column(Integer, ForeignKey("admins.id"), nullable=True)
     faellig         = Column(Date, nullable=True)
     reihenfolge     = Column(Integer, default=0)
+    extern_key      = Column(String)   # z.B. Jira-Vorgangsschlüssel – verhindert Doppel-Import
     erstellt_am     = Column(String)
     aktualisiert_am = Column(String)
 
