@@ -1,0 +1,117 @@
+{% extends "admin_base.html" %}
+{% set active = 'wissen' %}
+{% block title %}{{ aktuell.titel if aktuell else 'Wissensdatenbank' }} – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+{% macro sicht_badge(s) %}
+  {% if s == 'admin' %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:#ede9fe;color:#6d28d9;">Nur Admin</span>
+  {% elif s == 'dienstleister' %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:#dbeafe;color:#1d4ed8;">Nur Dienstleister</span>
+  {% else %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:#dcfce7;color:#166534;">Beide</span>{% endif %}
+{% endmacro %}
+
+<!-- Brotkrümel -->
+<div class="flex items-center gap-1.5 text-sm text-gray-400 mb-4 flex-wrap">
+  <a href="/admin/wissen" class="hover:text-gray-600 transition-colors">Wissensdatenbank</a>
+  {% for p in pfad %}
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    {% if loop.last %}<span class="text-gray-700 font-medium">{{ p.titel }}</span>
+    {% else %}<a href="/admin/wissen/b/{{ p.id }}" class="hover:text-gray-600 transition-colors">{{ p.titel }}</a>{% endif %}
+  {% endfor %}
+</div>
+
+<div class="flex items-start justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">{{ aktuell.titel if aktuell else 'Wissensdatenbank' }}</h1>
+    {% if aktuell %}<div class="mt-1">{{ sicht_badge(aktuell.sichtbarkeit) }}</div>{% endif %}
+  </div>
+  <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+    {% if aktuell %}
+      <a href="/admin/wissen/{{ aktuell.id }}/edit" class="btn-secondary text-sm">Bearbeiten</a>
+      <form method="post" action="/admin/wissen/{{ aktuell.id }}/delete" onsubmit="return confirm('„{{ aktuell.titel }}“ und alle Unterseiten löschen?')">
+        <button class="btn-secondary text-sm text-red-500 hover:text-red-700">Löschen</button>
+      </form>
+    {% endif %}
+    <a href="/admin/wissen/new{% if aktuell %}?parent={{ aktuell.id }}{% endif %}" class="btn-primary">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Neuer Artikel
+    </a>
+  </div>
+</div>
+
+{% if request.query_params.get('import') == 'ok' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">✓ Confluence-Inhalte importiert. Alle Seiten stehen auf „Nur Admin" – gib die für Dienstleister relevanten frei.</div>
+{% endif %}
+{% if request.query_params.get('fehler') == 'nicht_leer' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">Import abgebrochen: Es sind bereits Artikel vorhanden.</div>
+{% endif %}
+{% if request.query_params.get('fehler') == 'kein_seed' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">Import abgebrochen: wissen_seed.json nicht gefunden.</div>
+{% endif %}
+
+<!-- Sichtbarkeit für aktuellen Knoten + Unterseiten setzen -->
+{% if aktuell %}
+<form method="post" action="/admin/wissen/sichtbarkeit/{{ aktuell.id }}" class="flex items-center gap-2 mb-5 text-sm">
+  <span class="text-gray-500">Sichtbarkeit (inkl. Unterseiten):</span>
+  <select name="sichtbarkeit" class="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus-ring">
+    <option value="admin" {% if aktuell.sichtbarkeit=='admin' %}selected{% endif %}>Nur Admin</option>
+    <option value="beide" {% if aktuell.sichtbarkeit=='beide' %}selected{% endif %}>Admin + Dienstleister</option>
+    <option value="dienstleister" {% if aktuell.sichtbarkeit=='dienstleister' %}selected{% endif %}>Nur Dienstleister</option>
+  </select>
+  <button class="btn-secondary text-xs px-3 py-1.5">Anwenden</button>
+</form>
+{% endif %}
+
+<!-- Inhalt der aktuellen Seite -->
+{% if inhalt_html %}
+<div class="card p-7 mb-6 max-w-3xl">
+  <div class="prose-wissen">{{ inhalt_html | safe }}</div>
+</div>
+{% endif %}
+
+<!-- Erststart: Import-Angebot -->
+{% if aktuell is none and not kinder %}
+<div class="card p-10 text-center">
+  <p class="text-gray-500 text-sm mb-4">Noch keine Artikel.</p>
+  <form method="post" action="/admin/wissen/import-seed" class="inline">
+    <button class="btn-primary">Confluence-Inhalte importieren</button>
+  </form>
+  <p class="text-xs text-gray-400 mt-3">Importiert die {{ '' }}Seiten aus dem HTML-Export (wissen_seed.json).</p>
+</div>
+{% endif %}
+
+<!-- Karten der Unterseiten -->
+{% if kinder %}
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+  {% for k in kinder %}
+  <div class="card overflow-hidden group">
+    <a href="/admin/wissen/b/{{ k.id }}" class="block">
+      <div class="w-full" style="aspect-ratio: 1.82; background:{{ ['#7c6f7a','#e8743b','#e23b3b','#6b8e23','#1D4E89','#2a9d8f'][loop.index0 % 6] }};">
+        {% if k.cover_bild %}<img src="{{ k.cover_bild }}" alt="{{ k.titel }}" class="w-full h-full object-cover">{% endif %}
+      </div>
+      <div class="p-3.5">
+        <p class="font-medium text-gray-800 text-sm leading-tight">{{ k.titel }}</p>
+      </div>
+    </a>
+    <div class="px-3.5 pb-3 flex items-center justify-between">
+      {{ sicht_badge(k.sichtbarkeit) }}
+      <a href="/admin/wissen/{{ k.id }}/edit" class="text-xs font-medium hover:underline" style="color: var(--brand-primary);">Bearbeiten</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<style>
+.prose-wissen h1{font-size:1.4rem;font-weight:700;margin:.6em 0 .3em}
+.prose-wissen h2{font-size:1.15rem;font-weight:600;margin:.6em 0 .3em}
+.prose-wissen h3{font-size:1rem;font-weight:600;margin:.5em 0 .2em}
+.prose-wissen p{margin:.5em 0;line-height:1.65;color:#374151}
+.prose-wissen ul,.prose-wissen ol{margin:.5em 0;padding-left:1.4em}
+.prose-wissen li{margin:.2em 0;color:#374151}
+.prose-wissen a{color:var(--brand-primary);text-decoration:underline;word-break:break-word}
+.prose-wissen code{background:#f1f5f9;padding:.1em .3em;border-radius:4px;font-size:.85em}
+.prose-wissen table{border-collapse:collapse;margin:.5em 0}
+.prose-wissen th,.prose-wissen td{border:1px solid #e5e7eb;padding:.4em .7em}
+.prose-wissen img{max-width:100%;border-radius:8px;margin:.5em 0}
+</style>
+{% endblock %}

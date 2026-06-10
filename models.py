@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean, Float
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from database import Base
 
 class Event(Base):
@@ -137,8 +137,14 @@ class Wissensartikel(Base):
     sichtbarkeit    = Column(String, default="beide")  # admin | dienstleister | beide
     veroeffentlicht = Column(Boolean, default=True)
     sortierung      = Column(Integer, default=0)
+    parent_id       = Column(Integer, ForeignKey("wissensartikel.id"), nullable=True)
+    cover_bild      = Column(String)                   # Pfad zum Karten-Bild (static/img/wissen/...)
     erstellt_am     = Column(String)                   # ISO-Datetime
     aktualisiert_am = Column(String)                   # ISO-Datetime
+
+    kinder = relationship("Wissensartikel",
+                          backref=backref("parent", remote_side=[id]),
+                          cascade="all, delete-orphan")
 
 
 class Rechnung(Base):

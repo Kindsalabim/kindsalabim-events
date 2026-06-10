@@ -95,6 +95,13 @@ def run_migrations():
     for col, typedef in rechnungen_columns:
         add_column("rechnungen", col, typedef)
 
+    wissen_columns = [
+        ("parent_id",  "INTEGER"),
+        ("cover_bild", "VARCHAR"),
+    ]
+    for col, typedef in wissen_columns:
+        add_column("wissensartikel", col, typedef)
+
     # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
     def convert_date_column(table: str, col: str):
         """VARCHAR 'TT.MM.JJJJ' -> echter DATE-Typ. Idempotent & crash-sicher."""

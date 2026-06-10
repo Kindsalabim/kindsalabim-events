@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ aktuell.titel if aktuell else 'Wissen' }} – {{ cfg.app_name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen pb-10" style="background: var(--bg);">
+
+  <header style="background: var(--brand-primary); border-radius: 0 0 1.75rem 1.75rem; box-shadow: var(--shadow-md);">
+    <div class="max-w-2xl mx-auto px-5 pt-6 pb-8">
+      <div class="flex items-center justify-between mb-6">
+        <a href="{% if aktuell and pfad|length > 1 %}/portal/wissen/{{ pfad[-2].id }}{% elif aktuell %}/portal/wissen{% else %}/portal{% endif %}"
+           class="text-xs font-semibold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1.5"
+           style="background: rgba(255,255,255,0.14); color: #fff;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Zurück
+        </a>
+        <a href="/portal/logout" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+           style="background: rgba(255,255,255,0.14); color: #fff;">Abmelden</a>
+      </div>
+      <p class="text-sm" style="color: rgba(255,255,255,0.7);">{% if aktuell %}Wissensdatenbank{% else %}Hilfe & Infos{% endif %}</p>
+      <h1 class="text-2xl font-bold text-white mt-0.5">{{ aktuell.titel if aktuell else 'Wissensdatenbank' }}</h1>
+    </div>
+  </header>
+
+  <div class="max-w-2xl mx-auto px-4 -mt-4 space-y-6">
+
+    {% if inhalt_html %}
+    <div class="card p-6">
+      <div class="prose-wissen">{{ inhalt_html | safe }}</div>
+    </div>
+    {% endif %}
+
+    {% if kinder %}
+    <div class="grid grid-cols-2 gap-3">
+      {% for k in kinder %}
+      <a href="/portal/wissen/{{ k.id }}" class="card overflow-hidden hover:opacity-90 transition block">
+        <div class="w-full" style="aspect-ratio: 1.82; background:{{ ['#7c6f7a','#e8743b','#e23b3b','#6b8e23','#1D4E89','#2a9d8f'][loop.index0 % 6] }};">
+          {% if k.cover_bild %}<img src="{{ k.cover_bild }}" alt="{{ k.titel }}" class="w-full h-full object-cover">{% endif %}
+        </div>
+        <div class="p-3">
+          <p class="font-medium text-sm leading-tight" style="color: var(--ink-1);">{{ k.titel }}</p>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not kinder and not inhalt_html %}
+    <div class="card p-10 text-center">
+      <p class="text-sm" style="color: var(--ink-3);">Hier gibt es noch keine Inhalte.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+.prose-wissen h1{font-size:1.35rem;font-weight:700;margin:.6em 0 .3em;color:var(--ink-1)}
+.prose-wissen h2{font-size:1.12rem;font-weight:600;margin:.6em 0 .3em;color:var(--ink-1)}
+.prose-wissen h3{font-size:1rem;font-weight:600;margin:.5em 0 .2em;color:var(--ink-1)}
+.prose-wissen p{margin:.5em 0;line-height:1.65;color:var(--ink-2)}
+.prose-wissen ul,.prose-wissen ol{margin:.5em 0;padding-left:1.4em}
+.prose-wissen li{margin:.2em 0;color:var(--ink-2)}
+.prose-wissen a{color:var(--brand-primary);text-decoration:underline;word-break:break-word}
+.prose-wissen code{background:#f1f5f9;padding:.1em .3em;border-radius:4px;font-size:.85em}
+.prose-wissen table{border-collapse:collapse;margin:.5em 0;width:100%}
+.prose-wissen th,.prose-wissen td{border:1px solid #e5e7eb;padding:.4em .7em}
+.prose-wissen img{max-width:100%;border-radius:8px;margin:.5em 0}
+</style>
+{% endblock %}
