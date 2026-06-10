@@ -1,0 +1,44 @@
+{% extends "admin_base.html" %}
+{% set active = 'tickets' %}
+{% block title %}Jira-Import – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/admin/tickets" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Tickets
+  </a>
+  <h1 class="text-xl font-bold text-gray-900">Tickets aus Jira importieren</h1>
+</div>
+
+{% if ergebnis and ergebnis.get('importiert') is not none %}
+<div class="mb-5 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">
+  ✓ {{ ergebnis.importiert }} Tickets importiert{% if ergebnis.uebersprungen %}, {{ ergebnis.uebersprungen }} übersprungen{% endif %}.
+  <a href="/admin/tickets" class="underline ml-1">Zum Board →</a>
+</div>
+{% elif ergebnis and ergebnis.get('fehler') %}
+<div class="mb-5 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">{{ ergebnis.fehler }}</div>
+{% endif %}
+
+<div class="card p-6 max-w-lg">
+  <form method="post" action="/admin/tickets/import" enctype="multipart/form-data" class="space-y-5">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Jira-CSV-Datei</label>
+      <input type="file" name="datei" accept=".csv" required class="text-sm">
+      <p class="text-xs text-gray-400 mt-1.5">In Jira: Backlog/Filter → Export → CSV (alle Felder).</p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Umfang</label>
+      <div class="space-y-2 text-sm">
+        <label class="flex items-center gap-2"><input type="radio" name="umfang" value="business" checked> Nur Geschäft (KBD + Leipzig, ohne Privat)</label>
+        <label class="flex items-center gap-2"><input type="radio" name="umfang" value="kbd"> Nur Business Development (KBD)</label>
+        <label class="flex items-center gap-2"><input type="radio" name="umfang" value="all"> Alles (inkl. privater MP-Tickets)</label>
+      </div>
+    </div>
+    <div class="rounded-lg px-3.5 py-2.5 text-xs" style="background:#f8fafc;color:#475569;">
+      Kategorien werden automatisch aus den <strong>Epics</strong> (Parent summary) erstellt. Alle Tickets landen im <strong>Backlog</strong>. Bereits importierte (gleicher Jira-Schlüssel) werden übersprungen.
+    </div>
+    <button type="submit" class="btn-primary">Importieren</button>
+  </form>
+</div>
+{% endblock %}

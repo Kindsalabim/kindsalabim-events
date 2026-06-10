@@ -33,10 +33,13 @@
 <!-- Header + Tabs -->
 <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
   <h1 class="text-2xl font-bold text-gray-900">Tickets</h1>
+  <div class="flex items-center gap-3">
+  <a href="/admin/tickets/import" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">↑ Jira-Import</a>
   <button onclick="document.getElementById('new-ticket').showModal()" class="btn-primary">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Neues Ticket
   </button>
+  </div>
 </div>
 
 <div class="flex items-center gap-1 mb-6 border-b border-gray-100">
