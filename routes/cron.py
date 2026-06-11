@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
 
 from database import get_db
-from models import Verfuegbarkeitsanfrage, Event, Dienstleister
+from models import Verfuegbarkeitsanfrage, Event, Dienstleister, KundeWiedervorlage, Admin
 from config import get_config
 
 router = APIRouter(prefix="/cron")
@@ -61,7 +61,25 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
         except Exception as e:
             print(f"Material-Erinnerung fehlgeschlagen: {e}")
 
-    return JSONResponse({"erinnerungen_gesendet": count, "material_erinnerungen": material_count, "datum": morgen.strftime("%d.%m.%Y")})
+    # CRM-Wiedervorlagen: tägliche Sammel-Erinnerung an alle aktiven Admins
+    faellige_wv = db.query(KundeWiedervorlage).filter(
+        KundeWiedervorlage.erledigt == False,
+        KundeWiedervorlage.faellig != None,
+        KundeWiedervorlage.faellig <= today,
+    ).order_by(KundeWiedervorlage.faellig).all()
+    wv_mails = 0
+    if faellige_wv:
+        from email_service import send_wiedervorlage_digest
+        admins = db.query(Admin).filter(Admin.aktiv == True).all()
+        for ad in admins:
+            try:
+                send_wiedervorlage_digest(ad.email, faellige_wv, today)
+                wv_mails += 1
+            except Exception as e:
+                print(f"Wiedervorlage-Digest fehlgeschlagen für {ad.email}: {e}")
+
+    return JSONResponse({"erinnerungen_gesendet": count, "material_erinnerungen": material_count,
+                         "wiedervorlage_mails": wv_mails, "datum": morgen.strftime("%d.%m.%Y")})
 
 
 @router.get("/einsatz-erinnerung")
