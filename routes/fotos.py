@@ -128,6 +128,59 @@ def delete_planungsdatei(
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
 
+# ── Admin: Auftragsbestätigung ─────────────────────────────────────────────────
+
+@router.post("/admin/events/{event_id}/auftragsbestaetigung")
+async def upload_auftragsbestaetigung(
+    event_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: str = Depends(get_admin_user),
+):
+    ev = db.get(Event, event_id)
+    if not ev:
+        raise HTTPException(404)
+    if file.content_type not in ALLOWED_PLANUNG:
+        raise HTTPException(400, "Nur JPG, PNG, WEBP, GIF oder PDF erlaubt.")
+    data = await file.read()
+    if len(data) > MAX_SIZE_MB * 1024 * 1024:
+        raise HTTPException(400, f"Datei zu groß (max. {MAX_SIZE_MB} MB).")
+    _upload(data, event_id, file.filename or "auftragsbestaetigung",
+            file.content_type, "auftragsbestaetigung", db)
+    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+
+@router.post("/admin/events/{event_id}/auftragsbestaetigung/{datei_id}/delete")
+def delete_auftragsbestaetigung(
+    event_id: int,
+    datei_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(get_admin_user),
+):
+    _delete(event_id, datei_id, db)
+    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+
+@router.get("/admin/events/{event_id}/auftragsbestaetigung/view")
+def view_auftragsbestaetigung(
+    event_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(get_admin_user),
+):
+    """Stabiler Link zur neuesten Auftragsbestätigung – leitet auf eine frische
+    presigned URL um (für den späteren Google-Kalender-Eintrag nutzbar)."""
+    datei = db.query(EventDatei).filter(
+        EventDatei.event_id == event_id,
+        EventDatei.typ == "auftragsbestaetigung",
+    ).order_by(EventDatei.uploaded_at.desc()).first()
+    if not datei:
+        raise HTTPException(404, "Keine Auftragsbestätigung hinterlegt.")
+    url = generate_presigned_url(datei.r2_key)
+    if not url:
+        raise HTTPException(500, "Datei-Speicher nicht konfiguriert.")
+    return RedirectResponse(url, status_code=307)
+
+
 # ── Portal: Event-Fotos (Teamleiter) ──────────────────────────────────────────
 
 @router.post("/portal/events/{event_id}/fotos")

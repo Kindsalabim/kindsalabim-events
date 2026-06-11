@@ -321,6 +321,12 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     ).order_by(EventDatei.uploaded_at).all()
     planungs_urls = [(d, generate_presigned_url(d.r2_key)) for d in planungsdateien]
 
+    ab_dateien = db.query(EventDatei).filter(
+        EventDatei.event_id == event_id,
+        EventDatei.typ == "auftragsbestaetigung"
+    ).order_by(EventDatei.uploaded_at).all()
+    ab_urls = [(d, generate_presigned_url(d.r2_key)) for d in ab_dateien]
+
     # Logistiker-Warnung: Material-Mitnahme nötig, aber kein Logistiker zugesagt
     logistiker_zugesagt = any(
         a.dienstleister.logistiker for a in anfragen
@@ -331,7 +337,7 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
-                    logistiker_warnung=logistiker_warnung))
+                    ab_urls=ab_urls, logistiker_warnung=logistiker_warnung))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
