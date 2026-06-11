@@ -11,10 +11,10 @@ BACKUP_EMPFAENGER = "a.malca@kindsalabim.de"
 
 # Logos als Base64 (inline – funktioniert in allen E-Mail-Clients)
 try:
-    from logo_b64 import KS_B64, KF_B64
+    from logo_b64 import KS_B64, KF_B64, KS_W, KS_H, KF_W, KF_H
 except ImportError:
-    KS_B64 = ""
-    KF_B64 = ""
+    KS_B64 = KF_B64 = ""
+    KS_W = KS_H = KF_W = KF_H = 0
 
 
 def _deliver(to: str, subject: str, html: str, attachments=None):
@@ -68,12 +68,16 @@ send_email = _send
 
 
 def _logo_img(brand_color: str) -> str:
-    """Gibt passendes Logo-Tag zurück (Base64 inline)."""
+    """Gibt passendes Logo-Tag zurück (Base64 inline, transparent, für weißen Header).
+    width/height als HTML-Attribute, damit auch Outlook die Größe respektiert."""
     is_kf = brand_color == "#1a7a1a"
-    b64   = KF_B64 if is_kf else KS_B64
+    b64 = KF_B64 if is_kf else KS_B64
+    w, h = (KF_W, KF_H) if is_kf else (KS_W, KS_H)
+    alt = "Knallfrosch" if is_kf else "KindSalabim"
     if not b64:
         return ""
-    return f'<img src="data:image/png;base64,{b64}" alt="{"Knallfrosch" if is_kf else "KindSalabim"}" style="height:44px;width:auto;display:block;">'
+    return (f'<img src="data:image/png;base64,{b64}" alt="{alt}" width="{w}" height="{h}" '
+            f'style="width:{w}px;height:{h}px;display:inline-block;border:0;outline:none;text-decoration:none;">')
 
 
 def _wrap(content: str, brand_color: str, cfg: dict) -> str:
@@ -87,10 +91,10 @@ def _wrap(content: str, brand_color: str, cfg: dict) -> str:
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
-        <!-- Header mit Logo -->
+        <!-- Header mit Logo (weiß, dezente Markenlinie als Akzent) -->
         <tr>
-          <td style="background:{brand_color};border-radius:12px 12px 0 0;padding:24px 36px;">
-            {logo if logo else f'<p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">{cfg["company_name"]}</p>'}
+          <td align="center" style="background:#ffffff;border-radius:12px 12px 0 0;border-bottom:3px solid {brand_color};padding:28px 36px 24px;text-align:center;">
+            {logo if logo else f'<p style="margin:0;font-size:20px;font-weight:700;color:{brand_color};">{cfg["company_name"]}</p>'}
           </td>
         </tr>
 
