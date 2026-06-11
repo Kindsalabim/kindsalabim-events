@@ -107,6 +107,7 @@ def run_migrations():
     add_column("tickets", "extern_key", "VARCHAR")
 
     add_column("events", "kunde_id", "INTEGER")
+    add_column("events", "kalender_event_id", "VARCHAR")
 
     # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
     def convert_date_column(table: str, col: str):

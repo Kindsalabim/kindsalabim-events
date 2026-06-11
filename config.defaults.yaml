@@ -15,3 +15,9 @@ admin_email: "a.malca@kindsalabim.de"
 mail_from: "noreply@kindsalabim-events.de"
 
 smtp_port: 465
+
+# Google-Kalender-Sync (App → Kalender). Das Service-Account-JSON kommt als
+# Secret über die ENV-Variable GOOGLE_CALENDAR_CREDENTIALS (nicht hierher!).
+# Diese beiden IDs sind nicht geheim und steuern, in welchen Kalender geschrieben wird.
+calendar_id_kindsalabim: "kindsalabim@gmail.com"
+calendar_id_knallfrosch: "info@knallfrosch-kinderevents.de"

@@ -35,6 +35,9 @@ def get_config():
             "R2_BUCKET":             "r2_bucket",
             "R2_ACCESS_KEY_ID":      "r2_access_key_id",
             "R2_SECRET_ACCESS_KEY":  "r2_secret_access_key",
+            "GOOGLE_CALENDAR_CREDENTIALS": "google_calendar_credentials",
+            "CALENDAR_ID_KINDSALABIM":     "calendar_id_kindsalabim",
+            "CALENDAR_ID_KNALLFROSCH":     "calendar_id_knallfrosch",
         }
         for env_key, cfg_key in env_map.items():
             val = os.environ.get(env_key)
