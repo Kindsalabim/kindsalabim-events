@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
@@ -255,7 +255,8 @@ def event_new(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 
 @router.post("/events/new")
 def event_create(
-    request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    request: Request, background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
     startzeit: str = Form(...), endzeit: str = Form(...),
     veranstaltungsort: str = Form(...),
@@ -286,11 +287,8 @@ def event_create(
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit(); db.refresh(ev)
-    try:
-        from calendar_service import sync_event
-        sync_event(ev); db.commit()
-    except Exception as e:
-        print(f"Kalender-Sync (create) übersprungen: {e}")
+    import calendar_service
+    background_tasks.add_task(calendar_service.sync_event_async, ev.id)
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
 
 @router.get("/events/{event_id}", response_class=HTMLResponse)
@@ -355,7 +353,8 @@ def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _
 
 @router.post("/events/{event_id}/edit")
 def event_update(
-    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    request: Request, event_id: int, background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
     startzeit: str = Form(...), endzeit: str = Form(...),
     veranstaltungsort: str = Form(...),
@@ -386,24 +385,43 @@ def event_update(
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
-    try:
-        from calendar_service import sync_event
-        sync_event(ev); db.commit()
-    except Exception as e:
-        print(f"Kalender-Sync (update) übersprungen: {e}")
+    import calendar_service
+    background_tasks.add_task(calendar_service.sync_event_async, event_id)
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
 @router.post("/events/{event_id}/delete")
-def event_delete(event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def event_delete(event_id: int, background_tasks: BackgroundTasks,
+                 db: Session = Depends(get_db), _=Depends(get_admin_user)):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if ev:
-        try:
-            from calendar_service import delete_event
-            delete_event(ev)
-        except Exception as e:
-            print(f"Kalender-Löschen (delete) übersprungen: {e}")
+        import calendar_service
+        background_tasks.add_task(calendar_service.delete_event_async, ev.kalender_event_id, ev.marke)
         db.delete(ev); db.commit()
     return RedirectResponse("/admin/dashboard", status_code=303)
+
+
+@router.get("/calendar-test")
+def calendar_test(_=Depends(get_admin_user)):
+    """Diagnose des Google-Kalender-Sync: zeigt, ob Credentials lesbar sind und
+    ob der Zugriff auf den Kindsalabim-Kalender funktioniert."""
+    import calendar_service as cs
+    cfg = get_config()
+    out = {
+        "credentials_gesetzt": bool(cfg.get("google_calendar_credentials")),
+        "kalender_kindsalabim": cfg.get("calendar_id_kindsalabim"),
+        "kalender_knallfrosch": cfg.get("calendar_id_knallfrosch"),
+    }
+    try:
+        svc = cs._service()
+        out["service_gebaut"] = bool(svc)
+        if svc:
+            cid = cfg.get("calendar_id_kindsalabim")
+            r = svc.events().list(calendarId=cid, maxResults=1).execute()
+            out["kalender_zugriff"] = "ok"
+            out["kalender_name"] = r.get("summary")
+    except Exception as e:
+        out["fehler"] = f"{type(e).__name__}: {e}"
+    return JSONResponse(out)
 
 
 # ── Status-Automatik ───────────────────────────────────────────────────────────
