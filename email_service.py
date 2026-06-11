@@ -498,6 +498,58 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
         _deliver(d.email, subject, _wrap(content, color, cfg), anhaenge)
 
 
+def send_wiedervorlage_digest(to_email, wvs, heute):
+    """Tägliche Sammel-Erinnerung an einen Admin: alle offenen Wiedervorlagen,
+    die heute fällig oder überfällig sind. `wvs` = Liste von KundeWiedervorlage."""
+    cfg = get_config()
+    color = "#1D4E89"
+    prio_dot = {"hoch": "#c0473f", "mittel": "#b07d1a", "niedrig": "#9ca3af"}
+    anzahl = len(wvs)
+    n_ueber = sum(1 for w in wvs if w.faellig and w.faellig < heute)
+
+    rows = ""
+    for w in wvs:
+        ist_ueber = w.faellig and w.faellig < heute
+        label = "überfällig" if ist_ueber else "heute fällig"
+        label_color = "#b91c1c" if ist_ueber else "#b07d1a"
+        dot = prio_dot.get(w.prioritaet, "#9ca3af")
+        firma = w.kunde.firma if w.kunde else "—"
+        rows += f"""
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{dot};margin-right:8px;vertical-align:middle;"></span>
+            <span style="font-size:14px;color:#111827;font-weight:500;">{w.titel}</span><br>
+            <span style="font-size:13px;color:#6b7280;margin-left:16px;">{firma}</span>
+          </td>
+          <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap;vertical-align:top;">
+            <span style="font-size:13px;font-weight:600;color:{label_color};">{label}</span><br>
+            <span style="font-size:12px;color:#9ca3af;">{de_date(w.faellig)}</span>
+          </td>
+        </tr>"""
+
+    intro = f"{anzahl} Wiedervorlage{'n' if anzahl != 1 else ''} {'brauchen' if anzahl != 1 else 'braucht'} Aufmerksamkeit"
+    if n_ueber:
+        intro += f" – davon {n_ueber} überfällig"
+
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">🔔 Guten Morgen,</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">{intro}.</p>
+    <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">{rows}</table>
+    <a href="https://kindsalabim-events.onrender.com/admin/crm/dashboard"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Zum CRM-Dashboard →
+    </a>
+    <p style="margin:20px 0 0;font-size:13px;color:#9ca3af;">
+      Diese Erinnerung kommt täglich, solange offene Wiedervorlagen fällig oder überfällig sind.
+    </p>"""
+
+    subject = f"🔔 {anzahl} Wiedervorlage{'n' if anzahl != 1 else ''} fällig"
+    if n_ueber:
+        subject += f" ({n_ueber} überfällig)"
+    _send(to_email, subject, _wrap(content, color, cfg))
+
+
 def send_backup(attachments, n_events: int, n_dienstleister: int):
     """Schickt die CSV-Dateien (Liste von (dateiname, bytes)) als Anhang an den Admin."""
     cfg = get_config()
