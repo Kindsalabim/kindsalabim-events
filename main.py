@@ -13,6 +13,7 @@ from routes.fotos import router as fotos_router
 from routes.angebot import router as angebot_router
 from routes.wissen import admin_router as wissen_admin_router, portal_router as wissen_portal_router
 from routes.tickets import router as tickets_router
+from routes.crm import router as crm_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
@@ -105,6 +106,8 @@ def run_migrations():
 
     add_column("tickets", "extern_key", "VARCHAR")
 
+    add_column("events", "kunde_id", "INTEGER")
+
     # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
     def convert_date_column(table: str, col: str):
         """VARCHAR 'TT.MM.JJJJ' -> echter DATE-Typ. Idempotent & crash-sicher."""
@@ -137,6 +140,49 @@ def run_migrations():
     convert_date_column("events", "datum")
     convert_date_column("verfuegbarkeitsanfragen", "frist_datum")
 
+def migrate_kunden():
+    """Legt aus den losen Event-Kundendaten echte Kundenprofile an und verknüpft sie.
+
+    Idempotent: verarbeitet nur Events ohne kunde_id. Matching über Firmennamen
+    (case-insensitiv); existierende Kunden mit Event-Historie gelten als 'gebucht'.
+    """
+    from database import SessionLocal
+    from models import Event, Kunde
+    from datetime import datetime
+    db = SessionLocal()
+    try:
+        events = db.query(Event).filter(Event.kunde_id == None).all()  # noqa: E711
+        if not events:
+            return
+        kunden = {k.firma.strip().lower(): k
+                  for k in db.query(Kunde).all() if k.firma}
+        jetzt = datetime.now().isoformat(timespec="seconds")
+        for ev in events:
+            firma = (ev.kunde_firma or "").strip()
+            if not firma:
+                continue
+            k = kunden.get(firma.lower())
+            if not k:
+                k = Kunde(
+                    firma=firma,
+                    ansprechpartner=(ev.kunde_kontakt or "").strip() or None,
+                    telefon=(ev.kunde_telefon or "").strip() or None,
+                    email=(ev.kunde_email or "").strip() or None,
+                    marke=ev.marke or "Kindsalabim",
+                    pipeline_status="gebucht",
+                    erstellt_am=jetzt, aktualisiert_am=jetzt,
+                )
+                db.add(k); db.flush()
+                kunden[firma.lower()] = k
+            ev.kunde_id = k.id
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Kunden-Migration übersprungen: {e}")
+    finally:
+        db.close()
+
+
 def seed_admin():
     """Übernimmt den bestehenden Config/ENV-Admin einmalig in die admins-Tabelle."""
     from database import SessionLocal
@@ -161,6 +207,7 @@ def seed_admin():
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     run_migrations()
+    migrate_kunden()
     seed_admin()
     yield
 
@@ -177,6 +224,7 @@ app.include_router(angebot_router)
 app.include_router(wissen_admin_router)
 app.include_router(wissen_portal_router)
 app.include_router(tickets_router)
+app.include_router(crm_router)
 
 @app.get("/")
 def root():

@@ -1,0 +1,105 @@
+{% extends "admin_base.html" %}
+{% block title %}Kunden – {{ cfg.app_name }}{% endblock %}
+
+{% set status_farben = {
+  'lead':'#b07d1a','kontakt':'#3D7DBC','bedarf':'#0e7490',
+  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#9ca3af'} %}
+
+{% block content %}
+<div class="max-w-5xl">
+
+  <div class="flex items-center justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Kunden</h1>
+      <p class="text-sm text-gray-400 mt-0.5">{{ kunden|length }} {{ 'Profil' if kunden|length == 1 else 'Profile' }}</p>
+    </div>
+    <a href="/admin/crm/new" class="btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Neuer Kunde
+    </a>
+  </div>
+
+  <!-- Suche -->
+  <div class="relative mb-4">
+    <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="kunden-suche" type="text" placeholder="Kunde suchen…" autocomplete="off"
+      class="w-full pl-11 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus-ring"
+      oninput="filterKunden()">
+  </div>
+
+  <!-- Status-Filter -->
+  <div class="flex flex-wrap gap-1.5 mb-3">
+    <a href="/admin/crm{% if filter_tag %}?tag={{ filter_tag }}{% endif %}"
+       class="text-xs font-semibold px-3 py-1.5 rounded-full {% if not filter_status %}text-white{% else %}text-gray-500 bg-gray-100{% endif %}"
+       {% if not filter_status %}style="background:var(--brand-primary);"{% endif %}>Alle</a>
+    {% for s in STATUS %}
+    <a href="/admin/crm?status={{ s }}{% if filter_tag %}&tag={{ filter_tag }}{% endif %}"
+       class="text-xs font-semibold px-3 py-1.5 rounded-full {% if filter_status == s %}text-white{% else %}text-gray-500 bg-gray-100{% endif %}"
+       {% if filter_status == s %}style="background:{{ status_farben[s] }};"{% endif %}>{{ STATUS_LABEL[s] }}</a>
+    {% endfor %}
+  </div>
+
+  <!-- Tag-Filter -->
+  {% if alle_tags %}
+  <div class="flex flex-wrap gap-1.5 mb-5">
+    {% for t in alle_tags %}
+    <a href="/admin/crm?tag={{ t.name }}{% if filter_status %}&status={{ filter_status }}{% endif %}"
+       class="text-xs font-semibold px-2.5 py-1 rounded-full"
+       style="background:{{ t.farbe }}1a;color:{{ t.farbe }};{% if filter_tag == t.name %}box-shadow:0 0 0 1.5px {{ t.farbe }};{% endif %}">#{{ t.name }}</a>
+    {% endfor %}
+    {% if filter_tag %}<a href="/admin/crm{% if filter_status %}?status={{ filter_status }}{% endif %}" class="text-xs font-semibold px-2.5 py-1 rounded-full text-gray-400 bg-gray-100">× Tag-Filter</a>{% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Liste -->
+  {% if kunden %}
+  <div class="space-y-2.5" id="kunden-liste">
+    {% for k in kunden %}
+    <a href="/admin/crm/{{ k.id }}" class="kunde-row card block px-4 py-3.5 hover:shadow-md transition-shadow"
+       data-suche="{{ (k.firma ~ ' ' ~ (k.ansprechpartner or '') ~ ' ' ~ (k.branche or '') ~ ' ' ~ (k.ort or ''))|lower }}">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm"
+             style="background:{{ status_farben[k.pipeline_status] }}1a;color:{{ status_farben[k.pipeline_status] }};">
+          {{ k.firma[:1]|upper }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-semibold text-gray-900 truncate">{{ k.firma }}</span>
+            {% if k.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>{% endif %}
+            {% for t in k.tags %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:{{ t.farbe }}1a;color:{{ t.farbe }};">#{{ t.name }}</span>{% endfor %}
+          </div>
+          <div class="text-xs text-gray-400 mt-0.5 truncate">
+            {{ k.ansprechpartner or '—' }}{% if k.branche %} · {{ k.branche }}{% endif %}{% if k.ort %} · {{ k.ort }}{% endif %}
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <span class="text-xs font-semibold px-2.5 py-1 rounded-full"
+                style="background:{{ status_farben[k.pipeline_status] }}1a;color:{{ status_farben[k.pipeline_status] }};">{{ STATUS_LABEL[k.pipeline_status] }}</span>
+          <div class="text-xs text-gray-400 mt-1">{{ counts.get(k.id, 0) }} Event{{ 's' if counts.get(k.id, 0) != 1 else '' }}</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  <p id="kein-treffer" class="hidden text-sm text-gray-400 text-center py-10">Kein Kunde gefunden.</p>
+  {% else %}
+  <div class="card p-10 text-center">
+    <p class="text-sm text-gray-500">Noch keine Kunden{% if filter_status or filter_tag %} für diesen Filter{% endif %}.</p>
+    <a href="/admin/crm/new" class="btn-primary mt-4">Ersten Kunden anlegen</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function filterKunden() {
+  const q = document.getElementById('kunden-suche').value.toLowerCase().trim();
+  let sichtbar = 0;
+  document.querySelectorAll('.kunde-row').forEach(row => {
+    const match = row.dataset.suche.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) sichtbar++;
+  });
+  document.getElementById('kein-treffer').classList.toggle('hidden', sichtbar > 0);
+}
+</script>
+{% endblock %}

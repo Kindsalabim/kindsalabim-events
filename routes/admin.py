@@ -9,8 +9,9 @@ from typing import Optional
 MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
           "August", "September", "Oktober", "November", "Dezember"]
 
+from sqlalchemy import func
 from database import get_db
-from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin
+from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde
 import secrets
 from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
@@ -43,6 +44,22 @@ ANLASS_LIST = [
 def tpl_context(request: Request, **kwargs):
     cfg = get_config()
     return {"request": request, "cfg": cfg, **kwargs}
+
+
+def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
+    """Verknüpft das Event mit einem CRM-Kunden (Match über Firma, sonst neu anlegen)."""
+    firma = (firma or "").strip()
+    if not firma:
+        return
+    k = db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first()
+    if not k:
+        jetzt = datetime.now().isoformat(timespec="seconds")
+        k = Kunde(firma=firma, ansprechpartner=(kontakt or "").strip() or None,
+                  telefon=(telefon or "").strip() or None, email=(email or "").strip() or None,
+                  marke=marke or "Kindsalabim", pipeline_status="gebucht",
+                  erstellt_am=jetzt, aktualisiert_am=jetzt)
+        db.add(k); db.flush()
+    ev.kunde_id = k.id
 
 
 # ── Login ──────────────────────────────────────────────────────────────────────
@@ -230,9 +247,11 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 # ── Events ─────────────────────────────────────────────────────────────────────
 
 @router.get("/events/new", response_class=HTMLResponse)
-def event_new(request: Request, _=Depends(get_admin_user)):
+def event_new(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/event_form.html",
-        tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST, error=None))
+        tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
+                    kunden=kunden, error=None))
 
 @router.post("/events/new")
 def event_create(
@@ -245,13 +264,14 @@ def event_create(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
-    marke: str = Form("Kindsalabim"),
+    marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
 ):
     try:
         datum_d = date.fromisoformat(datum)
     except ValueError:
+        kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         return templates.TemplateResponse("admin/event_form.html",
-            tpl_context(request, event=None, produkte_list=PRODUKTE_LIST,
+            tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error="Bitte ein gültiges Datum wählen."))
     ev = Event(
         anlass=anlass, datum=datum_d, startzeit=startzeit, endzeit=endzeit,
@@ -262,7 +282,10 @@ def event_create(
         hinweise=hinweise, material_mitnahme=material_mitnahme,
         marke=marke, status="Entwurf"
     )
-    db.add(ev); db.commit(); db.refresh(ev)
+    db.add(ev)
+    if crm_verknuepfen:
+        link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
+    db.commit(); db.refresh(ev)
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
 
 @router.get("/events/{event_id}", response_class=HTMLResponse)
@@ -314,8 +337,9 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
+    kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/event_form.html",
-        tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST,
+        tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST, kunden=kunden,
                     anlass_list=ANLASS_LIST, error=None))
 
 @router.post("/events/{event_id}/edit")
@@ -330,15 +354,16 @@ def event_update(
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     status: str = Form("Entwurf"),
-    marke: str = Form("Kindsalabim"),
+    marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
     try:
         ev.datum = date.fromisoformat(datum)
     except ValueError:
+        kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         return templates.TemplateResponse("admin/event_form.html",
-            tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST,
+            tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error="Bitte ein gültiges Datum wählen."))
     ev.anlass = anlass; ev.startzeit = startzeit
     ev.endzeit = endzeit; ev.veranstaltungsort = veranstaltungsort
@@ -347,6 +372,8 @@ def event_update(
     ev.produkte = ", ".join(produkte); ev.anzahl_teamer = anzahl_teamer
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
+    if crm_verknuepfen:
+        link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 

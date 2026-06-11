@@ -1,0 +1,273 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ kunde.firma }} – {{ cfg.app_name }}{% endblock %}
+
+{% set status_farben = {
+  'lead':'#b07d1a','kontakt':'#3D7DBC','bedarf':'#0e7490',
+  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#9ca3af'} %}
+{% set sf = status_farben[kunde.pipeline_status] %}
+
+{% block content %}
+<div class="max-w-3xl">
+
+  <a href="/admin/crm" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Kundenliste
+  </a>
+
+  <!-- Kopf -->
+  <div class="card p-6 mb-4">
+    <div class="flex items-start gap-4">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-bold text-xl"
+           style="background:{{ sf }}1a;color:{{ sf }};">{{ kunde.firma[:1]|upper }}</div>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-xl font-bold text-gray-900">{{ kunde.firma }}</h1>
+          {% if kunde.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>{% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
+        </div>
+        <div class="flex items-center gap-2 flex-wrap mt-2">
+          <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:{{ sf }}1a;color:{{ sf }};">{{ STATUS_LABEL[kunde.pipeline_status] }}</span>
+          {% for t in kunde.tags %}<span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:{{ t.farbe }}1a;color:{{ t.farbe }};">#{{ t.name }}</span>{% endfor %}
+        </div>
+      </div>
+      <a href="/admin/crm/{{ kunde.id }}/edit" class="btn-secondary flex-shrink-0">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+        Bearbeiten
+      </a>
+    </div>
+  </div>
+
+  <!-- Kontakt -->
+  <div class="card p-6 mb-4">
+    <h2 class="section-head mb-4">Kontakt</h2>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="info-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        {{ kunde.ansprechpartner or '—' }}
+      </div>
+      <div class="info-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        {% if kunde.telefon %}<a href="tel:{{ kunde.telefon }}" class="hover:underline">{{ kunde.telefon }}</a>{% else %}—{% endif %}
+      </div>
+      <div class="info-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+        {% if kunde.email %}<a href="mailto:{{ kunde.email }}" class="hover:underline truncate">{{ kunde.email }}</a>{% else %}—{% endif %}
+      </div>
+      <div class="info-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        {% if kunde.strasse or kunde.ort %}{{ kunde.strasse }}{% if kunde.strasse and (kunde.plz or kunde.ort) %}, {% endif %}{{ kunde.plz }} {{ kunde.ort }}{% else %}—{% endif %}
+      </div>
+      {% if kunde.branche %}
+      <div class="info-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        {{ kunde.branche }}
+      </div>
+      {% endif %}
+      {% if kunde.website %}
+      <div class="info-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <a href="{{ kunde.website if '://' in kunde.website else 'https://' ~ kunde.website }}" target="_blank" rel="noopener" class="hover:underline truncate">{{ kunde.website }}</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% set prio_farben = {'hoch':'#c0473f','mittel':'#b07d1a','niedrig':'#9ca3af'} %}
+
+  <!-- Wiedervorlagen -->
+  <div id="wiedervorlagen" class="card p-6 mb-4">
+    <div class="flex items-center gap-2 mb-4">
+      <h2 class="section-head">Wiedervorlagen</h2>
+      {% if wv_offen %}<span class="section-count">{{ wv_offen|length }}</span>{% endif %}
+    </div>
+
+    <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage" class="flex flex-col sm:flex-row gap-2 mb-4">
+      <input type="text" name="titel" required placeholder="z. B. Wegen Angebot nachfassen"
+        class="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      <input type="date" name="faellig" class="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus-ring">
+      <select name="prioritaet" class="border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus-ring">
+        <option value="mittel">Mittel</option>
+        <option value="hoch">Hoch</option>
+        <option value="niedrig">Niedrig</option>
+      </select>
+      <button type="submit" class="btn-primary justify-center">Hinzufügen</button>
+    </form>
+
+    {% if wv_offen %}
+    <div class="space-y-2">
+      {% for w in wv_offen %}
+      {% set ueberfaellig = w.faellig and w.faellig < heute %}
+      <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100">
+        <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage/{{ w.id }}/toggle">
+          <button type="submit" title="Als erledigt markieren"
+            class="w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors flex-shrink-0 block"></button>
+        </form>
+        <div class="min-w-0 flex-1">
+          <div class="text-sm text-gray-800 font-medium">{{ w.titel }}</div>
+          <div class="text-xs mt-0.5 flex items-center gap-2">
+            <span class="font-semibold px-1.5 py-0.5 rounded" style="background:{{ prio_farben[w.prioritaet] }}1a;color:{{ prio_farben[w.prioritaet] }};">{{ PRIORITAET_LABEL[w.prioritaet] }}</span>
+            {% if w.faellig %}<span class="{% if ueberfaellig %}text-red-600 font-semibold{% else %}text-gray-400{% endif %}">{% if ueberfaellig %}überfällig · {% endif %}{{ w.faellig|de_date }}</span>{% else %}<span class="text-gray-300">ohne Datum</span>{% endif %}
+          </div>
+        </div>
+        <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage/{{ w.id }}/delete"
+              onsubmit="return confirm('Wiedervorlage löschen?');">
+          <button type="submit" class="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0" title="Löschen">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Keine offenen Wiedervorlagen.</p>
+    {% endif %}
+
+    {% if wv_erledigt %}
+    <details class="mt-3">
+      <summary class="text-xs font-semibold text-gray-400 cursor-pointer hover:text-gray-600">{{ wv_erledigt|length }} erledigt</summary>
+      <div class="space-y-1.5 mt-2">
+        {% for w in wv_erledigt %}
+        <div class="flex items-center gap-3 px-3 py-2 text-sm text-gray-400">
+          <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage/{{ w.id }}/toggle">
+            <button type="submit" title="Wieder öffnen" class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 block">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          </form>
+          <span class="line-through flex-1 min-w-0 truncate">{{ w.titel }}</span>
+          <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage/{{ w.id }}/delete">
+            <button type="submit" class="text-gray-300 hover:text-red-500" title="Löschen">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+  </div>
+
+  <!-- Aktivitäten -->
+  <div id="aktivitaeten" class="card p-6 mb-4">
+    <div class="flex items-center gap-2 mb-4">
+      <h2 class="section-head">Aktivitäten</h2>
+      {% if kunde.aktivitaeten %}<span class="section-count">{{ kunde.aktivitaeten|length }}</span>{% endif %}
+    </div>
+
+    <form method="post" action="/admin/crm/{{ kunde.id }}/aktivitaet" class="space-y-2 mb-5">
+      <div class="flex gap-2">
+        <select name="typ" class="border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus-ring">
+          {% for key, label in AKTIVITAET_TYPEN.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select>
+        <input type="date" name="datum" value="{{ heute.isoformat() }}" class="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus-ring">
+      </div>
+      <div class="flex gap-2">
+        <input type="text" name="notiz" required placeholder="Was ist passiert? (kurze Notiz)"
+          class="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <button type="submit" class="btn-primary justify-center">Speichern</button>
+      </div>
+    </form>
+
+    {% if kunde.aktivitaeten %}
+    <div class="space-y-3">
+      {% for a in kunde.aktivitaeten %}
+      <div class="flex gap-3">
+        <div class="flex flex-col items-center flex-shrink-0">
+          <div class="w-2.5 h-2.5 rounded-full mt-1.5" style="background:var(--brand-primary);"></div>
+          {% if not loop.last %}<div class="w-px flex-1 bg-gray-200 mt-1"></div>{% endif %}
+        </div>
+        <div class="min-w-0 flex-1 pb-1 group">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{{ AKTIVITAET_TYPEN.get(a.typ, a.typ) }}</span>
+            <span class="text-xs text-gray-400">{{ a.datum|de_date if a.datum else '' }}</span>
+            <form method="post" action="/admin/crm/{{ kunde.id }}/aktivitaet/{{ a.id }}/delete" class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                  onsubmit="return confirm('Eintrag löschen?');">
+              <button type="submit" class="text-gray-300 hover:text-red-500" title="Löschen">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+              </button>
+            </form>
+          </div>
+          <p class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ a.notiz }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Noch keine Aktivitäten erfasst.</p>
+    {% endif %}
+  </div>
+
+  <!-- Profil-Wissen -->
+  {% if kunde.notizen or kunde.kommunikationsstil or kunde.besonderheiten or kunde.bevorzugte_eventarten or kunde.typische_budgets %}
+  <div class="card p-6 mb-4">
+    <h2 class="section-head mb-4">Profil-Wissen</h2>
+    <div class="space-y-3.5 text-sm">
+      {% if kunde.notizen %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Notizen</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.notizen }}</p></div>{% endif %}
+      {% if kunde.kommunikationsstil %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Kommunikationsstil</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.kommunikationsstil }}</p></div>{% endif %}
+      {% if kunde.besonderheiten %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Besonderheiten</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.besonderheiten }}</p></div>{% endif %}
+      <div class="flex flex-wrap gap-x-8 gap-y-3">
+        {% if kunde.bevorzugte_eventarten %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bevorzugte Eventarten</div><p class="text-gray-700">{{ kunde.bevorzugte_eventarten }}</p></div>{% endif %}
+        {% if kunde.typische_budgets %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Typische Budgets</div><p class="text-gray-700">{{ kunde.typische_budgets }}</p></div>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Eventhistorie -->
+  <div class="card p-6 mb-4">
+    <div class="flex items-center gap-2 mb-4">
+      <h2 class="section-head">Eventhistorie</h2>
+      <span class="section-count">{{ events|length }}</span>
+    </div>
+    {% if events %}
+    <div class="space-y-2">
+      {% for ev in events %}
+      <a href="/admin/events/{{ ev.id }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors">
+        <div class="date-badge {% if ev.marke == 'Knallfrosch' %}date-badge-kf{% endif %}" style="width:3rem;height:3rem;">
+          <span class="d" style="font-size:1.1rem;">{{ ev.datum.day if ev.datum else '–' }}</span>
+          <span class="m">{{ ['','Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][ev.datum.month] if ev.datum else '' }}</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="font-semibold text-gray-900 text-sm truncate">{{ ev.anlass }}</div>
+          <div class="text-xs text-gray-400 truncate">{{ ev.datum.year if ev.datum else '' }} · {{ ev.veranstaltungsort }}</div>
+        </div>
+        <span class="text-xs text-gray-400 flex-shrink-0">{{ ev.status }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Noch keine Events mit diesem Kunden verknüpft.</p>
+    {% endif %}
+  </div>
+
+  <!-- Vergangene Eventberichte -->
+  <div class="card p-6">
+    <div class="flex items-center gap-2 mb-4">
+      <h2 class="section-head">Vergangene Eventberichte</h2>
+      <span class="section-count">{{ berichte|length }}</span>
+    </div>
+    {% if berichte %}
+    <div class="space-y-2.5">
+      {% for ev in berichte %}
+      <details class="rounded-lg border border-gray-100 overflow-hidden group">
+        <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 select-none list-none">
+          <svg class="text-gray-300 transition-transform group-open:rotate-90 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold text-gray-900 text-sm">{{ ev.anlass }} <span class="font-normal text-gray-400">· {{ ev.datum|de_date if ev.datum else '' }}</span></div>
+            <div class="text-xs text-gray-400 truncate">{{ (ev.bericht_verlauf or 'Kein Verlauf hinterlegt')[:90] }}{% if ev.bericht_verlauf and ev.bericht_verlauf|length > 90 %}…{% endif %}</div>
+          </div>
+        </summary>
+        <div class="px-4 pb-4 pt-1 space-y-3 text-sm border-t border-gray-100">
+          {% if ev.bericht_anzahl_kinder %}<div class="pt-3"><span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Anzahl Kinder:</span> <span class="text-gray-700">{{ ev.bericht_anzahl_kinder }}</span></div>{% endif %}
+          {% if ev.bericht_verlauf %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Verlauf</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_verlauf }}</p></div>{% endif %}
+          {% if ev.bericht_probleme %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Probleme</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_probleme }}</p></div>{% endif %}
+          {% if ev.bericht_kundenfeedback %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Kundenfeedback</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_kundenfeedback }}</p></div>{% endif %}
+          <a href="/admin/events/{{ ev.id }}" class="inline-block text-xs font-semibold text-gray-400 hover:text-gray-600">→ Zum Event</a>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Noch keine Eventberichte. Sie erscheinen hier automatisch, sobald ein Teamleiter nach einem Einsatz seinen Bericht einreicht.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

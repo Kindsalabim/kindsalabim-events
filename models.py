@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean, Float
+from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean, Float, Table
 from sqlalchemy.orm import relationship, backref
 from database import Base
 
@@ -29,6 +29,7 @@ class Event(Base):
     status = Column(String, default="Entwurf")   # Entwurf, Bestätigt, Briefing gesendet, Abgeschlossen
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
+    kunde_id = Column(Integer, ForeignKey("kunden.id"), nullable=True)  # CRM-Verknüpfung (optional)
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
 
     # Eventbericht (vom Teamleiter nach dem Event im Portal ausgefüllt)
@@ -56,6 +57,7 @@ class Event(Base):
     cl_eingereicht_am        = Column(String)
 
     teamleiter = relationship("Dienstleister", foreign_keys=[teamleiter_id])
+    kunde = relationship("Kunde", back_populates="events", foreign_keys=[kunde_id])
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="event", cascade="all, delete-orphan")
     dateien  = relationship("EventDatei", back_populates="event", cascade="all, delete-orphan")
 
@@ -236,3 +238,85 @@ class Rechnung(Base):
     personalkosten   = Column(Float, default=0.0)
     materialkosten   = Column(Float, default=0.0)
     notiz            = Column(Text)
+
+
+# ── CRM ──────────────────────────────────────────────────────────────────────
+
+# Pipeline-Stufen (verschlankt): lead → kontakt → bedarf → angebot → gebucht → verloren
+KUNDE_STATUS = ["lead", "kontakt", "bedarf", "angebot", "gebucht", "verloren"]
+
+kunde_tag_zuordnung = Table(
+    "kunde_tag_zuordnung", Base.metadata,
+    Column("kunde_id", Integer, ForeignKey("kunden.id"), primary_key=True),
+    Column("tag_id",   Integer, ForeignKey("kunde_tags.id"), primary_key=True),
+)
+
+
+class KundeTag(Base):
+    __tablename__ = "kunde_tags"
+    id    = Column(Integer, primary_key=True, index=True)
+    name  = Column(String, unique=True, nullable=False)
+    farbe = Column(String, default="#1D4E89")
+
+
+class Kunde(Base):
+    __tablename__ = "kunden"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    firma         = Column(String, nullable=False)   # einziges Pflichtfeld
+    ansprechpartner = Column(String)
+    telefon       = Column(String)
+    email         = Column(String)
+    strasse       = Column(String)
+    plz           = Column(String)
+    ort           = Column(String)
+    website       = Column(String)
+    branche       = Column(String)
+    marke         = Column(String, default="Kindsalabim")
+
+    # Vertrieb / Pipeline (Kanban folgt in Stufe 3)
+    pipeline_status      = Column(String, default="lead")
+    pipeline_reihenfolge = Column(Integer, default=0)
+
+    # Profil-Wissen (alles optional – „Kundengedächtnis")
+    notizen               = Column(Text)   # allgemeine interne Notizen
+    kommunikationsstil    = Column(Text)
+    besonderheiten        = Column(Text)
+    bevorzugte_eventarten = Column(String)
+    typische_budgets      = Column(String)
+
+    erstellt_am     = Column(String)
+    aktualisiert_am = Column(String)
+
+    events = relationship("Event", back_populates="kunde", foreign_keys="Event.kunde_id")
+    tags   = relationship("KundeTag", secondary=kunde_tag_zuordnung, backref="kunden")
+    aktivitaeten = relationship("KundeAktivitaet", back_populates="kunde",
+                                cascade="all, delete-orphan",
+                                order_by="KundeAktivitaet.datum.desc(), KundeAktivitaet.id.desc()")
+    wiedervorlagen = relationship("KundeWiedervorlage", back_populates="kunde",
+                                  cascade="all, delete-orphan",
+                                  order_by="KundeWiedervorlage.faellig")
+
+
+class KundeAktivitaet(Base):
+    __tablename__ = "kunde_aktivitaeten"
+    id          = Column(Integer, primary_key=True, index=True)
+    kunde_id    = Column(Integer, ForeignKey("kunden.id"), nullable=False)
+    typ         = Column(String, default="notiz")   # notiz | anruf | email | meeting | angebot
+    datum       = Column(Date)
+    notiz       = Column(Text)
+    erstellt_am = Column(String)
+    kunde = relationship("Kunde", back_populates="aktivitaeten")
+
+
+class KundeWiedervorlage(Base):
+    __tablename__ = "kunde_wiedervorlagen"
+    id          = Column(Integer, primary_key=True, index=True)
+    kunde_id    = Column(Integer, ForeignKey("kunden.id"), nullable=False)
+    titel       = Column(String, nullable=False)
+    faellig     = Column(Date)
+    prioritaet  = Column(String, default="mittel")  # niedrig | mittel | hoch
+    erledigt    = Column(Boolean, default=False)
+    erstellt_am = Column(String)
+    erledigt_am = Column(String)
+    kunde = relationship("Kunde", back_populates="wiedervorlagen")

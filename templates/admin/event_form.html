@@ -91,7 +91,11 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Firma / Name *</label>
           <input type="text" name="kunde_firma" required value="{{ event.kunde_firma if event else '' }}"
+            list="kunden-vorschlaege" autocomplete="off"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+          <datalist id="kunden-vorschlaege">
+            {% for k in kunden|default([]) %}<option value="{{ k.firma }}">{% endfor %}
+          </datalist>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Ansprechpartner vor Ort</label>
@@ -109,6 +113,11 @@
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
+
+      <label class="flex items-start gap-2.5 cursor-pointer pt-1">
+        <input type="checkbox" name="crm_verknuepfen" value="1" checked style="accent-color: var(--brand-primary); margin-top:0.15rem;">
+        <span class="text-sm text-gray-600">Mit Kundenprofil im CRM verknüpfen <span class="text-gray-400">(bestehenden Kunden zuordnen oder neu anlegen – baut die Kundenhistorie auf)</span></span>
+      </label>
     </div>
 
     <!-- Produkte & Personal -->
