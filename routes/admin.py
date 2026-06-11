@@ -286,6 +286,11 @@ def event_create(
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit(); db.refresh(ev)
+    try:
+        from calendar_service import sync_event
+        sync_event(ev); db.commit()
+    except Exception as e:
+        print(f"Kalender-Sync (create) übersprungen: {e}")
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
 
 @router.get("/events/{event_id}", response_class=HTMLResponse)
@@ -381,12 +386,22 @@ def event_update(
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
+    try:
+        from calendar_service import sync_event
+        sync_event(ev); db.commit()
+    except Exception as e:
+        print(f"Kalender-Sync (update) übersprungen: {e}")
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
 @router.post("/events/{event_id}/delete")
 def event_delete(event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if ev:
+        try:
+            from calendar_service import delete_event
+            delete_event(ev)
+        except Exception as e:
+            print(f"Kalender-Löschen (delete) übersprungen: {e}")
         db.delete(ev); db.commit()
     return RedirectResponse("/admin/dashboard", status_code=303)
 

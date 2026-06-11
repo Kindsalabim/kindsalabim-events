@@ -30,6 +30,7 @@ class Event(Base):
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
     kunde_id = Column(Integer, ForeignKey("kunden.id"), nullable=True)  # CRM-Verknüpfung (optional)
+    kalender_event_id = Column(String, nullable=True)  # Google-Kalender-Event-ID (Sync)
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
 
     # Eventbericht (vom Teamleiter nach dem Event im Portal ausgefüllt)
