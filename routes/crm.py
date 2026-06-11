@@ -128,6 +128,88 @@ def kunden_list(request: Request, db: Session = Depends(get_db), _=Depends(get_a
             alle_tags=alle_tags, filter_tag=tag, filter_status=status))
 
 
+# ── Dashboard (handlungsorientiert) ──────────────────────────────────────────
+
+@router.get("/dashboard", response_class=HTMLResponse)
+def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    from datetime import timedelta
+    heute = date.today()
+    grenze = heute - timedelta(days=30)
+
+    # Offene Wiedervorlagen (mit zugehörigem Kunden)
+    wv = db.query(KundeWiedervorlage).filter(KundeWiedervorlage.erledigt == False).all()  # noqa: E712
+    wv_faellig = sorted([w for w in wv if w.faellig and w.faellig <= heute],
+                        key=lambda w: w.faellig)
+    wv_demnaechst = sorted([w for w in wv if w.faellig and w.faellig > heute],
+                           key=lambda w: w.faellig)[:8]
+    anzahl_ueberfaellig = sum(1 for w in wv if w.faellig and w.faellig < heute)
+
+    # Letzte Aktivität je Kunde
+    last_akt = dict(db.query(KundeAktivitaet.kunde_id, func.max(KundeAktivitaet.datum))
+                    .group_by(KundeAktivitaet.kunde_id).all())
+
+    # Angebote, die auf Rückmeldung warten
+    angebote = db.query(Kunde).filter(Kunde.pipeline_status == "angebot").all()
+
+    # Aktive Leads (frühe Pipeline-Stufen)
+    aktive_leads = db.query(Kunde).filter(
+        Kunde.pipeline_status.in_(["lead", "kontakt", "bedarf"])).count()
+
+    # Kunden ohne Kontakt seit >30 Tagen (nur aktive Pipeline, nicht gebucht/verloren)
+    aktive = db.query(Kunde).filter(
+        Kunde.pipeline_status.in_(["lead", "kontakt", "bedarf", "angebot"])).all()
+    ohne_kontakt = []
+    for k in aktive:
+        la = last_akt.get(k.id)
+        if la is None or la < grenze:
+            ohne_kontakt.append((k, la))
+    ohne_kontakt.sort(key=lambda t: (t[1] is not None, t[1] or heute))
+    ohne_kontakt = ohne_kontakt[:8]
+
+    # Anstehende Events
+    anstehend = db.query(Event).filter(Event.datum >= heute).order_by(Event.datum).limit(6).all()
+
+    return templates.TemplateResponse("admin/crm_dashboard.html",
+        tpl(request, active="crm",
+            wv_faellig=wv_faellig, wv_demnaechst=wv_demnaechst,
+            anzahl_ueberfaellig=anzahl_ueberfaellig, offene_wv=len(wv),
+            angebote=angebote, aktive_leads=aktive_leads,
+            ohne_kontakt=ohne_kontakt, anstehend=anstehend, last_akt=last_akt))
+
+
+# ── Pipeline (Kanban) ────────────────────────────────────────────────────────
+
+@router.get("/pipeline", response_class=HTMLResponse)
+def pipeline(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    kunden = db.query(Kunde).order_by(Kunde.pipeline_reihenfolge, func.lower(Kunde.firma)).all()
+    spalten = {s: [] for s in KUNDE_STATUS}
+    for k in kunden:
+        spalten.get(k.pipeline_status, spalten["lead"]).append(k)
+    counts = dict(db.query(Event.kunde_id, func.count(Event.id))
+                  .filter(Event.kunde_id != None)  # noqa: E711
+                  .group_by(Event.kunde_id).all())
+    return templates.TemplateResponse("admin/crm_pipeline.html",
+        tpl(request, active="crm", spalten=spalten, counts=counts))
+
+
+@router.post("/{kid}/move")
+def kunde_move(kid: int, status: str = Form(...), order: str = Form(""),
+               db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Pipeline-Drag: Status ändern + Reihenfolge der Zielspalte setzen."""
+    from fastapi.responses import JSONResponse
+    k = db.query(Kunde).filter(Kunde.id == kid).first()
+    if not k:
+        return JSONResponse({"ok": False}, status_code=404)
+    if status in KUNDE_STATUS:
+        k.pipeline_status = status
+        k.aktualisiert_am = _now()
+    ids = [int(x) for x in order.split(",") if x.strip().isdigit()]
+    for i, oid in enumerate(ids):
+        db.query(Kunde).filter(Kunde.id == oid).update({"pipeline_reihenfolge": i})
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
 # ── Detail ───────────────────────────────────────────────────────────────────
 
 @router.get("/new", response_class=HTMLResponse)

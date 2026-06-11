@@ -1,0 +1,90 @@
+{% extends "admin_base.html" %}
+{% block title %}Pipeline – {{ cfg.app_name }}{% endblock %}
+
+{% set status_farben = {
+  'lead':'#b07d1a','kontakt':'#3D7DBC','bedarf':'#0e7490',
+  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#9ca3af'} %}
+
+{% block content %}
+<div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
+  <h1 class="text-2xl font-bold text-gray-900">Kunden</h1>
+  <a href="/admin/crm/new" class="btn-primary">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Neuer Kunde
+  </a>
+</div>
+
+<!-- View-Umschalter -->
+<div class="inline-flex p-1 rounded-xl bg-gray-100 mb-5">
+  <a href="/admin/crm/dashboard" class="px-4 py-1.5 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-700">Übersicht</a>
+  <a href="/admin/crm" class="px-4 py-1.5 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-700">Liste</a>
+  <a href="/admin/crm/pipeline" class="px-4 py-1.5 text-sm font-semibold rounded-lg bg-white shadow-sm" style="color:var(--brand-primary);">Pipeline</a>
+</div>
+
+<p class="text-xs text-gray-400 mb-4 md:hidden">← Spalten horizontal wischen, Karten zum Verschieben gedrückt halten und ziehen.</p>
+
+<div class="kanban-scroll flex gap-3 overflow-x-auto pb-4" style="scroll-snap-type:x mandatory;">
+  {% for s in STATUS %}
+  <div class="kanban-col flex-shrink-0" style="width:270px;scroll-snap-align:start;">
+    <div class="flex items-center gap-2 mb-2 px-1">
+      <span class="w-2.5 h-2.5 rounded-full" style="background:{{ status_farben[s] }};"></span>
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-600">{{ STATUS_LABEL[s] }}</span>
+      <span class="text-xs text-gray-400 ml-auto">{{ spalten[s]|length }}</span>
+    </div>
+    <div class="kanban-drop rounded-xl p-2 min-h-[140px]" data-status="{{ s }}"
+         style="background:#f8fafc;border:1px dashed #e5e7eb;">
+      {% for k in spalten[s] %}
+      <a href="/admin/crm/{{ k.id }}" class="kunde-card block card p-3 mb-2" draggable="true" data-id="{{ k.id }}">
+        <div class="flex items-start gap-2">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs"
+               style="background:{{ status_farben[s] }}1a;color:{{ status_farben[s] }};">{{ k.firma[:1]|upper }}</div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-semibold text-gray-900 leading-snug truncate">{{ k.firma }}</div>
+            {% if k.ansprechpartner or k.ort %}<div class="text-xs text-gray-400 truncate">{{ k.ansprechpartner or k.ort }}</div>{% endif %}
+          </div>
+        </div>
+        {% if k.tags or counts.get(k.id) %}
+        <div class="flex items-center gap-1 flex-wrap mt-2">
+          {% for t in k.tags %}<span class="text-xs font-semibold px-1.5 py-0.5 rounded" style="background:{{ t.farbe }}1a;color:{{ t.farbe }};">#{{ t.name }}</span>{% endfor %}
+          {% if counts.get(k.id) %}<span class="text-xs text-gray-400 ml-auto">{{ counts.get(k.id) }} Event{{ 's' if counts.get(k.id) != 1 else '' }}</span>{% endif %}
+        </div>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<style>
+.kunde-card{cursor:grab;}
+.kunde-card.dragging{opacity:.4;}
+.kanban-drop.over{background:#eef4fb !important;border-color:var(--brand-primary) !important;}
+.kanban-scroll::-webkit-scrollbar{height:8px;}
+.kanban-scroll::-webkit-scrollbar-thumb{background:#d1d9e6;border-radius:4px;}
+</style>
+<script>
+let dragged = null;
+document.querySelectorAll('.kunde-card').forEach(c => {
+  c.addEventListener('dragstart', () => { dragged = c; c.classList.add('dragging'); });
+  c.addEventListener('dragend', () => c.classList.remove('dragging'));
+  let moved = false;
+  c.addEventListener('dragstart', () => moved = true);
+  c.addEventListener('click', e => { if (moved) { e.preventDefault(); moved = false; } });
+});
+document.querySelectorAll('.kanban-drop').forEach(zone => {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('over');
+    if (!dragged) return;
+    zone.appendChild(dragged);
+    const ids = [...zone.querySelectorAll('.kunde-card')].map(c => c.dataset.id);
+    const fd = new FormData();
+    fd.append('status', zone.dataset.status); fd.append('order', ids.join(','));
+    fetch(`/admin/crm/${dragged.dataset.id}/move`, { method: 'POST', body: fd });
+    dragged = null;
+  });
+});
+</script>
+{% endblock %}
