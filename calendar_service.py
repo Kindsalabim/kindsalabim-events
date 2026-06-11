@@ -22,9 +22,15 @@ _BASE_URL = "https://kindsalabim-events.onrender.com"
 # Google colorId: 7=Peacock(blau) 8=Graphite(grau) 2=Sage(hellgrün) 10=Basil(dunkelgrün)
 _OFFENE_STATUS = {"Entwurf", "Dienstleister angefragt"}
 
+_svc = None  # gecachter Client (einmal bauen, danach wiederverwenden)
+
 
 def _service():
-    """Baut den Calendar-API-Client – oder None, wenn nicht konfiguriert."""
+    """Baut den Calendar-API-Client (gecacht) – oder None, wenn nicht konfiguriert.
+    Mit 15-s-Timeout, damit Netzwerk-Hänger nicht ewig blockieren."""
+    global _svc
+    if _svc is not None:
+        return _svc
     cfg = get_config()
     raw = cfg.get("google_calendar_credentials")
     if not raw:
@@ -34,7 +40,14 @@ def _service():
         from googleapiclient.discovery import build
         info = json.loads(raw) if isinstance(raw, str) else raw
         creds = service_account.Credentials.from_service_account_info(info, scopes=_SCOPES)
-        return build("calendar", "v3", credentials=creds, cache_discovery=False)
+        try:
+            import httplib2
+            from google_auth_httplib2 import AuthorizedHttp
+            authed = AuthorizedHttp(creds, http=httplib2.Http(timeout=15))
+            _svc = build("calendar", "v3", http=authed, cache_discovery=False, static_discovery=True)
+        except Exception:
+            _svc = build("calendar", "v3", credentials=creds, cache_discovery=False, static_discovery=True)
+        return _svc
     except Exception as e:
         print(f"Kalender-Service nicht verfügbar: {e}")
         return None
@@ -134,11 +147,34 @@ def sync_event(ev):
 
 def delete_event(ev):
     """Entfernt den Kalendereintrag. No-op ohne Credentials / ohne ID."""
+    delete_event_async(ev.kalender_event_id, ev.marke)
+
+
+def delete_event_async(cal_event_id, marke):
+    """Löscht per Kalender-Event-ID + Marke (für Hintergrund-Aufrufe ohne ORM-Objekt)."""
     svc = _service()
-    if not svc or not ev.kalender_event_id:
+    if not svc or not cal_event_id:
         return
-    cid = _calendar_id(ev)
+    cfg = get_config()
+    key = "calendar_id_knallfrosch" if marke == "Knallfrosch" else "calendar_id_kindsalabim"
+    cid = cfg.get(key)
     try:
-        svc.events().delete(calendarId=cid, eventId=ev.kalender_event_id).execute()
+        svc.events().delete(calendarId=cid, eventId=cal_event_id).execute()
     except Exception as e:
-        print(f"Kalender-Löschen fehlgeschlagen (Event {ev.id}): {e}")
+        print(f"Kalender-Löschen fehlgeschlagen: {e}")
+
+
+def sync_event_async(event_id):
+    """Hintergrund-Sync: eigene DB-Session, lädt Event, synct, committet kalender_event_id."""
+    from database import SessionLocal
+    from models import Event
+    db = SessionLocal()
+    try:
+        ev = db.query(Event).filter(Event.id == event_id).first()
+        if ev:
+            sync_event(ev)
+            db.commit()
+    except Exception as e:
+        print(f"Kalender-Hintergrund-Sync fehlgeschlagen ({event_id}): {e}")
+    finally:
+        db.close()
