@@ -314,7 +314,8 @@
           {% for d in ranked %}
           {% set already = d.id in anfragen_ids %}
           {% set gebucht = gebucht_map.get(d.id) %}
-          <label class="flex items-start gap-2.5 text-sm p-2.5 rounded-lg border {% if already %}opacity-40 bg-gray-50 border-gray-100{% elif gebucht %}border-red-200 bg-red-50 cursor-pointer{% else %}border-gray-100 hover:border-gray-200 cursor-pointer{% endif %} transition-colors">
+          {% set sperrzeit = sperrzeit_map.get(d.id) %}
+          <label class="flex items-start gap-2.5 text-sm p-2.5 rounded-lg border {% if already %}opacity-40 bg-gray-50 border-gray-100{% elif gebucht %}border-red-200 bg-red-50 cursor-pointer{% elif sperrzeit %}border-orange-200 bg-orange-50 cursor-pointer{% else %}border-gray-100 hover:border-gray-200 cursor-pointer{% endif %} transition-colors">
             <input type="checkbox" name="dienstleister_ids" value="{{ d.id }}"
               {% if already %}disabled{% endif %}
               class="mt-0.5 rounded border-gray-300" style="accent-color: var(--brand-primary);">
@@ -322,6 +323,7 @@
               <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
               <span class="block text-xs text-gray-400 mt-0.5">{{ d.stadt }} · {{ d.erfahrungspunkte }} XP</span>
               {% if gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#b91c1c;">⚠ Bereits gebucht ({{ gebucht.startzeit }}–{{ gebucht.endzeit }} Uhr · {{ gebucht.kunde_firma }})</span>{% endif %}
+              {% if sperrzeit and not gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#c2410c;">🚫 Nicht verfügbar{% if sperrzeit.grund %} ({{ sperrzeit.grund }}){% endif %}</span>{% endif %}
             </span>
             {% if already %}<span class="text-xs text-gray-400 ml-auto">angefragt</span>{% endif %}
           </label>

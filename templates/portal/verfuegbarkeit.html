@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Meine Verfügbarkeit – {{ cfg.app_name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen pb-16" style="background: var(--bg);">
+
+  <!-- Header -->
+  <header style="background: var(--brand-primary); border-radius: 0 0 1.75rem 1.75rem; box-shadow: var(--shadow-md);">
+    <div class="max-w-2xl mx-auto px-5 pt-6 pb-8">
+      <div class="flex items-center justify-between mb-6">
+        <a href="/portal" class="flex items-center gap-1.5 text-xs font-semibold"
+           style="color: rgba(255,255,255,0.7);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Zurück
+        </a>
+      </div>
+      <h1 class="text-2xl font-bold text-white">Meine Verfügbarkeit</h1>
+      <p class="text-sm mt-1" style="color: rgba(255,255,255,0.7);">Trag ein, wann du nicht verfügbar bist – z.&nbsp;B. Urlaub oder Prüfungszeit.</p>
+    </div>
+  </header>
+
+  <div class="max-w-2xl mx-auto px-4 -mt-4 space-y-5">
+
+    {% if request.query_params.get('ok') %}
+    <div class="card p-4" style="background: var(--c-green-bg);">
+      <p class="text-sm font-medium" style="color: var(--c-green);">✓ Sperrzeit wurde gespeichert.</p>
+    </div>
+    {% endif %}
+
+    <!-- Neue Sperrzeit eintragen -->
+    <div class="card p-5">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4">Neue Sperrzeit eintragen</h2>
+      <form method="post" action="/portal/verfuegbarkeit/hinzufuegen" class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">Von</label>
+            <input type="date" name="von_datum" required
+              class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-opacity-40"
+              style="focus-ring-color: var(--brand-primary);">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">Bis</label>
+            <input type="date" name="bis_datum" required
+              class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-opacity-40">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">Grund (optional)</label>
+          <div class="flex gap-2 flex-wrap mb-2">
+            {% for g in ["Urlaub", "Prüfungsphase", "Privat"] %}
+            <button type="button" onclick="document.getElementById('grund').value='{{ g }}'"
+              class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-400 transition active:scale-95">
+              {{ g }}
+            </button>
+            {% endfor %}
+          </div>
+          <input type="text" name="grund" id="grund" maxlength="80" placeholder="z. B. Urlaub"
+            class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm text-gray-800 focus:outline-none">
+        </div>
+        <button type="submit" class="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition active:scale-95"
+          style="background: var(--brand-primary);">
+          Sperrzeit speichern
+        </button>
+      </form>
+    </div>
+
+    <!-- Bestehende Sperrzeiten -->
+    {% if sperrzeiten %}
+    <div class="card p-5">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4">Eingetragene Sperrzeiten</h2>
+      <div class="space-y-3">
+        {% for sz in sperrzeiten %}
+        {% set heute = namespace(d=none) %}
+        <div class="flex items-center gap-3 py-3 px-4 rounded-xl" style="background: #f9fafb;">
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-800">
+              {{ sz.von_datum | de_date }} – {{ sz.bis_datum | de_date }}
+            </p>
+            {% if sz.grund %}
+            <p class="text-xs text-gray-400 mt-0.5">{{ sz.grund }}</p>
+            {% endif %}
+          </div>
+          <form method="post" action="/portal/verfuegbarkeit/{{ sz.id }}/loeschen"
+                onsubmit="return confirm('Sperrzeit löschen?')">
+            <button type="submit" class="p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition"
+                    aria-label="Löschen">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card p-5 text-center">
+      <p class="text-sm text-gray-400">Noch keine Sperrzeiten eingetragen.</p>
+      <p class="text-xs text-gray-400 mt-1">Wenn du verfügbar bist, musst du nichts eintragen.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
