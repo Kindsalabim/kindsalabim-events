@@ -53,7 +53,8 @@ def portal_magic_auth(token: str, db: Session = Depends(get_db)):
         {"sub": str(d.id), "role": "dienstleister"},
         expires_minutes=60 * 24 * 30
     )
-    resp = RedirectResponse("/portal", status_code=303)
+    ziel = "/portal/onboarding" if not d.onboarding_abgeschlossen else "/portal"
+    resp = RedirectResponse(ziel, status_code=303)
     resp.set_cookie("portal_token", session_token, httponly=True, secure=COOKIE_SECURE,
                     samesite="lax", max_age=60 * 60 * 24 * 30)
     return resp
@@ -232,6 +233,31 @@ def portal_verlaengern(anfrage_id: int, db: Session = Depends(get_db),
         from config import get_config
         cfg = get_config()
         send_frist_verlaengerung(a.dienstleister, a.event, cfg["admin_email"])
+    return RedirectResponse("/portal", status_code=303)
+
+
+# ── Onboarding ────────────────────────────────────────────────────────────────
+
+@router.get("/onboarding", response_class=HTMLResponse)
+def portal_onboarding(request: Request, db: Session = Depends(get_db),
+                      user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    # Wer Onboarding schon abgeschlossen hat, wird weitergeleitet
+    if d and d.onboarding_abgeschlossen:
+        return RedirectResponse("/portal", status_code=303)
+    return templates.TemplateResponse("portal/onboarding.html",
+        tpl_context(request, dienstleister=d))
+
+
+@router.post("/onboarding/abschliessen")
+def portal_onboarding_abschliessen(db: Session = Depends(get_db),
+                                   user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if d:
+        d.onboarding_abgeschlossen = True
+        db.commit()
     return RedirectResponse("/portal", status_code=303)
 
 
