@@ -17,6 +17,55 @@ def _check_secret(secret: str = "") -> bool:
     return secret == cfg.get("cron_secret", "")
 
 
+def _run_einsatz_erinnerungen(db: Session) -> dict:
+    """Erinnert bestätigte Dienstleister 2 Tage vor ihrem Einsatz. Idempotent über
+    das Flag einsatz_erinnerung_gesendet."""
+    in_2_tagen = date.today() + timedelta(days=2)
+    zusagen = db.query(Verfuegbarkeitsanfrage).join(
+        Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
+        Verfuegbarkeitsanfrage.status == "Ja",
+        Verfuegbarkeitsanfrage.einsatz_erinnerung_gesendet == False,
+        Event.datum == in_2_tagen,
+    ).all()
+
+    from email_service import send_einsatz_erinnerung
+    count = 0
+    for a in zusagen:
+        try:
+            send_einsatz_erinnerung(a.dienstleister, a.event)
+            a.einsatz_erinnerung_gesendet = True
+            count += 1
+        except Exception as e:
+            print(f"Einsatz-Erinnerung fehlgeschlagen für {a.dienstleister.email}: {e}")
+    db.commit()
+    return {"einsatz_erinnerungen_gesendet": count, "datum": in_2_tagen.strftime("%d.%m.%Y")}
+
+
+def _run_teamleiter_infos(db: Session) -> int:
+    """Info-Mail an Kunden ~1 Woche vor dem Event mit dem Teamleiter als Ansprechpartner.
+    Nur wenn Teamleiter gesetzt, Kunden-E-Mail vorhanden und noch nicht gesendet."""
+    in_7_tagen = date.today() + timedelta(days=7)
+    events = db.query(Event).filter(
+        Event.datum == in_7_tagen,
+        Event.teamleiter_id != None,            # noqa: E711
+        Event.kunde_email != None,              # noqa: E711
+        Event.kunde_email != "",
+        Event.teamleiter_mail_gesendet == False,
+    ).all()
+
+    from email_service import send_teamleiter_info
+    count = 0
+    for ev in events:
+        try:
+            send_teamleiter_info(ev)
+            ev.teamleiter_mail_gesendet = True
+            count += 1
+        except Exception as e:
+            print(f"Teamleiter-Info-Mail fehlgeschlagen für Event {ev.id}: {e}")
+    db.commit()
+    return count
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -78,37 +127,27 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
             except Exception as e:
                 print(f"Wiedervorlage-Digest fehlgeschlagen für {ad.email}: {e}")
 
+    # Einsatz-Erinnerung (2 Tage vorher) – läuft im selben täglichen Cron mit,
+    # da der separate Render-Cron nie angelegt wurde.
+    einsatz = _run_einsatz_erinnerungen(db)
+
+    # Teamleiter-Info-Mail an Kunden (1 Woche vorher)
+    teamleiter_mails = _run_teamleiter_infos(db)
+
     return JSONResponse({"erinnerungen_gesendet": count, "material_erinnerungen": material_count,
-                         "wiedervorlage_mails": wv_mails, "datum": morgen.strftime("%d.%m.%Y")})
+                         "wiedervorlage_mails": wv_mails,
+                         "einsatz_erinnerungen": einsatz["einsatz_erinnerungen_gesendet"],
+                         "teamleiter_mails": teamleiter_mails,
+                         "datum": morgen.strftime("%d.%m.%Y")})
 
 
 @router.get("/einsatz-erinnerung")
 def send_einsatz_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
-    """Wird täglich (18:00 lokal) von Render Cron aufgerufen. Erinnert bestätigte
-    Dienstleister 2 Tage vor ihrem Einsatz."""
+    """Manuell/separat auslösbar. Erinnert bestätigte Dienstleister 2 Tage vor ihrem
+    Einsatz. (Läuft regulär im täglichen /cron/erinnerung mit.)"""
     if not _check_secret(secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-
-    in_2_tagen = date.today() + timedelta(days=2)
-    zusagen = db.query(Verfuegbarkeitsanfrage).join(
-        Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
-        Verfuegbarkeitsanfrage.status == "Ja",
-        Verfuegbarkeitsanfrage.einsatz_erinnerung_gesendet == False,
-        Event.datum == in_2_tagen,
-    ).all()
-
-    from email_service import send_einsatz_erinnerung
-    count = 0
-    for a in zusagen:
-        try:
-            send_einsatz_erinnerung(a.dienstleister, a.event)
-            a.einsatz_erinnerung_gesendet = True
-            count += 1
-        except Exception as e:
-            print(f"Einsatz-Erinnerung fehlgeschlagen für {a.dienstleister.email}: {e}")
-
-    db.commit()
-    return JSONResponse({"einsatz_erinnerungen_gesendet": count, "datum": in_2_tagen.strftime("%d.%m.%Y")})
+    return JSONResponse(_run_einsatz_erinnerungen(db))
 
 
 def _model_to_csv(rows, model) -> bytes:
