@@ -756,5 +756,15 @@ def dienstleister_update(
 @router.post("/dienstleister/{did}/delete")
 def dienstleister_delete(did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
-    if d: db.delete(d); db.commit()
-    return RedirectResponse("/admin/dienstleister", status_code=303)
+    if d:
+        # Verknüpfte Daten zuerst lösen, sonst blockiert der Fremdschlüssel die Löschung
+        db.query(Verfuegbarkeitsanfrage).filter(
+            Verfuegbarkeitsanfrage.dienstleister_id == did).delete(synchronize_session=False)
+        db.query(DienstleisterSperrzeit).filter(
+            DienstleisterSperrzeit.dienstleister_id == did).delete(synchronize_session=False)
+        # Teamleiter-Verknüpfung an Events lösen (FK ohne Cascade)
+        db.query(Event).filter(Event.teamleiter_id == did).update(
+            {Event.teamleiter_id: None}, synchronize_session=False)
+        db.delete(d)
+        db.commit()
+    return RedirectResponse("/admin/dienstleister?geloescht=1", status_code=303)
