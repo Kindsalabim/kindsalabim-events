@@ -59,6 +59,19 @@ def portal_magic_auth(token: str, db: Session = Depends(get_db)):
                     samesite="lax", max_age=60 * 60 * 24 * 30)
     return resp
 
+@router.get("/dev-preview-onboarding", response_class=HTMLResponse)
+def portal_dev_preview(request: Request, db: Session = Depends(get_db)):
+    """Nur lokal: Onboarding ohne Login direkt anzeigen."""
+    import os
+    if os.environ.get("RENDER"):
+        from fastapi import HTTPException
+        raise HTTPException(404)
+    from models import Dienstleister as DL
+    d = db.query(DL).first()
+    return templates.TemplateResponse("portal/onboarding.html",
+        tpl_context(request, dienstleister=d))
+
+
 @router.get("/logout")
 def portal_logout():
     resp = RedirectResponse("/portal/login", status_code=303)
@@ -243,9 +256,8 @@ def portal_onboarding(request: Request, db: Session = Depends(get_db),
                       user=Depends(get_portal_user)):
     did = int(user["sub"])
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
-    # Wer Onboarding schon abgeschlossen hat, wird weitergeleitet
-    if d and d.onboarding_abgeschlossen:
-        return RedirectResponse("/portal", status_code=303)
+    # Direkt aufrufbar — auch wer es schon abgeschlossen hat, kann die Tour erneut ansehen.
+    # (Neue Nutzer werden nach dem ersten Login automatisch hierher geleitet.)
     return templates.TemplateResponse("portal/onboarding.html",
         tpl_context(request, dienstleister=d))
 
