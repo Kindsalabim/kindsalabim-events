@@ -4,7 +4,9 @@
 <style>
   /* ── Onboarding Shell ── */
   #ob-shell {
-    position: fixed; inset: 0;
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 100vh;        /* Fallback für ältere Browser */
+    height: 100dvh;       /* Dynamische Viewport-Höhe: Bottom-Bar bleibt auf dem Handy erreichbar */
     background: var(--bg);
     display: flex; flex-direction: column;
     overflow: hidden;
@@ -30,6 +32,7 @@
   /* Slide track */
   #ob-track {
     flex: 1;
+    min-height: 0;        /* Erlaubt dem Track zu schrumpfen, damit die Bottom-Bar sichtbar bleibt */
     display: flex;
     transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
     will-change: transform;
@@ -40,7 +43,8 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;     /* Hoher Inhalt scrollt innerhalb des Slides statt abgeschnitten zu werden */
+    overflow-x: hidden;
   }
 
   /* ── Slide 1 & 6: Drenched blue ── */
