@@ -259,6 +259,41 @@ def send_einsatz_erinnerung(dienstleister, event):
           _wrap(content, color, cfg))
 
 
+def send_teamleiter_info(event):
+    """Info-Mail an den Kunden ~1 Woche vor dem Event: nennt den Teamleiter
+    als Ansprechpartner am Veranstaltungstag (Name + Telefon)."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    tl = event.teamleiter
+    tl_name = f"{tl.vorname} {tl.nachname}" if tl else ""
+    tl_tel = (tl.telefon or "").strip() if tl else ""
+    anrede = f"Hallo {event.kunde_kontakt}," if event.kunde_kontakt else "Guten Tag,"
+
+    tel_row = _info_row('Telefon', tl_tel) if tl_tel else ""
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">{anrede}</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      bald ist es so weit – Ihr Event am <strong>{de_date(event.datum)}</strong> steht an.
+      Wir freuen uns darauf!
+    </p>
+    <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.6;">
+      Am Veranstaltungstag ist Ihr Ansprechpartner vor Ort:
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Teamleitung', tl_name)}
+        {tel_row}
+      </table>
+    </div>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      Sollten vorab noch Fragen offen sein, kommen Sie gerne auf uns zu. Ansonsten
+      wünschen wir Ihnen schon jetzt eine schöne Feier!
+    </p>"""
+    _send(event.kunde_email,
+          f"Ihr Ansprechpartner für {event.anlass} am {de_date(event.datum)}",
+          _wrap(content, color, cfg))
+
+
 def send_frist_verlaengerung(dienstleister, event, admin_email: str):
     cfg = get_config()
     color = _brand_color(event.marke)

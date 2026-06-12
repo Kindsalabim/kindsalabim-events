@@ -32,6 +32,7 @@ class Event(Base):
     kunde_id = Column(Integer, ForeignKey("kunden.id"), nullable=True)  # CRM-Verknüpfung (optional)
     kalender_event_id = Column(String, nullable=True)  # Google-Kalender-Event-ID (Sync)
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
+    teamleiter_mail_gesendet = Column(Boolean, default=False)  # Info-Mail an Kunden (1 Woche vorher) versendet?
 
     # Eventbericht (vom Teamleiter nach dem Event im Portal ausgefüllt)
     bericht_eingereicht_am = Column(String)
