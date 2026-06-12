@@ -11,7 +11,7 @@ MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
 
 from sqlalchemy import func
 from database import get_db
-from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde
+from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit
 import secrets
 from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
@@ -336,11 +336,22 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         if a.status == "Ja" and a.dienstleister)
     logistiker_warnung = bool(ev.material_mitnahme and not logistiker_zugesagt)
 
+    # Sperrzeiten-Konflikte: welche Dienstleister haben am Event-Datum eine Sperrzeit?
+    sperrzeit_map = {}
+    if ev.datum:
+        sperrzeiten = db.query(DienstleisterSperrzeit).filter(
+            DienstleisterSperrzeit.von_datum <= ev.datum,
+            DienstleisterSperrzeit.bis_datum >= ev.datum,
+        ).all()
+        for sz in sperrzeiten:
+            sperrzeit_map[sz.dienstleister_id] = sz
+
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
-                    ab_urls=ab_urls, logistiker_warnung=logistiker_warnung))
+                    ab_urls=ab_urls, logistiker_warnung=logistiker_warnung,
+                    sperrzeit_map=sperrzeit_map))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):

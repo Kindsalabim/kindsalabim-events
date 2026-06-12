@@ -84,6 +84,7 @@ class Dienstleister(Base):
     password_hash = Column(String)               # für Portal-Login (Legacy)
     magic_token = Column(String)                 # Magic-Link-Token
     magic_token_expires = Column(String)         # ISO-Datetime
+    onboarding_abgeschlossen = Column(Boolean, default=False)
 
     # Erweiterte Felder (aus Jira-Import)
     gebiet           = Column(String)            # Ruhrgebiet, Rheinland, …
@@ -96,6 +97,19 @@ class Dienstleister(Base):
     notizen          = Column(Text)
 
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="dienstleister")
+    sperrzeiten = relationship("DienstleisterSperrzeit", back_populates="dienstleister", cascade="all, delete-orphan")
+
+
+class DienstleisterSperrzeit(Base):
+    __tablename__ = "dienstleister_sperrzeiten"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    dienstleister_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=False)
+    von_datum        = Column(Date, nullable=False)
+    bis_datum        = Column(Date, nullable=False)
+    grund            = Column(String)   # z. B. "Urlaub", "Prüfungsphase", "Privat"
+
+    dienstleister = relationship("Dienstleister", back_populates="sperrzeiten")
 
 
 class Verfuegbarkeitsanfrage(Base):

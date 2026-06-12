@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
 
 from database import get_db
-from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei
+from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei, DienstleisterSperrzeit
 from routes.fotos import generate_presigned_url
 from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
@@ -233,3 +233,58 @@ def portal_verlaengern(anfrage_id: int, db: Session = Depends(get_db),
         cfg = get_config()
         send_frist_verlaengerung(a.dienstleister, a.event, cfg["admin_email"])
     return RedirectResponse("/portal", status_code=303)
+
+
+# ── Sperrzeiten (Nicht-Verfügbarkeit) ─────────────────────────────────────────
+
+@router.get("/verfuegbarkeit", response_class=HTMLResponse)
+def portal_verfuegbarkeit(request: Request, db: Session = Depends(get_db),
+                          user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    sperrzeiten = db.query(DienstleisterSperrzeit).filter(
+        DienstleisterSperrzeit.dienstleister_id == did
+    ).order_by(DienstleisterSperrzeit.von_datum).all()
+    return templates.TemplateResponse("portal/verfuegbarkeit.html",
+        tpl_context(request, dienstleister=d, sperrzeiten=sperrzeiten))
+
+
+@router.post("/verfuegbarkeit/hinzufuegen")
+def portal_sperrzeit_hinzufuegen(
+    von_datum: str = Form(...),
+    bis_datum: str = Form(...),
+    grund: str = Form(""),
+    db: Session = Depends(get_db),
+    user=Depends(get_portal_user)
+):
+    did = int(user["sub"])
+    try:
+        von = date.fromisoformat(von_datum)
+        bis = date.fromisoformat(bis_datum)
+        if bis < von:
+            von, bis = bis, von
+        sz = DienstleisterSperrzeit(
+            dienstleister_id=did,
+            von_datum=von,
+            bis_datum=bis,
+            grund=grund.strip() or None
+        )
+        db.add(sz)
+        db.commit()
+    except (ValueError, Exception):
+        pass
+    return RedirectResponse("/portal/verfuegbarkeit?ok=1", status_code=303)
+
+
+@router.post("/verfuegbarkeit/{sz_id}/loeschen")
+def portal_sperrzeit_loeschen(sz_id: int, db: Session = Depends(get_db),
+                               user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    sz = db.query(DienstleisterSperrzeit).filter(
+        DienstleisterSperrzeit.id == sz_id,
+        DienstleisterSperrzeit.dienstleister_id == did
+    ).first()
+    if sz:
+        db.delete(sz)
+        db.commit()
+    return RedirectResponse("/portal/verfuegbarkeit", status_code=303)
