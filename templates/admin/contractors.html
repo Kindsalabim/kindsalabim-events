@@ -3,6 +3,12 @@
 {% block title %}Dienstleister – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 
+{% if request.query_params.get('geloescht') %}
+<div class="mb-5 rounded-lg px-4 py-3 text-sm font-medium" style="background: var(--c-green-bg); color: var(--c-green);">
+  ✓ Dienstleister wurde gelöscht.
+</div>
+{% endif %}
+
 <div class="flex items-center justify-between mb-6">
   <div>
     <h1 class="text-2xl font-bold text-gray-900">Dienstleister</h1>
