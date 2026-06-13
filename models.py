@@ -77,6 +77,7 @@ class Dienstleister(Base):
     stadt = Column(String)
     rolle = Column(String, default="Teamer")     # Teamer, Künstler, Beides
     erfahrungspunkte = Column(Integer, default=0)
+    qualitaet = Column(Integer)                   # Bewertung 1–5 ⭐ (None = noch nicht bewertet)
     mobilitaet = Column(String, default="Auto")  # Auto, ÖPNV, Beides
     kleidergroesse = Column(String)
     aktiv = Column(Boolean, default=True)
