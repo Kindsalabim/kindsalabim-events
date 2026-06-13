@@ -11,7 +11,7 @@ MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
 
 from sqlalchemy import func
 from database import get_db
-from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit
+from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit, Reservierung
 import secrets
 from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
@@ -183,7 +183,8 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     def event_date(e):
         return e.datum or date.max
 
-    upcoming = sorted([e for e in events if e.status != "Abgeschlossen"], key=event_date)
+    # Abgesagte Events fliegen aus der Übersicht (bleiben aber als flamingo-Eintrag im Kalender)
+    upcoming = sorted([e for e in events if e.status not in ("Abgeschlossen", "Abgesagt")], key=event_date)
     past     = sorted([e for e in events if e.status == "Abgeschlossen"], key=event_date, reverse=True)
 
     # Fehlende Dienstleister berechnen
@@ -197,12 +198,31 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
         kuenstler = sum(1 for a in anfragen if a.rolle_anfrage == "Künstler")
         return max(0, ev.anzahl_teamer - teamer), max(0, ev.anzahl_kuenstler - kuenstler)
 
+    # Offene Dienstleister-Rückmeldungen je Event (eine Query)
+    pending_map = {}
+    for eid, cnt in db.query(Verfuegbarkeitsanfrage.event_id, func.count()).filter(
+            Verfuegbarkeitsanfrage.status == "Ausstehend").group_by(
+            Verfuegbarkeitsanfrage.event_id).all():
+        pending_map[eid] = cnt
+
     upcoming_data = []
+    offene_rueckmeldungen = 0
+    offene_checklisten = 0
     for ev in upcoming:
         ft, fk = fehlende_dl(ev)
         days_until = (event_date(ev) - today).days
-        upcoming_data.append({"ev": ev, "fehlende_teamer": ft,
-                               "fehlende_kuenstler": fk, "days_until": days_until})
+        pending = pending_map.get(ev.id, 0)
+        checkliste_offen = bool(ev.checklist_token and not ev.cl_eingereicht_am)
+        urgent = 0 <= days_until <= 14
+        offene_rueckmeldungen += pending
+        if checkliste_offen:
+            offene_checklisten += 1
+        upcoming_data.append({"ev": ev, "fehlende_teamer": ft, "fehlende_kuenstler": fk,
+                              "days_until": days_until, "pending": pending,
+                              "checkliste_offen": checkliste_offen, "urgent": urgent})
+
+    reservierungen_count = db.query(Reservierung).count()
+    dringend_count = sum(1 for d in upcoming_data if d["urgent"])
 
     # Angezeigter Kalendermonat (Navigation per ?month=JJJJ-MM)
     try:
@@ -241,7 +261,84 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 
     return templates.TemplateResponse("admin/dashboard.html",
         tpl_context(request, upcoming_data=upcoming_data, upcoming=upcoming,
-                    past=past, kalender=kalender))
+                    past=past, kalender=kalender,
+                    reservierungen_count=reservierungen_count,
+                    offene_rueckmeldungen=offene_rueckmeldungen,
+                    offene_checklisten=offene_checklisten,
+                    dringend_count=dringend_count))
+
+
+# ── Reservierungen (unverbindliche Holds vor der Buchung) ───────────────────────
+
+@router.get("/reservierungen", response_class=HTMLResponse)
+def reservierungen_list(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    res = db.query(Reservierung).order_by(Reservierung.frist.is_(None), Reservierung.frist, Reservierung.datum).all()
+    return templates.TemplateResponse("admin/reservierungen.html",
+        tpl_context(request, reservierungen=res, today=date.today()))
+
+@router.post("/reservierungen/new")
+def reservierung_create(
+    request: Request, background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), _=Depends(get_admin_user),
+    datum: str = Form(...), kunde_firma: str = Form(...),
+    anlass: str = Form(""), veranstaltungsort: str = Form(""),
+    kunde_kontakt: str = Form(""), kunde_telefon: str = Form(""), kunde_email: str = Form(""),
+    marke: str = Form("Kindsalabim"), frist: str = Form(""), notiz: str = Form(""),
+):
+    try:
+        datum_d = date.fromisoformat(datum)
+    except ValueError:
+        return RedirectResponse("/admin/reservierungen?error=datum", status_code=303)
+    frist_d = None
+    if frist.strip():
+        try: frist_d = date.fromisoformat(frist)
+        except ValueError: frist_d = None
+    if frist_d is None:
+        frist_d = datum_d  # Fallback; wird sonst über das Formular gesetzt
+    r = Reservierung(
+        datum=datum_d, kunde_firma=kunde_firma, anlass=anlass.strip() or None,
+        veranstaltungsort=veranstaltungsort.strip() or None,
+        kunde_kontakt=kunde_kontakt.strip() or None, kunde_telefon=kunde_telefon.strip() or None,
+        kunde_email=kunde_email.strip() or None, marke=marke,
+        frist=frist_d, notiz=notiz.strip() or None,
+        erstellt_am=datetime.now().isoformat(timespec="seconds"),
+    )
+    db.add(r); db.commit(); db.refresh(r)
+    import calendar_service
+    background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
+    return RedirectResponse("/admin/reservierungen", status_code=303)
+
+@router.post("/reservierungen/{res_id}/freigeben")
+def reservierung_freigeben(res_id: int, background_tasks: BackgroundTasks,
+                           db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
+    if r:
+        import calendar_service
+        if r.kalender_event_id:
+            background_tasks.add_task(calendar_service.delete_event_async, r.kalender_event_id, r.marke)
+        db.delete(r); db.commit()
+    return RedirectResponse("/admin/reservierungen", status_code=303)
+
+@router.post("/reservierungen/{res_id}/umwandeln")
+def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
+                           db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
+    if not r:
+        return RedirectResponse("/admin/reservierungen", status_code=303)
+    ev = Event(
+        anlass=r.anlass or "—", datum=r.datum, startzeit="10:00", endzeit="16:00",
+        veranstaltungsort=r.veranstaltungsort or "—", kunde_firma=r.kunde_firma,
+        kunde_kontakt=r.kunde_kontakt, kunde_telefon=r.kunde_telefon, kunde_email=r.kunde_email,
+        marke=r.marke, status="Gebucht",
+    )
+    db.add(ev)
+    import calendar_service
+    if r.kalender_event_id:
+        background_tasks.add_task(calendar_service.delete_event_async, r.kalender_event_id, r.marke)
+    db.delete(r); db.commit(); db.refresh(ev)
+    background_tasks.add_task(calendar_service.sync_event_async, ev.id)
+    # Zum Bearbeiten öffnen – Uhrzeiten/Details vervollständigen
+    return RedirectResponse(f"/admin/events/{ev.id}/edit", status_code=303)
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────
@@ -265,6 +362,7 @@ def event_create(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
+    status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
 ):
     try:
@@ -281,7 +379,7 @@ def event_create(
         kunde_email=kunde_email, produkte=", ".join(produkte),
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
-        marke=marke, status="Entwurf"
+        marke=marke, status=status
     )
     db.add(ev)
     if crm_verknuepfen:
@@ -409,7 +507,7 @@ def event_update(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
-    status: str = Form("Entwurf"),
+    status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
@@ -474,8 +572,8 @@ def calendar_test(_=Depends(get_admin_user)):
 
 def auto_status(ev, db) -> str:
     """Berechnet automatischen Event-Status basierend auf dem Fortschritt."""
-    # "Abgeschlossen" ist final (schützt auch Altdaten ohne Bericht/Rechnung)
-    if ev.status == "Abgeschlossen":
+    # "Abgeschlossen" und "Abgesagt" sind final – nie automatisch überschreiben
+    if ev.status in ("Abgeschlossen", "Abgesagt"):
         return ev.status
     # Nach dem Briefing: automatischer Abschluss, sobald Bericht da UND Rechnung gestellt
     if ev.status == "Briefing gesendet":
@@ -505,7 +603,7 @@ def auto_status(ev, db) -> str:
         return "Checkliste geschickt"
     if anfragen:
         return "Dienstleister angefragt"
-    return ev.status  # bleibt "Entwurf" / manuell gesetzt
+    return ev.status  # bleibt "Gebucht" / manuell gesetzt
 
 
 # ── Verfügbarkeitsanfragen ─────────────────────────────────────────────────────

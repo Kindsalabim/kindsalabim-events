@@ -1,0 +1,134 @@
+{% extends "admin_base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Reservierungen – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<!-- Back + Header -->
+<div class="mb-6">
+  <a href="/admin/dashboard" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-3 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Dashboard
+  </a>
+  <h1 class="text-2xl font-bold text-gray-900">Reservierungen</h1>
+  <p class="text-sm text-gray-500 mt-0.5">Unverbindliche Termin-Holds – getrennt von den festen Buchungen. Werden zur Buchung umgewandelt oder freigegeben.</p>
+</div>
+
+<!-- Neue Reservierung -->
+<details class="card p-5 mb-6">
+  <summary class="text-sm font-semibold cursor-pointer select-none" style="color: var(--brand-primary);">+ Neue Reservierung</summary>
+  <form method="post" action="/admin/reservierungen/new" class="mt-4 pt-4 space-y-4" style="border-top:1px solid #f3f4f6;">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Termin *</label>
+        <input type="date" name="datum" required class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Frist <span class="text-gray-400 font-normal">(Rückmeldung bis)</span></label>
+        <input type="date" name="frist" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Marke</label>
+        <select name="marke" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+          <option>Kindsalabim</option>
+          <option>Knallfrosch</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Kunde / Firma *</label>
+        <input type="text" name="kunde_firma" required class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Ansprechpartner</label>
+        <input type="text" name="kunde_kontakt" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
+        <input type="text" name="kunde_telefon" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail</label>
+        <input type="email" name="kunde_email" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlass</label>
+        <input type="text" name="anlass" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Ort</label>
+        <input type="text" name="veranstaltungsort" placeholder="z. B. 50667 Köln" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Notiz</label>
+      <textarea name="notiz" rows="2" placeholder="z. B. Angebotssumme, Besonderheiten …" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none"></textarea>
+    </div>
+    <button type="submit" class="btn-primary px-5 py-2.5">Reservierung anlegen</button>
+  </form>
+</details>
+
+<!-- Liste -->
+{% if reservierungen %}
+<div class="space-y-3">
+  {% for r in reservierungen %}
+  {% set abgelaufen = r.frist and r.frist < today %}
+  <div class="card p-4 flex flex-col md:flex-row md:items-center gap-4 {% if abgelaufen %}border-red-200{% endif %}"
+       {% if abgelaufen %}style="border-color:#fecaca;background:#fef2f2;"{% endif %}>
+
+    <!-- Datums-Badge -->
+    <div class="date-badge {% if r.marke == 'Knallfrosch' %}date-badge-kf{% endif %} shrink-0">
+      <span class="d">{{ r.datum.day }}</span>
+      <span class="m">{{ r.datum | de_month }}</span>
+    </div>
+
+    <!-- Infos -->
+    <div class="min-w-0 flex-1">
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="font-semibold" style="color:var(--ink-1);">{{ r.kunde_firma }}</span>
+        {% if r.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
+        {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
+      </div>
+      <p class="text-xs mt-1" style="color:var(--ink-3);">
+        {{ r.datum | de_date }}{% if r.veranstaltungsort %} · {{ r.veranstaltungsort }}{% endif %}{% if r.anlass %} · {{ r.anlass }}{% endif %}
+      </p>
+      <div class="flex items-center gap-3 mt-1.5 flex-wrap text-xs" style="color:var(--ink-4);">
+        {% if r.kunde_kontakt %}<span>{{ r.kunde_kontakt }}</span>{% endif %}
+        {% if r.kunde_telefon %}<span>{{ r.kunde_telefon }}</span>{% endif %}
+        {% if r.kunde_email %}<span>{{ r.kunde_email }}</span>{% endif %}
+      </div>
+      {% if r.notiz %}<p class="text-xs mt-1 italic" style="color:var(--ink-4);">„{{ r.notiz }}"</p>{% endif %}
+    </div>
+
+    <!-- Frist -->
+    <div class="shrink-0 text-right">
+      {% if r.frist %}
+        {% if abgelaufen %}
+        <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-lg" style="background:#fee2e2;color:#b91c1c;">⚠ Frist abgelaufen<br>{{ r.frist | de_date }}</span>
+        {% else %}
+        <span class="inline-block text-xs font-medium px-2.5 py-1 rounded-lg" style="background:var(--c-amber-bg);color:var(--c-amber);">Frist {{ r.frist | de_date }}</span>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <!-- Aktionen -->
+    <div class="shrink-0 flex items-center gap-2">
+      <form method="post" action="/admin/reservierungen/{{ r.id }}/umwandeln">
+        <button class="btn-primary text-xs px-3 py-2" title="Erzeugt ein echtes Event aus dieser Reservierung">In Buchung umwandeln</button>
+      </form>
+      <form method="post" action="/admin/reservierungen/{{ r.id }}/freigeben"
+            onsubmit="return confirm('Reservierung „{{ r.kunde_firma }}“ freigeben (löschen)?')">
+        <button class="text-xs text-gray-400 hover:text-red-600 transition-colors px-2 py-2">Freigeben</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card p-12 text-center">
+  <h3 class="font-semibold text-lg mb-1" style="color:var(--ink-1);">Keine offenen Reservierungen</h3>
+  <p class="text-sm" style="color:var(--ink-3);">Lege oben eine an, wenn ein Kunde einen Termin unverbindlich anfragt.</p>
+</div>
+{% endif %}
+
+{% endblock %}
