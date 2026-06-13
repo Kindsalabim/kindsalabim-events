@@ -306,6 +306,63 @@
       + Verfügbarkeitsanfragen senden
     </summary>
     <div class="mt-4 space-y-5 pt-4" style="border-top: 1px solid #f3f4f6;">
+
+      {% if karte_data.event or karte_data.dienstleister %}
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+      <div>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-xs text-gray-400">
+          <span class="font-medium text-gray-500">📍 Veranstaltungsort &amp; Dienstleister</span>
+          <span><span style="color:#dc2626;">●</span> Event</span>
+          <span><span style="color:#2563eb;">●</span> Dienstleister</span>
+          <span>🚚 Logistiker</span>
+          {% if needs_material %}<span class="text-blue-600">Materialtransport nötig → Logistiker bevorzugt</span>{% endif %}
+          {% if not karte_data.event %}<span class="text-orange-500">· Event-Ort nicht verortbar (keine PLZ im Veranstaltungsort)</span>{% endif %}
+        </div>
+        <div id="dl-karte" class="border border-gray-100" style="height: 320px; border-radius: 12px; z-index: 0;"></div>
+      </div>
+      <script>
+      (function(){
+        var data = {{ karte_data | tojson }};
+        var map = null;
+        function init(){
+          if (map){ map.invalidateSize(); return; }
+          map = L.map('dl-karte', {scrollWheelZoom:false});
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {maxZoom:18, attribution:'© OpenStreetMap'}).addTo(map);
+          var bounds = [];
+          if (data.event){
+            L.circleMarker(data.event, {radius:10,color:'#fff',weight:2,fillColor:'#dc2626',fillOpacity:1})
+              .addTo(map).bindPopup('<b>Veranstaltungsort</b><br>'+(data.ort||''));
+            bounds.push(data.event);
+          }
+          data.dienstleister.forEach(function(d){
+            var t = '<b>'+d.name+(d.logistiker?' 🚚':'')+'</b><br>'+(d.stadt||'')+' · '+d.rolle;
+            if (d.distanz != null) t += '<br>'+d.distanz+' km entfernt';
+            L.circleMarker([d.lat,d.lon], {radius:7,color:'#fff',weight:1.5,fillColor:'#2563eb',fillOpacity:0.95})
+              .addTo(map).bindPopup(t);
+            bounds.push([d.lat,d.lon]);
+          });
+          if (bounds.length){ map.fitBounds(bounds, {padding:[30,30], maxZoom:11}); }
+          else { map.setView([51.4,7.0], 9); }
+        }
+        function ensure(cb){
+          if (window.L){ cb(); return; }
+          var s = document.createElement('script');
+          s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          s.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+          s.crossOrigin = '';
+          s.onload = cb; document.head.appendChild(s);
+        }
+        var det = document.currentScript.closest('details');
+        function go(){ ensure(init); }
+        if (det){
+          if (det.open) go();
+          det.addEventListener('toggle', function(){ if (det.open) go(); });
+        } else { go(); }
+      })();
+      </script>
+      {% endif %}
+
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen">
         <input type="hidden" name="rolle" value="{{ rolle }}">
@@ -319,13 +376,19 @@
             <input type="checkbox" name="dienstleister_ids" value="{{ d.id }}"
               {% if already %}disabled{% endif %}
               class="mt-0.5 rounded border-gray-300" style="accent-color: var(--brand-primary);">
-            <span>
+            <span class="min-w-0">
               <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
-              <span class="block text-xs text-gray-400 mt-0.5">{{ d.stadt }} · {{ d.erfahrungspunkte }} XP</span>
+              <span class="block text-xs text-gray-400 mt-0.5">
+                {{ d.stadt or '–' }}{% if d.rang_distanz_km is not none %} · {{ d.rang_distanz_km|round(0)|int }} km{% endif %}{% if d.qualitaet %} · {{ '⭐' * d.qualitaet }}{% else %} · <span class="italic">nicht bewertet</span>{% endif %}
+              </span>
+              {% if d.id in lange_her_ids and not gebucht and not sperrzeit %}<span class="block text-xs mt-0.5" style="color:#9ca3af;">🕒 länger nicht angefragt</span>{% endif %}
               {% if gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#b91c1c;">⚠ Bereits gebucht ({{ gebucht.startzeit }}–{{ gebucht.endzeit }} Uhr · {{ gebucht.kunde_firma }})</span>{% endif %}
               {% if sperrzeit and not gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#c2410c;">🚫 Nicht verfügbar{% if sperrzeit.grund %} ({{ sperrzeit.grund }}){% endif %}</span>{% endif %}
             </span>
-            {% if already %}<span class="text-xs text-gray-400 ml-auto">angefragt</span>{% endif %}
+            <span class="ml-auto shrink-0 text-right">
+              <span class="inline-block text-xs font-semibold px-1.5 py-0.5 rounded" style="background: var(--brand-primary-light); color: var(--brand-primary);" title="Empfehlungs-Score (Entfernung, Qualität, Logistik, Erfahrung)">{{ d.rang_score }}</span>
+              {% if already %}<span class="block text-xs text-gray-400 mt-1">angefragt</span>{% endif %}
+            </span>
           </label>
           {% endfor %}
         </div>

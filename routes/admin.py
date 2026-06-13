@@ -16,7 +16,7 @@ import secrets
 from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
 from config import get_config
-from distance import rank_contractors
+from distance import rank_contractors, get_coords_for_plz, get_coords_for_address
 from email_service import send_verfuegbarkeitsanfrage, send_briefing
 from choices import ZEITEN, de_date, de_month, de_euro
 
@@ -299,12 +299,9 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     anfragen = db.query(Verfuegbarkeitsanfrage).filter(
         Verfuegbarkeitsanfrage.event_id == event_id).all()
 
-    # Ranked contractors
-    active = db.query(Dienstleister).filter(Dienstleister.aktiv == True).all()
-    ranked_teamer = rank_contractors([d for d in active if d.rolle in ("Teamer", "Beides")], ev.veranstaltungsort)
-    ranked_kuenstler = rank_contractors([d for d in active if d.rolle in ("Künstler", "Beides")], ev.veranstaltungsort)
-
     anfragen_ids = {a.dienstleister_id: a for a in anfragen}
+
+    active = db.query(Dienstleister).filter(Dienstleister.aktiv == True).all()
 
     # Doppelbuchung: bestätigte Einsätze anderer Events am selben Tag
     gebucht_map = {}
@@ -317,6 +314,48 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         ).all()
         for a in konflikte:
             gebucht_map[a.dienstleister_id] = a.event
+
+    # Sperrzeiten-Konflikte: welche Dienstleister haben am Event-Datum eine Sperrzeit?
+    sperrzeit_map = {}
+    if ev.datum:
+        sperrzeiten = db.query(DienstleisterSperrzeit).filter(
+            DienstleisterSperrzeit.von_datum <= ev.datum,
+            DienstleisterSperrzeit.bis_datum >= ev.datum,
+        ).all()
+        for sz in sperrzeiten:
+            sperrzeit_map[sz.dienstleister_id] = sz
+
+    # Empfehlungs-Ranking: nicht verfügbare (gebucht/Sperrzeit) ans Ende
+    unavailable_ids = set(gebucht_map) | set(sperrzeit_map)
+    needs_material = bool(ev.material_mitnahme)
+    ranked_teamer = rank_contractors([d for d in active if d.rolle in ("Teamer", "Beides")],
+                                     ev.veranstaltungsort, needs_material, unavailable_ids)
+    ranked_kuenstler = rank_contractors([d for d in active if d.rolle in ("Künstler", "Beides")],
+                                        ev.veranstaltungsort, needs_material, unavailable_ids)
+
+    # "Länger nicht angefragt": letzte Anfrage je Dienstleister älter als 6 Monate
+    grenze = date.today() - timedelta(days=180)
+    letzte = db.query(Verfuegbarkeitsanfrage.dienstleister_id, func.max(Event.datum)).join(
+        Event, Verfuegbarkeitsanfrage.event_id == Event.id).group_by(
+        Verfuegbarkeitsanfrage.dienstleister_id).all()
+    lange_her_ids = {did for did, last in letzte if last and last < grenze}
+
+    # Kartendaten (Leaflet/OpenStreetMap)
+    event_coords = get_coords_for_address(ev.veranstaltungsort)
+    karte_dienstleister = []
+    for d in active:
+        c = get_coords_for_plz(d.plz or "")
+        if c:
+            karte_dienstleister.append({
+                "name": f"{d.vorname} {d.nachname}", "lat": c[0], "lon": c[1],
+                "rolle": d.rolle, "logistiker": bool(d.logistiker), "stadt": d.stadt or "",
+                "distanz": round(getattr(d, "rang_distanz_km", None)) if getattr(d, "rang_distanz_km", None) is not None else None,
+            })
+    karte_data = {
+        "event": list(event_coords) if event_coords else None,
+        "ort": ev.veranstaltungsort or "",
+        "dienstleister": karte_dienstleister,
+    }
 
     planungsdateien = db.query(EventDatei).filter(
         EventDatei.event_id == event_id,
@@ -336,22 +375,13 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         if a.status == "Ja" and a.dienstleister)
     logistiker_warnung = bool(ev.material_mitnahme and not logistiker_zugesagt)
 
-    # Sperrzeiten-Konflikte: welche Dienstleister haben am Event-Datum eine Sperrzeit?
-    sperrzeit_map = {}
-    if ev.datum:
-        sperrzeiten = db.query(DienstleisterSperrzeit).filter(
-            DienstleisterSperrzeit.von_datum <= ev.datum,
-            DienstleisterSperrzeit.bis_datum >= ev.datum,
-        ).all()
-        for sz in sperrzeiten:
-            sperrzeit_map[sz.dienstleister_id] = sz
-
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
                     ab_urls=ab_urls, logistiker_warnung=logistiker_warnung,
-                    sperrzeit_map=sperrzeit_map))
+                    sperrzeit_map=sperrzeit_map, lange_her_ids=lange_her_ids,
+                    karte_data=karte_data, needs_material=needs_material))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
@@ -659,6 +689,7 @@ def dienstleister_create(
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
     rolle: str = Form("Teamer"), erfahrungspunkte: int = Form(0),
+    qualitaet: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
@@ -678,10 +709,14 @@ def dienstleister_create(
         try: return float(s.replace(",", ".")) if s.strip() else None
         except: return None
 
+    def _qual(s):
+        return int(s) if s.strip() in ("1", "2", "3", "4", "5") else None
+
     d = Dienstleister(
         vorname=vorname, nachname=nachname, email=email, telefon=telefon,
         strasse=strasse, plz=plz, stadt=stadt, rolle=rolle,
-        erfahrungspunkte=erfahrungspunkte, mobilitaet=mobilitaet,
+        erfahrungspunkte=erfahrungspunkte, qualitaet=_qual(qualitaet),
+        mobilitaet=mobilitaet,
         kleidergroesse=kleidergroesse, aktiv=aktiv, logistiker=logistiker,
         fuehrerschein=fuehrerschein, password_hash=pw_hash,
         gebiet=gebiet.strip() or None, verfuegbarkeit=verfuegbarkeit.strip() or None,
@@ -719,6 +754,7 @@ def dienstleister_update(
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
     rolle: str = Form("Teamer"), erfahrungspunkte: int = Form(0),
+    qualitaet: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
@@ -738,6 +774,7 @@ def dienstleister_update(
     d.vorname = vorname; d.nachname = nachname; d.email = email
     d.telefon = telefon; d.strasse = strasse; d.plz = plz; d.stadt = stadt
     d.rolle = rolle; d.erfahrungspunkte = erfahrungspunkte
+    d.qualitaet = int(qualitaet) if qualitaet.strip() in ("1", "2", "3", "4", "5") else None
     d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse
     d.aktiv = aktiv; d.logistiker = logistiker; d.fuehrerschein = fuehrerschein
     d.gebiet = gebiet.strip() or None

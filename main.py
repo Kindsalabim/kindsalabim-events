@@ -41,6 +41,7 @@ def run_migrations():
         ("magic_token_expires",      "VARCHAR"),
         ("logistiker",               "BOOLEAN DEFAULT 0"),
         ("fuehrerschein",            "BOOLEAN DEFAULT 0"),
+        ("qualitaet",                "INTEGER"),
         ("gebiet",                   "VARCHAR"),
         ("verfuegbarkeit",           "VARCHAR"),
         ("vertragstyp",              "VARCHAR"),
