@@ -5,12 +5,19 @@ import re
 
 # Vollständiger deutscher PLZ→(lat, lon)-Datensatz (GeoNames, gebündelt unter data/plz_coords.json).
 # Deckt ganz Deutschland ab – kein externer API-Aufruf, keine Kosten.
-_DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "plz_coords.json")
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 try:
-    with open(_DATA_PATH, encoding="utf-8") as _f:
+    with open(os.path.join(_DATA_DIR, "plz_coords.json"), encoding="utf-8") as _f:
         PLZ_COORDS = {plz: (c[0], c[1]) for plz, c in json.load(_f).items()}
 except (FileNotFoundError, ValueError):
     PLZ_COORDS = {}
+
+# Stadtname→(lat, lon) als Fallback, wenn keine (passende) PLZ vorhanden ist.
+try:
+    with open(os.path.join(_DATA_DIR, "city_coords.json"), encoding="utf-8") as _f:
+        CITY_COORDS = {name: (c[0], c[1]) for name, c in json.load(_f).items()}
+except (FileNotFoundError, ValueError):
+    CITY_COORDS = {}
 
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -26,12 +33,32 @@ def get_coords_for_plz(plz: str):
     return PLZ_COORDS.get((plz or "")[:5])
 
 
+def get_coords_for_city(stadt: str):
+    return CITY_COORDS.get((stadt or "").strip().lower())
+
+
+def _plz_in_text(text: str):
+    """Erste 5-stellige PLZ aus einem Freitextfeld (z. B. Straße) holen."""
+    match = re.search(r'\b(\d{5})\b', text or "")
+    return get_coords_for_plz(match.group(1)) if match else None
+
+
 def get_coords_for_address(address: str):
-    """Versucht PLZ aus Adresse zu extrahieren und Koordinaten zu liefern."""
-    match = re.search(r'\b(\d{5})\b', address or "")
-    if match:
-        return get_coords_for_plz(match.group(1))
-    return None
+    """Koordinaten für eine Freitext-Adresse: erst PLZ darin, dann Stadtname am Ende."""
+    coords = _plz_in_text(address)
+    if coords:
+        return coords
+    # Letztes Wort als Stadtname versuchen (z. B. "Musterstr. 1, Köln")
+    rest = re.sub(r'\d', '', address or "")
+    teil = rest.replace(",", " ").split()
+    return get_coords_for_city(teil[-1]) if teil else None
+
+
+def get_coords_for_dienstleister(d):
+    """Beste verfügbare Koordinaten: PLZ-Feld → PLZ in der Straße → Stadtname."""
+    return (get_coords_for_plz(d.plz or "")
+            or _plz_in_text(getattr(d, "strasse", "") or "")
+            or get_coords_for_city(getattr(d, "stadt", "") or ""))
 
 
 # --- Empfehlungs-Scoring -----------------------------------------------------
@@ -47,7 +74,7 @@ def compute_score(d, event_coords, needs_material: bool):
     # Entfernung
     distanz_km = None
     if event_coords:
-        c = get_coords_for_plz(d.plz or "")
+        c = get_coords_for_dienstleister(d)
         if c:
             distanz_km = haversine(event_coords[0], event_coords[1], c[0], c[1])
     if distanz_km is None:

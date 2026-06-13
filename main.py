@@ -42,6 +42,7 @@ def run_migrations():
         ("logistiker",               "BOOLEAN DEFAULT 0"),
         ("fuehrerschein",            "BOOLEAN DEFAULT 0"),
         ("qualitaet",                "INTEGER"),
+        ("kuenstler_sparte",         "VARCHAR"),
         ("gebiet",                   "VARCHAR"),
         ("verfuegbarkeit",           "VARCHAR"),
         ("vertragstyp",              "VARCHAR"),

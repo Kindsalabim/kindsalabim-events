@@ -309,16 +309,26 @@
 
       {% if karte_data.event or karte_data.dienstleister %}
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+      <style>.dl-emoji{font-size:18px;line-height:24px;text-align:center;background:transparent;border:none;}</style>
       <div>
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-xs text-gray-400">
           <span class="font-medium text-gray-500">📍 Veranstaltungsort &amp; Dienstleister</span>
           <span><span style="color:#dc2626;">●</span> Event</span>
-          <span><span style="color:#2563eb;">●</span> Dienstleister</span>
+          <span><span style="color:#2563eb;">●</span> Teamer</span>
+          <span>🐱 Schminke</span>
+          <span>🎈 Ballon</span>
+          <span>🎭 Sonstiges</span>
           <span>🚚 Logistiker</span>
           {% if needs_material %}<span class="text-blue-600">Materialtransport nötig → Logistiker bevorzugt</span>{% endif %}
           {% if not karte_data.event %}<span class="text-orange-500">· Event-Ort nicht verortbar (keine PLZ im Veranstaltungsort)</span>{% endif %}
         </div>
         <div id="dl-karte" class="border border-gray-100" style="height: 320px; border-radius: 12px; z-index: 0;"></div>
+        {% if karte_ohne_standort %}
+        <p class="text-xs text-orange-500 mt-2">
+          ⚠ {{ karte_ohne_standort | length }} Dienstleister ohne Standort (keine PLZ/Stadt erkennbar) –
+          bitte PLZ nachtragen: {{ karte_ohne_standort | join(', ') }}
+        </p>
+        {% endif %}
       </div>
       <script>
       (function(){
@@ -335,11 +345,20 @@
               .addTo(map).bindPopup('<b>Veranstaltungsort</b><br>'+(data.ort||''));
             bounds.push(data.event);
           }
+          var SPARTE_ICON = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'};
           data.dienstleister.forEach(function(d){
+            var icon = SPARTE_ICON[d.sparte];
             var t = '<b>'+d.name+(d.logistiker?' 🚚':'')+'</b><br>'+(d.stadt||'')+' · '+d.rolle;
+            if (icon) t += ' · '+icon+' '+d.sparte;
             if (d.distanz != null) t += '<br>'+d.distanz+' km entfernt';
-            L.circleMarker([d.lat,d.lon], {radius:7,color:'#fff',weight:1.5,fillColor:'#2563eb',fillOpacity:0.95})
-              .addTo(map).bindPopup(t);
+            var m;
+            if (icon){
+              m = L.marker([d.lat,d.lon], {icon: L.divIcon({className:'dl-emoji',
+                html:icon, iconSize:[24,24], iconAnchor:[12,12], popupAnchor:[0,-10]})});
+            } else {
+              m = L.circleMarker([d.lat,d.lon], {radius:7,color:'#fff',weight:1.5,fillColor:'#2563eb',fillOpacity:0.95});
+            }
+            m.addTo(map).bindPopup(t);
             bounds.push([d.lat,d.lon]);
           });
           if (bounds.length){ map.fitBounds(bounds, {padding:[30,30], maxZoom:11}); }
@@ -363,21 +382,30 @@
       </script>
       {% endif %}
 
+      {% set sparte_icons = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'} %}
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen">
         <input type="hidden" name="rolle" value="{{ rolle }}">
         <h4 class="text-sm font-medium text-gray-700 mb-3">{{ rolle }} anfragen</h4>
+        {% if rolle == 'Künstler' %}
+        <div class="flex flex-wrap gap-1.5 mb-3">
+          <button type="button" onclick="filterSparte(this,'')" class="sparte-chip chip-active">Alle</button>
+          {% for s, icon in [('Kinderschminke','🐱'), ('Ballonkünstler','🎈'), ('Schminke + Ballon','🎈🐱'), ('Sonstiges','🎭')] %}
+          <button type="button" onclick="filterSparte(this,'{{ s }}')" class="sparte-chip">{{ icon }} {{ s }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
         <div class="grid grid-cols-2 gap-2 mb-3">
           {% for d in ranked %}
           {% set already = d.id in anfragen_ids %}
           {% set gebucht = gebucht_map.get(d.id) %}
           {% set sperrzeit = sperrzeit_map.get(d.id) %}
-          <label class="flex items-start gap-2.5 text-sm p-2.5 rounded-lg border {% if already %}opacity-40 bg-gray-50 border-gray-100{% elif gebucht %}border-red-200 bg-red-50 cursor-pointer{% elif sperrzeit %}border-orange-200 bg-orange-50 cursor-pointer{% else %}border-gray-100 hover:border-gray-200 cursor-pointer{% endif %} transition-colors">
+          <label data-dlsparte="{{ d.kuenstler_sparte or '' }}" class="dl-pick flex items-start gap-2.5 text-sm p-2.5 rounded-lg border {% if already %}opacity-40 bg-gray-50 border-gray-100{% elif gebucht %}border-red-200 bg-red-50 cursor-pointer{% elif sperrzeit %}border-orange-200 bg-orange-50 cursor-pointer{% else %}border-gray-100 hover:border-gray-200 cursor-pointer{% endif %} transition-colors">
             <input type="checkbox" name="dienstleister_ids" value="{{ d.id }}"
               {% if already %}disabled{% endif %}
               class="mt-0.5 rounded border-gray-300" style="accent-color: var(--brand-primary);">
             <span class="min-w-0">
-              <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
+              <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.kuenstler_sparte %} {{ sparte_icons.get(d.kuenstler_sparte, '') }}{% endif %}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
               <span class="block text-xs text-gray-400 mt-0.5">
                 {{ d.stadt or '–' }}{% if d.rang_distanz_km is not none %} · {{ d.rang_distanz_km|round(0)|int }} km{% endif %}{% if d.qualitaet %} · {{ '⭐' * d.qualitaet }}{% else %} · <span class="italic">nicht bewertet</span>{% endif %}
               </span>
@@ -395,6 +423,25 @@
         <button type="submit" class="btn-primary text-xs px-4 py-2">Anfragen senden</button>
       </form>
       {% endfor %}
+
+      <style>
+        .sparte-chip{font-size:12px;padding:3px 10px;border-radius:9999px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;}
+        .sparte-chip:hover{border-color:#d1d5db;}
+        .sparte-chip.chip-active{background:var(--brand-primary-light);border-color:var(--brand-primary);color:var(--brand-primary);font-weight:600;}
+      </style>
+      <script>
+        function filterSparte(btn, sparte){
+          var form = btn.closest('form');
+          form.querySelectorAll('.sparte-chip').forEach(function(c){ c.classList.remove('chip-active'); });
+          btn.classList.add('chip-active');
+          form.querySelectorAll('.dl-pick').forEach(function(l){
+            var s = l.dataset.dlsparte;
+            var show = !sparte || s === sparte
+              || ((sparte === 'Kinderschminke' || sparte === 'Ballonkünstler') && s === 'Schminke + Ballon');
+            l.style.display = show ? '' : 'none';
+          });
+        }
+      </script>
     </div>
   </details>
 </div>

@@ -36,6 +36,14 @@
     <option>Künstler</option>
     <option>Beides</option>
   </select>
+  <select id="dl-sparte" onchange="filterTable()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring">
+    <option value="">Alle Sparten</option>
+    <option value="kinderschminke">🐱 Kinderschminke</option>
+    <option value="ballonkünstler">🎈 Ballonkünstler</option>
+    <option value="schminke + ballon">🎈🐱 Schminke + Ballon</option>
+    <option value="sonstiges">🎭 Sonstiges</option>
+  </select>
   <select id="dl-dsgvo" onchange="filterTable()"
     class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring">
     <option value="">DSGVO: alle</option>
@@ -73,6 +81,7 @@
           data-email="{{ d.email | lower }}"
           data-ort="{{ ((d.stadt or '') ~ ' ' ~ (d.gebiet or '')) | lower }}"
           data-rolle="{{ d.rolle | lower }}"
+          data-sparte="{{ (d.kuenstler_sparte or '') | lower }}"
           data-dsgvo="{{ 'ja' if d.dsgvo_unterzeichnet else 'nein' }}"
           data-exp="{{ d.erfahrungspunkte or 0 }}"
           data-stadt="{{ (d.stadt or '') | lower }}">
@@ -96,7 +105,13 @@
           <div class="text-xs font-medium mt-0.5" style="color: var(--brand-primary);">{{ d.gebiet }}</div>
           {% endif %}
         </td>
-        <td class="px-5 py-3.5 text-gray-600">{{ d.rolle }}</td>
+        <td class="px-5 py-3.5 text-gray-600">
+          {{ d.rolle }}
+          {% if d.kuenstler_sparte %}
+          {% set icon = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'}.get(d.kuenstler_sparte, '') %}
+          <div class="text-xs text-gray-400 mt-0.5">{{ icon }} {{ d.kuenstler_sparte }}</div>
+          {% endif %}
+        </td>
         <td class="px-5 py-3.5 text-gray-500 text-xs">
           {% if d.stundensatz_teamer %}
           <div>T: {{ d.stundensatz_teamer | de_euro }} €/h</div>
@@ -156,6 +171,7 @@
 function filterTable() {
   const q = document.getElementById('dl-search').value.toLowerCase();
   const rolle = document.getElementById('dl-rolle').value.toLowerCase();
+  const sparte = document.getElementById('dl-sparte').value;
   const dsgvo = document.getElementById('dl-dsgvo').value;
   document.querySelectorAll('.dl-row').forEach(row => {
     const matchText = !q ||
@@ -163,8 +179,10 @@ function filterTable() {
       row.dataset.email.includes(q) ||
       row.dataset.ort.includes(q);
     const matchRolle = !rolle || row.dataset.rolle.includes(rolle);
+    const matchSparte = !sparte || row.dataset.sparte === sparte
+      || ((sparte === 'kinderschminke' || sparte === 'ballonkünstler') && row.dataset.sparte === 'schminke + ballon');
     const matchDsgvo = !dsgvo || row.dataset.dsgvo === dsgvo;
-    row.style.display = (matchText && matchRolle && matchDsgvo) ? '' : 'none';
+    row.style.display = (matchText && matchRolle && matchSparte && matchDsgvo) ? '' : 'none';
   });
 }
 function sortTable() {
@@ -184,6 +202,7 @@ function sortTable() {
 function clearFilter() {
   document.getElementById('dl-search').value = '';
   document.getElementById('dl-rolle').value = '';
+  document.getElementById('dl-sparte').value = '';
   document.getElementById('dl-dsgvo').value = '';
   document.getElementById('dl-sort').value = 'name';
   filterTable();
