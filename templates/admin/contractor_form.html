@@ -80,6 +80,15 @@
           </select>
         </div>
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Künstler-Sparte</label>
+          <select name="kuenstler_sparte" title="Nur bei Künstlern – bei reinen Teamern leer lassen" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+            <option value="" {% if not d or not d.kuenstler_sparte %}selected{% endif %}>– keine –</option>
+            {% for s, icon in [('Kinderschminke', '🐱'), ('Ballonkünstler', '🎈'), ('Schminke + Ballon', '🎈🐱'), ('Sonstiges', '🎭')] %}
+            <option value="{{ s }}" {% if d and d.kuenstler_sparte == s %}selected{% endif %}>{{ icon }} {{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Mobilität</label>
           <select name="mobilitaet" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
             {% for m in ['Auto', 'ÖPNV', 'Beides'] %}
@@ -93,8 +102,8 @@
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Qualität <span class="text-gray-400 font-normal">(Empfehlungs-Ranking)</span></label>
-          <select name="qualitaet" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Qualität</label>
+          <select name="qualitaet" title="Fließt ins Empfehlungs-Ranking ein" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
             <option value="" {% if not d or not d.qualitaet %}selected{% endif %}>– nicht bewertet –</option>
             {% for s in [5, 4, 3, 2, 1] %}
             <option value="{{ s }}" {% if d and d.qualitaet == s %}selected{% endif %}>{{ '⭐' * s }} ({{ s }})</option>

@@ -16,7 +16,7 @@ import secrets
 from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
 from config import get_config
-from distance import rank_contractors, get_coords_for_plz, get_coords_for_address
+from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
 from email_service import send_verfuegbarkeitsanfrage, send_briefing
 from choices import ZEITEN, de_date, de_month, de_euro
 
@@ -340,17 +340,21 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         Verfuegbarkeitsanfrage.dienstleister_id).all()
     lange_her_ids = {did for did, last in letzte if last and last < grenze}
 
-    # Kartendaten (Leaflet/OpenStreetMap)
+    # Kartendaten (Leaflet/OpenStreetMap) – Verortung: PLZ → PLZ in Straße → Stadtname
     event_coords = get_coords_for_address(ev.veranstaltungsort)
     karte_dienstleister = []
+    karte_ohne_standort = []
     for d in active:
-        c = get_coords_for_plz(d.plz or "")
+        c = get_coords_for_dienstleister(d)
         if c:
             karte_dienstleister.append({
                 "name": f"{d.vorname} {d.nachname}", "lat": c[0], "lon": c[1],
-                "rolle": d.rolle, "logistiker": bool(d.logistiker), "stadt": d.stadt or "",
+                "rolle": d.rolle, "sparte": d.kuenstler_sparte or "", "logistiker": bool(d.logistiker),
+                "stadt": d.stadt or "",
                 "distanz": round(getattr(d, "rang_distanz_km", None)) if getattr(d, "rang_distanz_km", None) is not None else None,
             })
+        else:
+            karte_ohne_standort.append(f"{d.vorname} {d.nachname}")
     karte_data = {
         "event": list(event_coords) if event_coords else None,
         "ort": ev.veranstaltungsort or "",
@@ -381,7 +385,8 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
                     ab_urls=ab_urls, logistiker_warnung=logistiker_warnung,
                     sperrzeit_map=sperrzeit_map, lange_her_ids=lange_her_ids,
-                    karte_data=karte_data, needs_material=needs_material))
+                    karte_data=karte_data, karte_ohne_standort=karte_ohne_standort,
+                    needs_material=needs_material))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
@@ -652,7 +657,7 @@ def dienstleister_export(db: Session = Depends(get_db), _=Depends(get_admin_user
     w = csv.writer(out, delimiter=";")
     w.writerow([
         "Vorname", "Nachname", "E-Mail", "Telefon", "Straße", "PLZ", "Stadt",
-        "Rolle", "Erfahrungspunkte", "Mobilität", "Kleidergröße", "Gebiet",
+        "Rolle", "Künstler-Sparte", "Erfahrungspunkte", "Mobilität", "Kleidergröße", "Gebiet",
         "Verfügbarkeit", "Vertragstyp", "Stundensatz Teamer", "Stundensatz Künstler",
         "DSGVO", "Logistiker", "Führerschein", "Website", "Aktiv", "Notizen",
     ])
@@ -662,6 +667,7 @@ def dienstleister_export(db: Session = Depends(get_db), _=Depends(get_admin_user
         w.writerow([
             d.vorname or "", d.nachname or "", d.email or "", d.telefon or "",
             d.strasse or "", d.plz or "", d.stadt or "", d.rolle or "",
+            d.kuenstler_sparte or "",
             d.erfahrungspunkte or 0, d.mobilitaet or "", d.kleidergroesse or "",
             d.gebiet or "", d.verfuegbarkeit or "", d.vertragstyp or "",
             euro(d.stundensatz_teamer), euro(d.stundensatz_kuenstler),
@@ -688,7 +694,8 @@ def dienstleister_create(
     vorname: str = Form(...), nachname: str = Form(...),
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
-    rolle: str = Form("Teamer"), erfahrungspunkte: int = Form(0),
+    rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
+    erfahrungspunkte: int = Form(0),
     qualitaet: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
@@ -715,6 +722,7 @@ def dienstleister_create(
     d = Dienstleister(
         vorname=vorname, nachname=nachname, email=email, telefon=telefon,
         strasse=strasse, plz=plz, stadt=stadt, rolle=rolle,
+        kuenstler_sparte=kuenstler_sparte.strip() or None,
         erfahrungspunkte=erfahrungspunkte, qualitaet=_qual(qualitaet),
         mobilitaet=mobilitaet,
         kleidergroesse=kleidergroesse, aktiv=aktiv, logistiker=logistiker,
@@ -753,7 +761,8 @@ def dienstleister_update(
     vorname: str = Form(...), nachname: str = Form(...),
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
-    rolle: str = Form("Teamer"), erfahrungspunkte: int = Form(0),
+    rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
+    erfahrungspunkte: int = Form(0),
     qualitaet: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
@@ -773,7 +782,8 @@ def dienstleister_update(
 
     d.vorname = vorname; d.nachname = nachname; d.email = email
     d.telefon = telefon; d.strasse = strasse; d.plz = plz; d.stadt = stadt
-    d.rolle = rolle; d.erfahrungspunkte = erfahrungspunkte
+    d.rolle = rolle; d.kuenstler_sparte = kuenstler_sparte.strip() or None
+    d.erfahrungspunkte = erfahrungspunkte
     d.qualitaet = int(qualitaet) if qualitaet.strip() in ("1", "2", "3", "4", "5") else None
     d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse
     d.aktiv = aktiv; d.logistiker = logistiker; d.fuehrerschein = fuehrerschein
