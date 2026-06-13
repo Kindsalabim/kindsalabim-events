@@ -1,10 +1,28 @@
 import base64
 import json
+import re
 import urllib.request
 import urllib.error
+from html import unescape
 from datetime import datetime
 from config import get_config
 from choices import de_date
+
+
+def _html_to_text(html: str) -> str:
+    """Erzeugt eine lesbare Plain-Text-Version aus dem Mail-HTML. Ein Text-Teil
+    neben dem HTML verbessert die Zustellbarkeit (multipart/alternative)."""
+    text = re.sub(r'(?is)<(style|script|head)[^>]*>.*?</\1>', '', html)
+    text = re.sub(r'(?is)<img[^>]*>', '', text)          # Inline-Logos etc. raus
+    text = re.sub(r'(?i)<br\s*/?>', '\n', text)
+    text = re.sub(r'(?i)</(p|div|tr|h[1-6]|li|table)>', '\n', text)
+    text = re.sub(r'(?i)</td>', '  ', text)              # Tabellenzelle -> Abstand
+    text = re.sub(r'(?s)<[^>]+>', '', text)              # restliche Tags
+    text = unescape(text)
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r' *\n *', '\n', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
 
 # Empfänger für den wöchentlichen CSV-Backup-Export
 BACKUP_EMPFAENGER = "a.malca@kindsalabim.de"
@@ -32,6 +50,7 @@ def _deliver(to: str, subject: str, html: str, attachments=None):
         "to": [to],
         "subject": subject,
         "html": html,
+        "text": _html_to_text(html),
     }
     if attachments:
         payload["attachments"] = [
