@@ -9,21 +9,24 @@
   {%- if s == 'Abgeschlossen' -%}
     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-abgeschlossen">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
+  {%- elif s == 'Abgesagt' -%}
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#fce7f3;color:#be185d;">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>{{ s }}</span>
   {%- elif s == 'Briefing gesendet' -%}
     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-briefing">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>{{ s }}</span>
-  {%- elif s == 'Bestätigt' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-bestaetigt">
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
-  {%- elif s == 'Dienstleister angefragt' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-angefragt">
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.62 1.2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>{{ s }}</span>
   {%- elif s == 'Planung fertig' -%}
     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-planung-fertig">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
+  {%- elif s == 'Checkliste eingegangen' -%}
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-bestaetigt">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
+  {%- elif s in ('Dienstleister angefragt', 'Checkliste geschickt') -%}
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-angefragt">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.62 1.2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>{{ s }}</span>
   {%- else -%}
-    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-entwurf">
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Event eingepflegt</span>
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-bestaetigt">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
   {%- endif %}
 {% endmacro %}
 
@@ -36,40 +39,36 @@
   </a>
 </div>
 
-<!-- Stats -->
-{% set total     = (upcoming|length) + (past|length) %}
-{% set confirmed = upcoming|selectattr('status','equalto','Bestätigt')|list|length %}
-{% set dringend  = upcoming_data|selectattr('days_until','lt',14)|selectattr('days_until','ge',0)|list|length %}
-
+<!-- Aktions-Karten (klickbar = Filter; Reservierungen = eigener Bereich) -->
 <div class="grid grid-cols-4 gap-2 lg:gap-4 mb-8">
-  <div class="stat-card">
-    <div class="tile sky">{{ evt('einsatz', 32) }}</div>
+  <a href="/admin/reservierungen" class="stat-card" style="text-decoration:none;">
+    <div class="tile sky">{{ ic('clock', 28) }}</div>
     <div>
-      <p class="stat-num" style="color:var(--c-sky);">{{ total }}</p>
-      <p class="stat-label">Events gesamt</p>
+      <p class="stat-num" style="color:var(--c-sky);">{{ reservierungen_count }}</p>
+      <p class="stat-label">Reservierungen</p>
     </div>
-  </div>
-  <div class="stat-card">
-    <div class="tile sky">{{ evt('zeitplan', 32) }}</div>
+  </a>
+  <button type="button" class="stat-card filter-card" data-filter="pending" onclick="toggleFilter(this,'pending')">
+    <div class="tile amber">{{ ic('users', 28) }}</div>
     <div>
-      <p class="stat-num" style="color:var(--brand-primary);">{{ upcoming|length }}</p>
-      <p class="stat-label">Bevorstehend</p>
+      <p class="stat-num" style="color:var(--c-amber);">{{ offene_rueckmeldungen }}</p>
+      <p class="stat-label">Offene Rückmeldungen</p>
     </div>
-  </div>
-  <div class="stat-card">
+  </button>
+  <button type="button" class="stat-card filter-card" data-filter="checkliste" onclick="toggleFilter(this,'checkliste')">
     <div class="tile green">{{ evt('checkliste', 32) }}</div>
     <div>
-      <p class="stat-num" style="color:var(--c-green);">{{ confirmed }}</p>
-      <p class="stat-label">Bestätigt</p>
+      <p class="stat-num" style="color:var(--c-green);">{{ offene_checklisten }}</p>
+      <p class="stat-label">Offene Checklisten</p>
     </div>
-  </div>
-  <div class="stat-card">
-    <div class="tile {% if dringend > 0 %}coral{% else %}amber{% endif %}">{{ ic('alert', 26) }}</div>
+  </button>
+  <button type="button" class="stat-card filter-card" data-filter="urgent" onclick="toggleFilter(this,'urgent')">
+    <div class="tile {% if dringend_count > 0 %}coral{% else %}amber{% endif %}">{{ ic('alert', 26) }}</div>
     <div>
-      <p class="stat-num" style="color:{% if dringend > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ dringend }}</p>
+      <p class="stat-num" style="color:{% if dringend_count > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ dringend_count }}</p>
       <p class="stat-label">In 14 Tagen</p>
     </div>
-  </div>
+  </button>
 </div>
 
 <div class="grid lg:grid-cols-3 gap-7">
@@ -78,20 +77,24 @@
   <div class="lg:col-span-2">
     <div class="flex items-center gap-2.5 mb-4">
       <span class="section-head">Bevorstehend</span>
-      <span class="section-count">{{ upcoming|length }}</span>
+      <span class="section-count" id="event-count">{{ upcoming|length }}</span>
+      <button type="button" id="filter-reset" onclick="clearFilters()" class="hidden ml-auto text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors">✕ Filter zurücksetzen</button>
     </div>
 
     {% if upcoming_data %}
-    <div class="space-y-3">
+    <div class="space-y-3" id="event-list">
       {% for item in upcoming_data %}
       {% set ev    = item.ev %}
       {% set ft    = item.fehlende_teamer %}
       {% set fk    = item.fehlende_kuenstler %}
-      {% set urgent = item.days_until >= 0 and item.days_until <= 14 %}
+      {% set urgent = item.urgent %}
       {% set is_kf  = ev.marke == 'Knallfrosch' %}
 
       <a href="/admin/events/{{ ev.id }}"
-         class="event-card {% if urgent and (ft > 0 or fk > 0) %}border-red-200{% endif %}">
+         class="event-card event-row {% if urgent and (ft > 0 or fk > 0) %}border-red-200{% endif %}"
+         data-pending="{{ 1 if item.pending else 0 }}"
+         data-checkliste="{{ 1 if item.checkliste_offen else 0 }}"
+         data-urgent="{{ 1 if item.urgent else 0 }}">
 
         <!-- Datums-Badge mit Markenfarbe -->
         <div class="date-badge {% if is_kf %}date-badge-kf{% endif %}">
@@ -249,5 +252,38 @@
   </div>
 
 </div>
+
+<style>
+  .filter-card{cursor:pointer;text-align:left;}
+  .filter-card.filter-active{outline:2px solid var(--brand-primary);outline-offset:1px;}
+</style>
+<script>
+(function(){
+  var current = null;
+  window.toggleFilter = function(card, key){
+    if (current === key){ window.clearFilters(); return; }
+    current = key;
+    document.querySelectorAll('.filter-card').forEach(function(c){
+      c.classList.toggle('filter-active', c.dataset.filter === key);
+    });
+    var shown = 0;
+    document.querySelectorAll('.event-row').forEach(function(row){
+      var match = row.dataset[key] === '1';
+      row.style.display = match ? '' : 'none';
+      if (match) shown++;
+    });
+    var cnt = document.getElementById('event-count'); if (cnt) cnt.textContent = shown;
+    var rst = document.getElementById('filter-reset'); if (rst) rst.classList.remove('hidden');
+  };
+  window.clearFilters = function(){
+    current = null;
+    document.querySelectorAll('.filter-card').forEach(function(c){ c.classList.remove('filter-active'); });
+    var rows = document.querySelectorAll('.event-row');
+    rows.forEach(function(row){ row.style.display = ''; });
+    var cnt = document.getElementById('event-count'); if (cnt) cnt.textContent = rows.length;
+    var rst = document.getElementById('filter-reset'); if (rst) rst.classList.add('hidden');
+  };
+})();
+</script>
 
 {% endblock %}

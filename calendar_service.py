@@ -13,14 +13,15 @@ Format (mit Aykut abgestimmt):
 """
 import json
 import re
+from datetime import timedelta
 
 from config import get_config
 
 _SCOPES = ["https://www.googleapis.com/auth/calendar"]
 _BASE_URL = "https://kindsalabim-events.onrender.com"
 
-# Google colorId: 7=Peacock(blau) 8=Graphite(grau) 2=Sage(hellgrün) 10=Basil(dunkelgrün)
-_OFFENE_STATUS = {"Entwurf", "Dienstleister angefragt"}
+# Google colorId: 7=Peacock(blau) 8=Graphite(anthrazit) 4=Flamingo 10=Basil(dunkelgrün)
+# Events sind immer gebucht → blau/grün. Abgesagt → flamingo. Anthrazit ist Reservierungen vorbehalten.
 
 _svc = None  # gecachter Client (einmal bauen, danach wiederverwenden)
 
@@ -73,14 +74,16 @@ def _title(ev) -> str:
     stadt = _stadt(ev.veranstaltungsort)
     kontakt = (ev.kunde_kontakt or "").strip() or (ev.kunde_firma or "").strip()
     rest = ", ".join(p for p in [stadt, ev.anlass, kontakt] if p)
-    return f"(div.) {rest}".strip() if rest else "(div.)"
+    title = f"(div.) {rest}".strip() if rest else "(div.)"
+    if ev.status == "Abgesagt":
+        return f"ABGESAGT – {title}"
+    return title
 
 
 def _color_id(ev) -> str:
-    bestaetigt = ev.status not in _OFFENE_STATUS
-    if ev.marke == "Knallfrosch":
-        return "10" if bestaetigt else "2"
-    return "7" if bestaetigt else "8"
+    if ev.status == "Abgesagt":
+        return "4"  # Flamingo
+    return "10" if ev.marke == "Knallfrosch" else "7"  # Basil / Peacock – Events sind immer fest
 
 
 def _description(ev) -> str:
@@ -176,5 +179,57 @@ def sync_event_async(event_id):
             db.commit()
     except Exception as e:
         print(f"Kalender-Hintergrund-Sync fehlgeschlagen ({event_id}): {e}")
+    finally:
+        db.close()
+
+
+# ── Reservierungen (anthrazitfarbener Ganztags-Block) ───────────────────────────
+
+def _reservierung_body(r) -> dict:
+    stadt = _stadt(r.veranstaltungsort or "")
+    kunde = (r.kunde_kontakt or "").strip() or (r.kunde_firma or "").strip()
+    frist = f"Frist {r.frist.strftime('%d.%m.')}" if r.frist else "Reservierung"
+    teile = [p for p in [stadt, kunde] if p]
+    summary = f"RES ({frist}) – " + (", ".join(teile) if teile else "Reservierung")
+    lines = []
+    if r.kunde_firma:   lines.append(f"Kunde: {r.kunde_firma}")
+    if r.kunde_telefon: lines.append(f"Tel: {r.kunde_telefon}")
+    if r.kunde_email:   lines.append(f"Mail: {r.kunde_email}")
+    if r.frist:         lines.append(f"Rückmeldung bis: {r.frist.strftime('%d.%m.%Y')}")
+    if r.notiz:         lines.append(f"Notiz: {r.notiz}")
+    lines.append("")
+    lines.append("Unverbindliche Reservierung (Kindsalabim-App)")
+    return {
+        "summary": summary,
+        "location": r.veranstaltungsort or "",
+        "description": "\n".join(lines),
+        "colorId": "8",  # Anthrazit – nur für Reservierungen
+        "start": {"date": r.datum.isoformat()},
+        "end": {"date": (r.datum + timedelta(days=1)).isoformat()},
+    }
+
+
+def sync_reservierung_async(reservierung_id):
+    """Hintergrund-Sync für eine Reservierung – legt/aktualisiert den anthrazit-Block."""
+    from database import SessionLocal
+    from models import Reservierung
+    db = SessionLocal()
+    try:
+        r = db.query(Reservierung).filter(Reservierung.id == reservierung_id).first()
+        if not r or not r.datum:
+            return
+        svc = _service()
+        cid = _calendar_id(r)
+        if not svc or not cid:
+            return
+        body = _reservierung_body(r)
+        if r.kalender_event_id:
+            svc.events().update(calendarId=cid, eventId=r.kalender_event_id, body=body).execute()
+        else:
+            created = svc.events().insert(calendarId=cid, body=body).execute()
+            r.kalender_event_id = created.get("id")
+        db.commit()
+    except Exception as e:
+        print(f"Reservierungs-Sync fehlgeschlagen ({reservierung_id}): {e}")
     finally:
         db.close()

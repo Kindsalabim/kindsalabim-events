@@ -26,7 +26,7 @@ class Event(Base):
     teamkleidung = Column(Boolean, default=True)     # Legacy: kommt jetzt aus der Checkliste (cl_teamkleidung)
     material_mitnahme = Column(Boolean, default=False)  # Materialtransport nötig? steuert Logistik-Bedarf + 3-Wochen-Erinnerung
     material_bestellt = Column(Boolean, default=False)  # Material wurde bestellt – Bedingung für "Planung fertig"
-    status = Column(String, default="Entwurf")   # Entwurf, Bestätigt, Briefing gesendet, Abgeschlossen
+    status = Column(String, default="Gebucht")   # Gebucht → Dienstleister angefragt → Checkliste geschickt/eingegangen → Planung fertig → Briefing gesendet → Abgeschlossen · Abgesagt
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
     kunde_id = Column(Integer, ForeignKey("kunden.id"), nullable=True)  # CRM-Verknüpfung (optional)
@@ -101,6 +101,26 @@ class Dienstleister(Base):
 
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="dienstleister")
     sperrzeiten = relationship("DienstleisterSperrzeit", back_populates="dienstleister", cascade="all, delete-orphan")
+
+
+class Reservierung(Base):
+    """Unverbindlicher Termin-Hold vor der Buchung (eigener Bereich, getrennt von Events).
+    Wird per Klick zur Buchung (Event) umgewandelt oder freigegeben."""
+    __tablename__ = "reservierungen"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    datum             = Column(Date, nullable=False)     # angefragter Termin
+    anlass            = Column(String)
+    veranstaltungsort = Column(String)
+    kunde_firma       = Column(String, nullable=False)
+    kunde_kontakt     = Column(String)
+    kunde_telefon     = Column(String)
+    kunde_email       = Column(String)
+    marke             = Column(String, default="Kindsalabim")
+    frist             = Column(Date)                      # bis wann der Kunde sich melden muss
+    notiz             = Column(Text)
+    kalender_event_id = Column(String)                    # anthrazitfarbener Block im Google-Kalender
+    erstellt_am       = Column(String)
 
 
 class DienstleisterSperrzeit(Base):

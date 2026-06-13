@@ -113,6 +113,14 @@ def run_migrations():
     add_column("dienstleister", "onboarding_abgeschlossen", "BOOLEAN DEFAULT 0")
     add_column("events", "teamleiter_mail_gesendet", "BOOLEAN DEFAULT 0")
 
+    # Status-Modell vereinheitlicht: "Entwurf"/"Bestätigt" gibt es nicht mehr → "Gebucht".
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("UPDATE events SET status='Gebucht' WHERE status IN ('Entwurf','Bestätigt')"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
     # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
     def convert_date_column(table: str, col: str):
         """VARCHAR 'TT.MM.JJJJ' -> echter DATE-Typ. Idempotent & crash-sicher."""
