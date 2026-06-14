@@ -3,7 +3,7 @@
 
 {% set status_farben = {
   'lead':'#b07d1a','kontakt':'#3D7DBC','bedarf':'#0e7490',
-  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#9ca3af'} %}
+  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#6b7280'} %}
 
 {% block content %}
 <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
@@ -21,7 +21,7 @@
   <a href="/admin/crm/pipeline" class="px-4 py-1.5 text-sm font-semibold rounded-lg bg-white shadow-sm" style="color:var(--brand-primary);">Pipeline</a>
 </div>
 
-<p class="text-xs text-gray-400 mb-4 md:hidden">← Spalten horizontal wischen, Karten zum Verschieben gedrückt halten und ziehen.</p>
+<p class="text-xs text-gray-500 mb-4 md:hidden">← Spalten horizontal wischen, Karten zum Verschieben gedrückt halten und ziehen.</p>
 
 <div class="kanban-scroll flex gap-3 overflow-x-auto pb-4" style="scroll-snap-type:x mandatory;">
   {% for s in STATUS %}
@@ -29,7 +29,7 @@
     <div class="flex items-center gap-2 mb-2 px-1">
       <span class="w-2.5 h-2.5 rounded-full" style="background:{{ status_farben[s] }};"></span>
       <span class="text-xs font-bold uppercase tracking-wide text-gray-600">{{ STATUS_LABEL[s] }}</span>
-      <span class="text-xs text-gray-400 ml-auto">{{ spalten[s]|length }}</span>
+      <span class="text-xs text-gray-500 ml-auto">{{ spalten[s]|length }}</span>
     </div>
     <div class="kanban-drop rounded-xl p-2 min-h-[140px]" data-status="{{ s }}"
          style="background:#f8fafc;border:1px dashed #e5e7eb;">
@@ -40,13 +40,13 @@
                style="background:{{ status_farben[s] }}1a;color:{{ status_farben[s] }};">{{ k.firma[:1]|upper }}</div>
           <div class="min-w-0 flex-1">
             <div class="text-sm font-semibold text-gray-900 leading-snug truncate">{{ k.firma }}</div>
-            {% if k.ansprechpartner or k.ort %}<div class="text-xs text-gray-400 truncate">{{ k.ansprechpartner or k.ort }}</div>{% endif %}
+            {% if k.ansprechpartner or k.ort %}<div class="text-xs text-gray-500 truncate">{{ k.ansprechpartner or k.ort }}</div>{% endif %}
           </div>
         </div>
         {% if k.tags or counts.get(k.id) %}
         <div class="flex items-center gap-1 flex-wrap mt-2">
           {% for t in k.tags %}<span class="text-xs font-semibold px-1.5 py-0.5 rounded" style="background:{{ t.farbe }}1a;color:{{ t.farbe }};">#{{ t.name }}</span>{% endfor %}
-          {% if counts.get(k.id) %}<span class="text-xs text-gray-400 ml-auto">{{ counts.get(k.id) }} Event{{ 's' if counts.get(k.id) != 1 else '' }}</span>{% endif %}
+          {% if counts.get(k.id) %}<span class="text-xs text-gray-500 ml-auto">{{ counts.get(k.id) }} Event{{ 's' if counts.get(k.id) != 1 else '' }}</span>{% endif %}
         </div>
         {% endif %}
       </a>

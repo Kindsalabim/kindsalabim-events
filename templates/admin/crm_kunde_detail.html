@@ -3,13 +3,13 @@
 
 {% set status_farben = {
   'lead':'#b07d1a','kontakt':'#3D7DBC','bedarf':'#0e7490',
-  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#9ca3af'} %}
+  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#6b7280'} %}
 {% set sf = status_farben[kunde.pipeline_status] %}
 
 {% block content %}
 <div class="max-w-3xl">
 
-  <a href="/admin/crm" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+  <a href="/admin/crm" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-4 transition-colors">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     Kundenliste
   </a>
@@ -71,7 +71,7 @@
     </div>
   </div>
 
-  {% set prio_farben = {'hoch':'#c0473f','mittel':'#b07d1a','niedrig':'#9ca3af'} %}
+  {% set prio_farben = {'hoch':'#c0473f','mittel':'#b07d1a','niedrig':'#6b7280'} %}
 
   <!-- Wiedervorlagen -->
   <div id="wiedervorlagen" class="card p-6 mb-4">
@@ -105,12 +105,12 @@
           <div class="text-sm text-gray-800 font-medium">{{ w.titel }}</div>
           <div class="text-xs mt-0.5 flex items-center gap-2">
             <span class="font-semibold px-1.5 py-0.5 rounded" style="background:{{ prio_farben[w.prioritaet] }}1a;color:{{ prio_farben[w.prioritaet] }};">{{ PRIORITAET_LABEL[w.prioritaet] }}</span>
-            {% if w.faellig %}<span class="{% if ueberfaellig %}text-red-600 font-semibold{% else %}text-gray-400{% endif %}">{% if ueberfaellig %}überfällig · {% endif %}{{ w.faellig|de_date }}</span>{% else %}<span class="text-gray-300">ohne Datum</span>{% endif %}
+            {% if w.faellig %}<span class="{% if ueberfaellig %}text-red-600 font-semibold{% else %}text-gray-500{% endif %}">{% if ueberfaellig %}überfällig · {% endif %}{{ w.faellig|de_date }}</span>{% else %}<span class="text-gray-300">ohne Datum</span>{% endif %}
           </div>
         </div>
         <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage/{{ w.id }}/delete"
               onsubmit="return confirm('Wiedervorlage löschen?');">
-          <button type="submit" class="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0" title="Löschen">
+          <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors flex-shrink-0" title="Löschen">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
           </button>
         </form>
@@ -118,15 +118,15 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">Keine offenen Wiedervorlagen.</p>
+    <p class="text-sm text-gray-500">Keine offenen Wiedervorlagen.</p>
     {% endif %}
 
     {% if wv_erledigt %}
     <details class="mt-3">
-      <summary class="text-xs font-semibold text-gray-400 cursor-pointer hover:text-gray-600">{{ wv_erledigt|length }} erledigt</summary>
+      <summary class="text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-600">{{ wv_erledigt|length }} erledigt</summary>
       <div class="space-y-1.5 mt-2">
         {% for w in wv_erledigt %}
-        <div class="flex items-center gap-3 px-3 py-2 text-sm text-gray-400">
+        <div class="flex items-center gap-3 px-3 py-2 text-sm text-gray-500">
           <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage/{{ w.id }}/toggle">
             <button type="submit" title="Wieder öffnen" class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 block">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -134,7 +134,7 @@
           </form>
           <span class="line-through flex-1 min-w-0 truncate">{{ w.titel }}</span>
           <form method="post" action="/admin/crm/{{ kunde.id }}/wiedervorlage/{{ w.id }}/delete">
-            <button type="submit" class="text-gray-300 hover:text-red-500" title="Löschen">
+            <button type="submit" class="text-gray-300 hover:text-red-600" title="Löschen">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
             </button>
           </form>
@@ -177,10 +177,10 @@
         <div class="min-w-0 flex-1 pb-1 group">
           <div class="flex items-center gap-2">
             <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{{ AKTIVITAET_TYPEN.get(a.typ, a.typ) }}</span>
-            <span class="text-xs text-gray-400">{{ a.datum|de_date if a.datum else '' }}</span>
+            <span class="text-xs text-gray-500">{{ a.datum|de_date if a.datum else '' }}</span>
             <form method="post" action="/admin/crm/{{ kunde.id }}/aktivitaet/{{ a.id }}/delete" class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
                   onsubmit="return confirm('Eintrag löschen?');">
-              <button type="submit" class="text-gray-300 hover:text-red-500" title="Löschen">
+              <button type="submit" class="text-gray-300 hover:text-red-600" title="Löschen">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
               </button>
             </form>
@@ -191,7 +191,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">Noch keine Aktivitäten erfasst.</p>
+    <p class="text-sm text-gray-500">Noch keine Aktivitäten erfasst.</p>
     {% endif %}
   </div>
 
@@ -200,12 +200,12 @@
   <div class="card p-6 mb-4">
     <h2 class="section-head mb-4">Profil-Wissen</h2>
     <div class="space-y-3.5 text-sm">
-      {% if kunde.notizen %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Notizen</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.notizen }}</p></div>{% endif %}
-      {% if kunde.kommunikationsstil %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Kommunikationsstil</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.kommunikationsstil }}</p></div>{% endif %}
-      {% if kunde.besonderheiten %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Besonderheiten</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.besonderheiten }}</p></div>{% endif %}
+      {% if kunde.notizen %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Notizen</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.notizen }}</p></div>{% endif %}
+      {% if kunde.kommunikationsstil %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Kommunikationsstil</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.kommunikationsstil }}</p></div>{% endif %}
+      {% if kunde.besonderheiten %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Besonderheiten</div><p class="text-gray-700 whitespace-pre-line">{{ kunde.besonderheiten }}</p></div>{% endif %}
       <div class="flex flex-wrap gap-x-8 gap-y-3">
-        {% if kunde.bevorzugte_eventarten %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bevorzugte Eventarten</div><p class="text-gray-700">{{ kunde.bevorzugte_eventarten }}</p></div>{% endif %}
-        {% if kunde.typische_budgets %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Typische Budgets</div><p class="text-gray-700">{{ kunde.typische_budgets }}</p></div>{% endif %}
+        {% if kunde.bevorzugte_eventarten %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Bevorzugte Eventarten</div><p class="text-gray-700">{{ kunde.bevorzugte_eventarten }}</p></div>{% endif %}
+        {% if kunde.typische_budgets %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Typische Budgets</div><p class="text-gray-700">{{ kunde.typische_budgets }}</p></div>{% endif %}
       </div>
     </div>
   </div>
@@ -227,14 +227,14 @@
         </div>
         <div class="min-w-0 flex-1">
           <div class="font-semibold text-gray-900 text-sm truncate">{{ ev.anlass }}</div>
-          <div class="text-xs text-gray-400 truncate">{{ ev.datum.year if ev.datum else '' }} · {{ ev.veranstaltungsort }}</div>
+          <div class="text-xs text-gray-500 truncate">{{ ev.datum.year if ev.datum else '' }} · {{ ev.veranstaltungsort }}</div>
         </div>
-        <span class="text-xs text-gray-400 flex-shrink-0">{{ ev.status }}</span>
+        <span class="text-xs text-gray-500 flex-shrink-0">{{ ev.status }}</span>
       </a>
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">Noch keine Events mit diesem Kunden verknüpft.</p>
+    <p class="text-sm text-gray-500">Noch keine Events mit diesem Kunden verknüpft.</p>
     {% endif %}
   </div>
 
@@ -251,22 +251,22 @@
         <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 select-none list-none">
           <svg class="text-gray-300 transition-transform group-open:rotate-90 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
           <div class="min-w-0 flex-1">
-            <div class="font-semibold text-gray-900 text-sm">{{ ev.anlass }} <span class="font-normal text-gray-400">· {{ ev.datum|de_date if ev.datum else '' }}</span></div>
-            <div class="text-xs text-gray-400 truncate">{{ (ev.bericht_verlauf or 'Kein Verlauf hinterlegt')[:90] }}{% if ev.bericht_verlauf and ev.bericht_verlauf|length > 90 %}…{% endif %}</div>
+            <div class="font-semibold text-gray-900 text-sm">{{ ev.anlass }} <span class="font-normal text-gray-500">· {{ ev.datum|de_date if ev.datum else '' }}</span></div>
+            <div class="text-xs text-gray-500 truncate">{{ (ev.bericht_verlauf or 'Kein Verlauf hinterlegt')[:90] }}{% if ev.bericht_verlauf and ev.bericht_verlauf|length > 90 %}…{% endif %}</div>
           </div>
         </summary>
         <div class="px-4 pb-4 pt-1 space-y-3 text-sm border-t border-gray-100">
-          {% if ev.bericht_anzahl_kinder %}<div class="pt-3"><span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Anzahl Kinder:</span> <span class="text-gray-700">{{ ev.bericht_anzahl_kinder }}</span></div>{% endif %}
-          {% if ev.bericht_verlauf %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Verlauf</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_verlauf }}</p></div>{% endif %}
-          {% if ev.bericht_probleme %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Probleme</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_probleme }}</p></div>{% endif %}
-          {% if ev.bericht_kundenfeedback %}<div><div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Kundenfeedback</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_kundenfeedback }}</p></div>{% endif %}
-          <a href="/admin/events/{{ ev.id }}" class="inline-block text-xs font-semibold text-gray-400 hover:text-gray-600">→ Zum Event</a>
+          {% if ev.bericht_anzahl_kinder %}<div class="pt-3"><span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Anzahl Kinder:</span> <span class="text-gray-700">{{ ev.bericht_anzahl_kinder }}</span></div>{% endif %}
+          {% if ev.bericht_verlauf %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Verlauf</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_verlauf }}</p></div>{% endif %}
+          {% if ev.bericht_probleme %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Probleme</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_probleme }}</p></div>{% endif %}
+          {% if ev.bericht_kundenfeedback %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Kundenfeedback</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_kundenfeedback }}</p></div>{% endif %}
+          <a href="/admin/events/{{ ev.id }}" class="inline-block text-xs font-semibold text-gray-500 hover:text-gray-600">→ Zum Event</a>
         </div>
       </details>
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">Noch keine Eventberichte. Sie erscheinen hier automatisch, sobald ein Teamleiter nach einem Einsatz seinen Bericht einreicht.</p>
+    <p class="text-sm text-gray-500">Noch keine Eventberichte. Sie erscheinen hier automatisch, sobald ein Teamleiter nach einem Einsatz seinen Bericht einreicht.</p>
     {% endif %}
   </div>
 </div>

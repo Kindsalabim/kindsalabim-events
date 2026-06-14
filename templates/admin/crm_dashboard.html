@@ -3,8 +3,8 @@
 
 {% set status_farben = {
   'lead':'#b07d1a','kontakt':'#3D7DBC','bedarf':'#0e7490',
-  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#9ca3af'} %}
-{% set prio_farben = {'hoch':'#c0473f','mittel':'#b07d1a','niedrig':'#9ca3af'} %}
+  'angebot':'#5b21b6','gebucht':'#1f7a44','verloren':'#6b7280'} %}
+{% set prio_farben = {'hoch':'#c0473f','mittel':'#b07d1a','niedrig':'#6b7280'} %}
 
 {% block content %}
 <div class="max-w-5xl">
@@ -66,27 +66,27 @@
         <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ prio_farben[w.prioritaet] }};"></span>
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium text-gray-800 truncate">{{ w.titel }}</div>
-          <div class="text-xs text-gray-400 truncate">{{ w.kunde.firma }}</div>
+          <div class="text-xs text-gray-500 truncate">{{ w.kunde.firma }}</div>
         </div>
-        <span class="text-xs font-semibold flex-shrink-0 {% if ueberfaellig %}text-red-600{% else %}text-gray-400{% endif %}">
+        <span class="text-xs font-semibold flex-shrink-0 {% if ueberfaellig %}text-red-600{% else %}text-gray-500{% endif %}">
           {% if ueberfaellig %}überfällig{% else %}heute{% endif %} · {{ w.faellig|de_date }}
         </span>
       </a>
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">Keine fälligen Wiedervorlagen – alles im grünen Bereich. 🎉</p>
+    <p class="text-sm text-gray-500">Keine fälligen Wiedervorlagen – alles im grünen Bereich. 🎉</p>
     {% endif %}
 
     {% if wv_demnaechst %}
     <div class="mt-4 pt-4" style="border-top:1px solid var(--line);">
-      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Demnächst</p>
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Demnächst</p>
       <div class="space-y-1.5">
         {% for w in wv_demnaechst %}
         <a href="/admin/crm/{{ w.kunde_id }}#wiedervorlagen" class="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-sm">
           <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ prio_farben[w.prioritaet] }};"></span>
-          <span class="text-gray-700 truncate flex-1">{{ w.titel }} <span class="text-gray-400">· {{ w.kunde.firma }}</span></span>
-          <span class="text-xs text-gray-400 flex-shrink-0">{{ w.faellig|de_date }}</span>
+          <span class="text-gray-700 truncate flex-1">{{ w.titel }} <span class="text-gray-500">· {{ w.kunde.firma }}</span></span>
+          <span class="text-xs text-gray-500 flex-shrink-0">{{ w.faellig|de_date }}</span>
         </a>
         {% endfor %}
       </div>
@@ -105,7 +105,7 @@
           <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs" style="background:#5b21b61a;color:#5b21b6;">{{ k.firma[:1]|upper }}</div>
           <div class="min-w-0 flex-1">
             <div class="text-sm font-medium text-gray-800 truncate">{{ k.firma }}</div>
-            <div class="text-xs text-gray-400">
+            <div class="text-xs text-gray-500">
               {% set la = last_akt.get(k.id) %}
               {% if la %}letzter Kontakt vor {{ (heute - la).days }} Tagen{% else %}noch kein Kontakt erfasst{% endif %}
             </div>
@@ -114,13 +114,13 @@
         {% endfor %}
       </div>
       {% else %}
-      <p class="text-sm text-gray-400">Aktuell keine offenen Angebote.</p>
+      <p class="text-sm text-gray-500">Aktuell keine offenen Angebote.</p>
       {% endif %}
     </div>
 
     <!-- Kunden ohne Kontakt -->
     <div class="card p-6">
-      <h2 class="section-head mb-4">Lange kein Kontakt <span class="font-normal text-gray-400 text-sm">(30+ Tage)</span></h2>
+      <h2 class="section-head mb-4">Lange kein Kontakt <span class="font-normal text-gray-500 text-sm">(30+ Tage)</span></h2>
       {% if ohne_kontakt %}
       <div class="space-y-2">
         {% for k, la in ohne_kontakt %}
@@ -128,14 +128,14 @@
           <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs" style="background:{{ status_farben[k.pipeline_status] }}1a;color:{{ status_farben[k.pipeline_status] }};">{{ k.firma[:1]|upper }}</div>
           <div class="min-w-0 flex-1">
             <div class="text-sm font-medium text-gray-800 truncate">{{ k.firma }}</div>
-            <div class="text-xs text-gray-400">{% if la %}zuletzt {{ la|de_date }}{% else %}noch nie kontaktiert{% endif %}</div>
+            <div class="text-xs text-gray-500">{% if la %}zuletzt {{ la|de_date }}{% else %}noch nie kontaktiert{% endif %}</div>
           </div>
           <span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style="background:{{ status_farben[k.pipeline_status] }}1a;color:{{ status_farben[k.pipeline_status] }};">{{ STATUS_LABEL[k.pipeline_status] }}</span>
         </a>
         {% endfor %}
       </div>
       {% else %}
-      <p class="text-sm text-gray-400">Alle aktiven Kunden wurden kürzlich kontaktiert.</p>
+      <p class="text-sm text-gray-500">Alle aktiven Kunden wurden kürzlich kontaktiert.</p>
       {% endif %}
     </div>
   </div>
@@ -153,14 +153,14 @@
         </div>
         <a href="/admin/events/{{ ev.id }}" class="min-w-0 flex-1">
           <div class="text-sm font-semibold text-gray-900 truncate">{{ ev.anlass }}</div>
-          <div class="text-xs text-gray-400 truncate">{{ ev.kunde_firma }} · {{ ev.veranstaltungsort }}</div>
+          <div class="text-xs text-gray-500 truncate">{{ ev.kunde_firma }} · {{ ev.veranstaltungsort }}</div>
         </a>
-        {% if ev.kunde %}<a href="/admin/crm/{{ ev.kunde.id }}" class="text-xs font-semibold text-gray-400 hover:text-gray-600 flex-shrink-0">Profil →</a>{% endif %}
+        {% if ev.kunde %}<a href="/admin/crm/{{ ev.kunde.id }}" class="text-xs font-semibold text-gray-500 hover:text-gray-600 flex-shrink-0">Profil →</a>{% endif %}
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">Keine anstehenden Events.</p>
+    <p class="text-sm text-gray-500">Keine anstehenden Events.</p>
     {% endif %}
   </div>
 </div>

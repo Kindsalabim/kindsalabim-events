@@ -9,7 +9,7 @@
 
 <!-- Back + Header -->
 <div class="mb-6">
-  <a href="/admin/dashboard" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+  <a href="/admin/dashboard" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-4 transition-colors">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     Dashboard
   </a>
@@ -43,7 +43,7 @@
         </button>
       </form>
       <form method="post" action="/admin/events/{{ ev.id }}/delete" onsubmit="return confirm('Event „{{ ev.kunde_firma }}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
-        <button class="btn-secondary text-red-500 hover:text-red-700 hover:border-red-300">
+        <button class="btn-secondary text-red-600 hover:text-red-700 hover:border-red-300">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           Löschen
         </button>
@@ -111,22 +111,22 @@
     </div>
     <dl class="space-y-2.5 text-sm">
       <div class="flex gap-3">
-        <dt class="text-gray-400 w-28 shrink-0">Ort</dt>
+        <dt class="text-gray-500 w-28 shrink-0">Ort</dt>
         <dd class="text-gray-800">{{ ev.veranstaltungsort }}</dd>
       </div>
       <div class="flex gap-3">
-        <dt class="text-gray-400 w-28 shrink-0">Material-Mitnahme</dt>
+        <dt class="text-gray-500 w-28 shrink-0">Material-Mitnahme</dt>
         <dd class="text-gray-800">{{ 'Ja – Logistiker nötig' if ev.material_mitnahme else 'Nein' }}</dd>
       </div>
       {% if ev.material_mitnahme %}
       <div class="flex gap-3 items-center">
-        <dt class="text-gray-400 w-28 shrink-0">Material</dt>
+        <dt class="text-gray-500 w-28 shrink-0">Material</dt>
         <dd class="text-gray-800">
           {% if ev.material_bestellt %}
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ Bestellt</span>
             <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
               <input type="hidden" name="bestellt" value="0">
-              <button class="text-xs text-gray-400 hover:text-gray-600 ml-2 underline">rückgängig</button>
+              <button class="text-xs text-gray-500 hover:text-gray-600 ml-2 underline">rückgängig</button>
             </form>
           {% else %}
             <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
@@ -138,7 +138,7 @@
       </div>
       {% endif %}
     </dl>
-    <p class="text-xs text-gray-400 mt-3">Aufbau, Parkplatz, Indoor/Outdoor, Verpflegung &amp; Teamkleidung füllt der Kunde in der Checkliste aus – siehe Kunden-Angaben unten.</p>
+    <p class="text-xs text-gray-500 mt-3">Aufbau, Parkplatz, Indoor/Outdoor, Verpflegung &amp; Teamkleidung füllt der Kunde in der Checkliste aus – siehe Kunden-Angaben unten.</p>
   </div>
 
   <!-- Kunde -->
@@ -149,7 +149,7 @@
       </div>
       <h2 class="text-sm font-semibold text-gray-700">Kunde</h2>
       {% if ev.kunde %}
-      <a href="/admin/crm/{{ ev.kunde.id }}" class="ml-auto text-xs font-semibold text-gray-400 hover:text-gray-600 inline-flex items-center gap-1">
+      <a href="/admin/crm/{{ ev.kunde.id }}" class="ml-auto text-xs font-semibold text-gray-500 hover:text-gray-600 inline-flex items-center gap-1">
         Kundenprofil
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </a>
@@ -157,25 +157,25 @@
     </div>
     <dl class="space-y-2.5 text-sm">
       <div class="flex gap-3">
-        <dt class="text-gray-400 w-28 shrink-0">Firma</dt>
+        <dt class="text-gray-500 w-28 shrink-0">Firma</dt>
         <dd class="text-gray-900 font-medium">{{ ev.kunde_firma }}</dd>
       </div>
       <div class="flex gap-3">
-        <dt class="text-gray-400 w-28 shrink-0">Kontakt</dt>
+        <dt class="text-gray-500 w-28 shrink-0">Kontakt</dt>
         <dd class="text-gray-800">{{ ev.kunde_kontakt or '–' }}</dd>
       </div>
       <div class="flex gap-3">
-        <dt class="text-gray-400 w-28 shrink-0">Telefon</dt>
+        <dt class="text-gray-500 w-28 shrink-0">Telefon</dt>
         <dd class="text-gray-800">{{ ev.kunde_telefon or '–' }}</dd>
       </div>
       <div class="flex gap-3">
-        <dt class="text-gray-400 w-28 shrink-0">E-Mail</dt>
+        <dt class="text-gray-500 w-28 shrink-0">E-Mail</dt>
         <dd class="text-gray-800">{{ ev.kunde_email or '–' }}</dd>
       </div>
     </dl>
     {% if ev.produkte %}
     <div class="mt-4 pt-4" style="border-top: 1px solid #f3f4f6;">
-      <p class="text-xs text-gray-400 mb-2">Gebuchte Produkte</p>
+      <p class="text-xs text-gray-500 mb-2">Gebuchte Produkte</p>
       <div class="flex flex-wrap gap-1.5">
         {% for produkt in ev.produkte.split(',') %}
         <span class="text-xs px-2.5 py-1 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">{{ produkt.strip() }}</span>
@@ -191,7 +191,7 @@
 <div class="card p-5 mb-5">
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-sm font-semibold text-gray-700">Kunden-Angaben
-      <span class="ml-2 text-xs font-normal text-gray-400">eingereicht {{ ev.cl_eingereicht_am }}</span>
+      <span class="ml-2 text-xs font-normal text-gray-500">eingereicht {{ ev.cl_eingereicht_am }}</span>
     </h2>
     {% if ev.checklist_token %}
     <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Formular ansehen →</a>
@@ -199,7 +199,7 @@
   </div>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
     {% macro cl_row(label, val) %}
-    {% if val %}<div class="flex gap-3"><dt class="text-gray-400 w-40 shrink-0">{{ label }}</dt><dd class="text-gray-800">{{ val }}</dd></div>{% endif %}
+    {% if val %}<div class="flex gap-3"><dt class="text-gray-500 w-40 shrink-0">{{ label }}</dt><dd class="text-gray-800">{{ val }}</dd></div>{% endif %}
     {% endmacro %}
     {{ cl_row('Ansprechpartner', ev.cl_ansprechpartner_name) }}
     {{ cl_row('Mobil', ev.cl_ansprechpartner_mobil) }}
@@ -228,7 +228,7 @@
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-sm font-semibold text-gray-700">
       Team
-      <span class="ml-1.5 text-gray-400 font-normal">{{ ev.anzahl_teamer }} Teamer · {{ ev.anzahl_kuenstler }} Künstler benötigt</span>
+      <span class="ml-1.5 text-gray-500 font-normal">{{ ev.anzahl_teamer }} Teamer · {{ ev.anzahl_kuenstler }} Künstler benötigt</span>
     </h2>
   </div>
 
@@ -236,10 +236,10 @@
   <table class="w-full text-sm mb-5">
     <thead>
       <tr style="border-bottom: 1px solid #f3f4f6;">
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Name</th>
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Rolle</th>
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Rückmeldung</th>
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Frist</th>
+        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
+        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Rolle</th>
+        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Rückmeldung</th>
+        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Frist</th>
       </tr>
     </thead>
     <tbody>
@@ -270,7 +270,7 @@
         <td class="py-3 text-xs">
           {% if a.frist_datum %}
             {% if a.status == 'Ausstehend' %}
-              <span class="{% if a.frist_verlaengert %}text-blue-500{% else %}text-gray-400{% endif %}">
+              <span class="{% if a.frist_verlaengert %}text-blue-500{% else %}text-gray-500{% endif %}">
                 {{ a.frist_datum | de_date }}{% if a.frist_verlaengert %} ↗{% endif %}
               </span>
             {% else %}
@@ -311,7 +311,7 @@
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
       <style>.dl-emoji{font-size:18px;line-height:24px;text-align:center;background:transparent;border:none;}</style>
       <div>
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-xs text-gray-400">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-xs text-gray-500">
           <span class="font-medium text-gray-500">📍 Veranstaltungsort &amp; Dienstleister</span>
           <span><span style="color:#dc2626;">●</span> Event</span>
           <span><span style="color:#2563eb;">●</span> Teamer</span>
@@ -406,16 +406,16 @@
               class="mt-0.5 rounded border-gray-300" style="accent-color: var(--brand-primary);">
             <span class="min-w-0">
               <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.kuenstler_sparte %} {{ sparte_icons.get(d.kuenstler_sparte, '') }}{% endif %}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
-              <span class="block text-xs text-gray-400 mt-0.5">
+              <span class="block text-xs text-gray-500 mt-0.5">
                 {{ d.stadt or '–' }}{% if d.rang_distanz_km is not none %} · {{ d.rang_distanz_km|round(0)|int }} km{% endif %}{% if d.qualitaet %} · {{ '⭐' * d.qualitaet }}{% else %} · <span class="italic">nicht bewertet</span>{% endif %}
               </span>
-              {% if d.id in lange_her_ids and not gebucht and not sperrzeit %}<span class="block text-xs mt-0.5" style="color:#9ca3af;">🕒 länger nicht angefragt</span>{% endif %}
+              {% if d.id in lange_her_ids and not gebucht and not sperrzeit %}<span class="block text-xs mt-0.5" style="color:#6b7280;">🕒 länger nicht angefragt</span>{% endif %}
               {% if gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:var(--c-danger);">⚠ Bereits gebucht ({{ gebucht.startzeit }}–{{ gebucht.endzeit }} Uhr · {{ gebucht.kunde_firma }})</span>{% endif %}
               {% if sperrzeit and not gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#c2410c;">🚫 Nicht verfügbar{% if sperrzeit.grund %} ({{ sperrzeit.grund }}){% endif %}</span>{% endif %}
             </span>
             <span class="ml-auto shrink-0 text-right">
               <span class="inline-block text-xs font-semibold px-1.5 py-0.5 rounded" style="background: var(--brand-primary-light); color: var(--brand-primary);" title="Empfehlungs-Score (Entfernung, Qualität, Logistik, Erfahrung)">{{ d.rang_score }}</span>
-              {% if already %}<span class="block text-xs text-gray-400 mt-1">angefragt</span>{% endif %}
+              {% if already %}<span class="block text-xs text-gray-500 mt-1">angefragt</span>{% endif %}
             </span>
           </label>
           {% endfor %}
@@ -453,7 +453,7 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
     </div>
     <h2 class="text-sm font-semibold text-gray-700">Auftragsbestätigung</h2>
-    <span class="ml-1 text-xs text-gray-400">die bestätigte Buchung des Kunden</span>
+    <span class="ml-1 text-xs text-gray-500">die bestätigte Buchung des Kunden</span>
   </div>
 
   {% if ab_urls %}
@@ -472,7 +472,7 @@
       {% endif %}
       <form method="post" action="/admin/events/{{ ev.id }}/auftragsbestaetigung/{{ datei.id }}/delete"
             onsubmit="return confirm('Auftragsbestätigung löschen?')">
-        <button type="submit" class="text-gray-300 hover:text-red-500 transition-colors">
+        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </form>
@@ -480,7 +480,7 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="text-xs text-gray-400 mt-3 mb-3">Noch keine Auftragsbestätigung hinterlegt.</p>
+  <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Auftragsbestätigung hinterlegt.</p>
   {% endif %}
 
   <form method="post" action="/admin/events/{{ ev.id }}/auftragsbestaetigung" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
@@ -489,7 +489,7 @@
       {% if ab_urls %}Weitere hochladen{% else %}Auftragsbestätigung hochladen{% endif %}
       <input type="file" name="file" accept="image/*,application/pdf" class="hidden" onchange="this.closest('form').submit()">
     </label>
-    <span class="text-xs text-gray-400">PDF, JPG, PNG · max. 20 MB</span>
+    <span class="text-xs text-gray-500">PDF, JPG, PNG · max. 20 MB</span>
   </form>
 </div>
 
@@ -500,7 +500,7 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
     </div>
     <h2 class="text-sm font-semibold text-gray-700">Planungsdateien</h2>
-    <span class="ml-1 text-xs text-gray-400">werden als Anhang im Briefing mitgeschickt</span>
+    <span class="ml-1 text-xs text-gray-500">werden als Anhang im Briefing mitgeschickt</span>
   </div>
 
   {% if planungs_urls %}
@@ -519,7 +519,7 @@
       {% endif %}
       <form method="post" action="/admin/events/{{ ev.id }}/dateien/{{ datei.id }}/delete"
             onsubmit="return confirm('Datei löschen?')">
-        <button type="submit" class="text-gray-300 hover:text-red-500 transition-colors">
+        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </form>
@@ -534,7 +534,7 @@
       Datei hochladen
       <input type="file" name="file" accept="image/*,application/pdf" class="hidden" onchange="this.closest('form').submit()">
     </label>
-    <span class="text-xs text-gray-400">PDF, JPG, PNG · max. 20 MB</span>
+    <span class="text-xs text-gray-500">PDF, JPG, PNG · max. 20 MB</span>
   </form>
 </div>
 
@@ -553,14 +553,14 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
     <!-- Eventbericht -->
     <div>
-      <p class="text-xs text-gray-400 mb-2">Eventbericht <span class="text-gray-300">(Teamleiter)</span></p>
+      <p class="text-xs text-gray-500 mb-2">Eventbericht <span class="text-gray-300">(Teamleiter)</span></p>
       {% if ev.bericht_eingereicht_am %}
         <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3" style="background:var(--c-success-bg);color:var(--c-success);">✓ eingereicht {{ ev.bericht_eingereicht_am }}</span>
         <dl class="space-y-2 text-sm mt-1">
-          {% if ev.bericht_anzahl_kinder is not none %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Anzahl Kinder</dt><dd class="text-gray-800">{{ ev.bericht_anzahl_kinder }}</dd></div>{% endif %}
-          {% if ev.bericht_verlauf %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Verlauf</dt><dd class="text-gray-800">{{ ev.bericht_verlauf }}</dd></div>{% endif %}
-          {% if ev.bericht_probleme %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Besonderheiten</dt><dd class="text-gray-800">{{ ev.bericht_probleme }}</dd></div>{% endif %}
-          {% if ev.bericht_kundenfeedback %}<div class="flex gap-3"><dt class="text-gray-400 w-32 shrink-0">Kundenfeedback</dt><dd class="text-gray-800">{{ ev.bericht_kundenfeedback }}</dd></div>{% endif %}
+          {% if ev.bericht_anzahl_kinder is not none %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Anzahl Kinder</dt><dd class="text-gray-800">{{ ev.bericht_anzahl_kinder }}</dd></div>{% endif %}
+          {% if ev.bericht_verlauf %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Verlauf</dt><dd class="text-gray-800">{{ ev.bericht_verlauf }}</dd></div>{% endif %}
+          {% if ev.bericht_probleme %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Besonderheiten</dt><dd class="text-gray-800">{{ ev.bericht_probleme }}</dd></div>{% endif %}
+          {% if ev.bericht_kundenfeedback %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Kundenfeedback</dt><dd class="text-gray-800">{{ ev.bericht_kundenfeedback }}</dd></div>{% endif %}
         </dl>
       {% else %}
         <p class="text-sm text-gray-500">⏳ Offen – wird vom Teamleiter nach dem Event im Portal ausgefüllt.
@@ -570,12 +570,12 @@
 
     <!-- Rechnung -->
     <div>
-      <p class="text-xs text-gray-400 mb-2">Rechnung</p>
+      <p class="text-xs text-gray-500 mb-2">Rechnung</p>
       {% if ev.rechnung_gestellt %}
         <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ Rechnung gestellt</span>
         <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
           <input type="hidden" name="gestellt" value="0">
-          <button class="text-xs text-gray-400 hover:text-gray-600 ml-2 underline">rückgängig</button>
+          <button class="text-xs text-gray-500 hover:text-gray-600 ml-2 underline">rückgängig</button>
         </form>
       {% else %}
         <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">

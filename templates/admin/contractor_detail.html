@@ -5,7 +5,7 @@
 
 <!-- Back + Header -->
 <div class="mb-6">
-  <a href="/admin/dienstleister" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+  <a href="/admin/dienstleister" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-4 transition-colors">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     Dienstleister
   </a>
@@ -37,42 +37,42 @@
 
   <!-- Kontakt -->
   <div class="card p-6">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Kontakt</h2>
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Kontakt</h2>
     <dl class="space-y-3 text-sm">
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">E-Mail</dt><dd class="text-gray-800 text-right"><a href="mailto:{{ d.email }}" class="hover:underline">{{ d.email }}</a></dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Telefon</dt><dd class="text-gray-800 text-right">{{ d.telefon or '–' }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Adresse</dt><dd class="text-gray-800 text-right">{% if d.strasse %}{{ d.strasse }}<br>{% endif %}{{ d.plz or '' }} {{ d.stadt or '' }}{% if not d.strasse and not d.stadt %}–{% endif %}</dd></div>
-      {% if d.website %}<div class="flex justify-between gap-4"><dt class="text-gray-400">Website</dt><dd class="text-right"><a href="{{ d.website }}" target="_blank" class="hover:underline" style="color:var(--brand-primary);">{{ d.website }}</a></dd></div>{% endif %}
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">E-Mail</dt><dd class="text-gray-800 text-right"><a href="mailto:{{ d.email }}" class="hover:underline">{{ d.email }}</a></dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Telefon</dt><dd class="text-gray-800 text-right">{{ d.telefon or '–' }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Adresse</dt><dd class="text-gray-800 text-right">{% if d.strasse %}{{ d.strasse }}<br>{% endif %}{{ d.plz or '' }} {{ d.stadt or '' }}{% if not d.strasse and not d.stadt %}–{% endif %}</dd></div>
+      {% if d.website %}<div class="flex justify-between gap-4"><dt class="text-gray-500">Website</dt><dd class="text-right"><a href="{{ d.website }}" target="_blank" class="hover:underline" style="color:var(--brand-primary);">{{ d.website }}</a></dd></div>{% endif %}
     </dl>
   </div>
 
   <!-- Einsatz-Profil -->
   <div class="card p-6">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Einsatz-Profil</h2>
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Einsatz-Profil</h2>
     <dl class="space-y-3 text-sm">
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Rolle</dt><dd class="text-gray-800 text-right">{{ d.rolle }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Erfahrungspunkte</dt><dd class="text-gray-800 text-right font-medium">{{ d.erfahrungspunkte or 0 }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Mobilität</dt><dd class="text-gray-800 text-right">{{ d.mobilitaet or '–' }}{% if d.fuehrerschein %} · Führerschein{% endif %}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Gebiet</dt><dd class="text-gray-800 text-right">{{ d.gebiet or '–' }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Verfügbarkeit</dt><dd class="text-gray-800 text-right">{{ d.verfuegbarkeit or '–' }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Kleidergröße</dt><dd class="text-gray-800 text-right">{{ d.kleidergroesse or '–' }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Rolle</dt><dd class="text-gray-800 text-right">{{ d.rolle }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Erfahrungspunkte</dt><dd class="text-gray-800 text-right font-medium">{{ d.erfahrungspunkte or 0 }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Mobilität</dt><dd class="text-gray-800 text-right">{{ d.mobilitaet or '–' }}{% if d.fuehrerschein %} · Führerschein{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Gebiet</dt><dd class="text-gray-800 text-right">{{ d.gebiet or '–' }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Verfügbarkeit</dt><dd class="text-gray-800 text-right">{{ d.verfuegbarkeit or '–' }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Kleidergröße</dt><dd class="text-gray-800 text-right">{{ d.kleidergroesse or '–' }}</dd></div>
     </dl>
   </div>
 
   <!-- Konditionen & DSGVO -->
   <div class="card p-6">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Konditionen & DSGVO</h2>
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Konditionen & DSGVO</h2>
     <dl class="space-y-3 text-sm">
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Vertragstyp</dt><dd class="text-gray-800 text-right">{{ d.vertragstyp or '–' }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Stundensatz Teamer</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_teamer %}{{ d.stundensatz_teamer | de_euro }} €/h{% else %}–{% endif %}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">Stundensatz Künstler</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_kuenstler %}{{ d.stundensatz_kuenstler | de_euro }} €/h{% else %}–{% endif %}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-400">DSGVO unterzeichnet</dt><dd class="text-right">{% if d.dsgvo_unterzeichnet %}<span style="color:var(--brand-primary);">✓ ja</span>{% else %}<span class="text-gray-400">nein</span>{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Vertragstyp</dt><dd class="text-gray-800 text-right">{{ d.vertragstyp or '–' }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Stundensatz Teamer</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_teamer %}{{ d.stundensatz_teamer | de_euro }} €/h{% else %}–{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Stundensatz Künstler</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_kuenstler %}{{ d.stundensatz_kuenstler | de_euro }} €/h{% else %}–{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">DSGVO unterzeichnet</dt><dd class="text-right">{% if d.dsgvo_unterzeichnet %}<span style="color:var(--brand-primary);">✓ ja</span>{% else %}<span class="text-gray-500">nein</span>{% endif %}</dd></div>
     </dl>
   </div>
 
   <!-- Notizen -->
   <div class="card p-6">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Notizen</h2>
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Notizen</h2>
     <p class="text-sm text-gray-700 whitespace-pre-line">{{ d.notizen or '–' }}</p>
   </div>
 
@@ -80,14 +80,14 @@
 
 <!-- Anfrage-Historie -->
 <div class="card p-6 mt-5">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Anfrage-Historie ({{ anfragen | length }})</h2>
+  <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Anfrage-Historie ({{ anfragen | length }})</h2>
   {% if anfragen %}
   <div class="space-y-2">
     {% for a in anfragen %}
     <a href="/admin/events/{{ a.event.id }}" class="flex items-center justify-between gap-4 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors">
       <div class="min-w-0">
         <p class="text-sm font-medium text-gray-800 truncate">{{ a.event.kunde_firma }}</p>
-        <p class="text-xs text-gray-400">{{ a.event.datum | de_date }}{% if a.event.anlass %} · {{ a.event.anlass }}{% endif %}</p>
+        <p class="text-xs text-gray-500">{{ a.event.datum | de_date }}{% if a.event.anlass %} · {{ a.event.anlass }}{% endif %}</p>
       </div>
       <span class="text-xs font-medium px-2.5 py-1 rounded-full shrink-0
         {% if a.status == 'Ja' %}badge-status-bestaetigt
@@ -99,7 +99,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="text-sm text-gray-400">Noch keine Anfragen.</p>
+  <p class="text-sm text-gray-500">Noch keine Anfragen.</p>
   {% endif %}
 </div>
 
