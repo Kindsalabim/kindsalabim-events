@@ -38,6 +38,7 @@ def get_config():
             "GOOGLE_CALENDAR_CREDENTIALS": "google_calendar_credentials",
             "CALENDAR_ID_KINDSALABIM":     "calendar_id_kindsalabim",
             "CALENDAR_ID_KNALLFROSCH":     "calendar_id_knallfrosch",
+            "DEMO_MODE":                   "demo_mode",
         }
         for env_key, cfg_key in env_map.items():
             val = os.environ.get(env_key)
