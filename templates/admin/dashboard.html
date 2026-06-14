@@ -10,7 +10,7 @@
     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-abgeschlossen">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
   {%- elif s == 'Abgesagt' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#fce7f3;color:#be185d;">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#f1f5f9;color:#64748b;">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>{{ s }}</span>
   {%- elif s == 'Briefing gesendet' -%}
     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-briefing">
@@ -49,23 +49,23 @@
     </div>
   </a>
   <button type="button" class="stat-card filter-card" data-filter="pending" onclick="toggleFilter(this,'pending')">
-    <div class="tile amber">{{ ic('users', 28) }}</div>
+    <div class="tile sky">{{ ic('users', 28) }}</div>
     <div>
-      <p class="stat-num" style="color:var(--c-amber);">{{ offene_rueckmeldungen }}</p>
+      <p class="stat-num" style="color:var(--c-sky);">{{ offene_rueckmeldungen }}</p>
       <p class="stat-label">Offene Rückmeldungen</p>
     </div>
   </button>
   <button type="button" class="stat-card filter-card" data-filter="checkliste" onclick="toggleFilter(this,'checkliste')">
-    <div class="tile green">{{ evt('checkliste', 32) }}</div>
+    <div class="tile sky">{{ evt('checkliste', 32) }}</div>
     <div>
-      <p class="stat-num" style="color:var(--c-green);">{{ offene_checklisten }}</p>
+      <p class="stat-num" style="color:var(--c-sky);">{{ offene_checklisten }}</p>
       <p class="stat-label">Offene Checklisten</p>
     </div>
   </button>
   <button type="button" class="stat-card filter-card" data-filter="urgent" onclick="toggleFilter(this,'urgent')">
-    <div class="tile {% if dringend_count > 0 %}coral{% else %}amber{% endif %}">{{ ic('alert', 26) }}</div>
+    <div class="tile sky">{{ ic('alert', 26) }}</div>
     <div>
-      <p class="stat-num" style="color:{% if dringend_count > 0 %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ dringend_count }}</p>
+      <p class="stat-num" style="color:{% if dringend_count > 0 %}var(--c-coral){% else %}var(--c-sky){% endif %};">{{ dringend_count }}</p>
       <p class="stat-label">In 14 Tagen</p>
     </div>
   </button>
@@ -124,18 +124,18 @@
                   {% if fk > 0 %}{{ fk }} Künstler fehlt{% if fk != 1 %}en{% endif %}{% else %}{{ ev.anzahl_kuenstler }} Künstler ✓{% endif %}
                 </span>
                 {% if ev.material_mitnahme %}
-                <span class="text-xs flex items-center gap-1 text-purple-600">
+                <span class="text-xs flex items-center gap-1" style="color:var(--ink-4);">
                   {{ ic('box', 13) }} Material
                 </span>
                 {% endif %}
               </div>
             </div>
 
-            <!-- Countdown-Chip -->
+            <!-- Countdown-Chip (ruhig in Blau/Grau; harte Warnung = roter Rahmen + „fehlt") -->
             {% if item.days_until >= 0 and item.days_until <= 7 %}
-              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:var(--c-coral-bg);color:var(--c-coral);">in {{ item.days_until }} Tag{% if item.days_until != 1 %}en{% endif %}</span>
+              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:var(--c-sky-bg);color:var(--c-sky);">in {{ item.days_until }} Tag{% if item.days_until != 1 %}en{% endif %}</span>
             {% elif item.days_until >= 0 and item.days_until <= 14 %}
-              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:var(--c-amber-bg);color:var(--c-amber);">in {{ item.days_until }} Tagen</span>
+              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:#f1f5f9;color:#64748b;">in {{ item.days_until }} Tagen</span>
             {% endif %}
           </div>
         </div>
