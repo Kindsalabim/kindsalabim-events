@@ -245,6 +245,9 @@ app.include_router(crm_router)
 
 @app.get("/")
 def root():
+    # In der Demo direkt eingeloggt in die Admin-Ansicht starten (kein Login-Umweg)
+    if _demo_on():
+        return RedirectResponse("/demo/login/admin")
     return RedirectResponse("/admin/dashboard")
 
 
