@@ -5,7 +5,7 @@
 <div class="max-w-2xl">
 
   <div class="mb-6">
-    <a href="/admin/dienstleister" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-3 transition-colors">
+    <a href="/admin/dienstleister" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-3 transition-colors">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       Dienstleister
     </a>
@@ -137,7 +137,7 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1D4E89" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                 Logistiker · Materialabholung möglich
               </div>
-              <p class="text-xs text-gray-400 mt-0.5">Kann Material zum Event transportieren (Kastenwagen)</p>
+              <p class="text-xs text-gray-500 mt-0.5">Kann Material zum Event transportieren (Kastenwagen)</p>
             </div>
           </label>
         </div>
@@ -208,11 +208,11 @@
       <h2 class="text-sm font-semibold text-gray-700 pb-3 mb-4" style="border-bottom: 1px solid #f3f4f6;">Portal-Zugang</h2>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">
-          {% if d and d.password_hash %}Neues Passwort <span class="text-gray-400 font-normal">(leer lassen = unverändert)</span>{% else %}Passwort setzen{% endif %}
+          {% if d and d.password_hash %}Neues Passwort <span class="text-gray-500 font-normal">(leer lassen = unverändert)</span>{% else %}Passwort setzen{% endif %}
         </label>
         <input type="password" name="portal_passwort" autocomplete="new-password"
           class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring max-w-sm">
-        <p class="text-xs text-gray-400 mt-2">
+        <p class="text-xs text-gray-500 mt-2">
           Login-E-Mail: <span class="text-gray-600">{{ d.email if d else 'wird nach Speichern gesetzt' }}</span>
         </p>
       </div>
@@ -221,11 +221,11 @@
     <!-- Actions -->
     <div class="flex items-center gap-3 pt-1">
       <button type="submit" class="btn-primary px-6 py-2.5">Speichern</button>
-      <a href="/admin/dienstleister" class="text-sm text-gray-400 hover:text-gray-600 px-3 py-2 transition-colors">Abbrechen</a>
+      <a href="/admin/dienstleister" class="text-sm text-gray-500 hover:text-gray-600 px-3 py-2 transition-colors">Abbrechen</a>
       {% if d %}
       <form method="post" action="/admin/dienstleister/{{ d.id }}/delete" class="ml-auto"
             onsubmit="return confirm('Dienstleister wirklich löschen?')">
-        <button class="text-sm text-red-400 hover:text-red-600 transition-colors">Löschen</button>
+        <button class="text-sm text-red-600 hover:text-red-600 transition-colors">Löschen</button>
       </form>
       {% endif %}
     </div>

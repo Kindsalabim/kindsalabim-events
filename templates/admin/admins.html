@@ -21,8 +21,8 @@
   <table class="w-full text-sm">
     <thead>
       <tr style="border-bottom:1px solid #f3f4f6; background:#fafafa;">
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">E-Mail</th>
-        <th class="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Name</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">E-Mail</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
         <th class="px-5 py-3"></th>
       </tr>
     </thead>
@@ -37,7 +37,7 @@
         <td class="px-5 py-3.5 text-right">
           {% if a.email != me and admins|length > 1 %}
           <form method="post" action="/admin/admins/{{ a.id }}/delete" onsubmit="return confirm('Admin „{{ a.email }}“ entfernen?')">
-            <button class="text-xs text-red-400 hover:text-red-600 transition-colors">Entfernen</button>
+            <button class="text-xs text-red-600 hover:text-red-600 transition-colors">Entfernen</button>
           </form>
           {% else %}
           <span class="text-xs text-gray-300">geschützt</span>
@@ -64,7 +64,7 @@
       <label class="block text-sm font-medium text-gray-700 mb-1.5">Start-Passwort</label>
       <input type="password" name="password" required minlength="8" autocomplete="new-password"
         class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
-      <p class="text-xs text-gray-400 mt-1.5">Der neue Admin kann es später per „Passwort vergessen" selbst ändern.</p>
+      <p class="text-xs text-gray-500 mt-1.5">Der neue Admin kann es später per „Passwort vergessen" selbst ändern.</p>
     </div>
     <button type="submit" class="btn-primary">Admin anlegen</button>
   </form>

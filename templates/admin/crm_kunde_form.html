@@ -4,7 +4,7 @@
 <div class="max-w-3xl">
 
   <div class="mb-6">
-    <a href="{% if kunde %}/admin/crm/{{ kunde.id }}{% else %}/admin/crm{% endif %}" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-3 transition-colors">
+    <a href="{% if kunde %}/admin/crm/{{ kunde.id }}{% else %}/admin/crm{% endif %}" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-3 transition-colors">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       {% if kunde %}Zurück zum Profil{% else %}Kundenliste{% endif %}
     </a>
@@ -101,13 +101,13 @@
         <input type="text" name="tags" value="{{ kunde.tags|map(attribute='name')|join(', ') if kunde else '' }}"
           placeholder="z. B. Ferienprogramm, großes Budget, wiederkehrend"
           class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
-        <p class="text-xs text-gray-400 mt-1">Mehrere Tags mit Komma trennen – neue werden automatisch angelegt.</p>
+        <p class="text-xs text-gray-500 mt-1">Mehrere Tags mit Komma trennen – neue werden automatisch angelegt.</p>
       </div>
     </div>
 
     <!-- Profil-Wissen -->
     <div class="card p-6 space-y-4">
-      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Profil-Wissen <span class="font-normal text-gray-400">(optional – das „Kundengedächtnis")</span></h2>
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Profil-Wissen <span class="font-normal text-gray-500">(optional – das „Kundengedächtnis")</span></h2>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Interne Notizen</label>
         <textarea name="notizen" rows="3" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">{{ kunde.notizen or '' if kunde else '' }}</textarea>
@@ -140,7 +140,7 @@
       {% if kunde %}
       <button type="submit" formaction="/admin/crm/{{ kunde.id }}/delete" formnovalidate
         onclick="return confirm('Diesen Kunden löschen? Die verknüpften Events bleiben erhalten.');"
-        class="ml-auto text-sm font-semibold text-gray-400 hover:text-red-600 transition-colors">Löschen</button>
+        class="ml-auto text-sm font-semibold text-gray-500 hover:text-red-600 transition-colors">Löschen</button>
       {% endif %}
     </div>
   </form>

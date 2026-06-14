@@ -10,7 +10,7 @@
 {% endmacro %}
 
 <!-- Brotkrümel -->
-<div class="flex items-center gap-1.5 text-sm text-gray-400 mb-4 flex-wrap">
+<div class="flex items-center gap-1.5 text-sm text-gray-500 mb-4 flex-wrap">
   <a href="/admin/wissen" class="hover:text-gray-600 transition-colors">Wissensdatenbank</a>
   {% for p in pfad %}
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -28,7 +28,7 @@
     {% if aktuell %}
       <a href="/admin/wissen/{{ aktuell.id }}/edit" class="btn-secondary text-sm">Bearbeiten</a>
       <form method="post" action="/admin/wissen/{{ aktuell.id }}/delete" onsubmit="return confirm('„{{ aktuell.titel }}“ und alle Unterseiten löschen?')">
-        <button class="btn-secondary text-sm text-red-500 hover:text-red-700">Löschen</button>
+        <button class="btn-secondary text-sm text-red-600 hover:text-red-700">Löschen</button>
       </form>
     {% endif %}
     <a href="/admin/wissen/new{% if aktuell %}?parent={{ aktuell.id }}{% endif %}" class="btn-primary">
@@ -42,7 +42,7 @@
 <div class="flex justify-end mb-4">
   <form method="post" action="/admin/wissen/reimport"
         onsubmit="return confirm('Achtung: Alle Wissens-Seiten werden gelöscht und frisch aus dem Confluence-Export geladen. Deine manuellen Änderungen gehen verloren. Fortfahren?')">
-    <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors">↻ Aus Confluence neu laden (überschreibt alles)</button>
+    <button class="text-xs text-gray-500 hover:text-gray-600 transition-colors">↻ Aus Confluence neu laden (überschreibt alles)</button>
   </form>
 </div>
 {% endif %}
@@ -84,7 +84,7 @@
   <form method="post" action="/admin/wissen/import-seed" class="inline">
     <button class="btn-primary">Confluence-Inhalte importieren</button>
   </form>
-  <p class="text-xs text-gray-400 mt-3">Importiert die {{ '' }}Seiten aus dem HTML-Export (wissen_seed.json).</p>
+  <p class="text-xs text-gray-500 mt-3">Importiert die {{ '' }}Seiten aus dem HTML-Export (wissen_seed.json).</p>
 </div>
 {% endif %}
 

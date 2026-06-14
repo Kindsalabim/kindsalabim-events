@@ -76,12 +76,12 @@
               {{ sz.von_datum | de_date }} – {{ sz.bis_datum | de_date }}
             </p>
             {% if sz.grund %}
-            <p class="text-xs text-gray-400 mt-0.5">{{ sz.grund }}</p>
+            <p class="text-xs text-gray-500 mt-0.5">{{ sz.grund }}</p>
             {% endif %}
           </div>
           <form method="post" action="/portal/verfuegbarkeit/{{ sz.id }}/loeschen"
                 onsubmit="return confirm('Sperrzeit löschen?')">
-            <button type="submit" class="p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition"
+            <button type="submit" class="p-2 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition"
                     aria-label="Löschen">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             </button>
@@ -92,8 +92,8 @@
     </div>
     {% else %}
     <div class="card p-5 text-center">
-      <p class="text-sm text-gray-400">Noch keine Sperrzeiten eingetragen.</p>
-      <p class="text-xs text-gray-400 mt-1">Wenn du verfügbar bist, musst du nichts eintragen.</p>
+      <p class="text-sm text-gray-500">Noch keine Sperrzeiten eingetragen.</p>
+      <p class="text-xs text-gray-500 mt-1">Wenn du verfügbar bist, musst du nichts eintragen.</p>
     </div>
     {% endif %}
 

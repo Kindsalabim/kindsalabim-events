@@ -10,7 +10,7 @@
     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-abgeschlossen">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{{ s }}</span>
   {%- elif s == 'Abgesagt' -%}
-    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#f1f5f9;color:#64748b;">
+    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#f1f5f9;color:#475569;">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>{{ s }}</span>
   {%- elif s == 'Briefing gesendet' -%}
     <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full badge-status-briefing">
@@ -78,7 +78,7 @@
     <div class="flex items-center gap-2.5 mb-4">
       <span class="section-head">Bevorstehend</span>
       <span class="section-count" id="event-count">{{ upcoming|length }}</span>
-      <button type="button" id="filter-reset" onclick="clearFilters()" class="hidden ml-auto text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors">✕ Filter zurücksetzen</button>
+      <button type="button" id="filter-reset" onclick="clearFilters()" class="hidden ml-auto text-xs font-medium text-gray-500 hover:text-gray-600 transition-colors">✕ Filter zurücksetzen</button>
     </div>
 
     {% if upcoming_data %}
@@ -115,11 +115,11 @@
               <p class="text-xs mt-1" style="color:var(--ink-3);">{{ ev.veranstaltungsort }}{% if ev.anlass %} · {{ ev.anlass }}{% endif %}</p>
               <div class="flex items-center gap-3 mt-2 flex-wrap">
                 <span class="text-xs" style="color:var(--ink-4);">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</span>
-                <span class="text-xs flex items-center gap-1 {% if ft > 0 %}text-red-500 font-semibold{% endif %}" style="{% if ft == 0 %}color:var(--ink-4);{% endif %}">
+                <span class="text-xs flex items-center gap-1 {% if ft > 0 %}text-red-600 font-semibold{% endif %}" style="{% if ft == 0 %}color:var(--ink-4);{% endif %}">
                   {{ ic('users', 13) }}
                   {% if ft > 0 %}{{ ft }} Teamer fehlt{% if ft != 1 %}en{% endif %}{% else %}{{ ev.anzahl_teamer }} Teamer ✓{% endif %}
                 </span>
-                <span class="text-xs flex items-center gap-1 {% if fk > 0 %}text-red-500 font-semibold{% endif %}" style="{% if fk == 0 %}color:var(--ink-4);{% endif %}">
+                <span class="text-xs flex items-center gap-1 {% if fk > 0 %}text-red-600 font-semibold{% endif %}" style="{% if fk == 0 %}color:var(--ink-4);{% endif %}">
                   {{ ic('star', 13) }}
                   {% if fk > 0 %}{{ fk }} Künstler fehlt{% if fk != 1 %}en{% endif %}{% else %}{{ ev.anzahl_kuenstler }} Künstler ✓{% endif %}
                 </span>
@@ -135,7 +135,7 @@
             {% if item.days_until >= 0 and item.days_until <= 7 %}
               <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:var(--c-sky-bg);color:var(--c-sky);">in {{ item.days_until }} Tag{% if item.days_until != 1 %}en{% endif %}</span>
             {% elif item.days_until >= 0 and item.days_until <= 14 %}
-              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:#f1f5f9;color:#64748b;">in {{ item.days_until }} Tagen</span>
+              <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:#f1f5f9;color:#475569;">in {{ item.days_until }} Tagen</span>
             {% endif %}
           </div>
         </div>
