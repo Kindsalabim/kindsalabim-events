@@ -111,9 +111,9 @@
           {% if dl is not none %}
           <div class="mt-3">
             {% if dl < 0 %}
-              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:#fee2e2;color:#b91c1c;">Frist abgelaufen</span>
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">Frist abgelaufen</span>
             {% elif dl == 0 %}
-              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:#fee2e2;color:#b91c1c;">Läuft heute ab</span>
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">Läuft heute ab</span>
             {% elif dl == 1 %}
               <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);">Läuft morgen ab</span>
             {% else %}
@@ -215,7 +215,7 @@
                 style="border:1px solid var(--line); background:#f8fafc; color:var(--ink-1);"></textarea>
               <button type="submit"
                 class="w-full text-xs font-semibold py-2 rounded-lg transition"
-                style="background:#fee2e2;color:#b91c1c;">
+                style="background:var(--c-danger-bg);color:var(--c-danger);">
                 Absagen & Admin informieren
               </button>
             </form>
