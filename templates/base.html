@@ -433,6 +433,16 @@
   {% block head %}{% endblock %}
 </head>
 <body class="min-h-screen">
+{% if cfg.demo_mode %}
+<div style="background:var(--brand-primary);color:#fff;text-align:center;font-size:0.78rem;font-weight:600;padding:7px 12px;display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap;">
+  <span>🧪 DEMO-Umgebung · Testdaten zum Ausprobieren</span>
+  <a href="/demo/login/admin" style="color:#fff;text-decoration:underline;">Admin-Ansicht</a>
+  <a href="/demo/login/portal" style="color:#fff;text-decoration:underline;">Dienstleister-Portal</a>
+  <form method="post" action="/demo/reset" style="display:inline;" onsubmit="return confirm('Alle Demo-Daten auf den Ausgangsstand zurücksetzen?');">
+    <button type="submit" style="background:none;border:none;color:#fff;text-decoration:underline;font:inherit;cursor:pointer;padding:0;">↺ Daten zurücksetzen</button>
+  </form>
+</div>
+{% endif %}
 {% block body %}{% endblock %}
 </body>
 </html>

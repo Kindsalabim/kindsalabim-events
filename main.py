@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from database import engine, Base
+from database import engine, Base, SessionLocal
+from config import get_config
 from routes.admin import router as admin_router
 from routes.portal import router as portal_router
 from routes.checklist import router as checklist_router
@@ -222,6 +223,9 @@ async def lifespan(app: FastAPI):
     run_migrations()
     migrate_kunden()
     seed_admin()
+    if get_config().get("demo_mode"):
+        from seed_demo import seed_demo_data
+        seed_demo_data()  # seedt nur, wenn DB leer (frischer Start)
     yield
 
 app = FastAPI(title="Knallfrosch Events", lifespan=lifespan)
@@ -242,3 +246,57 @@ app.include_router(crm_router)
 @app.get("/")
 def root():
     return RedirectResponse("/admin/dashboard")
+
+
+# ── Demo-Umgebung (nur aktiv bei DEMO_MODE) ──────────────────────────────────────
+
+def _demo_on():
+    return bool(get_config().get("demo_mode"))
+
+
+@app.post("/demo/reset")
+def demo_reset():
+    """Setzt alle Demo-Daten auf den Ausgangsstand zurück."""
+    if not _demo_on():
+        raise HTTPException(404)
+    from seed_demo import seed_demo_data
+    seed_demo_data(reset=True)
+    return RedirectResponse("/admin/dashboard?demo_reset=1", status_code=303)
+
+
+@app.get("/demo/login/admin")
+def demo_login_admin():
+    """Ein-Klick-Login als Demo-Admin (kein Passwort nötig)."""
+    if not _demo_on():
+        raise HTTPException(404)
+    from auth import create_token, COOKIE_SECURE
+    from seed_demo import DEMO_ADMIN_EMAIL
+    token = create_token({"role": "admin", "email": DEMO_ADMIN_EMAIL})
+    resp = RedirectResponse("/admin/dashboard", status_code=303)
+    resp.set_cookie("admin_token", token, httponly=True, secure=COOKIE_SECURE,
+                    samesite="lax", max_age=60 * 60 * 8)
+    return resp
+
+
+@app.get("/demo/login/portal")
+def demo_login_portal():
+    """Ein-Klick-Login als Demo-Dienstleister (Portal-Perspektive)."""
+    if not _demo_on():
+        raise HTTPException(404)
+    from auth import create_token, COOKIE_SECURE
+    from seed_demo import DEMO_TEAMER_EMAIL, seed_demo_data
+    from models import Dienstleister
+    db = SessionLocal()
+    try:
+        d = db.query(Dienstleister).filter(Dienstleister.email == DEMO_TEAMER_EMAIL).first()
+        if not d:
+            seed_demo_data()
+            d = db.query(Dienstleister).filter(Dienstleister.email == DEMO_TEAMER_EMAIL).first()
+        did = d.id if d else 0
+    finally:
+        db.close()
+    token = create_token({"sub": str(did), "role": "dienstleister"}, expires_minutes=60 * 24 * 30)
+    resp = RedirectResponse("/portal", status_code=303)
+    resp.set_cookie("portal_token", token, httponly=True, secure=COOKIE_SECURE,
+                    samesite="lax", max_age=60 * 60 * 24 * 30)
+    return resp
