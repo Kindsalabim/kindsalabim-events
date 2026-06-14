@@ -5,7 +5,7 @@
 {% set tab = request.query_params.get('tab', 'board') %}
 
 {% macro wicht_badge(w) %}
-  {% set m = {'niedrig': ('#f3f4f6','#6b7280','Niedrig'), 'mittel': ('#dbeafe','#1d4ed8','Mittel'), 'hoch': ('#fef3c7','#b45309','Hoch'), 'kritisch': ('#fee2e2','#b91c1c','Kritisch')} %}
+  {% set m = {'niedrig': ('#f3f4f6','#6b7280','Niedrig'), 'mittel': ('#dbeafe','#1d4ed8','Mittel'), 'hoch': ('#fef3c7','#b45309','Hoch'), 'kritisch': ('var(--c-danger-bg)','var(--c-danger)','Kritisch')} %}
   {% set c = m.get(w, m['mittel']) %}
   <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:{{ c[0] }};color:{{ c[1] }};">{{ c[2] }}</span>
 {% endmacro %}
@@ -67,7 +67,7 @@
   <div class="card p-4 flex items-center justify-between gap-3">
     <div>
       <span class="font-medium text-gray-800">{{ s.name }}</span>
-      {% if s.status == 'aktiv' %}<span class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#dcfce7;color:#166534;">aktiv</span>
+      {% if s.status == 'aktiv' %}<span class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">aktiv</span>
       {% elif s.status == 'abgeschlossen' %}<span class="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">abgeschlossen</span>{% endif %}
       <div class="text-xs text-gray-400 mt-0.5">{{ s.start_datum | de_date }} – {{ s.end_datum | de_date }}</div>
     </div>

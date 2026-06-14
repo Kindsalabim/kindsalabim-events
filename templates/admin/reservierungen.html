@@ -104,7 +104,7 @@
     <div class="shrink-0 text-right">
       {% if r.frist %}
         {% if abgelaufen %}
-        <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-lg" style="background:#fee2e2;color:#b91c1c;">⚠ Frist abgelaufen<br>{{ r.frist | de_date }}</span>
+        <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-lg" style="background:var(--c-danger-bg);color:var(--c-danger);">⚠ Frist abgelaufen<br>{{ r.frist | de_date }}</span>
         {% else %}
         <span class="inline-block text-xs font-medium px-2.5 py-1 rounded-lg" style="background:var(--c-amber-bg);color:var(--c-amber);">Frist {{ r.frist | de_date }}</span>
         {% endif %}
