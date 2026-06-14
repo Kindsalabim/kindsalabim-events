@@ -21,7 +21,7 @@
     <!-- Card -->
     <div class="card p-7">
       {% if request.query_params.get('reset') == 'ok' %}
-      <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background:#dcfce7;color:#166534;">
+      <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background:var(--c-success-bg);color:var(--c-success);">
         ✓ Passwort geändert. Du kannst dich jetzt anmelden.
       </div>
       {% endif %}

@@ -6,7 +6,7 @@
 {% macro sicht_badge(s) %}
   {% if s == 'admin' %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:#ede9fe;color:#6d28d9;">Nur Admin</span>
   {% elif s == 'dienstleister' %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:#dbeafe;color:#1d4ed8;">Nur Dienstleister</span>
-  {% else %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:#dcfce7;color:#166534;">Beide</span>{% endif %}
+  {% else %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">Beide</span>{% endif %}
 {% endmacro %}
 
 <!-- Brotkrümel -->
@@ -48,13 +48,13 @@
 {% endif %}
 
 {% if request.query_params.get('import') == 'ok' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">✓ Confluence-Inhalte importiert. Alle Seiten stehen auf „Nur Admin" – gib die für Dienstleister relevanten frei.</div>
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Confluence-Inhalte importiert. Alle Seiten stehen auf „Nur Admin" – gib die für Dienstleister relevanten frei.</div>
 {% endif %}
 {% if request.query_params.get('fehler') == 'nicht_leer' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">Import abgebrochen: Es sind bereits Artikel vorhanden.</div>
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Import abgebrochen: Es sind bereits Artikel vorhanden.</div>
 {% endif %}
 {% if request.query_params.get('fehler') == 'kein_seed' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">Import abgebrochen: wissen_seed.json nicht gefunden.</div>
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Import abgebrochen: wissen_seed.json nicht gefunden.</div>
 {% endif %}
 
 <!-- Sichtbarkeit für aktuellen Knoten + Unterseiten setzen -->

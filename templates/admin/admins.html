@@ -9,13 +9,13 @@
 </div>
 
 {% if request.query_params.get('ok') == 'angelegt' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">✓ Admin angelegt.</div>{% endif %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Admin angelegt.</div>{% endif %}
 {% if request.query_params.get('ok') == 'geloescht' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">✓ Admin entfernt.</div>{% endif %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Admin entfernt.</div>{% endif %}
 {% if request.query_params.get('fehler') == 'vorhanden' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">Diese E-Mail ist bereits als Admin hinterlegt.</div>{% endif %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Diese E-Mail ist bereits als Admin hinterlegt.</div>{% endif %}
 {% if request.query_params.get('fehler') == 'geschuetzt' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">Du kannst dich nicht selbst und nicht den letzten Admin löschen.</div>{% endif %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Du kannst dich nicht selbst und nicht den letzten Admin löschen.</div>{% endif %}
 
 <div class="card overflow-hidden mb-6">
   <table class="w-full text-sm">

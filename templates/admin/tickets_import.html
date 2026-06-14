@@ -12,12 +12,12 @@
 </div>
 
 {% if ergebnis and ergebnis.get('importiert') is not none %}
-<div class="mb-5 px-4 py-3 rounded-xl text-sm font-medium" style="background:#dcfce7;color:#166534;">
+<div class="mb-5 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">
   ✓ {{ ergebnis.importiert }} Tickets importiert{% if ergebnis.uebersprungen %}, {{ ergebnis.uebersprungen }} übersprungen{% endif %}.
   <a href="/admin/tickets" class="underline ml-1">Zum Board →</a>
 </div>
 {% elif ergebnis and ergebnis.get('fehler') %}
-<div class="mb-5 px-4 py-3 rounded-xl text-sm font-medium" style="background:#fee2e2;color:#b91c1c;">{{ ergebnis.fehler }}</div>
+<div class="mb-5 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">{{ ergebnis.fehler }}</div>
 {% endif %}
 
 <div class="card p-6 max-w-lg">
