@@ -12,7 +12,8 @@ from datetime import date, datetime, timedelta
 from database import SessionLocal
 from models import (Event, Dienstleister, Verfuegbarkeitsanfrage, Reservierung,
                     Rechnung, Admin, Kunde, KundeAktivitaet, KundeWiedervorlage,
-                    EventDatei, DienstleisterSperrzeit, Wissensartikel)
+                    EventDatei, DienstleisterSperrzeit, Wissensartikel,
+                    Ticket, Sprint, TicketKategorie, TicketSubtask, TicketKommentar)
 from auth import hash_password
 
 DEMO_ADMIN_EMAIL = "demo@kindsalabim.de"
@@ -28,7 +29,8 @@ def _wipe(db):
     """Leert alle inhaltlichen Tabellen (SQLite in der Demo → keine FK-Probleme)."""
     for model in (Verfuegbarkeitsanfrage, EventDatei, DienstleisterSperrzeit,
                   Reservierung, Rechnung, KundeAktivitaet, KundeWiedervorlage,
-                  Event, Dienstleister, Kunde, Wissensartikel, Admin):
+                  Event, Dienstleister, Kunde, Wissensartikel,
+                  TicketSubtask, TicketKommentar, Ticket, Sprint, TicketKategorie, Admin):
         db.query(model).delete()
     db.commit()
 
@@ -256,6 +258,34 @@ def seed_demo_data(reset: bool = False):
             "<p>Diese Seite ist auf <strong>Sichtbarkeit „admin“</strong> gestellt und erscheint daher "
             "<em>nicht</em> im Dienstleister-Portal – so trennst du interne von geteilten Inhalten.</p>",
             sicht="admin", sort=4)
+
+        # ── Tickets & Sprints (Beispiel-Board) ──
+        kat_feat = TicketKategorie(name="Feature", farbe="#1D4E89")
+        kat_bug  = TicketKategorie(name="Bug", farbe="#c0473f")
+        kat_orga = TicketKategorie(name="Orga", farbe="#1f7a44")
+        for k in (kat_feat, kat_bug, kat_orga):
+            db.add(k)
+        db.flush()
+
+        sprint = Sprint(name="Sprint Juni", start_datum=t - timedelta(days=3),
+                        end_datum=t + timedelta(days=11), status="aktiv", erstellt_am=jetzt)
+        db.add(sprint); db.flush()
+
+        def ticket(titel, status, kat, wicht="mittel", aufwand="M", sprint_id=sprint.id,
+                   beschr="", reihen=0):
+            db.add(Ticket(titel=titel, beschreibung=beschr, kategorie_id=kat.id,
+                          wichtigkeit=wicht, aufwand=aufwand, status=status, sprint_id=sprint_id,
+                          reihenfolge=reihen, erstellt_am=jetzt, aktualisiert_am=jetzt))
+
+        ticket("Flyer für Sommerfest gestalten", "todo", kat_feat, "mittel", "M", reihen=1,
+               beschr="Design für die Stadtwerke-Aktion.")
+        ticket("Neue Ballonfarben bestellen", "todo", kat_orga, "niedrig", "S", reihen=2)
+        ticket("Website-Texte aktualisieren", "doing", kat_feat, "hoch", "L", reihen=1,
+               beschr="Angebotsseite überarbeiten.")
+        ticket("Schminkfarben-Set prüfen (Allergiehinweis)", "doing", kat_bug, "hoch", "S", reihen=2)
+        ticket("Team-Shirts nachbestellen", "done", kat_orga, "mittel", "M", reihen=1)
+        ticket("Idee: Treuerabatt für Stammkunden", "todo", kat_feat, "niedrig", "L",
+               sprint_id=None, reihen=1, beschr="Konzept für Wiederbucher (Backlog).")
 
         db.commit()
 
