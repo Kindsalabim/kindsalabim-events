@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta
 from database import SessionLocal
 from models import (Event, Dienstleister, Verfuegbarkeitsanfrage, Reservierung,
                     Rechnung, Admin, Kunde, KundeAktivitaet, KundeWiedervorlage,
-                    EventDatei, DienstleisterSperrzeit)
+                    EventDatei, DienstleisterSperrzeit, Wissensartikel)
 from auth import hash_password
 
 DEMO_ADMIN_EMAIL = "demo@kindsalabim.de"
@@ -28,7 +28,7 @@ def _wipe(db):
     """Leert alle inhaltlichen Tabellen (SQLite in der Demo → keine FK-Probleme)."""
     for model in (Verfuegbarkeitsanfrage, EventDatei, DienstleisterSperrzeit,
                   Reservierung, Rechnung, KundeAktivitaet, KundeWiedervorlage,
-                  Event, Dienstleister, Kunde, Admin):
+                  Event, Dienstleister, Kunde, Wissensartikel, Admin):
         db.query(model).delete()
     db.commit()
 
@@ -186,6 +186,76 @@ def seed_demo_data(reset: bool = False):
         db.add(Rechnung(datum=t - timedelta(days=1), kunde="Knallfrosch Stammkunde GmbH",
                         rgnr="RE-2026-003", brutto=2100.0, bezahlt=True, steuer_erledigt=False,
                         personalkosten=900.0, materialkosten=200.0))
+
+        # ── Wissensdatenbank (hierarchisch: Kategorie → Unterseiten, HTML-Inhalt) ──
+        def art(titel, inhalt, parent=None, sicht="beide", sort=0, veroeff=True):
+            a = Wissensartikel(titel=titel, inhalt=inhalt, sichtbarkeit=sicht,
+                               veroeffentlicht=veroeff, sortierung=sort,
+                               parent_id=parent.id if parent else None,
+                               erstellt_am=jetzt, aktualisiert_am=jetzt)
+            db.add(a); db.flush()
+            return a
+
+        k1 = art("Erste Schritte",
+                 "<p>Alles, was du für deinen Start im Team brauchst. Klick dich durch die Unterseiten.</p>", sort=1)
+        art("Willkommen im Team",
+            "<h2>Schön, dass du dabei bist!</h2>"
+            "<p>Wir sind <strong>Kindsalabim</strong> und <strong>Knallfrosch</strong> – wir bringen "
+            "Kinderaugen zum Leuchten. Damit am Eventtag alles rundläuft, haben wir hier die wichtigsten "
+            "Infos für dich gesammelt.</p>"
+            "<ul><li>Sei <strong>15 Minuten vor</strong> der vereinbarten Zeit da.</li>"
+            "<li>Trage <strong>Team-Kleidung</strong> (siehe „Orga &amp; Abrechnung“).</li>"
+            "<li>Bei Fragen vor Ort ist dein <strong>Teamleiter</strong> dein Ansprechpartner.</li></ul>",
+            parent=k1, sort=1)
+        art("Eine Anfrage beantworten",
+            "<h2>So sagst du zu oder ab</h2>"
+            "<p>Wenn wir dich für ein Event anfragen, bekommst du eine E-Mail mit einem Link zum Portal.</p>"
+            "<ol><li>Auf den Link klicken – du bist direkt eingeloggt.</li>"
+            "<li>Unter <em>Anfragen</em> das Event ansehen (Datum, Ort, Zeiten).</li>"
+            "<li>Mit <strong>Ja</strong> oder <strong>Nein</strong> antworten – fertig.</li></ol>"
+            "<p>Tipp: Trage deine <em>Sperrzeiten</em> (Urlaub o. Ä.) im Portal ein, dann fragen wir dich "
+            "an diesen Tagen gar nicht erst an.</p>",
+            parent=k1, sort=2)
+
+        k2 = art("Beim Einsatz",
+                 "<p>Praktisches Wissen für den Eventtag vor Ort.</p>", sort=2)
+        art("Ablauf vor Ort",
+            "<h2>Dein Tag im Überblick</h2>"
+            "<ol><li><strong>Ankommen &amp; melden</strong> beim Ansprechpartner des Kunden.</li>"
+            "<li><strong>Aufbau</strong> der Station (Tisch, Material, Deko).</li>"
+            "<li><strong>Aktion</strong> mit den Kindern – freundlich, geduldig, sicher.</li>"
+            "<li><strong>Abbau</strong> und Platz sauber hinterlassen.</li>"
+            "<li>Nach dem Event: kurzen <em>Eventbericht</em> im Portal ausfüllen.</li></ol>",
+            parent=k2, sort=1)
+        art("Kinderschminken: Hygiene-Basics",
+            "<h2>Sicher &amp; hygienisch schminken</h2>"
+            "<ul><li>Nur <strong>hautfreundliche</strong>, geprüfte Farben verwenden.</li>"
+            "<li>Pro Kind <strong>frisches Wasser</strong> und saubere Schwämmchen/Pinsel.</li>"
+            "<li>Bei sichtbaren Hautirritationen <strong>nicht schminken</strong>.</li>"
+            "<li>Eltern kurz fragen, ob Allergien bekannt sind.</li></ul>"
+            "<p>Material nachbestellen? Sag rechtzeitig im Büro Bescheid.</p>",
+            parent=k2, sort=2)
+
+        k3 = art("Orga & Abrechnung",
+                 "<p>Kleidung, Auftreten und wie du dein Honorar abrechnest.</p>", sort=3)
+        art("Team-Kleidung & Auftreten",
+            "<h2>Einheitliches, freundliches Auftreten</h2>"
+            "<p>Bitte das gestellte <strong>Team-Shirt</strong> tragen, dazu bequeme, saubere Hose und "
+            "geschlossene Schuhe. Wir sind Gäste beim Kunden – freundlich grüßen, Handy in der Tasche.</p>",
+            parent=k3, sort=1)
+        art("Stundenzettel & Abrechnung",
+            "<h2>So rechnest du ab</h2>"
+            "<p>Nach dem Einsatz trägst du deine <strong>Stunden</strong> ein. Die Abrechnung läuft pro "
+            "Monat. Bei Fragen zur Auszahlung wende dich ans Büro.</p>"
+            "<p><em>Hinweis: In der echten App ist hier eure interne Anleitung hinterlegt.</em></p>",
+            parent=k3, sort=2)
+
+        # Beispiel für eine nur intern (Admin) sichtbare Seite
+        art("Interne Notfall-Kontakte (nur Büro)",
+            "<h2>Nur für das Büro sichtbar</h2>"
+            "<p>Diese Seite ist auf <strong>Sichtbarkeit „admin“</strong> gestellt und erscheint daher "
+            "<em>nicht</em> im Dienstleister-Portal – so trennst du interne von geteilten Inhalten.</p>",
+            sicht="admin", sort=4)
 
         db.commit()
 
