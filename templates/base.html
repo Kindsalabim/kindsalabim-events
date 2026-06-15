@@ -432,14 +432,21 @@
   </style>
   {% block head %}{% endblock %}
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen{% if cfg.demo_mode %} demo{% endif %}">
 {% if cfg.demo_mode %}
-<div style="background:var(--brand-primary);color:#fff;text-align:center;font-size:0.78rem;font-weight:600;padding:7px 12px;display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap;">
-  <span>🧪 DEMO-Umgebung · Testdaten zum Ausprobieren</span>
-  <a href="/demo/login/admin" style="color:#fff;text-decoration:underline;">Admin-Ansicht</a>
-  <a href="/demo/login/portal" style="color:#fff;text-decoration:underline;">Dienstleister-Portal</a>
-  <form method="post" action="/demo/reset" style="display:inline;" onsubmit="return confirm('Alle Demo-Daten auf den Ausgangsstand zurücksetzen?');">
-    <button type="submit" style="background:none;border:none;color:#fff;text-decoration:underline;font:inherit;cursor:pointer;padding:0;">↺ Daten zurücksetzen</button>
+<style>
+  @media (max-width: 767px) {
+    /* Logo-Leiste auf dem Handy in den Fluss holen, damit das Demo-Banner darüber sichtbar bleibt */
+    body.demo #mobile-topbar { position: static !important; }
+    body.demo main.pt-14 { padding-top: 0 !important; }
+  }
+</style>
+<div class="demo-banner" style="background:var(--brand-primary);color:#fff;text-align:center;font-size:0.8rem;font-weight:600;padding:7px 12px;display:flex;gap:16px;justify-content:center;align-items:center;flex-wrap:wrap;">
+  <span>🧪 DEMO-Umgebung</span>
+  <a href="/demo/login/admin" style="color:#fff;text-decoration:underline;">Admin</a>
+  <a href="/demo/login/portal" style="color:#fff;text-decoration:underline;">Portal</a>
+  <form method="post" action="/demo/reset" style="display:inline;margin:0;" onsubmit="return confirm('Alle Demo-Daten auf den Ausgangsstand zurücksetzen?');">
+    <button type="submit" style="background:none;border:none;color:#fff;text-decoration:underline;font:inherit;cursor:pointer;padding:0;">↺ Zurücksetzen</button>
   </form>
 </div>
 {% endif %}
