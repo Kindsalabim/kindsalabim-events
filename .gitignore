@@ -12,7 +12,9 @@ Confluence Wissensdatenbank/
 
 # Lokale Helfer-Skripte (enthalten z.T. Secrets) – nie committen
 run_preview.py
+run_preview_demo.py
 upload_aktionen.py
 upload_blanko.py
 import_confluence.py
+import_buchhaltung.py
 kindsalabim_event_icons/
