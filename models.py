@@ -350,7 +350,8 @@ class BastelProdukt(Base):
     name            = Column(String, nullable=False)
     beschreibung    = Column(Text)                 # aus image:caption der Sitemap
     bild_url        = Column(String)               # Haupt-Produktbild
-    preis           = Column(Float)                # BR-Preis €, None = noch nicht geholt
+    preis           = Column(Float)                # BR-Preis € (pro Packung), None = noch nicht geholt
+    stueckzahl      = Column(Integer)              # Inhalt pro Packung (pack_size), None = unbekannt
     preis_stand     = Column(String)               # ISO-Datum des letzten Preis-Abrufs
     kategorie       = Column(String)
     lastmod         = Column(String)               # aus Sitemap
@@ -368,8 +369,9 @@ class Bastelvorschlag(Base):
     name        = Column(String, nullable=False)
     url         = Column(String)
     bild_url    = Column(String)
-    br_preis    = Column(Float)
-    kundenpreis = Column(Float)
+    br_preis    = Column(Float)        # BR-Preis pro Packung
+    stueckzahl  = Column(Integer)      # Inhalt pro Packung
+    kundenpreis = Column(Float)        # Kundenpreis pro Stück = (br_preis/stueckzahl) × Faktor
     begruendung = Column(Text)
     erstellt_am = Column(String)
 

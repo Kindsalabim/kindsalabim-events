@@ -19,12 +19,31 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as rl_canvas
 
+import httpx
+from fastapi import Depends
+from sqlalchemy.orm import Session
 from auth import get_admin_user
 from config import get_config
+from database import get_db
+from models import Event
 from routes.fotos import _r2_client
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
+
+_IMG_UA = "KindsalabimKatalog/1.0 (+https://kindsalabim-events.onrender.com)"
+
+
+def _fetch_image_url(url: str) -> bytes | None:
+    """Lädt ein Produktbild (nur Baker-Ross) für die Einbettung ins PDF."""
+    if not url or not url.startswith("https://www.bakerross.de/"):
+        return None
+    try:
+        r = httpx.get(url, headers={"User-Agent": _IMG_UA}, timeout=20, follow_redirects=True)
+        r.raise_for_status()
+        return r.content
+    except Exception:
+        return None
 
 
 # ── Aktionen-Katalog ────────────────────────────────────────────────────────────
@@ -170,11 +189,25 @@ def _draw_foto(c, foto_bytes: bytes, x: float, y: float, w: float, h: float):
 # ── Routes ──────────────────────────────────────────────────────────────────────
 
 @router.get("/angebot", response_class=HTMLResponse)
-def angebot_form(request: Request, _=Depends(get_admin_user)):
+def angebot_form(request: Request, event_id: int = None,
+                 db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    # Bei Aufruf aus einem Event: Custom-Seiten aus den angedockten Bastelsets vorbefüllen.
+    prefill_pages, prefill_kundenname, prefill_marke = [], "", "Kindsalabim"
+    if event_id:
+        ev = db.query(Event).filter(Event.id == event_id).first()
+        if ev:
+            prefill_kundenname = ev.kunde_firma or ""
+            prefill_marke = ev.marke or "Kindsalabim"
+            for v in ev.bastelvorschlaege:
+                if v.bild_url:
+                    prefill_pages.append({"titel": v.name, "bild_url": v.bild_url})
     return templates.TemplateResponse("admin/angebot.html", {
         "request": request,
         "aktionen": AKTIONEN,
         "cfg": get_config(),
+        "prefill_pages": prefill_pages,
+        "prefill_kundenname": prefill_kundenname,
+        "prefill_marke": prefill_marke,
     })
 
 
@@ -194,8 +227,23 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
     except Exception:
         foto_index = []
 
+    # custom_foto_urls: pro Custom-Seite eine Liste von Bild-URLs (vorbefüllt aus Event)
+    try:
+        custom_foto_urls = json.loads(form.get("custom_foto_urls", "[]"))
+    except Exception:
+        custom_foto_urls = []
+
     # Alle hochgeladenen Fotos lesen und nach Seite gruppieren
     foto_gruppen: dict[int, list[bytes]] = {}
+
+    # 1. Vorbefüllte Bilder per URL (Reihenfolge zuerst, damit sie oben stehen)
+    for page_idx, urls in enumerate(custom_foto_urls):
+        for u in (urls or []):
+            data = _fetch_image_url(u)
+            if data:
+                foto_gruppen.setdefault(page_idx, []).append(data)
+
+    # 2. Manuell hochgeladene Fotos
     all_uploads = form.getlist("custom_fotos")
     for i, upload in enumerate(all_uploads):
         if not hasattr(upload, "read"):

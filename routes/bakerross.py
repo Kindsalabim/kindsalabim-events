@@ -77,23 +77,50 @@ def suche(request: Request, query: str = Form(...), faktor: float = Form(None),
 
 
 @router.post("/an-event")
-def an_event(produkt_id: int = Form(...), event_id: int = Form(...),
-             faktor: float = Form(None), grund: str = Form(""),
-             db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def an_event(event_id: int = Form(...), name: str = Form(...), url: str = Form(""),
+             bild_url: str = Form(""), br_preis: float = Form(None),
+             stueckzahl: int = Form(None), faktor: float = Form(None),
+             grund: str = Form(""), db: Session = Depends(get_db),
+             _=Depends(get_admin_user)):
     ev = db.query(Event).filter(Event.id == event_id).first()
-    p = db.query(BastelProdukt).filter(BastelProdukt.id == produkt_id).first()
-    if not ev or not p:
+    if not ev:
         raise HTTPException(404)
     faktor = faktor or _faktor_default()
-    br_preis = br.ensure_price(db, p)
     db.add(Bastelvorschlag(
-        event_id=ev.id, name=p.name, url=p.url, bild_url=p.bild_url,
-        br_preis=br_preis, kundenpreis=br.compute_kundenpreis(br_preis, faktor),
+        event_id=ev.id, name=name.strip(), url=url.strip() or None,
+        bild_url=bild_url.strip() or None,
+        br_preis=br_preis, stueckzahl=stueckzahl,
+        kundenpreis=br.compute_kundenpreis(br_preis, faktor, stueckzahl),
         begruendung=(grund or "").strip() or None,
         erstellt_am=datetime.now().isoformat(timespec="seconds"),
     ))
     db.commit()
     return RedirectResponse(f"/admin/events/{ev.id}#bastel", status_code=303)
+
+
+@router.get("/bild")
+def bild_download(url: str, _=Depends(get_admin_user)):
+    """Lädt ein BR-Produktbild herunter (Proxy mit Download-Header, damit der
+    Klick zuverlässig speichert statt nur einen Tab zu öffnen)."""
+    import httpx
+    from urllib.parse import urlparse
+    from fastapi.responses import StreamingResponse
+    if not url.startswith("https://www.bakerross.de/"):
+        raise HTTPException(400, "Nur Baker-Ross-Bilder erlaubt")
+    try:
+        r = httpx.get(url, headers={"User-Agent": br.USER_AGENT}, timeout=20,
+                      follow_redirects=True)
+        r.raise_for_status()
+    except Exception:
+        raise HTTPException(502, "Bild konnte nicht geladen werden")
+    name = (urlparse(url).path.rsplit("/", 1)[-1] or "bastelset").split("?")[0]
+    if "." not in name:
+        name += ".jpg"
+    return StreamingResponse(
+        iter([r.content]),
+        media_type=r.headers.get("content-type", "image/jpeg"),
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
 
 
 @router.post("/vorschlag/{vid}/delete")

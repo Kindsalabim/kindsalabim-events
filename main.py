@@ -114,6 +114,8 @@ def run_migrations():
     add_column("events", "kalender_event_id", "VARCHAR")
     add_column("dienstleister", "onboarding_abgeschlossen", "BOOLEAN DEFAULT 0")
     add_column("events", "teamleiter_mail_gesendet", "BOOLEAN DEFAULT 0")
+    add_column("bastel_produkte", "stueckzahl", "INTEGER")
+    add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")
 
     # Status-Modell vereinheitlicht: "Entwurf"/"Bestätigt" gibt es nicht mehr → "Gebucht".
     with engine.connect() as conn:
