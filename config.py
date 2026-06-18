@@ -39,6 +39,8 @@ def get_config():
             "CALENDAR_ID_KINDSALABIM":     "calendar_id_kindsalabim",
             "CALENDAR_ID_KNALLFROSCH":     "calendar_id_knallfrosch",
             "DEMO_MODE":                   "demo_mode",
+            "ANTHROPIC_API_KEY":           "anthropic_api_key",
+            "BAKERROSS_MODEL":             "bakerross_model",
         }
         for env_key, cfg_key in env_map.items():
             val = os.environ.get(env_key)
