@@ -134,10 +134,20 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     # Teamleiter-Info-Mail an Kunden (1 Woche vorher)
     teamleiter_mails = _run_teamleiter_infos(db)
 
+    # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
+    katalog = "übersprungen"
+    if today.weekday() == 0:
+        try:
+            from ingest_bakerross import ingest_catalog
+            katalog = ingest_catalog(db)
+        except Exception as e:
+            katalog = f"fehlgeschlagen: {e}"
+
     return JSONResponse({"erinnerungen_gesendet": count, "material_erinnerungen": material_count,
                          "wiedervorlage_mails": wv_mails,
                          "einsatz_erinnerungen": einsatz["einsatz_erinnerungen_gesendet"],
                          "teamleiter_mails": teamleiter_mails,
+                         "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 
 

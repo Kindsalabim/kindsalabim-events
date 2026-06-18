@@ -1,0 +1,140 @@
+{% extends "admin_base.html" %}
+{% set active = 'bakerross' %}
+{% block title %}Baker-Ross-Recherche – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<!-- ── Header ── -->
+<div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
+  <h1 class="text-2xl font-bold" style="color:var(--ink-1);">Baker-Ross-Recherche</h1>
+</div>
+<p class="text-sm text-gray-500 mb-5">
+  Motto oder Saison eingeben → passende Bastelsets mit BR-Preis und kalkuliertem Kundenpreis.
+</p>
+
+{% if request.query_params.get('msg') %}
+<div class="card p-3 mb-5 text-sm" style="background:var(--c-green-bg);color:var(--c-green);">
+  {{ request.query_params.get('msg') }}
+</div>
+{% endif %}
+
+<!-- ── Katalog-Status ── -->
+<div class="card p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
+  <div class="text-sm text-gray-600">
+    <span class="font-semibold" style="color:var(--ink-1);">{{ status.gesamt }}</span> Bastelsets im Katalog
+    {% if status.stand %}<span class="text-gray-400">· Stand {{ status.stand|de_date }}</span>{% endif %}
+    {% if ki_an %}
+      <span class="ml-2 inline-block text-xs px-2 py-0.5 rounded-full" style="background:var(--c-green-bg);color:var(--c-green);">KI-Kuratierung aktiv</span>
+    {% else %}
+      <span class="ml-2 inline-block text-xs px-2 py-0.5 rounded-full" style="background:#f3f4f6;color:#6b7280;">Stichwort-Modus (kein API-Key)</span>
+    {% endif %}
+  </div>
+  <form method="post" action="/admin/bakerross/refresh"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Lädt Sitemap …';">
+    <button type="submit" class="btn-secondary text-sm px-4 py-2">Katalog aktualisieren</button>
+  </form>
+</div>
+
+<!-- ── Such-Formular ── -->
+<form method="post" action="/admin/bakerross/suche" class="card p-5 mb-6"
+      onsubmit="this.querySelector('button[type=submit]').disabled=true;this.querySelector('button[type=submit]').textContent='Suche läuft …';">
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="md:col-span-2">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Motto / Saison</label>
+      <input type="text" name="query" value="{{ query }}" required autofocus
+             placeholder="z. B. Herbst, Weihnachten, Dschungel, Einhorn …"
+             class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Aufschlag (× BR-Preis)</label>
+      <input type="number" name="faktor" step="0.1" min="1"
+             value="{{ '%.1f'|format(faktor if faktor else faktor_default) }}"
+             class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Anzahl Vorschläge</label>
+      <select name="max_results" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
+        <option value="8">8</option>
+        <option value="12" selected>12</option>
+        <option value="16">16</option>
+      </select>
+    </div>
+  </div>
+  <div class="mt-4">
+    <button type="submit" class="btn-primary text-sm px-5 py-2.5">Bastelsets finden</button>
+  </div>
+</form>
+
+{% if treffer is not none %}
+  <!-- ── Andock-Ziel (Event) ── -->
+  <div class="card p-4 mb-4 flex items-center gap-3 flex-wrap">
+    <label class="text-sm font-medium text-gray-700">Vorschläge andocken an Event:</label>
+    <select id="ziel-event" class="rounded-xl border border-gray-200 px-3 py-2 text-sm flex-1 min-w-[200px]">
+      <option value="">– kein Event –</option>
+      {% for e in events %}
+      <option value="{{ e.id }}" {% if event_id and e.id == event_id %}selected{% endif %}>
+        {{ e.datum|de_date }} · {{ e.anlass }} · {{ e.kunde_firma }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% if treffer|length == 0 %}
+  <div class="card p-6 text-center text-sm text-gray-500">
+    Keine passenden Bastelsets gefunden. Versuche ein anderes Stichwort
+    {% if not ki_an %}(oder hinterlege einen Anthropic-API-Key für die KI-Kuratierung){% endif %}.
+  </div>
+  {% else %}
+  <p class="text-sm text-gray-500 mb-3">{{ treffer|length }} Vorschläge für „{{ query }}":</p>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {% for t in treffer %}
+    {% set p = t.produkt %}
+    <div class="card p-0 overflow-hidden flex flex-col">
+      {% if p.bild_url %}
+      <a href="{{ p.url }}" target="_blank" rel="noopener" class="block bg-gray-50">
+        <img src="{{ p.bild_url }}" alt="{{ p.name }}" loading="lazy"
+             class="w-full h-44 object-contain">
+      </a>
+      {% endif %}
+      <div class="p-4 flex flex-col flex-1">
+        <a href="{{ p.url }}" target="_blank" rel="noopener"
+           class="text-sm font-semibold text-gray-800 hover:underline leading-snug">{{ p.name }}</a>
+        {% if t.grund %}
+        <p class="text-xs text-gray-500 mt-1 italic">{{ t.grund }}</p>
+        {% endif %}
+        <div class="mt-3 flex items-baseline gap-2">
+          {% if t.br_preis is not none %}
+          <span class="text-xs text-gray-400">BR {{ '%.2f'|format(t.br_preis) }} €</span>
+          <span class="text-base font-bold" style="color:var(--ink-1);">{{ '%.2f'|format(t.kundenpreis) }} €</span>
+          {% else %}
+          <span class="text-xs text-gray-400">Preis auf der Produktseite</span>
+          {% endif %}
+        </div>
+        <div class="mt-auto pt-3 flex items-center gap-2">
+          <form method="post" action="/admin/bakerross/an-event" class="flex-1"
+                onsubmit="return setZiel(this)">
+            <input type="hidden" name="produkt_id" value="{{ p.id }}">
+            <input type="hidden" name="faktor" value="{{ faktor if faktor else faktor_default }}">
+            <input type="hidden" name="grund" value="{{ t.grund }}">
+            <input type="hidden" name="event_id" value="">
+            <button type="submit" class="btn-secondary text-xs px-3 py-1.5 w-full">+ An Event hängen</button>
+          </form>
+          <a href="{{ p.url }}" target="_blank" rel="noopener"
+             class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5">BR ↗</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <script>
+    function setZiel(f){
+      var s = document.getElementById('ziel-event');
+      if(!s.value){ alert('Bitte oben ein Event auswählen, an das der Vorschlag angehängt werden soll.'); return false; }
+      f.event_id.value = s.value;
+      return true;
+    }
+  </script>
+{% endif %}
+
+{% endblock %}

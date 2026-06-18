@@ -15,6 +15,7 @@ from routes.angebot import router as angebot_router
 from routes.wissen import admin_router as wissen_admin_router, portal_router as wissen_portal_router
 from routes.tickets import router as tickets_router
 from routes.crm import router as crm_router
+from routes.bakerross import router as bakerross_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
@@ -242,6 +243,7 @@ app.include_router(wissen_admin_router)
 app.include_router(wissen_portal_router)
 app.include_router(tickets_router)
 app.include_router(crm_router)
+app.include_router(bakerross_router)
 
 @app.get("/")
 def root():

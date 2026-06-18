@@ -62,6 +62,7 @@ class Event(Base):
     kunde = relationship("Kunde", back_populates="events", foreign_keys=[kunde_id])
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="event", cascade="all, delete-orphan")
     dateien  = relationship("EventDatei", back_populates="event", cascade="all, delete-orphan")
+    bastelvorschlaege = relationship("Bastelvorschlag", cascade="all, delete-orphan")
 
 
 class Dienstleister(Base):
@@ -334,6 +335,43 @@ class Kunde(Base):
     wiedervorlagen = relationship("KundeWiedervorlage", back_populates="kunde",
                                   cascade="all, delete-orphan",
                                   order_by="KundeWiedervorlage.faellig")
+
+
+# ── Baker-Ross-Recherche (Bastelset-Katalog + KI-Kuratierung) ────────────────
+
+class BastelProdukt(Base):
+    """Lokaler Spiegel eines Baker-Ross-Bastelsets (aus der offiziellen Sitemap).
+    Preis wird erst bei Bedarf (für kuratierte Treffer) von der Produktseite nachgeladen.
+    Robots-konform: Quelle ist die freigegebene Sitemap, kein KI-Live-Scraping."""
+    __tablename__ = "bastel_produkte"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    url             = Column(String, unique=True, nullable=False)  # Produktseite
+    name            = Column(String, nullable=False)
+    beschreibung    = Column(Text)                 # aus image:caption der Sitemap
+    bild_url        = Column(String)               # Haupt-Produktbild
+    preis           = Column(Float)                # BR-Preis €, None = noch nicht geholt
+    preis_stand     = Column(String)               # ISO-Datum des letzten Preis-Abrufs
+    kategorie       = Column(String)
+    lastmod         = Column(String)               # aus Sitemap
+    aktiv           = Column(Boolean, default=True)
+    erstellt_am     = Column(String)
+    aktualisiert_am = Column(String)
+
+
+class Bastelvorschlag(Base):
+    """An ein Event angedockter, kuratierter Bastelset-Vorschlag (Snapshot)."""
+    __tablename__ = "bastel_vorschlaege"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    event_id    = Column(Integer, ForeignKey("events.id"), nullable=False)
+    name        = Column(String, nullable=False)
+    url         = Column(String)
+    bild_url    = Column(String)
+    br_preis    = Column(Float)
+    kundenpreis = Column(Float)
+    begruendung = Column(Text)
+    erstellt_am = Column(String)
 
 
 class KundeAktivitaet(Base):

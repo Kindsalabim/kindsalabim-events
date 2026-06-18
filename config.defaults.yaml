@@ -21,3 +21,8 @@ smtp_port: 465
 # Diese beiden IDs sind nicht geheim und steuern, in welchen Kalender geschrieben wird.
 calendar_id_kindsalabim: "kindsalabim@gmail.com"
 calendar_id_knallfrosch: "info@knallfrosch-kinderevents.de"
+
+# Baker-Ross-Recherche: Standard-Aufschlag (Kundenpreis = BR-Preis × Faktor).
+# Der API-Key (anthropic_api_key) kommt als Secret über ENV ANTHROPIC_API_KEY.
+bakerross_markup_default: 2.5
+bakerross_model: "claude-haiku-4-5-20251001"

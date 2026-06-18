@@ -493,6 +493,47 @@
   </form>
 </div>
 
+<!-- Bastel-Vorschläge (Baker-Ross-Recherche) -->
+<div id="bastel" class="card p-5 mt-5">
+  <div class="flex items-center gap-2 mb-1">
+    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+    </div>
+    <h2 class="text-sm font-semibold text-gray-700">Bastel-Vorschläge</h2>
+    <span class="ml-1 text-xs text-gray-500">aus der Baker-Ross-Recherche</span>
+  </div>
+
+  {% if ev.bastelvorschlaege %}
+  <ul class="mt-4 mb-4 space-y-2">
+    {% for v in ev.bastelvorschlaege %}
+    <li class="flex items-center gap-3 text-sm py-2 px-3 rounded-lg" style="background: #f9fafb;">
+      {% if v.bild_url %}
+      <img src="{{ v.bild_url }}" alt="{{ v.name }}" loading="lazy" class="w-12 h-12 object-contain rounded bg-white shrink-0">
+      {% endif %}
+      <div class="flex-1 min-w-0">
+        <a href="{{ v.url }}" target="_blank" rel="noopener" class="font-medium text-gray-700 hover:underline">{{ v.name }}</a>
+        {% if v.begruendung %}<p class="text-xs text-gray-500 italic">{{ v.begruendung }}</p>{% endif %}
+        <p class="text-xs text-gray-500 mt-0.5">
+          {% if v.br_preis is not none %}BR {{ '%.2f'|format(v.br_preis) }} € →{% endif %}
+          {% if v.kundenpreis is not none %}<span class="font-semibold text-gray-700">Kunde {{ '%.2f'|format(v.kundenpreis) }} €</span>{% endif %}
+        </p>
+      </div>
+      <form method="post" action="/admin/bakerross/vorschlag/{{ v.id }}/delete"
+            onsubmit="return confirm('Vorschlag entfernen?')">
+        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Bastelsets angedockt.</p>
+  {% endif %}
+
+  <a href="/admin/bakerross?event_id={{ ev.id }}" class="btn-secondary text-sm px-4 py-2 inline-block">Bastelsets suchen</a>
+</div>
+
 <!-- Planungsdateien -->
 <div class="card p-5 mt-5">
   <div class="flex items-center gap-2 mb-1">
