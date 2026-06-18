@@ -514,8 +514,8 @@
         <a href="{{ v.url }}" target="_blank" rel="noopener" class="font-medium text-gray-700 hover:underline">{{ v.name }}</a>
         {% if v.begruendung %}<p class="text-xs text-gray-500 italic">{{ v.begruendung }}</p>{% endif %}
         <p class="text-xs text-gray-500 mt-0.5">
-          {% if v.br_preis is not none %}BR {{ '%.2f'|format(v.br_preis) }} € →{% endif %}
-          {% if v.kundenpreis is not none %}<span class="font-semibold text-gray-700">Kunde {{ '%.2f'|format(v.kundenpreis) }} €</span>{% endif %}
+          {% if v.br_preis is not none %}BR {{ '%.2f'|format(v.br_preis) }} €{% if v.stueckzahl %} / {{ v.stueckzahl }} Stk{% endif %} →{% endif %}
+          {% if v.kundenpreis is not none %}<span class="font-semibold text-gray-700">Kunde {{ '%.2f'|format(v.kundenpreis) }} €/Stück</span>{% endif %}
         </p>
       </div>
       <form method="post" action="/admin/bakerross/vorschlag/{{ v.id }}/delete"
@@ -531,7 +531,12 @@
   <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Bastelsets angedockt.</p>
   {% endif %}
 
-  <a href="/admin/bakerross?event_id={{ ev.id }}" class="btn-secondary text-sm px-4 py-2 inline-block">Bastelsets suchen</a>
+  <div class="flex flex-wrap gap-2">
+    <a href="/admin/bakerross?event_id={{ ev.id }}" class="btn-secondary text-sm px-4 py-2 inline-block">Bastelsets suchen</a>
+    {% if ev.bastelvorschlaege %}
+    <a href="/admin/angebot?event_id={{ ev.id }}" class="btn-secondary text-sm px-4 py-2 inline-block">Bilder ins Angebot-PDF übernehmen</a>
+    {% endif %}
+  </div>
 </div>
 
 <!-- Planungsdateien -->
