@@ -687,30 +687,51 @@ def send_anfragen(
     if not dienstleister_ids:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
     base_url = str(request.base_url).rstrip("/")
+    gesendet, fehler = 0, 0
     for did in dienstleister_ids:
         did = int(did)
         existing = db.query(Verfuegbarkeitsanfrage).filter(
             Verfuegbarkeitsanfrage.event_id == event_id,
             Verfuegbarkeitsanfrage.dienstleister_id == did
         ).first()
-        if not existing:
-            frist = date.today() + timedelta(days=3)
+        if existing:
+            continue
+        d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+        if not d:
+            continue
+        # Ohne gültige E-Mail kann keine Anfrage raus -> überspringen (kein 500).
+        if not d.email or "@" not in d.email:
+            fehler += 1
+            print(f"[ANFRAGE] übersprungen, keine gültige E-Mail: DL {did}")
+            continue
+        # Versand pro Dienstleister absichern: ein einzelner Mailfehler darf weder die
+        # ganze Aktion zum 500 bringen noch andere Anfragen zurückrollen. Die Anfrage
+        # wird nur bei erfolgreichem Versand persistiert -> Fehlgeschlagene sind erneut sendbar.
+        try:
+            from auth import create_magic_token
+            token = create_magic_token(d, db)
+            magic_url = f"{base_url}/portal/auth/{token}"
             a = Verfuegbarkeitsanfrage(
                 event_id=event_id, dienstleister_id=did,
                 rolle_anfrage=rolle, status="Ausstehend",
                 erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
-                frist_datum=frist
+                frist_datum=date.today() + timedelta(days=3),
             )
             db.add(a)
-            d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
-            if d:
-                from auth import create_magic_token
-                token = create_magic_token(d, db)
-                magic_url = f"{base_url}/portal/auth/{token}"
-                send_verfuegbarkeitsanfrage(d, ev, a.id, base_url, magic_url=magic_url)
-    db.commit()
+            db.flush()  # a.id für die Antwort-Links verfügbar machen
+            send_verfuegbarkeitsanfrage(d, ev, a.id, base_url, magic_url=magic_url)
+            db.commit()
+            gesendet += 1
+        except Exception as e:
+            db.rollback()
+            fehler += 1
+            print(f"[ANFRAGE-MAIL FEHLER] DL {did} ({d.email}): {e}")
     ev.status = auto_status(ev, db)
     db.commit()
+    if fehler:
+        return RedirectResponse(
+            f"/admin/events/{event_id}?gesendet={gesendet}&mailfehler={fehler}",
+            status_code=303)
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
 @router.post("/events/{event_id}/material-bestellt")
