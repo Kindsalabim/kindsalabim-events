@@ -262,9 +262,11 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
     if titel_bytes:
         pages_data.append(titel_bytes)
 
-    # 2. Gewählte Aktionen
+    # 2. Gewählte Aktionen (Team-Seite ausgenommen – kommt immer ganz ans Ende)
     aktion_map = {a["key"]: a for a in AKTIONEN}
     for key in aktionen_keys:
+        if key == "team":
+            continue
         a = aktion_map.get(key)
         if not a:
             continue
@@ -283,7 +285,15 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
         custom_pdf = _build_custom_page(titel.strip(), fotos, marke)
         pages_data.append(custom_pdf)
 
-    # 4. Alle Seiten zusammenkleben
+    # 4. Team-Seite immer als letzte Seite (auch nach den individuellen Seiten)
+    if "team" in aktionen_keys:
+        team_a = aktion_map.get("team")
+        team_datei = team_a["ks"] if marke == "Kindsalabim" else team_a["kf"]
+        team_bytes = _fetch_r2(team_datei) if team_datei else None
+        if team_bytes:
+            pages_data.append(team_bytes)
+
+    # 5. Alle Seiten zusammenkleben
     if not pages_data:
         return HTMLResponse("<p>Keine Seiten ausgewählt.</p>", status_code=400)
 
@@ -295,6 +305,23 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
                 writer.add_page(page)
         except Exception:
             continue
+
+    # 6. Bilder + Streams komprimieren, damit das PDF nicht unnötig groß wird.
+    #    Pro Bild/Seite abgesichert – ältere pypdf-Versionen ohne page.images
+    #    überspringen den Schritt einfach, statt zu crashen.
+    for page in writer.pages:
+        try:
+            for img in page.images:
+                pil = img.image
+                if max(pil.size) > 1800:
+                    pil.thumbnail((1800, 1800), Image.LANCZOS)
+                img.replace(pil, quality=72)
+        except Exception:
+            pass
+        try:
+            page.compress_content_streams()
+        except Exception:
+            pass
 
     out_buf = io.BytesIO()
     writer.write(out_buf)

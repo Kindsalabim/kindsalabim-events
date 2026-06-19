@@ -155,22 +155,40 @@ function addCustomPage(titel, bildUrl) {
   return div;
 }
 
-function showPreviews(input, pageIdx) {
+function syncInputFiles(input) {
+  const dt = new DataTransfer();
+  (input._accFiles || []).forEach(f => dt.items.add(f));
+  input.files = dt.files;
+}
+
+function renderFotoPreviews(input, pageIdx) {
   const preview = document.getElementById('preview-' + pageIdx);
   preview.innerHTML = '';
-  const files = Array.from(input.files).slice(0, 2);
-  files.forEach(file => {
+  (input._accFiles || []).forEach((file, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'relative';
     const img = document.createElement('img');
     img.src = URL.createObjectURL(file);
     img.className = 'w-full rounded-lg object-cover';
     img.style.aspectRatio = '1';
-    preview.appendChild(img);
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'absolute top-1 right-1 bg-white/90 rounded-full p-1 text-gray-500 hover:text-red-600 shadow';
+    rm.title = 'Foto entfernen';
+    rm.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    rm.onclick = function(){ input._accFiles.splice(i, 1); syncInputFiles(input); renderFotoPreviews(input, pageIdx); };
+    cell.appendChild(img); cell.appendChild(rm);
+    preview.appendChild(cell);
   });
-  if (input.files.length > 2) {
-    const dt = new DataTransfer();
-    files.forEach(f => dt.items.add(f));
-    input.files = dt.files;
-  }
+}
+
+// Sammelt Fotos über mehrere Auswahl-Vorgänge (z. B. aus verschiedenen Ordnern), max. 2.
+function showPreviews(input, pageIdx) {
+  const acc = (input._accFiles || []).slice();
+  Array.from(input.files).forEach(f => acc.push(f));
+  input._accFiles = acc.slice(0, 2);
+  syncInputFiles(input);
+  renderFotoPreviews(input, pageIdx);
 }
 
 function prepareSubmit() {
