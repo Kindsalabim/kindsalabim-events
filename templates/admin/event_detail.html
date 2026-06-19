@@ -7,6 +7,9 @@
 {% endblock %}
 {% block content %}
 
+{% set entsperrt_mode = request.query_params.get('entsperrt') %}
+{% set gesperrt = ev.status in ['Abgeschlossen', 'Abgesagt'] and not entsperrt_mode %}
+
 <!-- Back + Header -->
 <div class="mb-6">
   <a href="/admin/dashboard" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-4 transition-colors">
@@ -26,22 +29,26 @@
       <p class="text-sm text-gray-500">{{ ev.anlass }} · {{ ev.datum | de_date }} · {{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <a href="/admin/events/{{ ev.id }}/edit" class="btn-secondary">
+      {% if not gesperrt %}
+      <a href="/admin/events/{{ ev.id }}/edit{% if entsperrt_mode %}?entsperrt=1{% endif %}" class="btn-secondary">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Bearbeiten
       </a>
       <form method="post" action="/admin/events/{{ ev.id }}/checklist">
+        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <button class="btn-secondary" {% if not ev.kunde_email %}title="Keine Kunden-E-Mail hinterlegt" disabled style="opacity:.5"{% endif %}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           Checkliste senden{% if ev.cl_eingereicht_am %} ✓{% endif %}
         </button>
       </form>
       <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
+        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <button class="btn-primary">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Briefing senden
         </button>
       </form>
+      {% endif %}
       <form method="post" action="/admin/events/{{ ev.id }}/delete" onsubmit="return confirm('Event „{{ ev.kunde_firma }}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
         <button class="btn-secondary text-red-600 hover:text-red-700 hover:border-red-300">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -65,6 +72,25 @@
 {% if request.query_params.get('error') == 'keine_auswahl' %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">
   ✗ Bitte zuerst mindestens einen Dienstleister auswählen, bevor du Anfragen sendest.
+</div>
+{% endif %}
+{% if request.query_params.get('error') == 'gesperrt' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">
+  ✗ Dieses Event ist {{ ev.status|lower }} und gegen Änderungen gesperrt. Nutze „Bearbeitung entsperren", um es trotzdem zu ändern.
+</div>
+{% endif %}
+{% if gesperrt %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm leading-relaxed flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style="background:#f3f4f6;color:#374151;">
+  <span class="flex items-start gap-2">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span>Dieses Event ist <strong>{{ ev.status|lower }}</strong> und gegen versehentliche Änderungen gesperrt. Fotos, Eventbericht und Rechnungs-Status bleiben weiterhin änderbar.</span>
+  </span>
+  <a href="?entsperrt=1" class="btn-secondary shrink-0 self-start sm:self-auto">Bearbeitung entsperren</a>
+</div>
+{% elif entsperrt_mode %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm leading-relaxed flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style="background:#fef3c7;color:#92400e;">
+  <span>🔓 Bearbeitung vorübergehend entsperrt – Änderungen werden gespeichert.</span>
+  <a href="/admin/events/{{ ev.id }}" class="btn-secondary shrink-0 self-start sm:self-auto">Wieder sperren</a>
 </div>
 {% endif %}
 {% if logistiker_warnung %}
@@ -306,6 +332,7 @@
   {% endif %}
 
   <!-- Neue Anfragen -->
+  {% if not gesperrt %}
   <details class="{% if not anfragen %}open{% endif %}">
     <summary class="text-sm font-medium cursor-pointer select-none hover:opacity-80 transition-opacity" style="color: var(--brand-primary);">
       + Verfügbarkeitsanfragen senden
@@ -392,6 +419,7 @@
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen"
             onsubmit="return this.querySelectorAll('input[name=dienstleister_ids]:checked').length > 0 || (alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'), false);">
         <input type="hidden" name="rolle" value="{{ rolle }}">
+        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <h4 class="text-sm font-medium text-gray-700 mb-3">{{ rolle }} anfragen</h4>
         {% if rolle == 'Künstler' %}
         <div class="flex flex-wrap gap-1.5 mb-3">
@@ -450,6 +478,7 @@
       </script>
     </div>
   </details>
+  {% endif %}
 </div>
 
 <!-- Auftragsbestätigung -->

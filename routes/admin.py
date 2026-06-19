@@ -47,6 +47,14 @@ def tpl_context(request: Request, **kwargs):
     return {"request": request, "cfg": cfg, **kwargs}
 
 
+# Endzustände: gegen versehentliche Änderungen gesperrt (Bug 7); per ?entsperrt=1 temporär aufhebbar
+GESPERRTE_STATUS = ("Abgeschlossen", "Abgesagt")
+
+
+def event_gesperrt(ev, entsperrt: bool = False) -> bool:
+    return ev.status in GESPERRTE_STATUS and not entsperrt
+
+
 def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
     """Verknüpft das Event mit einem CRM-Kunden (Match über Firma, sonst neu anlegen)."""
     firma = (firma or "").strip()
@@ -538,13 +546,16 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                     needs_material=needs_material))
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
-def event_edit(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def event_edit(request: Request, event_id: int, entsperrt: bool = False,
+               db: Session = Depends(get_db), _=Depends(get_admin_user)):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
+    if event_gesperrt(ev, entsperrt):
+        return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/event_form.html",
         tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST, kunden=kunden,
-                    anlass_list=ANLASS_LIST, error=None))
+                    anlass_list=ANLASS_LIST, error=None, entsperrt=entsperrt))
 
 @router.post("/events/{event_id}/edit")
 def event_update(
@@ -560,9 +571,12 @@ def event_update(
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
+    entsperrt: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
+    if event_gesperrt(ev, entsperrt):
+        return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort)
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
@@ -664,9 +678,12 @@ def send_anfragen(
     request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
     dienstleister_ids: list = Form([]),
     rolle: str = Form("Teamer"),
+    entsperrt: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
+    if event_gesperrt(ev, entsperrt):
+        return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     if not dienstleister_ids:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
     base_url = str(request.base_url).rstrip("/")
@@ -735,11 +752,14 @@ def set_teamleiter(
 
 @router.post("/events/{event_id}/checklist")
 def send_checklist(
-    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)
+    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    entsperrt: bool = Form(False),
 ):
     import uuid
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
+    if event_gesperrt(ev, entsperrt):
+        return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     if not ev.kunde_email:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_email", status_code=303)
     if not ev.checklist_token:
@@ -755,10 +775,13 @@ def send_checklist(
 
 @router.post("/events/{event_id}/briefing")
 def send_briefing_route(
-    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)
+    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    entsperrt: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
+    if event_gesperrt(ev, entsperrt):
+        return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     confirmed = db.query(Verfuegbarkeitsanfrage).filter(
         Verfuegbarkeitsanfrage.event_id == event_id,
         Verfuegbarkeitsanfrage.status == "Ja"

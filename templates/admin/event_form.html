@@ -17,6 +17,7 @@
   {% endif %}
 
   <form method="post" action="{% if event %}/admin/events/{{ event.id }}/edit{% else %}/admin/events/new{% endif %}" class="space-y-4">
+    {% if entsperrt %}<input type="hidden" name="entsperrt" value="1">{% endif %}
 
     <!-- Marke & Grunddaten -->
     <div class="card p-6 space-y-4">
