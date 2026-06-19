@@ -235,6 +235,8 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     # Events pro Tag im angezeigten Monat (für die Markierung im Kalender)
     event_map = {}
     for e in events:
+        if e.status == "Abgesagt":
+            continue  # abgesagte Events nicht im Dashboard-Kalender markieren
         if e.datum and e.datum.year == cur.year and e.datum.month == cur.month:
             event_map.setdefault(e.datum.day, []).append(e)
 
@@ -243,7 +245,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     if day:
         try:
             sel_day = date.fromisoformat(day)
-            sel_events = sorted([e for e in events if e.datum == sel_day],
+            sel_events = sorted([e for e in events if e.datum == sel_day and e.status != "Abgesagt"],
                                 key=lambda e: e.startzeit or "")
         except ValueError:
             sel_day = None
