@@ -427,12 +427,18 @@
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <h4 class="text-sm font-medium text-gray-700 mb-3">{{ rolle }} anfragen</h4>
         {% if rolle == 'Künstler' %}
+        {% set sparten_present = ranked | selectattr('kuenstler_sparte') | map(attribute='kuenstler_sparte') | list %}
+        {% set kombi_present = 'Schminke + Ballon' in sparten_present %}
+        {% if sparten_present %}
         <div class="flex flex-wrap gap-1.5 mb-3">
           <button type="button" onclick="filterSparte(this,'')" class="sparte-chip chip-active">Alle</button>
           {% for s, icon in [('Kinderschminke','🐱'), ('Ballonkünstler','🎈'), ('Schminke + Ballon','🎈🐱'), ('Sonstiges','🎭')] %}
+          {% if s in sparten_present or (s in ['Kinderschminke', 'Ballonkünstler'] and kombi_present) %}
           <button type="button" onclick="filterSparte(this,'{{ s }}')" class="sparte-chip">{{ icon }} {{ s }}</button>
+          {% endif %}
           {% endfor %}
         </div>
+        {% endif %}
         {% endif %}
         <div class="grid grid-cols-2 gap-2 mb-3">
           {% for d in ranked %}
