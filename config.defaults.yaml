@@ -11,8 +11,12 @@ company_phone: "0177/7442137"
 primary_color: "#166534"
 admin_email: "a.malca@kindsalabim.de"
 
-# Absenderadresse für Resend (verifizierte Domain kindsalabim-events.de)
-mail_from: "noreply@kindsalabim-events.de"
+# Absender + Antwortadresse für Resend (verifizierte Domain kindsalabim-events.de).
+# WICHTIG: mail_from MUSS auf kindsalabim-events.de bleiben – dort liegen DKIM/SPF.
+# Eine andere Domain im From würde die DKIM-Ausrichtung brechen (schlechtere Zustellung).
+# Antworten erreichen über mail_reply_to das echte Postfach.
+mail_from: "info@kindsalabim-events.de"
+mail_reply_to: "info@kindsalabim.de"
 
 smtp_port: 465
 
