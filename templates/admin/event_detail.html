@@ -79,6 +79,11 @@
   ✗ Dieses Event ist {{ ev.status|lower }} und gegen Änderungen gesperrt. Nutze „Bearbeitung entsperren", um es trotzdem zu ändern.
 </div>
 {% endif %}
+{% if request.query_params.get('mailfehler') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">
+  ✗ {{ request.query_params.get('mailfehler') }} Anfrage(n) konnten <strong>nicht</strong> gesendet werden (fehlende/ungültige E-Mail oder Versandfehler){% if request.query_params.get('gesendet') and request.query_params.get('gesendet') != '0' %}, {{ request.query_params.get('gesendet') }} erfolgreich versendet{% endif %}. Bitte die E-Mail-Adresse der betroffenen Dienstleister prüfen und erneut senden.
+</div>
+{% endif %}
 {% if gesperrt %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm leading-relaxed flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style="background:#f3f4f6;color:#374151;">
   <span class="flex items-start gap-2">
