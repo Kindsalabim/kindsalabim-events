@@ -19,6 +19,7 @@ from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
 from email_service import send_verfuegbarkeitsanfrage, send_briefing
 from choices import ZEITEN, de_date, de_month, de_euro
+from validation import validate_event_form, validate_dienstleister_form
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
@@ -122,6 +123,10 @@ def reset_post(request: Request, token: str, password: str = Form(...),
     if not a or not a.reset_token_expires or datetime.utcnow() > datetime.fromisoformat(a.reset_token_expires):
         return templates.TemplateResponse("admin/reset.html",
             tpl_context(request, token=token, gueltig=False))
+    if len(password) < 8:
+        return templates.TemplateResponse("admin/reset.html",
+            tpl_context(request, token=token, gueltig=True,
+                        pw_fehler="Das Passwort muss mindestens 8 Zeichen lang sein."))
     a.password_hash = hash_password(password)
     a.reset_token = None
     a.reset_token_expires = None
@@ -141,6 +146,8 @@ def admins_list(request: Request, db: Session = Depends(get_db), user=Depends(ge
 def admins_create(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user),
                   email: str = Form(...), name: str = Form(""), password: str = Form(...)):
     email = email.strip().lower()
+    if len(password) < 8:
+        return RedirectResponse("/admin/admins?fehler=pw_kurz", status_code=303)
     if db.query(Admin).filter(Admin.email == email).first():
         return RedirectResponse("/admin/admins?fehler=vorhanden", status_code=303)
     db.add(Admin(email=email, name=name.strip() or None,
@@ -410,13 +417,12 @@ def event_create(
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
 ):
-    try:
-        datum_d = date.fromisoformat(datum)
-    except ValueError:
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort)
+    if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, kunden=kunden,
-                        anlass_list=ANLASS_LIST, error="Bitte ein gültiges Datum wählen."))
+                        anlass_list=ANLASS_LIST, error=fehler))
     ev = Event(
         anlass=anlass, datum=datum_d, startzeit=startzeit, endzeit=endzeit,
         veranstaltungsort=veranstaltungsort, kunde_firma=kunde_firma,
@@ -557,13 +563,13 @@ def event_update(
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
-    try:
-        ev.datum = date.fromisoformat(datum)
-    except ValueError:
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort)
+    if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST, kunden=kunden,
-                        anlass_list=ANLASS_LIST, error="Bitte ein gültiges Datum wählen."))
+                        anlass_list=ANLASS_LIST, error=fehler))
+    ev.datum = datum_d
     ev.anlass = anlass; ev.startzeit = startzeit
     ev.endzeit = endzeit; ev.veranstaltungsort = veranstaltungsort
     ev.kunde_firma = kunde_firma; ev.kunde_kontakt = kunde_kontakt
@@ -661,6 +667,8 @@ def send_anfragen(
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
+    if not dienstleister_ids:
+        return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
     base_url = str(request.base_url).rstrip("/")
     for did in dienstleister_ids:
         did = int(did)
@@ -853,6 +861,11 @@ def dienstleister_create(
     if existing:
         return templates.TemplateResponse("admin/contractor_form.html",
             tpl_context(request, d=None, error="E-Mail bereits vorhanden"))
+    fehler = validate_dienstleister_form(telefon, plz, stundensatz_teamer,
+                                         stundensatz_kuenstler, portal_passwort)
+    if fehler:
+        return templates.TemplateResponse("admin/contractor_form.html",
+            tpl_context(request, d=None, error=fehler))
     pw_hash = hash_password(portal_passwort) if portal_passwort else None
 
     def _f(s):
@@ -918,6 +931,12 @@ def dienstleister_update(
 ):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
     if not d: raise HTTPException(404)
+
+    fehler = validate_dienstleister_form(telefon, plz, stundensatz_teamer,
+                                         stundensatz_kuenstler, portal_passwort)
+    if fehler:
+        return templates.TemplateResponse("admin/contractor_form.html",
+            tpl_context(request, d=d, error=fehler))
 
     def _f(s):
         try: return float(s.replace(",", ".")) if s.strip() else None
