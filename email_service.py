@@ -52,6 +52,9 @@ def _deliver(to: str, subject: str, html: str, attachments=None):
         "html": html,
         "text": _html_to_text(html),
     }
+    reply_to = cfg.get("mail_reply_to")
+    if reply_to:
+        payload["reply_to"] = reply_to
     if attachments:
         payload["attachments"] = [
             {"filename": fn, "content": base64.b64encode(data).decode()}
