@@ -33,7 +33,7 @@ PRODUKTE_LIST = [
     "Fotoaktion", "Spieleland", "Mitmachzirkus", "Knusperhäuschen", "Lebkuchenherzen",
     "Ballonmodellage", "Kinderschminken", "Buttonmaschine", "Prickeln",
     "Bastelspaß Weihnachten", "Kleinkind Spieleland", "Walkact", "Hüpfburg",
-    "Christbaumkugeln gestalten"
+    "Christbaumkugeln gestalten", "Kein Material"
 ]
 
 ANLASS_LIST = [
@@ -425,7 +425,7 @@ def event_create(
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
 ):
-    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort)
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte)
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         return templates.TemplateResponse("admin/event_form.html",
@@ -577,7 +577,7 @@ def event_update(
     if not ev: raise HTTPException(404)
     if event_gesperrt(ev, entsperrt):
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
-    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort)
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte)
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         return templates.TemplateResponse("admin/event_form.html",

@@ -41,7 +41,7 @@ def parse_decimal(s: str):
 
 
 def validate_event_form(datum: str, startzeit: str, endzeit: str,
-                        telefon: str, ort: str):
+                        telefon: str, ort: str, produkte=None):
     """Prüft das Event-Formular. Gibt (datum_als_date|None, fehler|None) zurück."""
     try:
         datum_d = date.fromisoformat(datum)
@@ -54,6 +54,8 @@ def validate_event_form(datum: str, startzeit: str, endzeit: str,
         return None, "Bitte eine gültige Telefonnummer eingeben (nur Ziffern und + ( ) / -)."
     if not has_plz(ort):
         return None, "Bitte den Veranstaltungsort mit 5-stelliger PLZ angeben (z. B. 45127 Essen)."
+    if produkte is not None and not produkte:
+        return None, "Bitte mindestens eine Aktion auswählen (oder 'Kein Material' für reine Betreuung)."
     return datum_d, None
 
 
