@@ -16,7 +16,8 @@
   <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--brand-accent-light); color: var(--brand-accent);">{{ error }}</div>
   {% endif %}
 
-  <form method="post" action="{% if event %}/admin/events/{{ event.id }}/edit{% else %}/admin/events/new{% endif %}" class="space-y-4">
+  <form method="post" action="{% if event %}/admin/events/{{ event.id }}/edit{% else %}/admin/events/new{% endif %}" class="space-y-4"
+        onsubmit="return this.querySelectorAll('input[name=produkte]:checked').length > 0 || (alert('Bitte mindestens eine Aktion auswählen – oder „Kein Material“ für reine Betreuung.'), false);">
     {% if entsperrt %}<input type="hidden" name="entsperrt" value="1">{% endif %}
 
     <!-- Marke & Grunddaten -->
@@ -127,7 +128,8 @@
     <div class="card p-6 space-y-4">
       <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Produkte & Personal</h2>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Gebuchte Aktionen</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Gebuchte Aktionen *</label>
+        <p class="text-xs text-gray-500 mb-2">Mindestens eine auswählen. Reine Betreuung ohne Spiel-/Bastelmaterial? → „Kein Material" anhaken.</p>
         <div class="grid grid-cols-2 gap-2">
           {% set selected = (event.produkte.split(', ') if event and event.produkte else []) %}
           {% for p in produkte_list %}
