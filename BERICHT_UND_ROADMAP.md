@@ -28,17 +28,19 @@ Seit dem ursprünglichen Audit wurde die App massiv ausgebaut. Die meisten kriti
 | **Wissensdatenbank** (Hierarchie, Karten, WYSIWYG, Sichtbarkeit, Confluence-Import) | ✅ | NEU |
 | **Ticket-/Sprint-System** (Kanban, Backlog, Kategorien, Jira-CSV-Import) | ✅ | NEU |
 
-### Noch offen / als Nächstes
+### Noch offen / als Nächstes (Stand 20.06.2026)
+> CRM (✅), Baker-Ross-Recherche (✅ 18.06.) sowie Aykuts komplette Bug-/Wunschliste Tier 1+2 (✅ 17.–20.06., Details im Repo-`HANDOFF_SESSION.md`) sind inzwischen erledigt & deployed.
+
 | Priorität | Thema |
 |-----------|-------|
-| 🔜 **Nächste Session** | **Customer-Management-Tool (CRM)** – Kundenverwaltung |
+| 🔜 **Nächste Session** | **Bug 2 – mehrtägige Events** + **Bug 8 – Papierkorb/Notfall-Export gelöschter Datensätze** (beide architektonisch → erst Konzept, dann bauen). Bug 8 = Roadmap 1.2 (menschenlesbarer Export). |
 | 🟡 | Auto-Nachbesetzung bei Absage (Teil der „2.0"-Automatisierung) |
 | 🟡 | Abgelaufene Anfragen automatisch markieren (3.3) |
 | 🟢 | Material-/Logistik-Cockpit (4.4) |
 | 🟢 | Geocoding statt PLZ-Liste (3.4) |
+| 🟢 | Künstlern Sparten zuweisen (Daten-To-do, damit der Sparten-Filter greift) |
 | 🔒 | **R2-Secrets rotieren** (upload_*.py hatten Klartext-Keys, jetzt gitignored) |
 | 🔒 | CSRF-Token, Cron-Secret härten, Checklisten-Token-Ablauf (2.2–2.4) |
-| 🤖 | KI-Module: BakerRoss-Recherche, KI-Angebots-PDF (5.1/5.2) |
 
 *Die folgenden Abschnitte sind der historische Audit-Stand (06.06.2026) und dienen als Kontext.*
 
