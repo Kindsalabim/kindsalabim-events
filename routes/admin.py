@@ -272,7 +272,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 
 @router.get("/reservierungen", response_class=HTMLResponse)
 def reservierungen_list(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    res = db.query(Reservierung).order_by(Reservierung.frist.is_(None), Reservierung.frist, Reservierung.datum).all()
+    res = db.query(Reservierung).order_by(Reservierung.datum, Reservierung.frist.is_(None), Reservierung.frist).all()
     return templates.TemplateResponse("admin/reservierungen.html",
         tpl_context(request, reservierungen=res, today=date.today()))
 
@@ -304,6 +304,49 @@ def reservierung_create(
         erstellt_am=datetime.now().isoformat(timespec="seconds"),
     )
     db.add(r); db.commit(); db.refresh(r)
+    import calendar_service
+    background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
+    return RedirectResponse("/admin/reservierungen", status_code=303)
+
+@router.get("/reservierungen/{res_id}/edit", response_class=HTMLResponse)
+def reservierung_edit_form(res_id: int, request: Request,
+                           db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
+    if not r:
+        return RedirectResponse("/admin/reservierungen", status_code=303)
+    return templates.TemplateResponse("admin/reservierung_edit.html",
+        tpl_context(request, r=r))
+
+@router.post("/reservierungen/{res_id}/edit")
+def reservierung_edit_save(
+    res_id: int, background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), _=Depends(get_admin_user),
+    datum: str = Form(...), kunde_firma: str = Form(...),
+    anlass: str = Form(""), veranstaltungsort: str = Form(""),
+    kunde_kontakt: str = Form(""), kunde_telefon: str = Form(""), kunde_email: str = Form(""),
+    marke: str = Form("Kindsalabim"), frist: str = Form(""), notiz: str = Form(""),
+):
+    r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
+    if not r:
+        return RedirectResponse("/admin/reservierungen", status_code=303)
+    try:
+        r.datum = date.fromisoformat(datum)
+    except ValueError:
+        return RedirectResponse(f"/admin/reservierungen/{res_id}/edit?error=datum", status_code=303)
+    frist_d = None
+    if frist.strip():
+        try: frist_d = date.fromisoformat(frist)
+        except ValueError: frist_d = None
+    r.frist = frist_d or r.datum
+    r.kunde_firma = kunde_firma
+    r.anlass = anlass.strip() or None
+    r.veranstaltungsort = veranstaltungsort.strip() or None
+    r.kunde_kontakt = kunde_kontakt.strip() or None
+    r.kunde_telefon = kunde_telefon.strip() or None
+    r.kunde_email = kunde_email.strip() or None
+    r.marke = marke
+    r.notiz = notiz.strip() or None
+    db.commit()
     import calendar_service
     background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
     return RedirectResponse("/admin/reservierungen", status_code=303)

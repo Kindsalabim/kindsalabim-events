@@ -1,0 +1,68 @@
+{% extends "admin_base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Reservierung bearbeiten – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/admin/reservierungen" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-3 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Reservierungen
+  </a>
+  <h1 class="text-2xl font-bold text-gray-900">Reservierung bearbeiten</h1>
+</div>
+
+<form method="post" action="/admin/reservierungen/{{ r.id }}/edit" class="card p-5 space-y-4 max-w-3xl">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Termin *</label>
+      <input type="date" name="datum" required value="{{ r.datum.isoformat() }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Frist <span class="text-gray-500 font-normal">(Rückmeldung bis)</span></label>
+      <input type="date" name="frist" value="{{ r.frist.isoformat() if r.frist else '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Marke</label>
+      <select name="marke" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+        <option {% if r.marke == 'Kindsalabim' %}selected{% endif %}>Kindsalabim</option>
+        <option {% if r.marke == 'Knallfrosch' %}selected{% endif %}>Knallfrosch</option>
+      </select>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Kunde / Firma *</label>
+      <input type="text" name="kunde_firma" required value="{{ r.kunde_firma or '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Ansprechpartner</label>
+      <input type="text" name="kunde_kontakt" value="{{ r.kunde_kontakt or '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
+      <input type="text" name="kunde_telefon" value="{{ r.kunde_telefon or '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail</label>
+      <input type="email" name="kunde_email" value="{{ r.kunde_email or '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlass</label>
+      <input type="text" name="anlass" value="{{ r.anlass or '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Ort</label>
+      <input type="text" name="veranstaltungsort" value="{{ r.veranstaltungsort or '' }}" placeholder="z. B. 50667 Köln" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    </div>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1.5">Notiz</label>
+    <textarea name="notiz" rows="2" placeholder="z. B. Angebotssumme, Besonderheiten …" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none">{{ r.notiz or '' }}</textarea>
+  </div>
+  <div class="flex items-center gap-3">
+    <button type="submit" class="btn-primary px-5 py-2.5">Speichern</button>
+    <a href="/admin/reservierungen" class="text-sm text-gray-500 hover:text-gray-700">Abbrechen</a>
+  </div>
+</form>
+
+{% endblock %}
