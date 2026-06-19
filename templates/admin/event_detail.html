@@ -62,6 +62,11 @@
   ✗ Keine E-Mail-Adresse für den Kunden hinterlegt. Bitte zuerst bearbeiten.
 </div>
 {% endif %}
+{% if request.query_params.get('error') == 'keine_auswahl' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">
+  ✗ Bitte zuerst mindestens einen Dienstleister auswählen, bevor du Anfragen sendest.
+</div>
+{% endif %}
 {% if logistiker_warnung %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm leading-relaxed flex items-start gap-2" style="background:#fef3c7;color:#92400e;">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
@@ -384,7 +389,8 @@
 
       {% set sparte_icons = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'} %}
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
-      <form method="post" action="/admin/events/{{ ev.id }}/anfragen">
+      <form method="post" action="/admin/events/{{ ev.id }}/anfragen"
+            onsubmit="return this.querySelectorAll('input[name=dienstleister_ids]:checked').length > 0 || (alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'), false);">
         <input type="hidden" name="rolle" value="{{ rolle }}">
         <h4 class="text-sm font-medium text-gray-700 mb-3">{{ rolle }} anfragen</h4>
         {% if rolle == 'Künstler' %}

@@ -80,6 +80,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Veranstaltungsort (mit PLZ) *</label>
         <input type="text" name="veranstaltungsort" required placeholder="Musterstraße 1, 45127 Essen"
           value="{{ event.veranstaltungsort if event else '' }}"
+          pattern=".*\d{5}.*" title="Bitte mit 5-stelliger PLZ angeben (z. B. 45127 Essen)"
           class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
     </div>
@@ -104,7 +105,8 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
-          <input type="text" name="kunde_telefon" value="{{ event.kunde_telefon if event else '' }}"
+          <input type="tel" name="kunde_telefon" value="{{ event.kunde_telefon if event else '' }}"
+            inputmode="tel" pattern="[0-9 /().+\-]{6,}" title="Nur Ziffern und + ( ) / - (mind. 6 Zeichen)"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>

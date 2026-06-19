@@ -16,6 +16,9 @@
       {% else %}
         <h2 class="font-semibold text-gray-900 mb-1">Neues Passwort festlegen</h2>
         <p class="text-sm text-gray-500 mb-5">Wähle ein sicheres Passwort (mind. 8 Zeichen).</p>
+        {% if pw_fehler %}
+        <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--c-danger-bg); color: var(--c-danger);">{{ pw_fehler }}</div>
+        {% endif %}
         <form method="post" action="/admin/reset/{{ token }}" class="space-y-4">
           <input type="password" name="password" required minlength="8" autocomplete="new-password"
             placeholder="Neues Passwort"

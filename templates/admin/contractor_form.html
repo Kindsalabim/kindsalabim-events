@@ -39,7 +39,8 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
-          <input type="text" name="telefon" value="{{ (d.telefon or '') if d else '' }}"
+          <input type="tel" name="telefon" value="{{ (d.telefon or '') if d else '' }}"
+            inputmode="tel" pattern="[0-9 /().+\-]{6,}" title="Nur Ziffern und + ( ) / - (mind. 6 Zeichen)"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
@@ -52,6 +53,7 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">PLZ</label>
           <input type="text" name="plz" value="{{ (d.plz or '') if d else '' }}"
+            inputmode="numeric" pattern="\d{5}" maxlength="5" title="5-stellige PLZ"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
@@ -174,12 +176,14 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Stundensatz Teamer (€)</label>
           <input type="text" name="stundensatz_teamer" placeholder="0,00"
+            inputmode="decimal" pattern="[0-9]+([,.][0-9]{1,2})?" title="Betrag, z. B. 25,00"
             value="{{ '%.2f'|format(d.stundensatz_teamer) | replace('.', ',') if d and d.stundensatz_teamer else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Stundensatz Künstler (€)</label>
           <input type="text" name="stundensatz_kuenstler" placeholder="0,00"
+            inputmode="decimal" pattern="[0-9]+([,.][0-9]{1,2})?" title="Betrag, z. B. 25,00"
             value="{{ '%.2f'|format(d.stundensatz_kuenstler) | replace('.', ',') if d and d.stundensatz_kuenstler else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
@@ -210,7 +214,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-1.5">
           {% if d and d.password_hash %}Neues Passwort <span class="text-gray-500 font-normal">(leer lassen = unverändert)</span>{% else %}Passwort setzen{% endif %}
         </label>
-        <input type="password" name="portal_passwort" autocomplete="new-password"
+        <input type="password" name="portal_passwort" autocomplete="new-password" minlength="8"
           class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring max-w-sm">
         <p class="text-xs text-gray-500 mt-2">
           Login-E-Mail: <span class="text-gray-600">{{ d.email if d else 'wird nach Speichern gesetzt' }}</span>
