@@ -376,6 +376,21 @@ class Bastelvorschlag(Base):
     erstellt_am = Column(String)
 
 
+class GeloeschtesObjekt(Base):
+    """Papierkorb / Notfall-Sicherung: JSON-Snapshot eines gelöschten Datensatzes.
+    Wird beim Löschen von Event/Dienstleister/Kunde angelegt, BEVOR hart gelöscht wird –
+    so geht bei einem Fehlklick nichts unwiederbringlich verloren."""
+    __tablename__ = "geloeschte_objekte"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    typ           = Column(String, nullable=False)   # event | dienstleister | kunde
+    objekt_id     = Column(Integer)                  # ursprüngliche ID
+    bezeichnung   = Column(String)                   # lesbares Label für die Liste
+    daten_json    = Column(Text, nullable=False)     # vollständiger Snapshot inkl. Verknüpfungen
+    geloescht_am  = Column(String)                   # ISO-Datetime
+    geloescht_von = Column(String)                   # Admin-E-Mail
+
+
 class KundeAktivitaet(Base):
     __tablename__ = "kunde_aktivitaeten"
     id          = Column(Integer, primary_key=True, index=True)

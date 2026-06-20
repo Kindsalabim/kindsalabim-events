@@ -600,10 +600,12 @@ def event_update(
 
 @router.post("/events/{event_id}/delete")
 def event_delete(event_id: int, background_tasks: BackgroundTasks,
-                 db: Session = Depends(get_db), _=Depends(get_admin_user)):
+                 db: Session = Depends(get_db), user=Depends(get_admin_user)):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if ev:
         import calendar_service
+        from papierkorb import archive_event
+        archive_event(db, ev, user.get("sub") or user.get("email"))  # Notfall-Sicherung vor dem Löschen
         background_tasks.add_task(calendar_service.delete_event_async, ev.kalender_event_id, ev.marke)
         db.delete(ev); db.commit()
     return RedirectResponse("/admin/dashboard", status_code=303)
@@ -1007,9 +1009,11 @@ def dienstleister_update(
     return RedirectResponse("/admin/dienstleister", status_code=303)
 
 @router.post("/dienstleister/{did}/delete")
-def dienstleister_delete(did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def dienstleister_delete(did: int, db: Session = Depends(get_db), user=Depends(get_admin_user)):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
     if d:
+        from papierkorb import archive_dienstleister
+        archive_dienstleister(db, d, user.get("sub") or user.get("email"))  # Notfall-Sicherung (inkl. Anfragen/Sperrzeiten)
         # Verknüpfte Daten zuerst lösen, sonst blockiert der Fremdschlüssel die Löschung
         db.query(Verfuegbarkeitsanfrage).filter(
             Verfuegbarkeitsanfrage.dienstleister_id == did).delete(synchronize_session=False)
