@@ -60,6 +60,45 @@
   </div>
 </div>
 
+<!-- ── Workflow-Leiste (Chevron) ── -->
+<style>
+  .wf-bar{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:1.25rem;-webkit-overflow-scrolling:touch;}
+  .wf-step{flex:1 1 0;min-width:128px;text-decoration:none;position:relative;
+    padding:11px 16px 11px 30px;background:#f1f3f5;color:#6b7280;transition:background .15s;
+    clip-path:polygon(0 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 0 100%, 15px 50%);}
+  .wf-step.wf-first{padding-left:18px;clip-path:polygon(0 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 0 100%);}
+  .wf-step:hover{filter:brightness(.97);}
+  .wf-step.wf-active{background:var(--brand-primary);color:#fff;}
+  .wf-step.wf-done{background:var(--c-success-bg);color:var(--c-success);}
+  .wf-step.wf-na{opacity:.55;}
+  .wf-label{display:block;font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;}
+  .wf-tag{display:inline-block;margin-top:5px;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;}
+  .wf-tag-done{background:var(--c-success-bg);color:var(--c-success);}
+  .wf-step.wf-active .wf-tag-done{background:rgba(255,255,255,.22);color:#fff;}
+  .wf-tag-doing,.wf-tag-todo{background:#e5e7eb;color:#6b7280;}
+  .wf-step.wf-active .wf-tag-doing,.wf-step.wf-active .wf-tag-todo{background:rgba(255,255,255,.22);color:#fff;}
+  .wf-tag-na{background:transparent;color:#9ca3af;font-style:italic;font-weight:500;padding-left:0;}
+</style>
+<nav class="wf-bar" aria-label="Workflow">
+  {% for s in workflow %}
+  {% set disp = 'wf-done' if s.state == 'done' else ('wf-na' if s.state == 'na' else ('wf-active' if s.active else 'wf-todo')) %}
+  <a href="#{{ s.target }}" onclick="wfGo(event, '{{ s.target }}', {{ 'true' if s.open_anfragen else 'false' }})"
+     class="wf-step {{ disp }}{% if loop.first %} wf-first{% endif %}">
+    <span class="wf-label">{% if s.state == 'done' %}✓ {% endif %}{{ s.label }}</span>
+    <span class="wf-tag wf-tag-{{ s.state }}">{{ s.tag }}</span>
+  </a>
+  {% endfor %}
+</nav>
+<script>
+  function wfGo(e, id, openAnfragen){
+    var el = document.getElementById(id);
+    if(!el){ return; }            // kein Ziel → normaler Anker-Sprung
+    e.preventDefault();
+    if(openAnfragen){ var d = el.querySelector('details'); if(d){ d.open = true; } }
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+</script>
+
 {% if request.query_params.get('error') == 'serie_datum' %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Bitte ein gültiges Datum (und Endzeit nach Beginn) für den neuen Termin angeben.</div>
 {% endif %}
@@ -192,7 +231,7 @@
         <dt class="text-gray-500 w-28 shrink-0">Ort</dt>
         <dd class="text-gray-800">{{ ev.veranstaltungsort }}</dd>
       </div>
-      <div class="flex gap-3">
+      <div class="flex gap-3" id="wf-material" style="scroll-margin-top:1rem;">
         <dt class="text-gray-500 w-28 shrink-0">Material-Mitnahme</dt>
         <dd class="text-gray-800">{{ 'Ja – Logistiker nötig' if ev.material_mitnahme else 'Nein' }}</dd>
       </div>
@@ -265,6 +304,7 @@
 </div>
 
 <!-- Kunden-Angaben (Checkliste) -->
+<div id="wf-checkliste" style="scroll-margin-top:1rem;">
 {% if ev.cl_eingereicht_am %}
 <div class="card p-5 mb-5">
   <div class="flex items-center justify-between mb-4">
@@ -299,10 +339,23 @@
   <p class="text-sm text-gray-500">Checkliste wurde gesendet – noch nicht ausgefüllt.</p>
   <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Link ansehen →</a>
 </div>
+{% else %}
+<div class="card p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
+  <p class="text-sm text-gray-500">Checkliste noch nicht an den Kunden gesendet.</p>
+  {% if not gesperrt and ev.kunde_email %}
+  <form method="post" action="/admin/events/{{ ev.id }}/checklist">
+    {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
+    <button class="btn-secondary text-xs px-3 py-1.5">Checkliste senden</button>
+  </form>
+  {% elif not ev.kunde_email %}
+  <span class="text-xs text-gray-400">Keine Kunden-E-Mail hinterlegt</span>
+  {% endif %}
+</div>
 {% endif %}
+</div>
 
 <!-- Team / Anfragen -->
-<div class="card p-5">
+<div class="card p-5" id="wf-team" style="scroll-margin-top:1rem;">
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-sm font-semibold text-gray-700">
       Team
@@ -540,6 +593,28 @@
   {% endif %}
 </div>
 
+<!-- Briefing -->
+<div class="card p-5 mt-5" id="wf-briefing" style="scroll-margin-top:1rem;">
+  <div class="flex items-center justify-between gap-3 flex-wrap">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </div>
+      <h2 class="text-sm font-semibold text-gray-700">Briefing</h2>
+      {% if ev.status in ['Briefing gesendet','Abgeschlossen'] %}
+      <span class="ml-1 inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ gesendet</span>
+      {% endif %}
+    </div>
+    {% if not gesperrt %}
+    <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
+      {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
+      <button class="btn-primary text-xs px-4 py-2">Briefing senden</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="text-xs text-gray-500 mt-2">Geht an alle Dienstleister, die zugesagt haben – mit Team-Liste, Aufbauzeiten und allen Details.</p>
+</div>
+
 <!-- Auftragsbestätigung -->
 <div class="card p-5 mt-5">
   <div class="flex items-center gap-2 mb-1">
@@ -679,7 +754,7 @@
 </div>
 
 <!-- Abschluss -->
-<div class="card p-5 mt-5">
+<div class="card p-5 mt-5" id="wf-abschluss" style="scroll-margin-top:1rem;">
   <div class="flex items-center gap-2 mb-4">
     <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>

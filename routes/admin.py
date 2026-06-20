@@ -505,6 +505,44 @@ def event_create(
         background_tasks.add_task(calendar_service.sync_event_async, sib.id)
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
 
+def _workflow_steps(ev, anfragen):
+    """Berechnet die 5 Workflow-Stufen samt Status für die Chevron-Leiste im Event-Detail.
+    state: 'done' (grün/erledigt) · 'doing' (in Arbeit, grau) · 'todo' (offen, grau) · 'na' (nicht nötig)."""
+    confirmed = [a for a in anfragen if a.status == "Ja"]
+    teamer_ok    = sum(1 for a in confirmed if a.rolle_anfrage == "Teamer")   >= ev.anzahl_teamer
+    kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler") >= ev.anzahl_kuenstler
+    logistiker_ok = (not ev.material_mitnahme) or any(
+        a.dienstleister.logistiker for a in confirmed if a.dienstleister)
+    team_komplett = bool(confirmed) and teamer_ok and kuenstler_ok and logistiker_ok
+
+    if ev.cl_eingereicht_am:      checkliste = ("done", "eingegangen")
+    elif ev.checklist_token:      checkliste = ("doing", "abgeschickt")
+    else:                         checkliste = ("todo", "offen")
+
+    if team_komplett:             team = ("done", "Team komplett")
+    elif anfragen:                team = ("doing", "angefragt")
+    else:                         team = ("todo", "offen")
+
+    if not ev.material_mitnahme:  bestellungen = ("na", "nicht nötig")
+    elif ev.material_bestellt:    bestellungen = ("done", "bestellt")
+    else:                         bestellungen = ("todo", "offen")
+
+    briefing  = ("done", "gesendet")      if ev.status in ("Briefing gesendet", "Abgeschlossen") else ("todo", "offen")
+    abschluss = ("done", "abgeschlossen") if ev.status == "Abgeschlossen" else ("todo", "offen")
+
+    steps = [
+        {"key": "checkliste",   "label": "Checkliste",    "target": "wf-checkliste", "state": checkliste[0],   "tag": checkliste[1]},
+        {"key": "team",         "label": "Verfügbarkeit", "target": "wf-team",       "state": team[0],         "tag": team[1], "open_anfragen": True},
+        {"key": "bestellungen", "label": "Bestellungen",  "target": "wf-material",   "state": bestellungen[0], "tag": bestellungen[1]},
+        {"key": "briefing",     "label": "Briefing",      "target": "wf-briefing",   "state": briefing[0],     "tag": briefing[1]},
+        {"key": "abschluss",    "label": "Abschluss",     "target": "wf-abschluss",  "state": abschluss[0],    "tag": abschluss[1]},
+    ]
+    aktiv_idx = next((i for i, s in enumerate(steps) if s["state"] in ("todo", "doing")), len(steps) - 1)
+    for i, s in enumerate(steps):
+        s["active"] = (i == aktiv_idx)
+    return steps
+
+
 @router.get("/events/{event_id}", response_class=HTMLResponse)
 def event_detail(request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     ev = db.query(Event).filter(Event.id == event_id).first()
@@ -514,6 +552,7 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         Verfuegbarkeitsanfrage.event_id == event_id).all()
 
     anfragen_ids = {a.dienstleister_id: a for a in anfragen}
+    workflow = _workflow_steps(ev, anfragen)
 
     # Termin-Serie (mehrtägiges Event): alle Geschwister-Termine, chronologisch
     serie_events = []
@@ -606,7 +645,8 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                     ab_urls=ab_urls, logistiker_warnung=logistiker_warnung,
                     sperrzeit_map=sperrzeit_map, lange_her_ids=lange_her_ids,
                     karte_data=karte_data, karte_ohne_standort=karte_ohne_standort,
-                    needs_material=needs_material, serie_events=serie_events))
+                    needs_material=needs_material, serie_events=serie_events,
+                    workflow=workflow))
 
 
 @router.post("/events/{event_id}/serie/add")
