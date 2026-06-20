@@ -6,7 +6,7 @@ import urllib.error
 from html import unescape
 from datetime import datetime
 from config import get_config
-from choices import de_date
+from choices import de_date, plz_ort
 
 
 def _html_to_text(html: str) -> str:
@@ -457,10 +457,9 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', event.anlass)}
-        {_info_row('Kunde', event.kunde_firma)}
         {_info_row('Datum', de_date(event.datum))}
         {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
-        {_info_row('Ort', event.veranstaltungsort)}
+        {_info_row('Ort', plz_ort(event.veranstaltungsort))}
         {_info_row('Produkte', event.produkte)}
       </table>
     </div>
@@ -479,7 +478,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
       Bitte antworte innerhalb von 7 Tagen.
     </p>"""
 
-    subject = f"Anfrage: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
+    subject = f"Anfrage: {event.anlass} am {de_date(event.datum)}"
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
@@ -507,8 +506,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', leit.anlass)}
-        {_info_row('Kunde', leit.kunde_firma)}
-        {_info_row('Ort', leit.veranstaltungsort)}
+        {_info_row('Ort', plz_ort(leit.veranstaltungsort))}
         {_info_row('Produkte', leit.produkte)}
       </table>
     </div>
@@ -534,7 +532,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
       Bitte antworte innerhalb von 7 Tagen.
     </p>"""
 
-    subject = f"Anfrage: {leit.anlass} bei {leit.kunde_firma} – {len(events)} Termine"
+    subject = f"Anfrage: {leit.anlass} – {len(events)} Termine"
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
