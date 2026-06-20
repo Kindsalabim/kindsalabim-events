@@ -31,6 +31,7 @@ class Event(Base):
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
     kunde_id = Column(Integer, ForeignKey("kunden.id"), nullable=True)  # CRM-Verknüpfung (optional)
     kalender_event_id = Column(String, nullable=True)  # Google-Kalender-Event-ID (Sync)
+    serien_id = Column(String, nullable=True, index=True)  # mehrtägiges Event: gemeinsamer Token aller Termintage (None = einzelner Tag)
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
     teamleiter_mail_gesendet = Column(Boolean, default=False)  # Info-Mail an Kunden (1 Woche vorher) versendet?
 

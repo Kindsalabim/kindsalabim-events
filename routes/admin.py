@@ -17,7 +17,7 @@ from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
 from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
-from email_service import send_verfuegbarkeitsanfrage, send_briefing
+from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie_anfrage
 from choices import ZEITEN, de_date, de_month, de_euro
 from validation import validate_event_form, validate_dienstleister_form
 
@@ -69,6 +69,43 @@ def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
                   erstellt_am=jetzt, aktualisiert_am=jetzt)
         db.add(k); db.flush()
     ev.kunde_id = k.id
+
+
+# ── Termin-Serie (mehrtägige Events) ─────────────────────────────────────────────
+
+def _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, base_start, base_end):
+    """Parst weitere Termintage aus dem Formular (parallele Listen). Leere Datumszeilen
+    werden übersprungen; fehlende Zeiten erben die Zeiten des Haupttags.
+    Rückgabe: (liste[(date, startzeit, endzeit)], fehler_oder_None)."""
+    tage = []
+    for i, ds in enumerate(extra_datum or []):
+        ds = (ds or "").strip()
+        if not ds:
+            continue
+        try:
+            d = date.fromisoformat(ds)
+        except ValueError:
+            return [], "Ein zusätzlicher Termin hat ein ungültiges Datum."
+        sz = (extra_startzeit[i] if i < len(extra_startzeit) else "") or base_start
+        ez = (extra_endzeit[i] if i < len(extra_endzeit) else "") or base_end
+        if sz and ez and ez <= sz:
+            return [], f"Beim Zusatztermin am {d.strftime('%d.%m.%Y')} muss die Endzeit nach der Startzeit liegen."
+        tage.append((d, sz, ez))
+    return tage, None
+
+
+def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id):
+    """Kopiert die Stammdaten eines Events auf einen weiteren Termintag (neue Event-Zeile)."""
+    return Event(
+        anlass=base_ev.anlass, datum=datum, startzeit=startzeit, endzeit=endzeit,
+        veranstaltungsort=base_ev.veranstaltungsort, kunde_firma=base_ev.kunde_firma,
+        kunde_kontakt=base_ev.kunde_kontakt, kunde_telefon=base_ev.kunde_telefon,
+        kunde_email=base_ev.kunde_email, produkte=base_ev.produkte,
+        anzahl_teamer=base_ev.anzahl_teamer, anzahl_kuenstler=base_ev.anzahl_kuenstler,
+        hinweise=base_ev.hinweise, material_mitnahme=base_ev.material_mitnahme,
+        marke=base_ev.marke, status=base_ev.status, kunde_id=base_ev.kunde_id,
+        serien_id=serien_id,
+    )
 
 
 # ── Login ──────────────────────────────────────────────────────────────────────
@@ -195,6 +232,12 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     today = date.today()
     events = db.query(Event).all()
 
+    # Termin-Serien: Anzahl Tage je serien_id (für die "Serie"-Markierung in der Liste)
+    serien_count = {}
+    for e in events:
+        if e.serien_id:
+            serien_count[e.serien_id] = serien_count.get(e.serien_id, 0) + 1
+
     def event_date(e):
         return e.datum or date.max
 
@@ -282,7 +325,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
                     reservierungen_count=reservierungen_count,
                     offene_rueckmeldungen=offene_rueckmeldungen,
                     offene_checklisten=offene_checklisten,
-                    dringend_count=dringend_count))
+                    dringend_count=dringend_count, serien_count=serien_count))
 
 
 # ── Reservierungen (unverbindliche Holds vor der Buchung) ───────────────────────
@@ -424,8 +467,12 @@ def event_create(
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
+    extra_datum: list = Form([]), extra_startzeit: list = Form([]),
+    extra_endzeit: list = Form([]),
 ):
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte)
+    extra_tage, extra_fehler = _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, startzeit, endzeit)
+    fehler = fehler or extra_fehler
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         return templates.TemplateResponse("admin/event_form.html",
@@ -444,8 +491,18 @@ def event_create(
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit(); db.refresh(ev)
+    # Mehrtägiges Event: weitere Termintage als verknüpfte Geschwister-Events anlegen
+    geschwister = []
+    if extra_tage:
+        ev.serien_id = secrets.token_hex(8)
+        for (d, sz, ez) in extra_tage:
+            sib = _neues_geschwister_event(ev, d, sz, ez, ev.serien_id)
+            db.add(sib); geschwister.append(sib)
+        db.commit()
     import calendar_service
     background_tasks.add_task(calendar_service.sync_event_async, ev.id)
+    for sib in geschwister:
+        background_tasks.add_task(calendar_service.sync_event_async, sib.id)
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
 
 @router.get("/events/{event_id}", response_class=HTMLResponse)
@@ -457,6 +514,12 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         Verfuegbarkeitsanfrage.event_id == event_id).all()
 
     anfragen_ids = {a.dienstleister_id: a for a in anfragen}
+
+    # Termin-Serie (mehrtägiges Event): alle Geschwister-Termine, chronologisch
+    serie_events = []
+    if ev.serien_id:
+        serie_events = db.query(Event).filter(
+            Event.serien_id == ev.serien_id).order_by(Event.datum).all()
 
     active = db.query(Dienstleister).filter(Dienstleister.aktiv == True).all()
 
@@ -543,7 +606,32 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                     ab_urls=ab_urls, logistiker_warnung=logistiker_warnung,
                     sperrzeit_map=sperrzeit_map, lange_her_ids=lange_her_ids,
                     karte_data=karte_data, karte_ohne_standort=karte_ohne_standort,
-                    needs_material=needs_material))
+                    needs_material=needs_material, serie_events=serie_events))
+
+
+@router.post("/events/{event_id}/serie/add")
+def serie_tag_add(event_id: int, background_tasks: BackgroundTasks,
+                  db: Session = Depends(get_db), _=Depends(get_admin_user),
+                  neu_datum: str = Form(""), neu_startzeit: str = Form(""),
+                  neu_endzeit: str = Form("")):
+    """Fügt einem bestehenden Event nachträglich einen weiteren Termintag hinzu
+    (legt eine Serie an, falls noch keine besteht)."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    tage, fehler = _parse_extra_tage([neu_datum], [neu_startzeit], [neu_endzeit],
+                                     ev.startzeit, ev.endzeit)
+    if fehler or not tage:
+        return RedirectResponse(f"/admin/events/{event_id}?error=serie_datum", status_code=303)
+    if not ev.serien_id:
+        ev.serien_id = secrets.token_hex(8)
+        db.flush()
+    d, sz, ez = tage[0]
+    sib = _neues_geschwister_event(ev, d, sz, ez, ev.serien_id)
+    db.add(sib); db.commit(); db.refresh(sib)
+    import calendar_service
+    background_tasks.add_task(calendar_service.sync_event_async, sib.id)
+    return RedirectResponse(f"/admin/events/{sib.id}", status_code=303)
+
 
 @router.get("/events/{event_id}/edit", response_class=HTMLResponse)
 def event_edit(request: Request, event_id: int, entsperrt: bool = False,
@@ -681,6 +769,7 @@ def send_anfragen(
     dienstleister_ids: list = Form([]),
     rolle: str = Form("Teamer"),
     entsperrt: bool = Form(False),
+    serie: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -688,16 +777,18 @@ def send_anfragen(
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     if not dienstleister_ids:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
+
+    # Ziel-Termine: ganze Serie (alle Tage gleichzeitig anfragen) oder nur dieses Event
+    if serie and ev.serien_id:
+        ziel_events = db.query(Event).filter(
+            Event.serien_id == ev.serien_id).order_by(Event.datum).all()
+    else:
+        ziel_events = [ev]
+
     base_url = str(request.base_url).rstrip("/")
     gesendet, fehler = 0, 0
     for did in dienstleister_ids:
         did = int(did)
-        existing = db.query(Verfuegbarkeitsanfrage).filter(
-            Verfuegbarkeitsanfrage.event_id == event_id,
-            Verfuegbarkeitsanfrage.dienstleister_id == did
-        ).first()
-        if existing:
-            continue
         d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
         if not d:
             continue
@@ -706,29 +797,43 @@ def send_anfragen(
             fehler += 1
             print(f"[ANFRAGE] übersprungen, keine gültige E-Mail: DL {did}")
             continue
+        # Auf welchen Ziel-Tagen besteht noch keine Anfrage für diesen Dienstleister?
+        offene_tage = [ze for ze in ziel_events if not db.query(Verfuegbarkeitsanfrage).filter(
+            Verfuegbarkeitsanfrage.event_id == ze.id,
+            Verfuegbarkeitsanfrage.dienstleister_id == did).first()]
+        if not offene_tage:
+            continue
         # Versand pro Dienstleister absichern: ein einzelner Mailfehler darf weder die
-        # ganze Aktion zum 500 bringen noch andere Anfragen zurückrollen. Die Anfrage
-        # wird nur bei erfolgreichem Versand persistiert -> Fehlgeschlagene sind erneut sendbar.
+        # ganze Aktion zum 500 bringen noch andere Anfragen zurückrollen. Die Anfragen
+        # werden nur bei erfolgreichem Versand persistiert -> Fehlgeschlagene sind erneut sendbar.
         try:
             from auth import create_magic_token
             token = create_magic_token(d, db)
             magic_url = f"{base_url}/portal/auth/{token}"
-            a = Verfuegbarkeitsanfrage(
-                event_id=event_id, dienstleister_id=did,
-                rolle_anfrage=rolle, status="Ausstehend",
-                erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
-                frist_datum=date.today() + timedelta(days=3),
-            )
-            db.add(a)
-            db.flush()  # a.id für die Antwort-Links verfügbar machen
-            send_verfuegbarkeitsanfrage(d, ev, a.id, base_url, magic_url=magic_url)
+            neue = []
+            for ze in offene_tage:
+                a = Verfuegbarkeitsanfrage(
+                    event_id=ze.id, dienstleister_id=did,
+                    rolle_anfrage=rolle, status="Ausstehend",
+                    erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
+                    frist_datum=date.today() + timedelta(days=3),
+                )
+                db.add(a); db.flush()  # a.id für die Antwort-Links verfügbar machen
+                neue.append((ze, a))
+            # Eine Mail pro Dienstleister: bei mehreren Tagen die kombinierte Serien-Mail
+            if len(neue) == 1:
+                ze, a = neue[0]
+                send_verfuegbarkeitsanfrage(d, ze, a.id, base_url, magic_url=magic_url)
+            else:
+                send_serie_anfrage(d, [ze for ze, a in neue], base_url, magic_url=magic_url)
             db.commit()
             gesendet += 1
         except Exception as e:
             db.rollback()
             fehler += 1
             print(f"[ANFRAGE-MAIL FEHLER] DL {did} ({d.email}): {e}")
-    ev.status = auto_status(ev, db)
+    for ze in ziel_events:
+        ze.status = auto_status(ze, db)
     db.commit()
     if fehler:
         return RedirectResponse(

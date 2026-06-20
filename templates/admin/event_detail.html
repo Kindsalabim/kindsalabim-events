@@ -1,4 +1,5 @@
 {% extends "admin_base.html" %}
+{% from "macros.html" import time_select %}
 {% block title %}{{ ev.anlass }} – {{ ev.kunde_firma }}{% endblock %}
 {% block head %}
 {% if ev.marke == 'Knallfrosch' %}
@@ -58,6 +59,47 @@
     </div>
   </div>
 </div>
+
+{% if request.query_params.get('error') == 'serie_datum' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Bitte ein gültiges Datum (und Endzeit nach Beginn) für den neuen Termin angeben.</div>
+{% endif %}
+
+{% if (serie_events and serie_events|length > 1) or not gesperrt %}
+<div class="card p-4 mb-5" style="border-left:3px solid var(--brand-primary);">
+  {% if serie_events and serie_events|length > 1 %}
+  <p class="text-sm font-semibold text-gray-700 mb-2">🔗 Mehrtägiges Event · {{ serie_events|length }} Termine</p>
+  <div class="flex flex-wrap gap-1.5">
+    {% for se in serie_events %}
+      {% if se.id == ev.id %}
+      <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--brand-primary-light);color:var(--brand-primary);">{{ se.datum | de_date }} · {{ se.startzeit }}–{{ se.endzeit }} · dieser Tag</span>
+      {% else %}
+      <a href="/admin/events/{{ se.id }}" class="text-xs px-2.5 py-1 rounded-full border border-gray-200 text-gray-600 hover:border-gray-300 transition-colors">{{ se.datum | de_date }} · {{ se.startzeit }}–{{ se.endzeit }}{% if se.status == 'Abgesagt' %} · abgesagt{% endif %}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if not gesperrt %}
+  <details class="{% if serie_events and serie_events|length > 1 %}mt-3{% endif %}">
+    <summary class="text-sm font-medium cursor-pointer" style="color:var(--brand-primary);">+ Termin hinzufügen{% if serie_events and serie_events|length > 1 %} (zur Serie){% else %} (mehrtägiges Event){% endif %}</summary>
+    <form method="post" action="/admin/events/{{ ev.id }}/serie/add" class="flex flex-wrap items-end gap-3 mt-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Datum</label>
+        <input type="date" name="neu_datum" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Beginn</label>
+        {{ time_select('neu_startzeit', ev.startzeit, 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Ende</label>
+        {{ time_select('neu_endzeit', ev.endzeit, 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
+      </div>
+      <button class="btn-primary text-xs px-4 py-2">Hinzufügen</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
 
 {% if request.query_params.get('checklist_sent') %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">
@@ -426,6 +468,12 @@
         <input type="hidden" name="rolle" value="{{ rolle }}">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <h4 class="text-sm font-medium text-gray-700 mb-3">{{ rolle }} anfragen</h4>
+        {% if serie_events and serie_events|length > 1 %}
+        <label class="flex items-start gap-2.5 cursor-pointer mb-3 text-sm p-2.5 rounded-lg" style="background:var(--brand-primary-light);">
+          <input type="checkbox" name="serie" value="1" checked class="mt-0.5 rounded" style="accent-color: var(--brand-primary);">
+          <span class="text-gray-700">Für alle <strong>{{ serie_events|length }} Termine</strong> der Serie anfragen <span class="text-gray-500">(eine Mail; Dienstleister kann pro Tag einzeln zusagen)</span></span>
+        </label>
+        {% endif %}
         {% if rolle == 'Künstler' %}
         {% set sparten_present = ranked | selectattr('kuenstler_sparte') | map(attribute='kuenstler_sparte') | list %}
         {% set kombi_present = 'Schminke + Ballon' in sparten_present %}

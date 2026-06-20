@@ -85,6 +85,37 @@
           pattern=".*\d{5}.*" title="Bitte mit 5-stelliger PLZ angeben (z. B. 45127 Essen)"
           class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
+
+      {% if not event %}
+      <!-- Weitere Termintage (mehrtägiges Event) -->
+      <div class="pt-2" style="border-top:1px dashed #e5e7eb;">
+        <label class="block text-sm font-medium text-gray-700 mb-1.5 mt-2">
+          Weitere Termintage <span class="text-gray-400 font-normal">(optional – für mehrtägige Events)</span>
+        </label>
+        <div id="extra-termine" class="space-y-2"></div>
+        <button type="button" onclick="addTermin()" class="mt-2 text-sm font-medium" style="color:var(--brand-primary);">+ weiteren Termin hinzufügen</button>
+        <p class="text-xs text-gray-500 mt-1.5">Jeder Tag wird als eigener, verknüpfter Termin angelegt (gleiche Kunden-/Ortdaten, eigener Kalendereintrag). Ohne eigene Uhrzeit gilt die oben gewählte. Tage müssen nicht zusammenhängen.</p>
+      </div>
+
+      <template id="termin-template">
+        <div class="grid grid-cols-3 gap-4 items-end extra-termin-row">
+          <div>
+            <input type="date" name="extra_datum" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+          </div>
+          <div>{{ time_select('extra_startzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
+          <div class="flex gap-2 items-center">
+            <div class="flex-1">{{ time_select('extra_endzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
+            <button type="button" onclick="this.closest('.extra-termin-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Termin entfernen">&times;</button>
+          </div>
+        </div>
+      </template>
+      <script>
+        function addTermin(){
+          var t = document.getElementById('termin-template');
+          document.getElementById('extra-termine').appendChild(t.content.cloneNode(true));
+        }
+      </script>
+      {% endif %}
     </div>
 
     <!-- Kunde -->

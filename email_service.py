@@ -483,6 +483,61 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
+def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""):
+    """Kombinierte Anfrage für ein mehrtägiges Event (mehrere Termintage).
+    Eine Mail listet alle Tage; der Dienstleister kann im Portal jeden Tag einzeln zusagen."""
+    cfg = get_config()
+    leit = events[0]
+    color = _brand_color(leit.marke)
+    portal_url = magic_url or f"{base_url}/portal/login"
+
+    tage_rows = ""
+    for ev in events:
+        zeit = f"{ev.startzeit} – {ev.endzeit} Uhr" if ev.startzeit and ev.endzeit else ""
+        tage_rows += _info_row(de_date(ev.datum), zeit)
+
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      wir haben ein <strong>mehrtägiges Event</strong> und würden dich gerne anfragen.
+      Klick auf den Button – in deinem Portal kannst du für <strong>jeden Tag einzeln</strong>
+      zu- oder absagen.
+    </p>
+
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Anlass', leit.anlass)}
+        {_info_row('Kunde', leit.kunde_firma)}
+        {_info_row('Ort', leit.veranstaltungsort)}
+        {_info_row('Produkte', leit.produkte)}
+      </table>
+    </div>
+
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
+      <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Termine ({len(events)})</p>
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {tage_rows}
+      </table>
+    </div>
+
+    <a href="{portal_url}"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Jetzt antworten →
+    </a>
+
+    <p style="margin:20px 0 4px;font-size:13px;color:#9ca3af;">
+      Der Link ist <strong>24 Stunden gültig</strong>. Danach kannst du dich jederzeit unter
+      <a href="{base_url}/portal/login" style="color:#6b7280;">{base_url}/portal/login</a> anmelden.
+    </p>
+    <p style="margin:0 0 0;font-size:14px;color:#6b7280;">
+      Bitte antworte innerhalb von 7 Tagen.
+    </p>"""
+
+    subject = f"Anfrage: {leit.anlass} bei {leit.kunde_firma} – {len(events)} Termine"
+    _send(dienstleister.email, subject, _wrap(content, color, cfg))
+
+
 def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
     cfg = get_config()
     color = _brand_color(event.marke)
