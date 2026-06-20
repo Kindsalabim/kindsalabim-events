@@ -641,9 +641,11 @@ def event_edit(request: Request, event_id: int, entsperrt: bool = False,
     if event_gesperrt(ev, entsperrt):
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
+    serie_count = db.query(Event).filter(Event.serien_id == ev.serien_id).count() if ev.serien_id else 0
     return templates.TemplateResponse("admin/event_form.html",
         tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST, kunden=kunden,
-                    anlass_list=ANLASS_LIST, error=None, entsperrt=entsperrt))
+                    anlass_list=ANLASS_LIST, error=None, entsperrt=entsperrt,
+                    serie_count=serie_count))
 
 @router.post("/events/{event_id}/edit")
 def event_update(
@@ -659,7 +661,7 @@ def event_update(
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
-    entsperrt: bool = Form(False),
+    entsperrt: bool = Form(False), serie_propagieren: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -668,9 +670,10 @@ def event_update(
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte)
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
+        serie_count = db.query(Event).filter(Event.serien_id == ev.serien_id).count() if ev.serien_id else 0
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST, kunden=kunden,
-                        anlass_list=ANLASS_LIST, error=fehler))
+                        anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
     ev.datum = datum_d
     ev.anlass = anlass; ev.startzeit = startzeit
     ev.endzeit = endzeit; ev.veranstaltungsort = veranstaltungsort
@@ -682,8 +685,23 @@ def event_update(
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
+    # Termin-Serie: gemeinsame Stammdaten auf die anderen Tage übernehmen (tagesspezifische
+    # Felder – Datum/Uhrzeit/Status/Teamleiter/Checkliste/Bericht/Anfragen – bleiben unberührt)
+    geschwister_sync = []
+    if serie_propagieren and ev.serien_id:
+        geschwister = db.query(Event).filter(
+            Event.serien_id == ev.serien_id, Event.id != ev.id).all()
+        for g in geschwister:
+            g.kunde_firma = ev.kunde_firma; g.kunde_kontakt = ev.kunde_kontakt
+            g.kunde_telefon = ev.kunde_telefon; g.kunde_email = ev.kunde_email
+            g.veranstaltungsort = ev.veranstaltungsort
+            g.anlass = ev.anlass; g.marke = ev.marke; g.kunde_id = ev.kunde_id
+            geschwister_sync.append(g.id)
+        db.commit()
     import calendar_service
     background_tasks.add_task(calendar_service.sync_event_async, event_id)
+    for gid in geschwister_sync:
+        background_tasks.add_task(calendar_service.sync_event_async, gid)
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
 @router.post("/events/{event_id}/delete")
