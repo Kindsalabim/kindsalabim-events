@@ -207,6 +207,18 @@
       </div>
     </div>
 
+    {% if event and event.serien_id and serie_count and serie_count > 1 %}
+    <!-- Termin-Serie: Stammdaten-Änderungen auf alle Tage übernehmen -->
+    <div class="card p-4" style="border-left:3px solid var(--brand-primary);">
+      <label class="flex items-start gap-2.5 cursor-pointer text-sm">
+        <input type="checkbox" name="serie_propagieren" value="1" checked style="accent-color:var(--brand-primary);margin-top:0.15rem;">
+        <span class="text-gray-700">🔗 Änderungen auf alle <strong>{{ serie_count }} Tage</strong> der Serie übernehmen
+          <span class="block text-gray-500 mt-0.5">Kundendaten, Ort, Anlass &amp; Marke werden für alle Termintage angeglichen. <strong>Datum, Uhrzeit und Status bleiben pro Tag unberührt.</strong> Häkchen entfernen, um nur diesen Tag zu ändern.</span>
+        </span>
+      </label>
+    </div>
+    {% endif %}
+
     <!-- Actions -->
     <div class="flex items-center gap-3 pt-1">
       <button type="submit" class="btn-primary px-6 py-2.5">

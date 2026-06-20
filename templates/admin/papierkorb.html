@@ -12,11 +12,17 @@
 
 {% if request.query_params.get('ok') == 'entfernt' %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Sicherung endgültig entfernt.</div>{% endif %}
+{% if request.query_params.get('ok') == 'restored' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Datensatz wiederhergestellt.</div>{% endif %}
+{% if request.query_params.get('error') == 'restore' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Wiederherstellen fehlgeschlagen. Die Sicherung wurde nicht verändert.</div>{% endif %}
+{% if request.query_params.get('error') == 'restore_msg' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">{{ request.query_params.get('msg', 'Wiederherstellen nicht möglich.') }}</div>{% endif %}
 
 <div class="mb-4 px-4 py-3 rounded-xl text-sm" style="background:#f0f7ff;color:#1e40af;">
   Beim Löschen eines Events, Dienstleisters oder Kunden wird hier automatisch eine
-  vollständige Sicherung (inkl. Verknüpfungen) abgelegt. Du kannst sie als Datei
-  herunterladen, um im Notfall nichts zu verlieren.
+  vollständige Sicherung (inkl. Verknüpfungen) abgelegt. Du kannst sie per Klick
+  <strong>wiederherstellen</strong> oder als Datei herunterladen.
 </div>
 
 {% if eintraege %}
@@ -42,7 +48,11 @@
           {% if e.geloescht_von %}<span class="text-gray-400">· {{ e.geloescht_von }}</span>{% endif %}
         </td>
         <td class="px-5 py-3.5 text-right whitespace-nowrap">
-          <a href="/admin/papierkorb/{{ e.id }}/download" class="text-xs font-medium" style="color:var(--brand-primary);">Herunterladen</a>
+          <form method="post" action="/admin/papierkorb/{{ e.id }}/restore" class="inline"
+                onsubmit="return confirm('„{{ e.bezeichnung }}“ wiederherstellen? Der Datensatz wird mit neuer ID wieder angelegt.')">
+            <button class="text-xs font-semibold" style="color:var(--c-success);">Wiederherstellen</button>
+          </form>
+          <a href="/admin/papierkorb/{{ e.id }}/download" class="text-xs font-medium ml-3" style="color:var(--brand-primary);">Herunterladen</a>
           <form method="post" action="/admin/papierkorb/{{ e.id }}/entfernen" class="inline ml-3"
                 onsubmit="return confirm('Diese Sicherung endgültig entfernen? Danach ist der Datensatz nicht mehr wiederherstellbar.')">
             <button class="text-xs text-red-600 hover:text-red-600 transition-colors">Endgültig entfernen</button>
