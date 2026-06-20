@@ -268,9 +268,11 @@ async def kunde_update(request: Request, kid: int, db: Session = Depends(get_db)
 
 
 @router.post("/{kid}/delete")
-def kunde_delete(kid: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def kunde_delete(kid: int, db: Session = Depends(get_db), user=Depends(get_admin_user)):
     k = db.query(Kunde).filter(Kunde.id == kid).first()
     if k:
+        from papierkorb import archive_kunde
+        archive_kunde(db, k, user.get("sub") or user.get("email"))  # Notfall-Sicherung (inkl. Aktivitäten/Wiedervorlagen)
         # Events bleiben erhalten, nur die Verknüpfung wird gelöst.
         for ev in db.query(Event).filter(Event.kunde_id == kid).all():
             ev.kunde_id = None

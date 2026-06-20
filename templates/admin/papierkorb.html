@@ -1,0 +1,62 @@
+{% extends "admin_base.html" %}
+{% set active = 'papierkorb' %}
+{% block title %}Papierkorb – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Papierkorb</h1>
+  <p class="text-sm text-gray-500 mt-0.5">
+    Notfall-Sicherung gelöschter Datensätze ({{ eintraege | length }})
+  </p>
+</div>
+
+{% if request.query_params.get('ok') == 'entfernt' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Sicherung endgültig entfernt.</div>{% endif %}
+
+<div class="mb-4 px-4 py-3 rounded-xl text-sm" style="background:#f0f7ff;color:#1e40af;">
+  Beim Löschen eines Events, Dienstleisters oder Kunden wird hier automatisch eine
+  vollständige Sicherung (inkl. Verknüpfungen) abgelegt. Du kannst sie als Datei
+  herunterladen, um im Notfall nichts zu verlieren.
+</div>
+
+{% if eintraege %}
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr style="border-bottom:1px solid #f3f4f6; background:#fafafa;">
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Typ</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Bezeichnung</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Gelöscht</th>
+        <th class="px-5 py-3"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in eintraege %}
+      <tr style="border-bottom:1px solid #f9fafb;">
+        <td class="px-5 py-3.5">
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:var(--brand-primary-light); color:var(--brand-primary);">{{ typ_label.get(e.typ, e.typ) }}</span>
+        </td>
+        <td class="px-5 py-3.5 font-medium text-gray-800">{{ e.bezeichnung or '–' }}</td>
+        <td class="px-5 py-3.5 text-gray-500">
+          {{ (e.geloescht_am or '')[:10] }}
+          {% if e.geloescht_von %}<span class="text-gray-400">· {{ e.geloescht_von }}</span>{% endif %}
+        </td>
+        <td class="px-5 py-3.5 text-right whitespace-nowrap">
+          <a href="/admin/papierkorb/{{ e.id }}/download" class="text-xs font-medium" style="color:var(--brand-primary);">Herunterladen</a>
+          <form method="post" action="/admin/papierkorb/{{ e.id }}/entfernen" class="inline ml-3"
+                onsubmit="return confirm('Diese Sicherung endgültig entfernen? Danach ist der Datensatz nicht mehr wiederherstellbar.')">
+            <button class="text-xs text-red-600 hover:text-red-600 transition-colors">Endgültig entfernen</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card p-8 text-center text-sm text-gray-500">
+  Der Papierkorb ist leer. Gelöschte Datensätze erscheinen hier automatisch.
+</div>
+{% endif %}
+
+{% endblock %}
