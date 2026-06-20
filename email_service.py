@@ -472,7 +472,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
     </a>
 
     <p style="margin:20px 0 4px;font-size:13px;color:#9ca3af;">
-      Der Link ist <strong>24 Stunden gültig</strong>. Danach kannst du dich jederzeit unter
+      Der Link ist <strong>36 Stunden gültig</strong>. Danach kannst du dich jederzeit unter
       <a href="{base_url}/portal/login" style="color:#6b7280;">{base_url}/portal/login</a> anmelden.
     </p>
     <p style="margin:0 0 0;font-size:14px;color:#6b7280;">
@@ -527,7 +527,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     </a>
 
     <p style="margin:20px 0 4px;font-size:13px;color:#9ca3af;">
-      Der Link ist <strong>24 Stunden gültig</strong>. Danach kannst du dich jederzeit unter
+      Der Link ist <strong>36 Stunden gültig</strong>. Danach kannst du dich jederzeit unter
       <a href="{base_url}/portal/login" style="color:#6b7280;">{base_url}/portal/login</a> anmelden.
     </p>
     <p style="margin:0 0 0;font-size:14px;color:#6b7280;">
