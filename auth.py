@@ -43,9 +43,9 @@ def get_admin_user(request: Request):
     return payload
 
 def create_magic_token(dienstleister, db) -> str:
-    """Generiert einen Magic-Link-Token (24h gültig) und speichert ihn."""
+    """Generiert einen Magic-Link-Token (36h gültig) und speichert ihn."""
     token = secrets.token_urlsafe(32)
-    expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+    expires = (datetime.utcnow() + timedelta(hours=36)).isoformat()
     dienstleister.magic_token = token
     dienstleister.magic_token_expires = expires
     db.commit()

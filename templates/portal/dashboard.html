@@ -29,7 +29,7 @@
     </div>
   </header>
 
-  <div class="max-w-2xl mx-auto px-4 -mt-4 space-y-7">
+  <div class="max-w-2xl mx-auto px-4 mt-5 space-y-7">
 
     {% if request.query_params.get('bericht') %}
     <div class="card p-4" style="background: var(--c-green-bg);">
@@ -131,20 +131,22 @@
             <div class="flex gap-2">
               <button type="submit" name="antwort" value="Ja"
                 class="flex-1 text-sm font-semibold py-2.5 rounded-xl text-white transition"
-                style="background:{% if is_kf %}var(--kf){% else %}var(--brand-primary){% endif %};">
-                Ich kann
+                style="background:var(--kf);">
+                Ich bin dabei
               </button>
               <button type="submit" name="antwort" value="Nein"
                 class="flex-1 text-sm font-semibold py-2.5 rounded-xl transition"
-                style="background:#f3f4f6;color:var(--ink-2);">
-                Nicht da
+                style="background:var(--c-danger-bg);color:var(--c-danger);">
+                Nicht verfügbar
               </button>
             </div>
           </form>
           {% if not a.frist_verlaengert %}
-          <form method="post" action="/portal/verlaengern/{{ a.id }}" class="mt-2">
-            <button class="w-full text-xs font-medium py-2 rounded-lg transition" style="color: var(--ink-4);">
+          <form method="post" action="/portal/verlaengern/{{ a.id }}" class="mt-2.5">
+            <button class="w-full text-xs font-semibold py-2 rounded-lg transition inline-flex items-center justify-center gap-1.5"
+                    style="color: var(--ink-2); border:1px solid var(--line); background:#fff;">
               Ich brauche mehr Bedenkzeit (Frist verlängern)
+              <span aria-hidden="true">→</span>
             </button>
           </form>
           {% endif %}
@@ -198,9 +200,12 @@
           </div>
           {% endif %}
 
-          <div class="mt-2.5 px-3.5 py-2 rounded-xl text-xs font-medium"
+          <div class="mt-2.5 px-3.5 py-2.5 rounded-xl text-xs"
                style="background: {% if is_kf %}var(--kf-bg){% else %}var(--brand-primary-light){% endif %}; color: {% if is_kf %}var(--kf){% else %}var(--brand-primary){% endif %};">
-            Rechnung an: {% if is_kf %}Knallfrosch GmbH{% else %}Kindsalabim Kinderevents{% endif %}
+            <span class="font-semibold">Rechnung an:</span>
+            <span class="block mt-1 leading-relaxed">
+              {% if is_kf %}Malca &amp; Akmanoglu GbR<br>Knallfrosch Kinderevents<br>Charlottenweg 55<br>45289 Essen{% else %}Aykut Malca<br>Kindsalabim Kinderevents<br>Charlottenweg 55<br>45289 Essen{% endif %}
+            </span>
           </div>
 
           <details class="mt-3">
