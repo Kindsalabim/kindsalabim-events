@@ -453,6 +453,30 @@ def event_new(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
         tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
                     kunden=kunden, error=None))
 
+def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
+                     kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
+                     anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
+                     marke, status, event_id=None, serien_id=None):
+    """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
+    einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
+    from types import SimpleNamespace
+    d = datum_d
+    if d is None:
+        try:
+            d = date.fromisoformat(datum)
+        except (ValueError, TypeError):
+            d = None
+    return SimpleNamespace(
+        id=event_id, serien_id=serien_id, anlass=anlass, datum=d,
+        startzeit=startzeit, endzeit=endzeit, veranstaltungsort=veranstaltungsort,
+        kunde_firma=kunde_firma, kunde_kontakt=kunde_kontakt,
+        kunde_telefon=kunde_telefon, kunde_email=kunde_email,
+        produkte=", ".join(produkte), anzahl_teamer=anzahl_teamer,
+        anzahl_kuenstler=anzahl_kuenstler, hinweise=hinweise,
+        material_mitnahme=material_mitnahme, marke=marke, status=status,
+    )
+
+
 @router.post("/events/new")
 def event_create(
     request: Request, background_tasks: BackgroundTasks,
@@ -475,8 +499,12 @@ def event_create(
     fehler = fehler or extra_fehler
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
+        echo = _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
+                                kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
+                                anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
+                                marke, status)
         return templates.TemplateResponse("admin/event_form.html",
-            tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, kunden=kunden,
+            tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
     ev = Event(
         anlass=anlass, datum=datum_d, startzeit=startzeit, endzeit=endzeit,
@@ -711,8 +739,13 @@ def event_update(
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         serie_count = db.query(Event).filter(Event.serien_id == ev.serien_id).count() if ev.serien_id else 0
+        # Eingaben als Echo zurückgeben, damit nichts verloren geht (kein commit -> DB unberührt)
+        echo = _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
+                                kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
+                                anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
+                                marke, status, event_id=ev.id, serien_id=ev.serien_id)
         return templates.TemplateResponse("admin/event_form.html",
-            tpl_context(request, event=ev, produkte_list=PRODUKTE_LIST, kunden=kunden,
+            tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
     ev.datum = datum_d
     ev.anlass = anlass; ev.startzeit = startzeit

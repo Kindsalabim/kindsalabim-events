@@ -52,8 +52,8 @@ def validate_event_form(datum: str, startzeit: str, endzeit: str,
         return None, "Die Endzeit muss nach der Startzeit liegen."
     if not valid_phone(telefon):
         return None, "Bitte eine gültige Telefonnummer eingeben (nur Ziffern und + ( ) / -)."
-    if not has_plz(ort):
-        return None, "Bitte den Veranstaltungsort mit 5-stelliger PLZ angeben (z. B. 45127 Essen)."
+    # PLZ im Veranstaltungsort ist nur empfohlen (für die Kartenanzeige), nicht mehr Pflicht –
+    # Events lassen sich auch mit grober Ortsangabe (z. B. nur Stadt) speichern.
     if produkte is not None and not produkte:
         return None, "Bitte mindestens eine Aktion auswählen (oder 'Kein Material' für reine Betreuung)."
     return datum_d, None

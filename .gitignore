@@ -26,3 +26,6 @@ kindsalabim_event_icons/
 
 _test_changes.py
 _test_changes.db
+_test_form.py
+_test_form.db
+import_auftraege_link.py
