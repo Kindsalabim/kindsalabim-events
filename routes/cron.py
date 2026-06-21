@@ -3,7 +3,7 @@ import io
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 
 from database import get_db
 from models import Verfuegbarkeitsanfrage, Event, Dienstleister, KundeWiedervorlage, Admin
@@ -62,6 +62,56 @@ def _run_teamleiter_infos(db: Session) -> int:
             count += 1
         except Exception as e:
             print(f"Teamleiter-Info-Mail fehlgeschlagen für Event {ev.id}: {e}")
+    db.commit()
+    return count
+
+
+_APP_BASE = "https://kindsalabim-events.onrender.com"
+
+
+def _run_bericht_erinnerungen(db: Session) -> int:
+    """Erinnert den Teamleiter, den Eventbericht auszufüllen – erstmals ab 2h nach Event-Ende,
+    danach alle 3 Tage, bis der Bericht eingereicht ist. Idempotent über bericht_erinnerung_am.
+    Hinweis: Der Versandzeitpunkt hängt vom Cron-Takt ab (täglich) – die 2h/3-Tage sind die
+    Mindest-Wartezeiten, gesendet wird beim nächsten Cron-Lauf danach."""
+    from email_service import send_bericht_erinnerung
+    from auth import create_magic_token
+    now = datetime.now()
+    heute = now.date()
+    kandidaten = db.query(Event).filter(
+        Event.datum <= heute,
+        Event.teamleiter_id != None,            # noqa: E711
+        Event.bericht_eingereicht_am == None,   # noqa: E711
+        Event.status.notin_(["Abgesagt", "Abgeschlossen"]),
+    ).all()
+    count = 0
+    for ev in kandidaten:
+        tl = ev.teamleiter
+        if not tl or not tl.email or "@" not in tl.email:
+            continue
+        # Event-Ende = Datum + Endzeit; Erinnerung erst 2h danach
+        try:
+            h, m = (ev.endzeit or "23:59").split(":")
+            ende = datetime.combine(ev.datum, time(int(h), int(m)))
+        except Exception:
+            ende = datetime.combine(ev.datum, time(23, 59))
+        if now < ende + timedelta(hours=2):
+            continue
+        # Wiederholung: frühestens 3 Tage nach der letzten Erinnerung
+        if ev.bericht_erinnerung_am:
+            try:
+                if now < datetime.fromisoformat(ev.bericht_erinnerung_am) + timedelta(days=3):
+                    continue
+            except ValueError:
+                pass
+        try:
+            token = create_magic_token(tl, db)
+            magic_url = f"{_APP_BASE}/portal/auth/{token}?next=/portal/bericht/{ev.id}"
+            send_bericht_erinnerung(tl, ev, magic_url)
+            ev.bericht_erinnerung_am = now.isoformat(timespec="seconds")
+            count += 1
+        except Exception as e:
+            print(f"Bericht-Erinnerung fehlgeschlagen für Event {ev.id}: {e}")
     db.commit()
     return count
 
@@ -134,6 +184,9 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     # Teamleiter-Info-Mail an Kunden (1 Woche vorher)
     teamleiter_mails = _run_teamleiter_infos(db)
 
+    # Bericht-Erinnerung an Teamleiter (ab 2h nach Event-Ende, dann alle 3 Tage)
+    bericht_erinnerungen = _run_bericht_erinnerungen(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -147,6 +200,7 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
                          "wiedervorlage_mails": wv_mails,
                          "einsatz_erinnerungen": einsatz["einsatz_erinnerungen_gesendet"],
                          "teamleiter_mails": teamleiter_mails,
+                         "bericht_erinnerungen": bericht_erinnerungen,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 
@@ -158,6 +212,17 @@ def send_einsatz_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     if not _check_secret(secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     return JSONResponse(_run_einsatz_erinnerungen(db))
+
+
+@router.get("/bericht-erinnerung")
+def send_bericht_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
+    """Schlanker, zeitkritischer Endpunkt – NUR die Bericht-Erinnerung an den Teamleiter.
+    Gedacht für einen häufigen Ping (z. B. stündlich via cron-job.org), damit die
+    Erinnerung noch am selben Abend rausgeht. Idempotent (2h-Sperre + 3-Tage-Takt),
+    läuft zusätzlich im täglichen /cron/erinnerung als Fallback."""
+    if not _check_secret(secret):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    return JSONResponse({"bericht_erinnerungen": _run_bericht_erinnerungen(db)})
 
 
 def _model_to_csv(rows, model) -> bytes:
