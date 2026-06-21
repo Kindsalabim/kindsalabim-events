@@ -9,6 +9,11 @@ __pycache__/
 venv/
 .venv/
 Confluence Wissensdatenbank/
+import_auftraege/
+import_Auftraege/
+_ab_text.txt
+_ab_extract.py
+import_auftraege_run.py
 
 # Lokale Helfer-Skripte (enthalten z.T. Secrets) – nie committen
 run_preview.py
@@ -18,3 +23,6 @@ upload_blanko.py
 import_confluence.py
 import_buchhaltung.py
 kindsalabim_event_icons/
+
+_test_changes.py
+_test_changes.db

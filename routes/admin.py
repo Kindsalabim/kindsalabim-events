@@ -828,6 +828,7 @@ def send_anfragen(
     rolle: str = Form("Teamer"),
     entsperrt: bool = Form(False),
     serie: bool = Form(False),
+    direkt: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -850,8 +851,8 @@ def send_anfragen(
         d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
         if not d:
             continue
-        # Ohne gültige E-Mail kann keine Anfrage raus -> überspringen (kein 500).
-        if not d.email or "@" not in d.email:
+        # "Ohne Mail" (Altbestand): nur bei echtem Versand wird eine gültige E-Mail benötigt.
+        if not direkt and (not d.email or "@" not in d.email):
             fehler += 1
             print(f"[ANFRAGE] übersprungen, keine gültige E-Mail: DL {did}")
             continue
@@ -860,6 +861,18 @@ def send_anfragen(
             Verfuegbarkeitsanfrage.event_id == ze.id,
             Verfuegbarkeitsanfrage.dienstleister_id == did).first()]
         if not offene_tage:
+            continue
+        # Direkt-Eintrag ohne Mail: als bereits zugesagt anlegen (Personal aus dem alten System).
+        if direkt:
+            for ze in offene_tage:
+                db.add(Verfuegbarkeitsanfrage(
+                    event_id=ze.id, dienstleister_id=did,
+                    rolle_anfrage=rolle, status="Ja",
+                    erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
+                    notiz="Manuell als zugesagt eingetragen (ohne Mail)",
+                ))
+            db.commit()
+            gesendet += 1
             continue
         # Versand pro Dienstleister absichern: ein einzelner Mailfehler darf weder die
         # ganze Aktion zum 500 bringen noch andere Anfragen zurückrollen. Die Anfragen
