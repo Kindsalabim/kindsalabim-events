@@ -281,6 +281,36 @@ def send_einsatz_erinnerung(dienstleister, event):
           _wrap(content, color, cfg))
 
 
+def send_bericht_erinnerung(dienstleister, event, magic_url: str):
+    """Erinnert den Teamleiter nach dem Event, den Eventbericht auszufüllen.
+    magic_url führt nach dem Login direkt zum Bericht-Formular."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      du warst Teamleiter bei diesem Einsatz – wie ist es gelaufen? Bitte fülle kurz den
+      <strong>Eventbericht</strong> aus. Erst danach gilt das Event als abgeschlossen.
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Anlass', event.anlass)}
+        {_info_row('Kunde', event.kunde_firma)}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Ort', event.veranstaltungsort)}
+      </table>
+    </div>
+    <a href="{magic_url}"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Bericht ausfüllen →
+    </a>
+    <p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">Dauert nur 1–2 Minuten. Fotos vom Event kannst du dort optional gleich mit hochladen.</p>"""
+    _send(dienstleister.email,
+          f"📝 Eventbericht: {event.anlass} bei {event.kunde_firma}",
+          _wrap(content, color, cfg))
+
+
 def send_teamleiter_info(event):
     """Info-Mail an den Kunden ~1 Woche vor dem Event: nennt den Teamleiter
     als Ansprechpartner am Veranstaltungstag (Name + Telefon)."""

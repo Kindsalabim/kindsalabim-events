@@ -116,6 +116,8 @@ def run_migrations():
     add_column("dienstleister", "onboarding_abgeschlossen", "BOOLEAN DEFAULT 0")
     add_column("events", "teamleiter_mail_gesendet", "BOOLEAN DEFAULT 0")
     add_column("events", "serien_id", "VARCHAR")
+    add_column("events", "bericht_erinnerung_am", "VARCHAR")
+    add_column("events", "bericht_kinder", "VARCHAR")
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")
 

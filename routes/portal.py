@@ -41,7 +41,7 @@ def portal_login_post(request: Request, db: Session = Depends(get_db),
     return RedirectResponse("/portal/login?sent=1", status_code=303)
 
 @router.get("/auth/{token}")
-def portal_magic_auth(token: str, db: Session = Depends(get_db)):
+def portal_magic_auth(token: str, next: str = "", db: Session = Depends(get_db)):
     d = verify_magic_token(token, db)
     if not d:
         return RedirectResponse("/portal/login?error=1", status_code=303)
@@ -54,7 +54,13 @@ def portal_magic_auth(token: str, db: Session = Depends(get_db)):
         {"sub": str(d.id), "role": "dienstleister"},
         expires_minutes=60 * 24 * 30
     )
-    ziel = "/portal/onboarding" if not d.onboarding_abgeschlossen else "/portal"
+    # Sprungziel nur erlauben, wenn interner Portal-Pfad (kein Open-Redirect)
+    if next.startswith("/portal/") and "//" not in next[1:]:
+        ziel = next
+    elif not d.onboarding_abgeschlossen:
+        ziel = "/portal/onboarding"
+    else:
+        ziel = "/portal"
     resp = RedirectResponse(ziel, status_code=303)
     resp.set_cookie("portal_token", session_token, httponly=True, secure=COOKIE_SECURE,
                     samesite="lax", max_age=60 * 60 * 24 * 30)
@@ -194,28 +200,46 @@ def portal_bericht_form(request: Request, event_id: int,
         EventDatei.event_id == event_id, EventDatei.typ == "bericht_foto"
     ).order_by(EventDatei.uploaded_at).all()
     foto_urls = [(f, generate_presigned_url(f.r2_key)) for f in fotos]
+
+    def _split(val, sep="\n\n"):
+        if not val:
+            return "", ""
+        teile = val.split(sep, 1)
+        return teile[0], (teile[1] if len(teile) > 1 else "")
+    kinder_choice, kinder_extra = _split(ev.bericht_kinder, " — ")
+    verlauf_choice, verlauf_extra = _split(ev.bericht_verlauf)
+    feedback_choice, feedback_extra = _split(ev.bericht_kundenfeedback)
+
     return templates.TemplateResponse("portal/bericht.html",
-        tpl_context(request, ev=ev, foto_urls=foto_urls))
+        tpl_context(request, ev=ev, foto_urls=foto_urls,
+                    kinder_choice=kinder_choice, kinder_extra=kinder_extra,
+                    verlauf_choice=verlauf_choice, verlauf_extra=verlauf_extra,
+                    feedback_choice=feedback_choice, feedback_extra=feedback_extra))
+
+
+def _bericht_combine(choice: str, text: str, sep: str = "\n\n"):
+    """Auswahl + optionaler Freitext zu einem Feldwert (oder None, wenn beides leer)."""
+    choice, text = choice.strip(), text.strip()
+    if choice and text:
+        return f"{choice}{sep}{text}"
+    return choice or text or None
 
 
 @router.post("/bericht/{event_id}")
 def portal_bericht_save(event_id: int,
-                        anzahl_kinder: str = Form(""),
-                        verlauf: str = Form(""),
-                        probleme: str = Form(""),
-                        kundenfeedback: str = Form(""),
+                        kinder: str = Form(""), kinder_text: str = Form(""),
+                        verlauf: str = Form(""), verlauf_text: str = Form(""),
+                        feedback: str = Form(""), feedback_text: str = Form(""),
                         db: Session = Depends(get_db), user=Depends(get_portal_user)):
     did = int(user["sub"])
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev or ev.teamleiter_id != did:
         return RedirectResponse("/portal", status_code=303)
-    try:
-        ev.bericht_anzahl_kinder = int(anzahl_kinder) if anzahl_kinder.strip() else None
-    except ValueError:
-        ev.bericht_anzahl_kinder = None
-    ev.bericht_verlauf = verlauf.strip() or None
-    ev.bericht_probleme = probleme.strip() or None
-    ev.bericht_kundenfeedback = kundenfeedback.strip() or None
+    ev.bericht_kinder = _bericht_combine(kinder, kinder_text, sep=" — ")
+    ev.bericht_verlauf = _bericht_combine(verlauf, verlauf_text)
+    ev.bericht_kundenfeedback = _bericht_combine(feedback, feedback_text)
+    ev.bericht_anzahl_kinder = None   # Bucket ersetzt die Freitext-Zahl
+    ev.bericht_probleme = None        # in „Wie gelaufen" aufgegangen
     ev.bericht_eingereicht_am = date.today().strftime("%d.%m.%Y")
     db.commit()
     # Automatischer Abschluss prüfen

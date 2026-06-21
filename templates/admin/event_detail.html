@@ -720,11 +720,12 @@
       <p class="text-xs text-gray-500 mb-2">Eventbericht <span class="text-gray-300">(Teamleiter)</span></p>
       {% if ev.bericht_eingereicht_am %}
         <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3" style="background:var(--c-success-bg);color:var(--c-success);">✓ eingereicht {{ ev.bericht_eingereicht_am }}</span>
+        {% set bericht_kinder = ev.bericht_kinder or (ev.bericht_anzahl_kinder if ev.bericht_anzahl_kinder is not none else None) %}
         <dl class="space-y-2 text-sm mt-1">
-          {% if ev.bericht_anzahl_kinder is not none %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Anzahl Kinder</dt><dd class="text-gray-800">{{ ev.bericht_anzahl_kinder }}</dd></div>{% endif %}
-          {% if ev.bericht_verlauf %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Verlauf</dt><dd class="text-gray-800">{{ ev.bericht_verlauf }}</dd></div>{% endif %}
-          {% if ev.bericht_probleme %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Besonderheiten</dt><dd class="text-gray-800">{{ ev.bericht_probleme }}</dd></div>{% endif %}
-          {% if ev.bericht_kundenfeedback %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Kundenfeedback</dt><dd class="text-gray-800">{{ ev.bericht_kundenfeedback }}</dd></div>{% endif %}
+          {% if bericht_kinder %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Anzahl Kinder</dt><dd class="text-gray-800">{{ bericht_kinder }}</dd></div>{% endif %}
+          {% if ev.bericht_verlauf %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Verlauf</dt><dd class="text-gray-800 whitespace-pre-line">{{ ev.bericht_verlauf }}</dd></div>{% endif %}
+          {% if ev.bericht_probleme %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Besonderheiten</dt><dd class="text-gray-800 whitespace-pre-line">{{ ev.bericht_probleme }}</dd></div>{% endif %}
+          {% if ev.bericht_kundenfeedback %}<div class="flex gap-3"><dt class="text-gray-500 w-32 shrink-0">Kundenfeedback</dt><dd class="text-gray-800 whitespace-pre-line">{{ ev.bericht_kundenfeedback }}</dd></div>{% endif %}
         </dl>
       {% else %}
         <p class="text-sm text-gray-500">⏳ Offen – wird vom Teamleiter nach dem Event im Portal ausgefüllt.

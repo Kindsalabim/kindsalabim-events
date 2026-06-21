@@ -17,39 +17,46 @@
     </div>
   </header>
 
-  <div class="max-w-2xl mx-auto px-4 -mt-4">
-    <form method="post" action="/portal/bericht/{{ ev.id }}" class="card p-5 space-y-5">
-      <p class="text-sm" style="color: var(--ink-3);">Bitte fülle den Bericht nach dem Einsatz aus. Erst danach gilt das Event als abgeschlossen.</p>
+  <div class="max-w-2xl mx-auto px-4 -mt-4 space-y-4">
+
+    <form id="berichtform" method="post" action="/portal/bericht/{{ ev.id }}" class="card p-5 space-y-6">
+      <p class="text-sm" style="color: var(--ink-3);">Schnell ausfüllen – einfach antippen. Erst danach gilt das Event als abgeschlossen.</p>
 
       <div>
-        <label class="block text-sm font-semibold mb-1.5" style="color: var(--ink-2);">Anzahl Kinder</label>
-        <input type="number" name="anzahl_kinder" min="0" inputmode="numeric"
-               value="{{ ev.bericht_anzahl_kinder if ev.bericht_anzahl_kinder is not none else '' }}"
-               class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm" placeholder="z. B. 25">
+        <label class="block text-sm font-semibold mb-2.5" style="color: var(--ink-2);">Anzahl Kinder (ca.)</label>
+        <div class="flex flex-wrap gap-2">
+          {% for opt in ['Bis 10','10–20','20–50','50–100','100–200','200–500','über 500'] %}
+          <label class="choice"><input type="radio" name="kinder" value="{{ opt }}" {% if kinder_choice == opt %}checked{% endif %}><span>{{ opt }}</span></label>
+          {% endfor %}
+        </div>
+        <textarea name="kinder_text" rows="1" placeholder="Erzähl uns mehr (optional)" class="mt-2.5 w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm">{{ kinder_extra }}</textarea>
       </div>
 
       <div>
-        <label class="block text-sm font-semibold mb-1.5" style="color: var(--ink-2);">Wie ist das Event gelaufen?</label>
-        <textarea name="verlauf" rows="4" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm" placeholder="Kurzer Verlauf, Stimmung, Ablauf …">{{ ev.bericht_verlauf or '' }}</textarea>
+        <label class="block text-sm font-semibold mb-2.5" style="color: var(--ink-2);">Wie ist das Event gelaufen?</label>
+        <div class="flex flex-wrap gap-2">
+          {% for opt in ['Alles reibungslos','Kleinere Herausforderungen gemeistert','Schwierige Bedingungen','Ziemlich chaotisch'] %}
+          <label class="choice"><input type="radio" name="verlauf" value="{{ opt }}" {% if verlauf_choice == opt %}checked{% endif %}><span>{{ opt }}</span></label>
+          {% endfor %}
+        </div>
+        <textarea name="verlauf_text" rows="2" placeholder="Erzähl uns mehr (optional)" class="mt-2.5 w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm">{{ verlauf_extra }}</textarea>
       </div>
 
       <div>
-        <label class="block text-sm font-semibold mb-1.5" style="color: var(--ink-2);">Besonderheiten / Probleme</label>
-        <textarea name="probleme" rows="3" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm" placeholder="Gab es etwas Auffälliges? (optional)">{{ ev.bericht_probleme or '' }}</textarea>
+        <label class="block text-sm font-semibold mb-2.5" style="color: var(--ink-2);">Rückmeldung des Kunden</label>
+        <div class="flex flex-wrap gap-2">
+          {% for opt in ['Begeistert','Zufrieden','Neutral','Etwas enttäuscht','Sehr unzufrieden'] %}
+          <label class="choice"><input type="radio" name="feedback" value="{{ opt }}" {% if feedback_choice == opt %}checked{% endif %}><span>{{ opt }}</span></label>
+          {% endfor %}
+        </div>
+        <textarea name="feedback_text" rows="2" placeholder="Erzähl uns mehr (optional)" class="mt-2.5 w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm">{{ feedback_extra }}</textarea>
       </div>
-
-      <div>
-        <label class="block text-sm font-semibold mb-1.5" style="color: var(--ink-2);">Rückmeldung des Kunden</label>
-        <textarea name="kundenfeedback" rows="3" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm" placeholder="Wie war das Feedback vor Ort? (optional)">{{ ev.bericht_kundenfeedback or '' }}</textarea>
-      </div>
-
-      <button type="submit" class="w-full btn-primary py-3">Bericht absenden</button>
     </form>
 
-    <!-- Fotos hochladen -->
-    <div class="card p-5 mt-4">
+    <!-- Fotos (wichtig!) – bewusst direkt vor dem Absenden -->
+    <div class="card p-5">
       <h2 class="text-sm font-semibold mb-1" style="color: var(--ink-2);">Fotos vom Event</h2>
-      <p class="text-xs mb-4" style="color: var(--ink-4);">Optional – lade Fotos vom Einsatz hoch.</p>
+      <p class="text-xs mb-4" style="color: var(--ink-4);">Bitte lade ein paar Fotos hoch – sie sind für uns sehr wertvoll.</p>
 
       {% if foto_urls %}
       <div class="grid grid-cols-3 gap-2 mb-4">
@@ -80,6 +87,16 @@
         </label>
       </form>
     </div>
+
+    <button type="submit" form="berichtform" class="w-full btn-primary py-3">Bericht absenden</button>
   </div>
+
+  <style>
+    .choice input { position:absolute; opacity:0; width:0; height:0; }
+    .choice span { display:inline-block; padding:9px 14px; border-radius:9999px; border:1px solid #e5e7eb; font-size:14px; color:var(--ink-2,#374151); background:#fff; cursor:pointer; transition:all .12s; }
+    .choice span:hover { border-color:#d1d5db; }
+    .choice input:checked + span { background:var(--brand-primary); border-color:var(--brand-primary); color:#fff; font-weight:600; }
+    .choice input:focus-visible + span { outline:2px solid var(--brand-primary); outline-offset:2px; }
+  </style>
 </div>
 {% endblock %}

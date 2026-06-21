@@ -265,7 +265,8 @@
           </div>
         </summary>
         <div class="px-4 pb-4 pt-1 space-y-3 text-sm border-t border-gray-100">
-          {% if ev.bericht_anzahl_kinder %}<div class="pt-3"><span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Anzahl Kinder:</span> <span class="text-gray-700">{{ ev.bericht_anzahl_kinder }}</span></div>{% endif %}
+          {% set bericht_kinder = ev.bericht_kinder or (ev.bericht_anzahl_kinder if ev.bericht_anzahl_kinder is not none else None) %}
+          {% if bericht_kinder %}<div class="pt-3"><span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Anzahl Kinder:</span> <span class="text-gray-700">{{ bericht_kinder }}</span></div>{% endif %}
           {% if ev.bericht_verlauf %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Verlauf</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_verlauf }}</p></div>{% endif %}
           {% if ev.bericht_probleme %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Probleme</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_probleme }}</p></div>{% endif %}
           {% if ev.bericht_kundenfeedback %}<div><div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Kundenfeedback</div><p class="text-gray-700 whitespace-pre-line">{{ ev.bericht_kundenfeedback }}</p></div>{% endif %}

@@ -34,10 +34,12 @@ class Event(Base):
     serien_id = Column(String, nullable=True, index=True)  # mehrtägiges Event: gemeinsamer Token aller Termintage (None = einzelner Tag)
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
     teamleiter_mail_gesendet = Column(Boolean, default=False)  # Info-Mail an Kunden (1 Woche vorher) versendet?
+    bericht_erinnerung_am = Column(String)  # ISO-Datetime der letzten Bericht-Erinnerung an den Teamleiter (None = nie)
 
     # Eventbericht (vom Teamleiter nach dem Event im Portal ausgefüllt)
     bericht_eingereicht_am = Column(String)
-    bericht_anzahl_kinder  = Column(Integer)
+    bericht_anzahl_kinder  = Column(Integer)   # Legacy (Freitext-Zahl); neu: bericht_kinder (Bucket)
+    bericht_kinder         = Column(String)    # Multiple-Choice-Bucket, z. B. "20–50" (+ optional angehängter Text)
     bericht_verlauf        = Column(Text)
     bericht_probleme       = Column(Text)
     bericht_kundenfeedback = Column(Text)
