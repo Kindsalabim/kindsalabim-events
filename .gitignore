@@ -29,3 +29,5 @@ _test_changes.db
 _test_form.py
 _test_form.db
 import_auftraege_link.py
+onboarding_shots/
+_build_onboarding_pdf.py

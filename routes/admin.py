@@ -121,10 +121,11 @@ def login(request: Request, email: str = Form(...), password: str = Form(...),
     if not a or not verify_password(password, a.password_hash):
         return templates.TemplateResponse("admin/login.html",
             tpl_context(request, error="Ungültige Zugangsdaten"))
-    token = create_token({"sub": a.email, "role": "admin"})
+    # 30 Tage Login (internes Single-User-Tool) – Token-Laufzeit und Cookie gleich lang
+    token = create_token({"sub": a.email, "role": "admin"}, expires_minutes=60*24*30)
     resp = RedirectResponse("/admin/dashboard", status_code=303)
     resp.set_cookie("admin_token", token, httponly=True, secure=COOKIE_SECURE,
-                    samesite="lax", max_age=60*60*8)
+                    samesite="lax", max_age=60*60*24*30)
     return resp
 
 @router.get("/logout")
