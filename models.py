@@ -26,6 +26,13 @@ class Event(Base):
     teamkleidung = Column(Boolean, default=True)     # Legacy: kommt jetzt aus der Checkliste (cl_teamkleidung)
     material_mitnahme = Column(Boolean, default=False)  # Materialtransport nötig? steuert Logistik-Bedarf + 3-Wochen-Erinnerung
     material_bestellt = Column(Boolean, default=False)  # Material wurde bestellt – Bedingung für "Planung fertig"
+    # Logistik / Materialtransport
+    material_info = Column(Text)                         # Admin-Hinweis zur Menge/zum Transport (für Logistiker sichtbar)
+    transporter_angeboten = Column(Boolean, default=False)  # Firmen-Transporter steht für dieses Event zur Verfügung
+    logistiker_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)  # zugewiesener Material-Fahrer
+    material_bereit = Column(Boolean, default=False)     # Material im Lager abholbereit
+    material_bereit_gesendet = Column(Boolean, default=False)        # "bereit zur Abholung"-Mail verschickt?
+    material_abhol_erinnerung_gesendet = Column(Boolean, default=False)  # 3-Tage-Abhol-Erinnerung verschickt?
     status = Column(String, default="Gebucht")   # Gebucht → Dienstleister angefragt → Checkliste geschickt/eingegangen → Planung fertig → Briefing gesendet → Abgeschlossen · Abgesagt
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
@@ -64,6 +71,7 @@ class Event(Base):
     zaubershow_event = Column(Boolean, default=False)  # Reines Zaubershow-Event: Firma/Ort/Aktion optional, kein Checkliste/Briefing/Bericht
 
     teamleiter = relationship("Dienstleister", foreign_keys=[teamleiter_id])
+    logistiker = relationship("Dienstleister", foreign_keys=[logistiker_id])
     kunde = relationship("Kunde", back_populates="events", foreign_keys=[kunde_id])
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="event", cascade="all, delete-orphan")
     dateien  = relationship("EventDatei", back_populates="event", cascade="all, delete-orphan")
@@ -155,6 +163,8 @@ class Verfuegbarkeitsanfrage(Base):
     frist_verlaengert = Column(Boolean, default=False)
     erinnerung_gesendet = Column(Boolean, default=False)
     einsatz_erinnerung_gesendet = Column(Boolean, default=False)  # Einsatz-Erinnerung 2 Tage vorher
+    als_logistiker = Column(Boolean, default=False)  # auch als Logistiker (Materialtransport) angefragt
+    logistik_transport = Column(String)  # Antwort des Logistikers: eigenes_auto | transporter | ohne (None = offen)
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")

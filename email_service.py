@@ -410,6 +410,62 @@ def send_admin_notification(to_email: str, titel: str, text: str = "", link: str
     _send(to_email, f"🔔 {titel}", _wrap(content, color, cfg))
 
 
+LAGER_ADRESSE = "Lager Rüttenscheid"  # fester Abholort; bei Bedarf später pro Event/Konfig
+
+
+def _transport_text(logistik_transport: str) -> str:
+    return {"eigenes_auto": "mit deinem eigenen Auto",
+            "transporter": "mit unserem Transporter"}.get(logistik_transport or "", "")
+
+
+def send_material_abhol_erinnerung(event, logistiker, logistik_transport: str = ""):
+    """3 Tage vor dem Event an den zugeteilten Logistiker: Material rechtzeitig abholen."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    tt = _transport_text(logistik_transport)
+    transp_zeile = f"<br>Du nimmst es <strong>{tt}</strong> mit." if tt else ""
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {logistiker.vorname},</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">
+      kleine Erinnerung: In <strong>3 Tagen</strong> ist dein Einsatz – bitte denk daran, das
+      <strong>Material</strong> für das Event mitzunehmen.{transp_zeile}
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', event.anlass)}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
+        {_info_row('Abholort', LAGER_ADRESSE)}
+        {_info_row('Material', event.material_info or '–')}
+      </table>
+    </div>
+    <p style="margin:0;font-size:13px;color:#9ca3af;">Wir melden uns nochmal, sobald das Material im Lager abholbereit ist.</p>"""
+    subject = f"🚚 Material mitnehmen: {event.anlass} am {de_date(event.datum)}"
+    _send(logistiker.email, subject, _wrap(content, color, cfg))
+
+
+def send_material_bereit(event, logistiker):
+    """Material steht im Lager bereit zur Abholung – an den zugeteilten Logistiker."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {logistiker.vorname},</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">
+      gute Nachricht: Das <strong>Material steht im {LAGER_ADRESSE} bereit zur Abholung</strong>.
+      Du kannst es jetzt abholen.
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', event.anlass)}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Abholort', LAGER_ADRESSE)}
+        {_info_row('Material', event.material_info or '–')}
+      </table>
+    </div>"""
+    subject = f"📦 Material abholbereit: {event.anlass} am {de_date(event.datum)}"
+    _send(logistiker.email, subject, _wrap(content, color, cfg))
+
+
 def send_checklist_email(event, base_url: str):
     cfg = get_config()
     color = _brand_color(event.marke)
@@ -497,10 +553,24 @@ def send_absage_admin(dienstleister, event, grund: str, base_url: str):
 
 
 def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str,
-                                magic_url: str = ""):
+                                magic_url: str = "", als_logistiker: bool = False):
     cfg = get_config()
     color = _brand_color(event.marke)
     portal_url = magic_url or f"{base_url}/portal/login"
+
+    logistik_block = ""
+    if als_logistiker:
+        if event.transporter_angeboten:
+            transp = "Unser Transporter steht für dich zur Verfügung."
+        else:
+            transp = "Es steht kein Transporter zur Verfügung – nur mit eigenem Auto möglich."
+        mat = f"<br><strong>Material:</strong> {event.material_info}" if event.material_info else ""
+        logistik_block = f"""
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1e40af;">🚚 Du wirst auch als Logistiker angefragt</p>
+      <p style="margin:0;font-size:14px;color:#1e40af;line-height:1.6;">Du würdest das Material für dieses Event mitnehmen. {transp}{mat}<br>
+      Im Portal wählst du, ob du es mit deinem eigenen Auto{(' oder unserem Transporter' if event.transporter_angeboten else '')} mitnimmst – oder ob du es nicht mitnehmen kannst.</p>
+    </div>"""
 
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
@@ -518,6 +588,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
         {_info_row('Produkte', event.produkte)}
       </table>
     </div>
+    {logistik_block}
 
     <a href="{portal_url}"
        style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
