@@ -1055,10 +1055,27 @@ def send_briefing_route(
 def briefing_edit(request: Request, event_id: int,
                   db: Session = Depends(get_db), _=Depends(get_admin_user)):
     """Admin-Formular, um die Checklisten-/Briefing-Daten (cl_*) selbst auszufüllen
-    oder zu korrigieren – falls der Kunde die Checkliste nicht (rechtzeitig) schickt."""
+    oder zu korrigieren – falls der Kunde die Checkliste nicht (rechtzeitig) schickt.
+    Leere Felder werden aus den Event-Daten vorbelegt (Checklisten-Werte haben Vorrang)."""
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
-    return templates.TemplateResponse("admin/briefing_edit.html", tpl_context(request, ev=ev))
+    # Veranstaltungsort grob in Straße / PLZ+Ort aufteilen (erster Komma-Trenner)
+    ort = (ev.veranstaltungsort or "").strip()
+    strasse_def, plz_ort_def = (ort.split(",", 1) + [""])[:2] if "," in ort else (ort, "")
+    vor = {
+        "ansprechpartner_name":  ev.cl_ansprechpartner_name  or ev.kunde_kontakt or "",
+        "ansprechpartner_mobil": ev.cl_ansprechpartner_mobil or ev.kunde_telefon or "",
+        "firma_name":            ev.cl_firma_name or ev.kunde_firma or "",
+        "strasse":               ev.cl_strasse  or strasse_def.strip(),
+        "plz_ort":               ev.cl_plz_ort  or plz_ort_def.strip(),
+        "aufbau_von":  ev.cl_aufbau_von or "",  "aufbau_bis": ev.cl_aufbau_bis or "",
+        "abbau_von":   ev.cl_abbau_von  or "",  "abbau_bis":  ev.cl_abbau_bis  or "",
+        "aufbauort":   ev.cl_aufbauort  or (ev.outdoor_indoor or ""),
+        "verpflegung": ev.cl_verpflegung or "",
+        "teamkleidung": ev.cl_teamkleidung or ("Ja" if ev.teamkleidung else ""),
+        "parkplatz":   ev.cl_parkplatz or (ev.parkplatz or ""),
+    }
+    return templates.TemplateResponse("admin/briefing_edit.html", tpl_context(request, ev=ev, vor=vor))
 
 
 @router.post("/events/{event_id}/checklist/edit")
