@@ -105,6 +105,21 @@
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Bitte ein gültiges Datum (und Endzeit nach Beginn) für den neuen Termin angeben.</div>
 {% endif %}
 
+{% if request.query_params.get('material_bereit') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">
+  ✓ Material als abholbereit markiert – der Logistiker wurde benachrichtigt.
+</div>
+{% endif %}
+{% if request.query_params.get('material_bereit_nomail') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-amber-bg, #fffbeb);color:#b45309;">
+  ✓ Material als abholbereit markiert. <strong>Mail nicht gesendet</strong> (Logistiker hat keine E-Mail) – bitte selbst Bescheid geben.
+</div>
+{% endif %}
+{% if request.query_params.get('error') == 'kein_logistiker' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">
+  ✗ Bitte zuerst einen Logistiker auswählen, bevor du das Material als abholbereit meldest.
+</div>
+{% endif %}
 {% if request.query_params.get('checklist_sent') %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">
   ✓ Checkliste wurde an {{ ev.kunde_email }} gesendet.
@@ -204,9 +219,22 @@
           {% endif %}
         </dd>
       </div>
+      {% if ev.material_info %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-28 shrink-0">Material-Info</dt>
+        <dd class="text-gray-800">{{ ev.material_info }}</dd>
+      </div>
+      {% endif %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-28 shrink-0">Logistiker</dt>
+        <dd class="text-gray-800">
+          {% if ev.logistiker %}🚚 {{ ev.logistiker.vorname }} {{ ev.logistiker.nachname }}{% if ev.material_bereit %} · <span style="color:var(--c-success);">📦 Material abholbereit</span>{% endif %}
+          {% else %}<span class="text-gray-400">noch keiner zugewiesen (unten bei den Anfragen)</span>{% endif %}
+        </dd>
+      </div>
       {% endif %}
     </dl>
-    <p class="text-xs text-gray-500 mt-3">Aufbau, Parkplatz, Indoor/Outdoor, Verpflegung &amp; Teamkleidung füllt der Kunde in der Checkliste aus – siehe Kunden-Angaben unten.</p>
+    <p class="text-xs text-gray-500 mt-3">Aufbau, Parkplatz, Indoor/Outdoor, Verpflegung &amp; Teamkleidung füllt der Kunde in der Checkliste aus – siehe Kunden-Angaben unten. Logistiker zuweisen unten bei den Verfügbarkeitsanfragen.</p>
   </div>
 
   <!-- Kunde -->
@@ -387,6 +415,36 @@
     </select>
     <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Speichern</button>
   </form>
+  {% if needs_material %}
+  {% set tlabel = {'eigenes_auto':'eigenes Auto','transporter':'unser Transporter','ohne':'⚠ kann NICHT mitnehmen'} %}
+  <div class="mb-5 pb-5" style="border-bottom: 1px solid #f3f4f6;">
+    <form method="post" action="/admin/events/{{ ev.id }}/logistiker" class="flex flex-wrap items-center gap-2">
+      <label class="text-xs font-medium text-gray-500">🚚 Logistiker (Material)</label>
+      <select name="logistiker_id" class="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5">
+        <option value="">– keiner –</option>
+        {% for a in confirmed %}
+        <option value="{{ a.dienstleister_id }}" {% if a.dienstleister_id == ev.logistiker_id %}selected{% endif %}>{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}{% if a.als_logistiker and a.logistik_transport %} – {{ tlabel.get(a.logistik_transport, '') }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Speichern</button>
+    </form>
+    {% if ev.logistiker_id %}
+    {% set la = confirmed | selectattr('dienstleister_id', 'equalto', ev.logistiker_id) | list | first %}
+    <div class="mt-2.5 flex flex-wrap items-center gap-2">
+      {% if la and la.logistik_transport %}
+      <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--brand-primary-light);color:var(--brand-primary);">Transport: {{ tlabel.get(la.logistik_transport, 'offen') }}</span>
+      {% endif %}
+      {% if ev.material_bereit %}
+      <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">📦 als abholbereit gemeldet</span>
+      {% else %}
+      <form method="post" action="/admin/events/{{ ev.id }}/material-bereit" onsubmit="return confirm('Den Logistiker benachrichtigen, dass das Material im Lager abholbereit ist?')">
+        <button class="btn-secondary text-xs px-3 py-1.5">📦 Material bereit zur Abholung</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
   {% endif %}
 
   <!-- Neue Anfragen -->
@@ -516,6 +574,14 @@
               {% if d.id in lange_her_ids and not gebucht and not sperrzeit %}<span class="block text-xs mt-0.5" style="color:#6b7280;">🕒 länger nicht angefragt</span>{% endif %}
               {% if gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:var(--c-danger);">⚠ Bereits gebucht ({{ gebucht.startzeit }}–{{ gebucht.endzeit }} Uhr · {{ gebucht.kunde_firma }})</span>{% endif %}
               {% if sperrzeit and not gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#c2410c;">🚫 Nicht verfügbar{% if sperrzeit.grund %} ({{ sperrzeit.grund }}){% endif %}</span>{% endif %}
+              {% if needs_material and not already %}
+              <span class="block mt-1.5 text-xs" style="color:#1d4ed8;">
+                <input type="checkbox" name="logistiker_ids" value="{{ d.id }}" style="accent-color:var(--brand-primary);vertical-align:-2px;"
+                  onclick="event.stopPropagation();"
+                  onchange="var s=this.closest('.dl-pick').querySelector('input[name=dienstleister_ids]'); if(this.checked &amp;&amp; s){ s.checked=true; }">
+                🚚 auch als Logistiker anfragen
+              </span>
+              {% endif %}
             </span>
             <span class="ml-auto shrink-0 text-right">
               <span class="inline-block text-xs font-semibold px-1.5 py-0.5 rounded" style="background: var(--brand-primary-light); color: var(--brand-primary);" title="Empfehlungs-Score (Entfernung, Qualität, Logistik, Erfahrung)">{{ d.rang_score }}</span>

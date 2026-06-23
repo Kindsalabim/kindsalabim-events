@@ -458,7 +458,8 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
                      kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                      anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
                      marke, status, event_id=None, serien_id=None,
-                     checkliste_uebersprungen=False, zaubershow_event=False):
+                     checkliste_uebersprungen=False, zaubershow_event=False,
+                     material_info="", transporter_angeboten=False):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -478,6 +479,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
         material_mitnahme=material_mitnahme, marke=marke, status=status,
         checkliste_uebersprungen=checkliste_uebersprungen,
         zaubershow_event=zaubershow_event,
+        material_info=material_info, transporter_angeboten=transporter_angeboten,
     )
 
 
@@ -493,6 +495,7 @@ def event_create(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
+    material_info: str = Form(""), transporter_angeboten: bool = Form(False),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
@@ -508,7 +511,8 @@ def event_create(
                                 kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                                 anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
                                 marke, status, checkliste_uebersprungen=checkliste_uebersprungen,
-                                zaubershow_event=zaubershow_event)
+                                zaubershow_event=zaubershow_event,
+                                material_info=material_info, transporter_angeboten=transporter_angeboten)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
@@ -519,6 +523,7 @@ def event_create(
         kunde_email=kunde_email, produkte=", ".join(produkte),
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
+        material_info=material_info, transporter_angeboten=transporter_angeboten,
         checkliste_uebersprungen=checkliste_uebersprungen,
         zaubershow_event=zaubershow_event,
         marke=marke, status=status
@@ -547,7 +552,7 @@ def _workflow_steps(ev, anfragen):
     confirmed = [a for a in anfragen if a.status == "Ja"]
     teamer_ok    = sum(1 for a in confirmed if a.rolle_anfrage == "Teamer")   >= ev.anzahl_teamer
     kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler") >= ev.anzahl_kuenstler
-    logistiker_ok = (not ev.material_mitnahme) or any(
+    logistiker_ok = (not ev.material_mitnahme) or bool(ev.logistiker_id) or any(
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
     team_komplett = bool(confirmed) and teamer_ok and kuenstler_ok and logistiker_ok
 
@@ -740,6 +745,7 @@ def event_update(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
+    material_info: str = Form(""), transporter_angeboten: bool = Form(False),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
@@ -759,7 +765,8 @@ def event_update(
                                 anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
                                 marke, status, event_id=ev.id, serien_id=ev.serien_id,
                                 checkliste_uebersprungen=checkliste_uebersprungen,
-                                zaubershow_event=zaubershow_event)
+                                zaubershow_event=zaubershow_event,
+                                material_info=material_info, transporter_angeboten=transporter_angeboten)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -771,6 +778,7 @@ def event_update(
     ev.produkte = ", ".join(produkte); ev.anzahl_teamer = anzahl_teamer
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
+    ev.material_info = material_info; ev.transporter_angeboten = transporter_angeboten
     ev.checkliste_uebersprungen = checkliste_uebersprungen
     ev.zaubershow_event = zaubershow_event
     if crm_verknuepfen:
@@ -853,7 +861,7 @@ def auto_status(ev, db) -> str:
     kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler")  >= ev.anzahl_kuenstler
 
     # Logistiker: nur nötig, wenn Material transportiert werden muss
-    logistiker_ok = (not ev.material_mitnahme) or any(
+    logistiker_ok = (not ev.material_mitnahme) or bool(ev.logistiker_id) or any(
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
 
     # Material: wenn Mitnahme nötig, muss es auch bestellt sein
@@ -877,6 +885,7 @@ def auto_status(ev, db) -> str:
 def send_anfragen(
     request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
     dienstleister_ids: list = Form([]),
+    logistiker_ids: list = Form([]),
     rolle: str = Form("Teamer"),
     entsperrt: bool = Form(False),
     serie: bool = Form(False),
@@ -888,6 +897,7 @@ def send_anfragen(
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     if not dienstleister_ids:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
+    logi_ids = {int(x) for x in logistiker_ids}  # als Logistiker (Materialtransport) angefragt
 
     # Ziel-Termine: ganze Serie (alle Tage gleichzeitig anfragen) oder nur dieses Event
     if serie and ev.serien_id:
@@ -919,10 +929,12 @@ def send_anfragen(
             for ze in offene_tage:
                 db.add(Verfuegbarkeitsanfrage(
                     event_id=ze.id, dienstleister_id=did,
-                    rolle_anfrage=rolle, status="Ja",
+                    rolle_anfrage=rolle, status="Ja", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     notiz="Manuell als zugesagt eingetragen (ohne Mail)",
                 ))
+                if did in logi_ids:
+                    ze.logistiker_id = did  # direkt eingetragener Logistiker
             db.commit()
             gesendet += 1
             continue
@@ -937,7 +949,7 @@ def send_anfragen(
             for ze in offene_tage:
                 a = Verfuegbarkeitsanfrage(
                     event_id=ze.id, dienstleister_id=did,
-                    rolle_anfrage=rolle, status="Ausstehend",
+                    rolle_anfrage=rolle, status="Ausstehend", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     frist_datum=date.today() + timedelta(days=3),
                 )
@@ -946,7 +958,8 @@ def send_anfragen(
             # Eine Mail pro Dienstleister: bei mehreren Tagen die kombinierte Serien-Mail
             if len(neue) == 1:
                 ze, a = neue[0]
-                send_verfuegbarkeitsanfrage(d, ze, a.id, base_url, magic_url=magic_url)
+                send_verfuegbarkeitsanfrage(d, ze, a.id, base_url, magic_url=magic_url,
+                                            als_logistiker=(did in logi_ids))
             else:
                 send_serie_anfrage(d, [ze for ze, a in neue], base_url, magic_url=magic_url)
             db.commit()
@@ -1000,6 +1013,44 @@ def set_teamleiter(
     ev.teamleiter_id = int(teamleiter_id) if teamleiter_id else None
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+@router.post("/events/{event_id}/logistiker")
+def set_logistiker(
+    event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    logistiker_id: str = Form(""),
+):
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    ev.logistiker_id = int(logistiker_id) if logistiker_id else None
+    db.commit()
+    ev.status = auto_status(ev, db)
+    db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}#wf-material", status_code=303)
+
+@router.post("/events/{event_id}/material-bereit")
+def material_bereit(
+    request: Request, event_id: int, background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), _=Depends(get_admin_user),
+):
+    """Markiert das Material als abholbereit und benachrichtigt den zugeteilten Logistiker."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    if not ev.logistiker_id:
+        return RedirectResponse(f"/admin/events/{event_id}?error=kein_logistiker#wf-material", status_code=303)
+    ev.material_bereit = True
+    mail_ok = False
+    log = ev.logistiker
+    if log and log.email and "@" in log.email and not ev.material_bereit_gesendet:
+        try:
+            from email_service import send_material_bereit
+            send_material_bereit(ev, log)
+            ev.material_bereit_gesendet = True
+            mail_ok = True
+        except Exception as e:
+            print(f"[MATERIAL-BEREIT-MAIL FEHLER] Event {ev.id}: {e}")
+    db.commit()
+    flag = "material_bereit=1" if mail_ok else "material_bereit_nomail=1"
+    return RedirectResponse(f"/admin/events/{event_id}?{flag}#wf-material", status_code=303)
 
 @router.post("/events/{event_id}/checklist")
 def send_checklist(

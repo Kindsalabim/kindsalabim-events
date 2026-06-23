@@ -151,13 +151,34 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
         Verfuegbarkeitsanfrage.id == anfrage_id,
         Verfuegbarkeitsanfrage.dienstleister_id == did
     ).first()
+    # Logistiker-Antworten (kombinierte Buttons) auf Status + Transportart abbilden
+    transport = None
+    if antwort in ("ja_auto", "ja_transporter", "ja_ohne"):
+        transport = {"ja_auto": "eigenes_auto", "ja_transporter": "transporter",
+                     "ja_ohne": "ohne"}[antwort]
+        antwort = "Ja"
     if a and antwort in ("Ja", "Nein"):
         a.status = antwort
         a.notiz = notiz.strip() or None
-        db.commit()
-        # Event-Status automatisch aktualisieren
         from routes.admin import auto_status
         ev = a.event
+        # Logistiker-Transportart festhalten und Event-Logistiker setzen/lösen
+        transport_text = ""
+        if a.als_logistiker and antwort == "Ja" and transport:
+            a.logistik_transport = transport
+            if transport == "eigenes_auto":
+                ev.logistiker_id = a.dienstleister_id
+                transport_text = " · 🚚 Material mit eigenem Auto"
+            elif transport == "transporter":
+                ev.logistiker_id = a.dienstleister_id
+                transport_text = " · 🚚 Material mit unserem Transporter"
+            else:  # ohne
+                if ev.logistiker_id == a.dienstleister_id:
+                    ev.logistiker_id = None
+                transport_text = " · ⚠ kann das Material NICHT mitnehmen"
+        elif antwort == "Nein" and ev.logistiker_id == a.dienstleister_id:
+            ev.logistiker_id = None
+        db.commit()
         ev.status = auto_status(ev, db)
         # Glocke: Zu-/Absage auf eine Verfügbarkeitsanfrage
         from notifications import notify
@@ -166,7 +187,7 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
         datum = ev.datum.strftime("%d.%m.%Y")
         if antwort == "Ja":
             notify(db, "dl_zusage", f"Zusage: {name}",
-                   f"{name} hat für {ev.anlass} am {datum} zugesagt.",
+                   f"{name} hat für {ev.anlass} am {datum} zugesagt.{transport_text}",
                    f"/admin/events/{ev.id}")
         else:
             notify(db, "dl_absage", f"Absage auf Anfrage: {name}",

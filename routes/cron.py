@@ -118,6 +118,37 @@ def _run_bericht_erinnerungen(db: Session) -> int:
     return count
 
 
+def _run_material_abhol_erinnerungen(db: Session) -> int:
+    """3 Tage vor dem Event: erinnert den zugeteilten Logistiker, das Material abzuholen/mitzunehmen.
+    Nur wenn Materialmitnahme nötig + Logistiker gesetzt + Logistiker hat E-Mail + noch nicht erinnert."""
+    in_3_tagen = date.today() + timedelta(days=3)
+    events = db.query(Event).filter(
+        Event.datum == in_3_tagen,
+        Event.material_mitnahme == True,                     # noqa: E712
+        Event.logistiker_id != None,                          # noqa: E711
+        Event.material_abhol_erinnerung_gesendet == False,    # noqa: E712
+        Event.status.notin_(["Abgesagt", "Abgeschlossen"]),
+    ).all()
+    from email_service import send_material_abhol_erinnerung
+    count = 0
+    for ev in events:
+        log = ev.logistiker
+        if not log or not log.email or "@" not in log.email:
+            continue
+        a = db.query(Verfuegbarkeitsanfrage).filter(
+            Verfuegbarkeitsanfrage.event_id == ev.id,
+            Verfuegbarkeitsanfrage.dienstleister_id == ev.logistiker_id).first()
+        transport = a.logistik_transport if a else ""
+        try:
+            send_material_abhol_erinnerung(ev, log, transport)
+            ev.material_abhol_erinnerung_gesendet = True
+            count += 1
+        except Exception as e:
+            print(f"Material-Abhol-Erinnerung fehlgeschlagen für Event {ev.id}: {e}")
+    db.commit()
+    return count
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -189,6 +220,9 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     # Bericht-Erinnerung an Teamleiter (ab 2h nach Event-Ende, dann alle 3 Tage)
     bericht_erinnerungen = _run_bericht_erinnerungen(db)
 
+    # Material-Abhol-Erinnerung an den Logistiker (3 Tage vorher)
+    material_abhol = _run_material_abhol_erinnerungen(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -203,6 +237,7 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
                          "einsatz_erinnerungen": einsatz["einsatz_erinnerungen_gesendet"],
                          "teamleiter_mails": teamleiter_mails,
                          "bericht_erinnerungen": bericht_erinnerungen,
+                         "material_abhol_erinnerungen": material_abhol,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 
