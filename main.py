@@ -120,6 +120,7 @@ def run_migrations():
     add_column("events", "bericht_erinnerung_am", "VARCHAR")
     add_column("events", "bericht_kinder", "VARCHAR")
     add_column("events", "checkliste_uebersprungen", "BOOLEAN DEFAULT 0")
+    add_column("events", "zaubershow_event", "BOOLEAN DEFAULT 0")
     add_column("admins", "notifications_gesehen_bis", "VARCHAR")
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")

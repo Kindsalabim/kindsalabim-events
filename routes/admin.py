@@ -33,7 +33,7 @@ PRODUKTE_LIST = [
     "Fotoaktion", "Spieleland", "Mitmachzirkus", "Knusperhäuschen", "Lebkuchenherzen",
     "Ballonmodellage", "Kinderschminken", "Buttonmaschine", "Prickeln",
     "Bastelspaß Weihnachten", "Kleinkind Spieleland", "Walkact", "Hüpfburg",
-    "Christbaumkugeln gestalten", "Kein Material"
+    "Christbaumkugeln gestalten", "Zaubershow", "Kein Material"
 ]
 
 ANLASS_LIST = [
@@ -458,7 +458,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
                      kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                      anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
                      marke, status, event_id=None, serien_id=None,
-                     checkliste_uebersprungen=False):
+                     checkliste_uebersprungen=False, zaubershow_event=False):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -477,6 +477,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
         anzahl_kuenstler=anzahl_kuenstler, hinweise=hinweise,
         material_mitnahme=material_mitnahme, marke=marke, status=status,
         checkliste_uebersprungen=checkliste_uebersprungen,
+        zaubershow_event=zaubershow_event,
     )
 
 
@@ -486,19 +487,19 @@ def event_create(
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
     startzeit: str = Form(...), endzeit: str = Form(...),
-    veranstaltungsort: str = Form(...),
-    kunde_firma: str = Form(...), kunde_kontakt: str = Form(""),
+    veranstaltungsort: str = Form(""),
+    kunde_firma: str = Form(""), kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
-    checkliste_uebersprungen: bool = Form(False),
+    checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     extra_datum: list = Form([]), extra_startzeit: list = Form([]),
     extra_endzeit: list = Form([]),
 ):
-    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte)
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event)
     extra_tage, extra_fehler = _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, startzeit, endzeit)
     fehler = fehler or extra_fehler
     if fehler:
@@ -506,7 +507,8 @@ def event_create(
         echo = _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
                                 kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                                 anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
-                                marke, status, checkliste_uebersprungen=checkliste_uebersprungen)
+                                marke, status, checkliste_uebersprungen=checkliste_uebersprungen,
+                                zaubershow_event=zaubershow_event)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
@@ -518,6 +520,7 @@ def event_create(
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
         checkliste_uebersprungen=checkliste_uebersprungen,
+        zaubershow_event=zaubershow_event,
         marke=marke, status=status
     )
     db.add(ev)
@@ -548,21 +551,24 @@ def _workflow_steps(ev, anfragen):
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
     team_komplett = bool(confirmed) and teamer_ok and kuenstler_ok and logistiker_ok
 
-    if ev.checkliste_uebersprungen and not ev.cl_eingereicht_am:
+    if (ev.zaubershow_event or ev.checkliste_uebersprungen) and not ev.cl_eingereicht_am:
                                   checkliste = ("na", "nicht nötig")
     elif ev.cl_eingereicht_am:    checkliste = ("done", "eingegangen")
     elif ev.checklist_token:      checkliste = ("doing", "abgeschickt")
     else:                         checkliste = ("todo", "offen")
 
-    if team_komplett:             team = ("done", "Team komplett")
+    if ev.zaubershow_event:       team = ("na", "nicht nötig")
+    elif team_komplett:           team = ("done", "Team komplett")
     elif anfragen:                team = ("doing", "angefragt")
     else:                         team = ("todo", "offen")
 
-    if not ev.material_mitnahme:  bestellungen = ("na", "nicht nötig")
+    if ev.zaubershow_event or not ev.material_mitnahme:  bestellungen = ("na", "nicht nötig")
     elif ev.material_bestellt:    bestellungen = ("done", "bestellt")
     else:                         bestellungen = ("todo", "offen")
 
-    briefing  = ("done", "gesendet")      if ev.status in ("Briefing gesendet", "Abgeschlossen") else ("todo", "offen")
+    if ev.zaubershow_event:       briefing = ("na", "nicht nötig")
+    elif ev.status in ("Briefing gesendet", "Abgeschlossen"): briefing = ("done", "gesendet")
+    else:                         briefing = ("todo", "offen")
     abschluss = ("done", "abgeschlossen") if ev.status == "Abgeschlossen" else ("todo", "offen")
 
     steps = [
@@ -728,13 +734,13 @@ def event_update(
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
     startzeit: str = Form(...), endzeit: str = Form(...),
-    veranstaltungsort: str = Form(...),
-    kunde_firma: str = Form(...), kunde_kontakt: str = Form(""),
+    veranstaltungsort: str = Form(""),
+    kunde_firma: str = Form(""), kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
-    checkliste_uebersprungen: bool = Form(False),
+    checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     entsperrt: bool = Form(False), serie_propagieren: bool = Form(False),
@@ -743,7 +749,7 @@ def event_update(
     if not ev: raise HTTPException(404)
     if event_gesperrt(ev, entsperrt):
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
-    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte)
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event)
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         serie_count = db.query(Event).filter(Event.serien_id == ev.serien_id).count() if ev.serien_id else 0
@@ -752,7 +758,8 @@ def event_update(
                                 kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                                 anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
                                 marke, status, event_id=ev.id, serien_id=ev.serien_id,
-                                checkliste_uebersprungen=checkliste_uebersprungen)
+                                checkliste_uebersprungen=checkliste_uebersprungen,
+                                zaubershow_event=zaubershow_event)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -765,6 +772,7 @@ def event_update(
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
     ev.checkliste_uebersprungen = checkliste_uebersprungen
+    ev.zaubershow_event = zaubershow_event
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
@@ -851,7 +859,7 @@ def auto_status(ev, db) -> str:
     # Material: wenn Mitnahme nötig, muss es auch bestellt sein
     material_ok = (not ev.material_mitnahme) or ev.material_bestellt
 
-    checkliste_ok = bool(ev.cl_eingereicht_am or ev.checkliste_uebersprungen)
+    checkliste_ok = bool(ev.cl_eingereicht_am or ev.checkliste_uebersprungen or ev.zaubershow_event)
     if teamer_ok and kuenstler_ok and logistiker_ok and material_ok and checkliste_ok:
         return "Planung fertig"
     if ev.cl_eingereicht_am:

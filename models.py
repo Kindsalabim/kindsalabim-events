@@ -61,6 +61,7 @@ class Event(Base):
     cl_parkplatz             = Column(Text)
     cl_eingereicht_am        = Column(String)
     checkliste_uebersprungen = Column(Boolean, default=False)  # Stammkunde: keine Kunden-Checkliste nötig
+    zaubershow_event = Column(Boolean, default=False)  # Reines Zaubershow-Event: Firma/Ort/Aktion optional, kein Checkliste/Briefing/Bericht
 
     teamleiter = relationship("Dienstleister", foreign_keys=[teamleiter_id])
     kunde = relationship("Kunde", back_populates="events", foreign_keys=[kunde_id])

@@ -20,7 +20,7 @@
   <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
     <div>
       <div class="flex items-center gap-2.5 mb-1 flex-wrap">
-        <h1 class="text-xl font-bold text-gray-900">{{ ev.kunde_firma }}</h1>
+        <h1 class="text-xl font-bold text-gray-900">{{ ev.kunde_firma or ev.anlass or 'Zaubershow-Event' }}</h1>
         {% if ev.marke == 'Knallfrosch' %}
           <span class="brand-tag-knallfrosch">Knallfrosch</span>
         {% else %}
@@ -35,7 +35,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Bearbeiten
       </a>
-      {% if not (ev.checkliste_uebersprungen and not ev.cl_eingereicht_am) %}
+      {% if not ((ev.checkliste_uebersprungen or ev.zaubershow_event) and not ev.cl_eingereicht_am) %}
       <form method="post" action="/admin/events/{{ ev.id }}/checklist">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <button class="btn-secondary" {% if not ev.kunde_email %}title="Keine Kunden-E-Mail hinterlegt" disabled style="opacity:.5"{% endif %}>
@@ -256,9 +256,9 @@
 
 <!-- Kunden-Angaben (Checkliste) -->
 <div id="wf-checkliste" style="scroll-margin-top:1rem;">
-{% if ev.checkliste_uebersprungen and not ev.cl_eingereicht_am %}
+{% if (ev.checkliste_uebersprungen or ev.zaubershow_event) and not ev.cl_eingereicht_am %}
 <div class="card p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
-  <p class="text-sm text-gray-500">Keine Kunden-Checkliste nötig (Stammkunde) – wird im Workflow übersprungen.</p>
+  <p class="text-sm text-gray-500">{% if ev.zaubershow_event %}Zaubershow-Event – keine Kunden-Checkliste nötig.{% else %}Keine Kunden-Checkliste nötig (Stammkunde) – wird im Workflow übersprungen.{% endif %}</p>
   {% if not gesperrt %}
   <a href="/admin/events/{{ ev.id }}/edit{% if entsperrt_mode %}?entsperrt=1{% endif %}" class="text-xs font-medium" style="color: var(--brand-primary);">Im Event bearbeiten →</a>
   {% endif %}

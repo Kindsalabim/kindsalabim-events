@@ -107,7 +107,7 @@
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-semibold" style="color:var(--ink-1);">{{ ev.kunde_firma }}</span>
+                <span class="font-semibold" style="color:var(--ink-1);">{{ ev.kunde_firma or ev.anlass }}</span>
                 {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
                 {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
                 {{ status_badge(ev.status) }}
@@ -177,7 +177,7 @@
           <div class="flex items-center justify-between gap-3 flex-1 min-w-0">
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-medium text-sm" style="color:var(--ink-2);">{{ ev.kunde_firma }}</span>
+                <span class="font-medium text-sm" style="color:var(--ink-2);">{{ ev.kunde_firma or ev.anlass }}</span>
                 {% if ev.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
                 {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
               </div>

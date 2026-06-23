@@ -86,6 +86,8 @@ def _run_bericht_erinnerungen(db: Session) -> int:
     ).all()
     count = 0
     for ev in kandidaten:
+        if ev.zaubershow_event:   # reines Zaubershow-Event: kein Eventbericht nötig
+            continue
         tl = ev.teamleiter
         if not tl or not tl.email or "@" not in tl.email:
             continue
