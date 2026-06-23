@@ -103,8 +103,21 @@ def _logo_img(brand_color: str) -> str:
 
 
 def _wrap(content: str, brand_color: str, cfg: dict) -> str:
-    """Hüllt E-Mail-Inhalt in ein sauberes HTML-Layout mit Logo."""
+    """Hüllt E-Mail-Inhalt in ein sauberes HTML-Layout mit Logo.
+    Footer/Absender markenabhängig – auf Knallfrosch-Mails wird Kindsalabim nicht erwähnt."""
     logo = _logo_img(brand_color)
+    is_kf = brand_color == "#1a7a1a"
+    if is_kf:
+        foot_title = "Knallfrosch Kinderevents"
+        foot_name  = "Malca &amp; Akmanoglu GbR · Knallfrosch Kinderevents"
+        foot_addr  = "Charlottenweg 55, 45289 Essen"
+        foot_mail  = "info@knallfrosch-kinderevents.de"
+    else:
+        foot_title = cfg["company_name"]
+        foot_name  = cfg["company_name"]
+        foot_addr  = cfg["company_address"]
+        foot_mail  = cfg["company_email"]
+    foot_phone = cfg.get("company_phone")
     return f"""<!DOCTYPE html>
 <html lang="de">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -116,7 +129,7 @@ def _wrap(content: str, brand_color: str, cfg: dict) -> str:
         <!-- Header mit Logo (weiß, dezente Markenlinie als Akzent) -->
         <tr>
           <td align="center" style="background:#ffffff;border-radius:12px 12px 0 0;border-bottom:3px solid {brand_color};padding:28px 36px 24px;text-align:center;">
-            {logo if logo else f'<p style="margin:0;font-size:20px;font-weight:700;color:{brand_color};">{cfg["company_name"]}</p>'}
+            {logo if logo else f'<p style="margin:0;font-size:20px;font-weight:700;color:{brand_color};">{foot_title}</p>'}
           </td>
         </tr>
 
@@ -126,9 +139,9 @@ def _wrap(content: str, brand_color: str, cfg: dict) -> str:
             {content}
             <hr style="border:none;border-top:1px solid #f0f0f0;margin:32px 0">
             <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
-              {cfg['company_name']} · {cfg['company_address']}<br>
-              <a href="mailto:{cfg['company_email']}" style="color:#9ca3af;">{cfg['company_email']}</a>
-              {(' · ' + cfg['company_phone']) if cfg.get('company_phone') else ''}
+              {foot_name} · {foot_addr}<br>
+              <a href="mailto:{foot_mail}" style="color:#9ca3af;">{foot_mail}</a>
+              {(' · ' + foot_phone) if foot_phone else ''}
             </p>
           </td>
         </tr>
@@ -676,11 +689,9 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
         rechnung_mail = cfg.get("company_email", "info@kindsalabim.de")
     rechnung_block = f"""
         <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;">
-          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Rechnung senden an</p>
-          <p style="margin:0;font-size:14px;color:#374151;">
-            {rechnung_firma}<br>
-            <a href="mailto:{rechnung_mail}" style="color:{color};">{rechnung_mail}</a>
-          </p>
+          <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Rechnung senden an</p>
+          <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{rechnung_firma}</p>
+          <p style="margin:8px 0 0;font-size:14px;color:#374151;">Per Mail an: <a href="mailto:{rechnung_mail}" style="color:{color};">{rechnung_mail}</a></p>
         </div>"""
 
     # Team-Roster (für alle Empfänger gleich): Name + Telefon, Teamleiter markiert
