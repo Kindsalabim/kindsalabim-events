@@ -385,6 +385,31 @@ def send_material_erinnerung(event, admin_email: str):
           _wrap(content, color, cfg))
 
 
+_APP_BASE = "https://kindsalabim-events.onrender.com"
+
+
+def send_admin_notification(to_email: str, titel: str, text: str = "", link: str = ""):
+    """Generische Admin-Benachrichtigung – ein Glocken-Ereignis zusätzlich per E-Mail.
+    `link` ist ein interner Pfad (z. B. /admin/events/12); wird absolut gemacht."""
+    cfg = get_config()
+    color = _brand_color("Kindsalabim")  # intern, neutrale Marke
+    url = link if link.startswith("http") else (_APP_BASE + link if link else "")
+    button = ""
+    if url:
+        button = (f'<a href="{url}" style="display:inline-block;background:{color};color:#ffffff;'
+                  f'text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;">'
+                  f'In der App öffnen →</a>')
+    body = (text or "").replace("\n", "<br>")
+    content = f"""
+    <p style="margin:0 0 12px;font-size:16px;color:#111827;font-weight:600;">{titel}</p>
+    {f'<p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">{body}</p>' if body else ''}
+    {button}
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
+      Diese E-Mail-Benachrichtigung kannst du in den App-Einstellungen abschalten.
+    </p>"""
+    _send(to_email, f"🔔 {titel}", _wrap(content, color, cfg))
+
+
 def send_checklist_email(event, base_url: str):
     cfg = get_config()
     color = _brand_color(event.marke)

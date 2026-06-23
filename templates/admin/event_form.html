@@ -201,6 +201,15 @@
           <span class="block text-xs text-gray-500">Kennzeichnet, dass ein Logistiker im Team sein muss und löst die Material-Erinnerung 3 Wochen vor dem Event aus.</span>
         </span>
       </label>
+      <label class="flex items-start gap-2.5 text-sm p-3 rounded-lg border border-gray-100 hover:border-gray-200 cursor-pointer transition-colors">
+        <input type="checkbox" name="checkliste_uebersprungen" value="true"
+          {% if event and event.checkliste_uebersprungen %}checked{% endif %}
+          class="rounded border-gray-300 mt-0.5" style="accent-color: var(--brand-primary);">
+        <span>
+          <span class="font-medium text-gray-700">Keine Kunden-Checkliste nötig</span>
+          <span class="block text-xs text-gray-500">Für Stammkunden (gleicher Ort/Ablauf wie immer): Die Checkliste wird übersprungen und gilt im Workflow als „nicht nötig" – kein Versand, keine Erinnerung.</span>
+        </span>
+      </label>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Besondere Hinweise</label>
         <textarea name="hinweise" rows="3"

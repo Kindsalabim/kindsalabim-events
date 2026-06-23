@@ -456,7 +456,8 @@ def event_new(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
                      kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                      anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
-                     marke, status, event_id=None, serien_id=None):
+                     marke, status, event_id=None, serien_id=None,
+                     checkliste_uebersprungen=False):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -474,6 +475,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
         produkte=", ".join(produkte), anzahl_teamer=anzahl_teamer,
         anzahl_kuenstler=anzahl_kuenstler, hinweise=hinweise,
         material_mitnahme=material_mitnahme, marke=marke, status=status,
+        checkliste_uebersprungen=checkliste_uebersprungen,
     )
 
 
@@ -489,6 +491,7 @@ def event_create(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
+    checkliste_uebersprungen: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     extra_datum: list = Form([]), extra_startzeit: list = Form([]),
@@ -502,7 +505,7 @@ def event_create(
         echo = _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
                                 kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                                 anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
-                                marke, status)
+                                marke, status, checkliste_uebersprungen=checkliste_uebersprungen)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
@@ -513,6 +516,7 @@ def event_create(
         kunde_email=kunde_email, produkte=", ".join(produkte),
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
+        checkliste_uebersprungen=checkliste_uebersprungen,
         marke=marke, status=status
     )
     db.add(ev)
@@ -543,7 +547,9 @@ def _workflow_steps(ev, anfragen):
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
     team_komplett = bool(confirmed) and teamer_ok and kuenstler_ok and logistiker_ok
 
-    if ev.cl_eingereicht_am:      checkliste = ("done", "eingegangen")
+    if ev.checkliste_uebersprungen and not ev.cl_eingereicht_am:
+                                  checkliste = ("na", "nicht nötig")
+    elif ev.cl_eingereicht_am:    checkliste = ("done", "eingegangen")
     elif ev.checklist_token:      checkliste = ("doing", "abgeschickt")
     else:                         checkliste = ("todo", "offen")
 
@@ -727,6 +733,7 @@ def event_update(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
+    checkliste_uebersprungen: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     entsperrt: bool = Form(False), serie_propagieren: bool = Form(False),
@@ -743,7 +750,8 @@ def event_update(
         echo = _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
                                 kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                                 anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
-                                marke, status, event_id=ev.id, serien_id=ev.serien_id)
+                                marke, status, event_id=ev.id, serien_id=ev.serien_id,
+                                checkliste_uebersprungen=checkliste_uebersprungen)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -755,6 +763,7 @@ def event_update(
     ev.produkte = ", ".join(produkte); ev.anzahl_teamer = anzahl_teamer
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
+    ev.checkliste_uebersprungen = checkliste_uebersprungen
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
@@ -841,7 +850,8 @@ def auto_status(ev, db) -> str:
     # Material: wenn Mitnahme nötig, muss es auch bestellt sein
     material_ok = (not ev.material_mitnahme) or ev.material_bestellt
 
-    if teamer_ok and kuenstler_ok and logistiker_ok and material_ok and ev.cl_eingereicht_am:
+    checkliste_ok = bool(ev.cl_eingereicht_am or ev.checkliste_uebersprungen)
+    if teamer_ok and kuenstler_ok and logistiker_ok and material_ok and checkliste_ok:
         return "Planung fertig"
     if ev.cl_eingereicht_am:
         return "Checkliste eingegangen"

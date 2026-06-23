@@ -1,0 +1,40 @@
+{% extends "admin_base.html" %}
+{% set active = 'einstellungen' %}
+{% block title %}Einstellungen – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Einstellungen</h1>
+  <p class="text-sm text-gray-500 mt-0.5">E-Mail-Benachrichtigungen</p>
+</div>
+
+{% if gespeichert %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Einstellungen gespeichert.</div>
+{% endif %}
+
+<div class="mb-4 px-4 py-3 rounded-xl text-sm" style="background:#f0f7ff;color:#1e40af;">
+  Die <strong>Glocke</strong> sammelt alle Ereignisse immer. Hier wählst du nur, wofür du
+  <strong>zusätzlich eine E-Mail</strong> bekommen möchtest.
+</div>
+
+<form method="post" action="/admin/einstellungen">
+  <div class="card divide-y" style="border-color:#f3f4f6;">
+    {% for s in schalter %}
+    <label class="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer">
+      <span class="text-sm font-medium text-gray-800">{{ s.label }}</span>
+      <input type="checkbox" name="mail_{{ s.typ }}" value="1" {% if s.on %}checked{% endif %}
+             style="width:1.15rem;height:1.15rem;accent-color:var(--brand-primary);flex-shrink:0;">
+    </label>
+    {% endfor %}
+  </div>
+  <div class="mt-5">
+    <button class="btn-primary">Speichern</button>
+  </div>
+</form>
+
+<p class="text-xs text-gray-400 mt-4">
+  Hinweis: „Abgesagt" und „Checkliste zurück" waren bisher immer per Mail aktiv – das bleibt
+  voreingestellt so, lässt sich hier aber abschalten. E-Mails gehen an alle aktiven Admin-Zugänge.
+</p>
+
+{% endblock %}
