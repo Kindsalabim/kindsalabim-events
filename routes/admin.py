@@ -1043,6 +1043,50 @@ def send_briefing_route(
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
 
+@router.get("/events/{event_id}/checklist/edit", response_class=HTMLResponse)
+def briefing_edit(request: Request, event_id: int,
+                  db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Admin-Formular, um die Checklisten-/Briefing-Daten (cl_*) selbst auszufüllen
+    oder zu korrigieren – falls der Kunde die Checkliste nicht (rechtzeitig) schickt."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    return templates.TemplateResponse("admin/briefing_edit.html", tpl_context(request, ev=ev))
+
+
+@router.post("/events/{event_id}/checklist/edit")
+def briefing_edit_save(
+    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    ansprechpartner_name: str = Form(""), ansprechpartner_mobil: str = Form(""),
+    firma_name: str = Form(""), strasse: str = Form(""), plz_ort: str = Form(""),
+    aufbau_von: str = Form(""), aufbau_bis: str = Form(""),
+    abbau_von: str = Form(""), abbau_bis: str = Form(""),
+    aufbauort: list = Form([]), verpflegung: str = Form(""),
+    teamkleidung: str = Form(""), parkplatz: str = Form(""),
+):
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    ev.cl_ansprechpartner_name  = ansprechpartner_name
+    ev.cl_ansprechpartner_mobil = ansprechpartner_mobil
+    ev.cl_firma_name            = firma_name
+    ev.cl_strasse               = strasse
+    ev.cl_plz_ort               = plz_ort
+    ev.cl_aufbau_von            = aufbau_von
+    ev.cl_aufbau_bis            = aufbau_bis
+    ev.cl_abbau_von             = abbau_von
+    ev.cl_abbau_bis             = abbau_bis
+    ev.cl_aufbauort             = ", ".join(aufbauort)
+    ev.cl_verpflegung           = verpflegung
+    ev.cl_teamkleidung          = teamkleidung
+    ev.cl_parkplatz             = parkplatz
+    # Markiert die Daten als vorhanden (Workflow „eingegangen"); Kunden-Einreichzeit bleibt erhalten
+    if not ev.cl_eingereicht_am:
+        ev.cl_eingereicht_am = datetime.now().strftime("%d.%m.%Y %H:%M") + " (selbst ausgefüllt)"
+    db.commit()
+    ev.status = auto_status(ev, db)
+    db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}?briefing_edit=1", status_code=303)
+
+
 # ── Dienstleister Einladung ────────────────────────────────────────────────────
 
 @router.post("/dienstleister/{did}/einladung")

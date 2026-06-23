@@ -31,3 +31,5 @@ _test_form.db
 import_auftraege_link.py
 onboarding_shots/
 _build_onboarding_pdf.py
+_test_briefing.py
+_test_brief.db
