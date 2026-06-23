@@ -667,6 +667,22 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
     color = _brand_color(event.marke)
     subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
 
+    # "Rechnung senden an" – volle Anschrift je Marke (wie im Portal)
+    if event.marke == "Knallfrosch":
+        rechnung_firma = "Malca &amp; Akmanoglu GbR<br>Knallfrosch Kinderevents<br>Charlottenweg 55<br>45289 Essen"
+        rechnung_mail = "personal@knallfrosch-kinderevents.de"
+    else:
+        rechnung_firma = "Aykut Malca<br>Kindsalabim Kinderevents<br>Charlottenweg 55<br>45289 Essen"
+        rechnung_mail = cfg.get("company_email", "info@kindsalabim.de")
+    rechnung_block = f"""
+        <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Rechnung senden an</p>
+          <p style="margin:0;font-size:14px;color:#374151;">
+            {rechnung_firma}<br>
+            <a href="mailto:{rechnung_mail}" style="color:{color};">{rechnung_mail}</a>
+          </p>
+        </div>"""
+
     # Team-Roster (für alle Empfänger gleich): Name + Telefon, Teamleiter markiert
     team_rows = ""
     for m in dienstleister_list:
@@ -726,14 +742,7 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
           Zum Portal →
         </a>
 
-        <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;">
-          <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Rechnung senden an</p>
-          <p style="margin:0;font-size:14px;color:#374151;">
-            {cfg['company_name']}<br>
-            {cfg['company_address']}<br>
-            <a href="mailto:personal@knallfrosch-kinderevents.de" style="color:{color};">personal@knallfrosch-kinderevents.de</a>
-          </p>
-        </div>"""
+        {rechnung_block}"""
 
         _deliver(d.email, subject, _wrap(content, color, cfg), anhaenge)
 
