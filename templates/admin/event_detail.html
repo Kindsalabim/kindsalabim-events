@@ -569,13 +569,16 @@
       {% endif %}
     </div>
     {% if not gesperrt %}
-    <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
-      {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
-      <button class="btn-primary text-xs px-4 py-2">Briefing senden</button>
-    </form>
+    <div class="flex items-center gap-2">
+      <a href="/admin/events/{{ ev.id }}/checklist/edit" class="btn-secondary text-xs px-4 py-2">Briefing bearbeiten</a>
+      <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
+        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
+        <button class="btn-primary text-xs px-4 py-2">Briefing senden</button>
+      </form>
+    </div>
     {% endif %}
   </div>
-  <p class="text-xs text-gray-500 mt-2">Geht an alle Dienstleister, die zugesagt haben – mit Team-Liste, Aufbauzeiten und allen Details.</p>
+  <p class="text-xs text-gray-500 mt-2">Geht an alle Dienstleister, die zugesagt haben – mit Team-Liste, Aufbauzeiten und allen Details. „Briefing bearbeiten" füllt die Checklisten-Daten selbst aus, falls der Kunde sie nicht (rechtzeitig) schickt.</p>
 </div>
 
 <!-- Auftragsbestätigung -->
