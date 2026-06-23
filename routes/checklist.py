@@ -74,11 +74,17 @@ def checklist_submit(
     ev.status = auto_status(ev, db)
     db.commit()
 
-    # Admin-Benachrichtigung
-    from email_service import send_checklist_notification
-    cfg = get_config()
-    base_url = str(request.base_url).rstrip("/")
-    send_checklist_notification(ev, cfg["admin_email"], base_url)
+    # Glocke + (abschaltbare) Admin-Mail
+    from notifications import notify, mail_enabled
+    notify(db, "checkliste", f"Checkliste zurück: {ev.kunde_firma}",
+           f"{ev.kunde_firma} hat die Checkliste für {ev.anlass} am {de_date(ev.datum)} ausgefüllt.",
+           f"/admin/events/{ev.id}")
+    db.commit()
+    if mail_enabled(db, "checkliste"):
+        from email_service import send_checklist_notification
+        cfg = get_config()
+        base_url = str(request.base_url).rstrip("/")
+        send_checklist_notification(ev, cfg["admin_email"], base_url)
 
     return templates.TemplateResponse("checklist.html", {
         "request": request,

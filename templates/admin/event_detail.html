@@ -35,6 +35,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Bearbeiten
       </a>
+      {% if not (ev.checkliste_uebersprungen and not ev.cl_eingereicht_am) %}
       <form method="post" action="/admin/events/{{ ev.id }}/checklist">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <button class="btn-secondary" {% if not ev.kunde_email %}title="Keine Kunden-E-Mail hinterlegt" disabled style="opacity:.5"{% endif %}>
@@ -42,6 +43,7 @@
           Checkliste senden{% if ev.cl_eingereicht_am %} ✓{% endif %}
         </button>
       </form>
+      {% endif %}
       <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <button class="btn-primary">
@@ -254,7 +256,14 @@
 
 <!-- Kunden-Angaben (Checkliste) -->
 <div id="wf-checkliste" style="scroll-margin-top:1rem;">
-{% if ev.cl_eingereicht_am %}
+{% if ev.checkliste_uebersprungen and not ev.cl_eingereicht_am %}
+<div class="card p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
+  <p class="text-sm text-gray-500">Keine Kunden-Checkliste nötig (Stammkunde) – wird im Workflow übersprungen.</p>
+  {% if not gesperrt %}
+  <a href="/admin/events/{{ ev.id }}/edit{% if entsperrt_mode %}?entsperrt=1{% endif %}" class="text-xs font-medium" style="color: var(--brand-primary);">Im Event bearbeiten →</a>
+  {% endif %}
+</div>
+{% elif ev.cl_eingereicht_am %}
 <div class="card p-5 mb-5">
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-sm font-semibold text-gray-700">Kunden-Angaben

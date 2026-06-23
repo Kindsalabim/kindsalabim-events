@@ -159,6 +159,19 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
         from routes.admin import auto_status
         ev = a.event
         ev.status = auto_status(ev, db)
+        # Glocke: Zu-/Absage auf eine Verfügbarkeitsanfrage
+        from notifications import notify
+        d = a.dienstleister
+        name = f"{d.vorname} {d.nachname}" if d else "Ein Dienstleister"
+        datum = ev.datum.strftime("%d.%m.%Y")
+        if antwort == "Ja":
+            notify(db, "dl_zusage", f"Zusage: {name}",
+                   f"{name} hat für {ev.anlass} am {datum} zugesagt.",
+                   f"/admin/events/{ev.id}")
+        else:
+            notify(db, "dl_absage", f"Absage auf Anfrage: {name}",
+                   f"{name} hat die Anfrage für {ev.anlass} am {datum} abgelehnt.",
+                   f"/admin/events/{ev.id}")
         db.commit()
     return RedirectResponse("/portal", status_code=303)
 
@@ -180,10 +193,21 @@ def portal_absage(request: Request, anfrage_id: int, grund: str = Form(""),
         db.commit()
         from routes.admin import auto_status
         a.event.status = auto_status(a.event, db)
+        # Glocke: nachträgliche Absage eines bestätigten Einsatzes
+        from notifications import notify, mail_enabled
+        d, ev = a.dienstleister, a.event
+        name = f"{d.vorname} {d.nachname}" if d else "Ein Dienstleister"
+        datum = ev.datum.strftime("%d.%m.%Y")
+        zusatz = f" Grund: {grund}" if grund else ""
+        notify(db, "dl_absage", f"Nachträgliche Absage: {name}",
+               f"{name} hat den bestätigten Einsatz {ev.anlass} am {datum} abgesagt.{zusatz}",
+               f"/admin/events/{ev.id}")
         db.commit()
-        from email_service import send_absage_admin
-        base_url = str(request.base_url).rstrip("/")
-        send_absage_admin(a.dienstleister, a.event, grund, base_url)
+        # Bestehende (schön formatierte) Absage-Mail – jetzt per Einstellung abschaltbar
+        if mail_enabled(db, "dl_absage"):
+            from email_service import send_absage_admin
+            base_url = str(request.base_url).rstrip("/")
+            send_absage_admin(a.dienstleister, a.event, grund, base_url)
     return RedirectResponse("/portal?absage=1", status_code=303)
 
 
@@ -245,6 +269,13 @@ def portal_bericht_save(event_id: int,
     # Automatischer Abschluss prüfen
     from routes.admin import auto_status
     ev.status = auto_status(ev, db)
+    # Glocke: Eventbericht eingereicht
+    tl = ev.teamleiter
+    name = f"{tl.vorname} {tl.nachname}" if tl else "Der Teamleiter"
+    from notifications import notify
+    notify(db, "bericht", f"Eventbericht: {ev.anlass}",
+           f"{name} hat den Bericht für {ev.anlass} am {ev.datum.strftime('%d.%m.%Y')} eingereicht.",
+           f"/admin/events/{ev.id}")
     db.commit()
     return RedirectResponse("/portal?bericht=1", status_code=303)
 
@@ -333,6 +364,15 @@ def portal_sperrzeit_hinzufuegen(
             grund=grund.strip() or None
         )
         db.add(sz)
+        db.commit()
+        # Glocke: Dienstleister hat Urlaub/Sperrzeit eingetragen
+        d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+        name = f"{d.vorname} {d.nachname}" if d else "Ein Dienstleister"
+        zr = von.strftime("%d.%m.%Y") + (f"–{bis.strftime('%d.%m.%Y')}" if bis != von else "")
+        from notifications import notify
+        notify(db, "dl_urlaub", f"Urlaub/Sperrzeit: {name}",
+               f"{name} ist nicht verfügbar: {zr}." + (f" ({grund.strip()})" if grund.strip() else ""),
+               "/admin/dienstleister")
         db.commit()
     except (ValueError, Exception):
         pass

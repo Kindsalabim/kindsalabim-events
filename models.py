@@ -60,6 +60,7 @@ class Event(Base):
     cl_teamkleidung          = Column(String)   # "Ja" / "Nein"
     cl_parkplatz             = Column(Text)
     cl_eingereicht_am        = Column(String)
+    checkliste_uebersprungen = Column(Boolean, default=False)  # Stammkunde: keine Kunden-Checkliste nötig
 
     teamleiter = relationship("Dienstleister", foreign_keys=[teamleiter_id])
     kunde = relationship("Kunde", back_populates="events", foreign_keys=[kunde_id])
@@ -245,6 +246,28 @@ class Admin(Base):
     reset_token_expires = Column(String)   # ISO-Datetime
     aktiv               = Column(Boolean, default=True)
     erstellt_am         = Column(String)
+    notifications_gesehen_bis = Column(String)  # ISO-Datetime: bis hierhin Benachrichtigungen gesehen (None = nie)
+
+
+class Benachrichtigung(Base):
+    """Aktivitäts-Feed für Admins (Glocke). Ereignisse wie DL-Zusage/-Absage,
+    Urlaub/Sperrzeit, Checkliste zurück, Eventbericht eingereicht."""
+    __tablename__ = "benachrichtigungen"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    typ         = Column(String, nullable=False)   # dl_zusage|dl_absage|dl_urlaub|checkliste|bericht
+    titel       = Column(String, nullable=False)
+    text        = Column(Text)
+    link        = Column(String)                    # interner Pfad zum Deep-Link, z. B. /admin/events/12
+    erstellt_am = Column(String, nullable=False, index=True)  # ISO-Datetime (sortierbar)
+
+
+class AppEinstellung(Base):
+    """Schlüssel/Wert-Einstellungen der App (z. B. E-Mail-Benachrichtigungs-Schalter)."""
+    __tablename__ = "app_einstellungen"
+
+    key   = Column(String, primary_key=True)
+    value = Column(String)
 
 
 class Wissensartikel(Base):

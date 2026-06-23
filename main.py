@@ -17,6 +17,7 @@ from routes.tickets import router as tickets_router
 from routes.crm import router as crm_router
 from routes.bakerross import router as bakerross_router
 from routes.papierkorb import router as papierkorb_router
+from routes.benachrichtigungen import router as benachrichtigungen_router
 
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
@@ -118,6 +119,8 @@ def run_migrations():
     add_column("events", "serien_id", "VARCHAR")
     add_column("events", "bericht_erinnerung_am", "VARCHAR")
     add_column("events", "bericht_kinder", "VARCHAR")
+    add_column("events", "checkliste_uebersprungen", "BOOLEAN DEFAULT 0")
+    add_column("admins", "notifications_gesehen_bis", "VARCHAR")
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")
 
@@ -251,6 +254,20 @@ app.include_router(tickets_router)
 app.include_router(crm_router)
 app.include_router(bakerross_router)
 app.include_router(papierkorb_router)
+app.include_router(benachrichtigungen_router)
+
+# Glocken-Badge (notif_unread) auf allen Admin-Seiten verfügbar machen –
+# jede Route hat eine eigene Jinja2Templates-Umgebung, daher zentral registrieren.
+from notifications import admin_notif_unread
+import routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets
+import routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross, routes.benachrichtigungen
+for _mod in (routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets,
+             routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross,
+             routes.benachrichtigungen):
+    try:
+        _mod.templates.env.globals["notif_unread"] = admin_notif_unread
+    except Exception:
+        pass
 
 @app.get("/")
 def root():

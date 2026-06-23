@@ -1,0 +1,41 @@
+{% extends "admin_base.html" %}
+{% set active = 'benachrichtigungen' %}
+{% block title %}Benachrichtigungen – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6 flex items-start justify-between gap-3 flex-wrap">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Benachrichtigungen</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Aktivitäten rund um deine Events ({{ eintraege | length }})</p>
+  </div>
+  <a href="/admin/einstellungen" class="btn-secondary text-xs px-3 py-1.5">E-Mail-Einstellungen</a>
+</div>
+
+{% if eintraege %}
+<div class="card divide-y" style="border-color:#f3f4f6;">
+  {% for e in eintraege %}
+  {% set ist_neu = (not cutoff) or (e.erstellt_am > cutoff) %}
+  <a href="{{ e.link or '#' }}" class="flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors"
+     style="{% if ist_neu %}background:#f5faff;{% endif %}">
+    <span style="font-size:1.1rem;line-height:1.4;flex-shrink:0;">{{ typ_icon.get(e.typ, '🔔') }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block text-sm font-semibold text-gray-800">
+        {{ e.titel }}
+        {% if ist_neu %}<span class="ml-1.5 align-middle text-[0.6rem] font-bold uppercase tracking-wide" style="color:var(--c-danger,#dc2626);">neu</span>{% endif %}
+      </span>
+      {% if e.text %}<span class="block text-sm text-gray-600 mt-0.5">{{ e.text }}</span>{% endif %}
+      <span class="block text-xs text-gray-400 mt-1">
+        {{ e.erstellt_am[8:10] }}.{{ e.erstellt_am[5:7] }}.{{ e.erstellt_am[0:4] }} · {{ e.erstellt_am[11:16] }} Uhr
+      </span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card p-8 text-center text-sm text-gray-500">
+  Noch keine Benachrichtigungen. Sobald ein Dienstleister zu-/absagt, Urlaub einträgt,
+  ein Kunde die Checkliste zurückschickt oder ein Eventbericht eingeht, erscheint es hier.
+</div>
+{% endif %}
+
+{% endblock %}
