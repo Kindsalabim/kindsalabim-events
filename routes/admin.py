@@ -495,13 +495,15 @@ def event_create(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
-    material_info: str = Form(""), transporter_angeboten: bool = Form(False),
+    material_info_choice: str = Form(""), material_info_text: str = Form(""),
+    transporter_angeboten: bool = Form(False),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     extra_datum: list = Form([]), extra_startzeit: list = Form([]),
     extra_endzeit: list = Form([]),
 ):
+    material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event)
     extra_tage, extra_fehler = _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, startzeit, endzeit)
     fehler = fehler or extra_fehler
@@ -745,7 +747,8 @@ def event_update(
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
-    material_info: str = Form(""), transporter_angeboten: bool = Form(False),
+    material_info_choice: str = Form(""), material_info_text: str = Form(""),
+    transporter_angeboten: bool = Form(False),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
@@ -755,6 +758,7 @@ def event_update(
     if not ev: raise HTTPException(404)
     if event_gesperrt(ev, entsperrt):
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
+    material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event)
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
