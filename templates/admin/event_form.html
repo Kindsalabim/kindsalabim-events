@@ -215,8 +215,28 @@
         <p class="text-xs text-gray-500">Nur relevant, wenn Materialmitnahme nötig ist – wird dem angefragten Logistiker angezeigt:</p>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Material-Info <span class="text-gray-400 font-normal">(Menge / Transport)</span></label>
-          <textarea name="material_info" rows="2" placeholder="z. B. „wenig – passt in einen normalen Kofferraum“ oder „Spieleland + Mitmachzirkus – nur mit Transporter“"
-            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none">{{ event.material_info if event else '' }}</textarea>
+          {% set material_optionen = ['Wenig – passt in einen normalen Kofferraum', 'Mittel – passt in einen Kombi / Van', 'Viel – nur mit Transporter'] %}
+          {% set mi = (event.material_info if event else '') or '' %}
+          {% set mi_sonstige = mi and mi not in material_optionen %}
+          <div class="space-y-1.5">
+            {% for opt in material_optionen %}
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer p-2 rounded-lg border border-gray-100 hover:border-gray-200">
+              <input type="radio" name="material_info_choice" value="{{ opt }}" {% if mi == opt %}checked{% endif %}
+                onchange="document.getElementById('material-sonstige-wrap').style.display='none';"
+                style="accent-color: var(--brand-primary);"> {{ opt }}
+            </label>
+            {% endfor %}
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer p-2 rounded-lg border border-gray-100 hover:border-gray-200">
+              <input type="radio" name="material_info_choice" value="Sonstige" {% if mi_sonstige %}checked{% endif %}
+                onchange="document.getElementById('material-sonstige-wrap').style.display='';"
+                style="accent-color: var(--brand-primary);"> Sonstige
+            </label>
+          </div>
+          <div id="material-sonstige-wrap" class="mt-1.5" style="{% if not mi_sonstige %}display:none;{% endif %}">
+            <input type="text" name="material_info_text" value="{{ mi if mi_sonstige else '' }}"
+              placeholder="z. B. „2 Bierzeltgarnituren – sperrig“"
+              class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+          </div>
         </div>
         <label class="flex items-start gap-2.5 text-sm cursor-pointer">
           <input type="checkbox" name="transporter_angeboten" value="true"
