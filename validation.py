@@ -41,8 +41,9 @@ def parse_decimal(s: str):
 
 
 def validate_event_form(datum: str, startzeit: str, endzeit: str,
-                        telefon: str, ort: str, produkte=None):
-    """Prüft das Event-Formular. Gibt (datum_als_date|None, fehler|None) zurück."""
+                        telefon: str, ort: str, produkte=None, zaubershow=False):
+    """Prüft das Event-Formular. Gibt (datum_als_date|None, fehler|None) zurück.
+    Bei einem reinen Zaubershow-Event entfällt die „mind. eine Aktion"-Pflicht."""
     try:
         datum_d = date.fromisoformat(datum)
     except ValueError:
@@ -54,7 +55,7 @@ def validate_event_form(datum: str, startzeit: str, endzeit: str,
         return None, "Bitte eine gültige Telefonnummer eingeben (nur Ziffern und + ( ) / -)."
     # PLZ im Veranstaltungsort ist nur empfohlen (für die Kartenanzeige), nicht mehr Pflicht –
     # Events lassen sich auch mit grober Ortsangabe (z. B. nur Stadt) speichern.
-    if produkte is not None and not produkte:
+    if produkte is not None and not produkte and not zaubershow:
         return None, "Bitte mindestens eine Aktion auswählen (oder 'Kein Material' für reine Betreuung)."
     return datum_d, None
 
