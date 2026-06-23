@@ -3,7 +3,7 @@
 {% block title %}Briefing bearbeiten – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 {% set tw = 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring' %}
-{% set orte = (ev.cl_aufbauort.split(', ') if ev.cl_aufbauort else []) %}
+{% set orte = (vor.aufbauort.split(', ') if vor.aufbauort else []) %}
 <div class="max-w-2xl">
 
   <div class="mb-6">
@@ -12,7 +12,7 @@
       Zurück zum Event
     </a>
     <h1 class="text-2xl font-bold text-gray-900">Briefing-Daten bearbeiten</h1>
-    <p class="text-sm text-gray-500 mt-1">Die Angaben aus der Kunden-Checkliste – hier selbst ausfüllen oder korrigieren (z. B. wenn der Kunde die Checkliste nicht rechtzeitig schickt). Sie fließen ins Briefing an die Dienstleister.</p>
+    <p class="text-sm text-gray-500 mt-1">Die Angaben aus der Kunden-Checkliste – hier selbst ausfüllen oder korrigieren (z. B. wenn der Kunde die Checkliste nicht rechtzeitig schickt). Sie fließen ins Briefing an die Dienstleister. <span class="text-gray-400">Leere Felder sind bereits aus den Event-Daten vorbelegt.</span></p>
     {% if ev.cl_eingereicht_am %}
     <p class="text-xs text-gray-500 mt-1.5">Aktueller Stand: <strong>eingereicht {{ ev.cl_eingereicht_am }}</strong></p>
     {% endif %}
@@ -26,11 +26,11 @@
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
-          <input type="text" name="ansprechpartner_name" value="{{ ev.cl_ansprechpartner_name or '' }}" class="{{ tw }}">
+          <input type="text" name="ansprechpartner_name" value="{{ vor.ansprechpartner_name }}" class="{{ tw }}">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Mobil-Nr.</label>
-          <input type="text" name="ansprechpartner_mobil" value="{{ ev.cl_ansprechpartner_mobil or '' }}" class="{{ tw }}">
+          <input type="text" name="ansprechpartner_mobil" value="{{ vor.ansprechpartner_mobil }}" class="{{ tw }}">
         </div>
       </div>
     </div>
@@ -40,16 +40,16 @@
       <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Veranstaltungsanschrift</h2>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Firma / Name</label>
-        <input type="text" name="firma_name" value="{{ ev.cl_firma_name or '' }}" class="{{ tw }}">
+        <input type="text" name="firma_name" value="{{ vor.firma_name }}" class="{{ tw }}">
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Straße &amp; Hausnummer</label>
-          <input type="text" name="strasse" value="{{ ev.cl_strasse or '' }}" class="{{ tw }}">
+          <input type="text" name="strasse" value="{{ vor.strasse }}" class="{{ tw }}">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">PLZ &amp; Ort</label>
-          <input type="text" name="plz_ort" value="{{ ev.cl_plz_ort or '' }}" class="{{ tw }}">
+          <input type="text" name="plz_ort" value="{{ vor.plz_ort }}" class="{{ tw }}">
         </div>
       </div>
     </div>
@@ -60,19 +60,19 @@
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Aufbau von</label>
-          {{ time_select('aufbau_von', ev.cl_aufbau_von, tw) }}
+          {{ time_select('aufbau_von', vor.aufbau_von, tw) }}
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Aufbau bis</label>
-          {{ time_select('aufbau_bis', ev.cl_aufbau_bis, tw) }}
+          {{ time_select('aufbau_bis', vor.aufbau_bis, tw) }}
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Abbau von</label>
-          {{ time_select('abbau_von', ev.cl_abbau_von, tw) }}
+          {{ time_select('abbau_von', vor.abbau_von, tw) }}
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Abbau bis</label>
-          {{ time_select('abbau_bis', ev.cl_abbau_bis, tw) }}
+          {{ time_select('abbau_bis', vor.abbau_bis, tw) }}
         </div>
       </div>
     </div>
@@ -96,7 +96,7 @@
           <div class="flex gap-2">
             {% for v in ['Ja','Nein'] %}
             <label class="flex-1 flex items-center justify-center gap-2 text-sm p-2.5 rounded-lg border border-gray-100 cursor-pointer">
-              <input type="radio" name="verpflegung" value="{{ v }}" {% if ev.cl_verpflegung == v %}checked{% endif %}
+              <input type="radio" name="verpflegung" value="{{ v }}" {% if vor.verpflegung == v %}checked{% endif %}
                 style="accent-color: var(--brand-primary);"> {{ v }}
             </label>
             {% endfor %}
@@ -107,7 +107,7 @@
           <div class="flex gap-2">
             {% for v in ['Ja','Nein'] %}
             <label class="flex-1 flex items-center justify-center gap-2 text-sm p-2.5 rounded-lg border border-gray-100 cursor-pointer">
-              <input type="radio" name="teamkleidung" value="{{ v }}" {% if ev.cl_teamkleidung == v %}checked{% endif %}
+              <input type="radio" name="teamkleidung" value="{{ v }}" {% if vor.teamkleidung == v %}checked{% endif %}
                 style="accent-color: var(--brand-primary);"> {{ v }}
             </label>
             {% endfor %}
@@ -116,7 +116,7 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Parkplatzsituation</label>
-        <textarea name="parkplatz" rows="3" class="{{ tw }} resize-none">{{ ev.cl_parkplatz or '' }}</textarea>
+        <textarea name="parkplatz" rows="3" class="{{ tw }} resize-none">{{ vor.parkplatz }}</textarea>
       </div>
     </div>
 
