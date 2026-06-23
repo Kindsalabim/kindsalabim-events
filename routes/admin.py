@@ -30,10 +30,10 @@ templates.env.globals["zeiten"] = ZEITEN
 
 PRODUKTE_LIST = [
     "Bunter Bastelspaß", "Spezielle Bastelaktionen (Bakerross)", "Glitzertattoos",
-    "Fotoaktion", "Spieleland", "Mitmachzirkus", "Knusperhäuschen", "Lebkuchenherzen",
+    "Fotoaktion", "Spieleland", "Mitmachzirkus", "Mini Mitmachzirkus", "Knusperhäuschen", "Lebkuchenherzen",
     "Ballonmodellage", "Kinderschminken", "Buttonmaschine", "Prickeln",
     "Bastelspaß Weihnachten", "Kleinkind Spieleland", "Walkact", "Hüpfburg",
-    "Christbaumkugeln gestalten", "Zaubershow", "Kein Material"
+    "Zaubershow", "Kein Material"
 ]
 
 ANLASS_LIST = [
