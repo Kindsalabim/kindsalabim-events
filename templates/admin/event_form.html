@@ -87,7 +87,7 @@
         <p class="text-xs text-gray-500 mt-1">Mit 5-stelliger PLZ angeben – sie wird für die Entfernungsberechnung der Dienstleister gebraucht.</p>
       </div>
 
-      {% if not event %}
+      {% if not (event and event.id) %}
       <!-- Weitere Termintage (mehrtägiges Event) -->
       <div class="pt-2" style="border-top:1px dashed #e5e7eb;">
         <label class="block text-sm font-medium text-gray-700 mb-1.5 mt-2">
@@ -170,6 +170,16 @@
               {% if p in selected %}checked{% endif %}
               class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
             {{ p }}
+          </label>
+          {% endfor %}
+          {# Aus Import/Altdaten übernommene Aktionen, die nicht in der Standardliste stehen
+             (z. B. "Zaubershow") – vorausgewählt anzeigen, damit sie sichtbar sind, erhalten
+             bleiben und die "mind. eine Aktion"-Pflicht erfüllen. #}
+          {% for p in selected if p and p not in produkte_list %}
+          <label class="flex items-center gap-2.5 text-sm p-2.5 rounded-lg border cursor-pointer transition-colors" style="border-color:var(--brand-primary);">
+            <input type="checkbox" name="produkte" value="{{ p }}" checked
+              class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+            {{ p }} <span class="text-xs text-gray-400">(übernommen)</span>
           </label>
           {% endfor %}
         </div>
