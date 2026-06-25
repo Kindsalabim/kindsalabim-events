@@ -634,17 +634,46 @@
       <span class="ml-1 inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ gesendet</span>
       {% endif %}
     </div>
-    {% if not gesperrt %}
     <div class="flex items-center gap-2">
+      <a href="/admin/events/{{ ev.id }}/briefing/pdf" target="_blank" rel="noopener" class="btn-secondary text-xs px-4 py-2">📄 Als PDF</a>
+      {% if not gesperrt %}
       <a href="/admin/events/{{ ev.id }}/checklist/edit" class="btn-secondary text-xs px-4 py-2">Briefing bearbeiten</a>
       <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <button class="btn-primary text-xs px-4 py-2">Briefing senden</button>
       </form>
+      {% endif %}
+    </div>
+  </div>
+  <p class="text-xs text-gray-500 mt-2">Geht an alle Dienstleister, die zugesagt haben – mit Team-Liste, Aufbauzeiten und allen Details. „Als PDF" lädt das Briefing zum Weitergeben herunter (z. B. an externe Agentur-Leute).</p>
+
+  <!-- Einmal-Teamer (extern) -->
+  <div class="mt-4 pt-4" style="border-top:1px solid #f3f4f6;">
+    <p class="text-xs font-semibold text-gray-600 mb-2">Einmal-Teamer (extern) <span class="text-gray-400 font-normal">– z. B. Agentur-Personal; erscheint in der Team-Liste des Briefings</span></p>
+    {% if ev.externe_teamer %}
+    <div class="space-y-1.5 mb-3">
+      {% for t in ev.externe_teamer %}
+      <div class="flex items-center gap-2 text-sm">
+        <span class="font-medium text-gray-800">{{ t.name }}</span>
+        <span class="text-gray-500">· {{ t.telefon or 'keine Nummer' }}</span>
+        <span class="text-xs px-1.5 py-0.5 rounded" style="background:#f3f4f6;color:#6b7280;">extern</span>
+        {% if not gesperrt %}
+        <form method="post" action="/admin/events/{{ ev.id }}/extern-teamer/{{ t.id }}/delete" class="ml-auto" onsubmit="return confirm('Diesen Teamer entfernen?')">
+          <button class="text-xs text-red-600 hover:underline">entfernen</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
+    {% if not gesperrt %}
+    <form method="post" action="/admin/events/{{ ev.id }}/extern-teamer" class="flex flex-wrap items-center gap-2">
+      <input type="text" name="name" placeholder="Name" required class="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5">
+      <input type="text" name="telefon" placeholder="Telefon" class="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5">
+      <button class="btn-secondary text-xs px-3 py-1.5">+ Hinzufügen</button>
+    </form>
+    {% endif %}
   </div>
-  <p class="text-xs text-gray-500 mt-2">Geht an alle Dienstleister, die zugesagt haben – mit Team-Liste, Aufbauzeiten und allen Details. „Briefing bearbeiten" füllt die Checklisten-Daten selbst aus, falls der Kunde sie nicht (rechtzeitig) schickt.</p>
 </div>
 
 <!-- Auftragsbestätigung -->

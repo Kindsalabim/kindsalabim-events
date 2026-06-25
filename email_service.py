@@ -675,7 +675,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
-def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
+def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, externe=None):
     cfg = get_config()
     color = _brand_color(event.marke)
     subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
@@ -701,6 +701,9 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None):
         if event.teamleiter_id and m.id == event.teamleiter_id:
             name += ' <span style="display:inline-block;margin-left:6px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">★ Teamleiter</span>'
         team_rows += _info_row(name, m.telefon or "–")
+    for e in (externe or []):
+        ext_name = f'{e.name} <span style="display:inline-block;margin-left:6px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">extern</span>'
+        team_rows += _info_row(ext_name, e.telefon or "–")
     team_section = f"""
         <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
           <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Dein Team</p>
