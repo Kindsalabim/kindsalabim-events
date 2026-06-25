@@ -5,6 +5,7 @@ HANDOFF_SESSION.md
 *.sqlite
 __pycache__/
 *.pyc
+.pytest_cache/
 .env
 venv/
 .venv/
