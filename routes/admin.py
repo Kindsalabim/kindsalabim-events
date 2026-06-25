@@ -488,7 +488,7 @@ def event_create(
     request: Request, background_tasks: BackgroundTasks,
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
-    startzeit: str = Form(...), endzeit: str = Form(...),
+    startzeit: str = Form(...), endzeit: str = Form(""),
     veranstaltungsort: str = Form(""),
     kunde_firma: str = Form(""), kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
@@ -504,7 +504,7 @@ def event_create(
     extra_endzeit: list = Form([]),
 ):
     material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
-    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event)
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event, abgesagt=(status == "Abgesagt"))
     extra_tage, extra_fehler = _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, startzeit, endzeit)
     fehler = fehler or extra_fehler
     if fehler:
@@ -740,7 +740,7 @@ def event_update(
     request: Request, event_id: int, background_tasks: BackgroundTasks,
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
-    startzeit: str = Form(...), endzeit: str = Form(...),
+    startzeit: str = Form(...), endzeit: str = Form(""),
     veranstaltungsort: str = Form(""),
     kunde_firma: str = Form(""), kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
@@ -759,7 +759,7 @@ def event_update(
     if event_gesperrt(ev, entsperrt):
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
-    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event)
+    datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event, abgesagt=(status == "Abgesagt"))
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         serie_count = db.query(Event).filter(Event.serien_id == ev.serien_id).count() if ev.serien_id else 0
