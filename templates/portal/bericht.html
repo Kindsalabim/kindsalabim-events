@@ -33,10 +33,11 @@
       </div>
 
       <div>
-        <label class="block text-sm font-semibold mb-2.5" style="color: var(--ink-2);">Wie ist das Event gelaufen?</label>
+        <label class="block text-sm font-semibold mb-1" style="color: var(--ink-2);">Wie ist das Event gelaufen?</label>
+        <p class="text-xs mb-2.5" style="color: var(--ink-4);">Mehrfachauswahl möglich – tippe alles an, was zutrifft.</p>
         <div class="flex flex-wrap gap-2">
           {% for opt in ['Alles reibungslos','Kleinere Herausforderungen gemeistert','Schwierige Bedingungen','Ziemlich chaotisch'] %}
-          <label class="choice"><input type="radio" name="verlauf" value="{{ opt }}" {% if verlauf_choice == opt %}checked{% endif %}><span>{{ opt }}</span></label>
+          <label class="choice"><input type="checkbox" name="verlauf" value="{{ opt }}" {% if opt in verlauf_choices %}checked{% endif %}><span>{{ opt }}</span></label>
           {% endfor %}
         </div>
         <textarea name="verlauf_text" rows="2" placeholder="Erzähl uns mehr (optional)" class="mt-2.5 w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm">{{ verlauf_extra }}</textarea>
@@ -82,8 +83,8 @@
       <form method="post" action="/portal/events/{{ ev.id }}/fotos" enctype="multipart/form-data">
         <label class="flex items-center justify-center gap-2 cursor-pointer btn-secondary w-full py-2.5 text-sm">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-          Foto hochladen
-          <input type="file" name="file" accept="image/*" capture="environment" class="hidden" onchange="this.closest('form').submit()">
+          Fotos hochladen
+          <input type="file" name="file" accept="image/*" multiple class="hidden" onchange="this.closest('form').submit()">
         </label>
       </form>
     </div>

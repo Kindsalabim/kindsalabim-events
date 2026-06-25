@@ -186,20 +186,23 @@ def view_auftragsbestaetigung(
 @router.post("/portal/events/{event_id}/fotos")
 async def upload_bericht_foto(
     event_id: int,
-    file: UploadFile = File(...),
+    file: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
     user=Depends(get_portal_user),
 ):
+    """Nimmt ein oder mehrere Fotos (Galerie-Mehrfachauswahl). Ungültige Dateien
+    (falscher Typ / zu groß) werden übersprungen, gültige hochgeladen."""
     did = int(user["sub"])
     ev = db.get(Event, event_id)
     if not ev or ev.teamleiter_id != did:
         raise HTTPException(403)
-    if file.content_type not in ALLOWED_FOTO:
-        raise HTTPException(400, "Nur JPG, PNG, WEBP oder GIF erlaubt.")
-    data = await file.read()
-    if len(data) > MAX_SIZE_MB * 1024 * 1024:
-        raise HTTPException(400, f"Datei zu groß (max. {MAX_SIZE_MB} MB).")
-    _upload(data, event_id, file.filename or "foto", file.content_type, "bericht_foto", db)
+    for f in file:
+        if f.content_type not in ALLOWED_FOTO:
+            continue
+        data = await f.read()
+        if not data or len(data) > MAX_SIZE_MB * 1024 * 1024:
+            continue
+        _upload(data, event_id, f.filename or "foto", f.content_type, "bericht_foto", db)
     return RedirectResponse(f"/portal/bericht/{event_id}", status_code=303)
 
 

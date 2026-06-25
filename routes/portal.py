@@ -254,11 +254,13 @@ def portal_bericht_form(request: Request, event_id: int,
     kinder_choice, kinder_extra = _split(ev.bericht_kinder, " — ")
     verlauf_choice, verlauf_extra = _split(ev.bericht_verlauf)
     feedback_choice, feedback_extra = _split(ev.bericht_kundenfeedback)
+    # "Wie gelaufen" ist Mehrfachauswahl → die gespeicherte Auswahl in eine Liste zerlegen
+    verlauf_choices = [c.strip() for c in verlauf_choice.split(",") if c.strip()] if verlauf_choice else []
 
     return templates.TemplateResponse("portal/bericht.html",
         tpl_context(request, ev=ev, foto_urls=foto_urls,
                     kinder_choice=kinder_choice, kinder_extra=kinder_extra,
-                    verlauf_choice=verlauf_choice, verlauf_extra=verlauf_extra,
+                    verlauf_choices=verlauf_choices, verlauf_extra=verlauf_extra,
                     feedback_choice=feedback_choice, feedback_extra=feedback_extra))
 
 
@@ -273,7 +275,7 @@ def _bericht_combine(choice: str, text: str, sep: str = "\n\n"):
 @router.post("/bericht/{event_id}")
 def portal_bericht_save(event_id: int,
                         kinder: str = Form(""), kinder_text: str = Form(""),
-                        verlauf: str = Form(""), verlauf_text: str = Form(""),
+                        verlauf: list = Form([]), verlauf_text: str = Form(""),
                         feedback: str = Form(""), feedback_text: str = Form(""),
                         db: Session = Depends(get_db), user=Depends(get_portal_user)):
     did = int(user["sub"])
@@ -281,7 +283,7 @@ def portal_bericht_save(event_id: int,
     if not ev or ev.teamleiter_id != did:
         return RedirectResponse("/portal", status_code=303)
     ev.bericht_kinder = _bericht_combine(kinder, kinder_text, sep=" — ")
-    ev.bericht_verlauf = _bericht_combine(verlauf, verlauf_text)
+    ev.bericht_verlauf = _bericht_combine(", ".join(verlauf), verlauf_text)
     ev.bericht_kundenfeedback = _bericht_combine(feedback, feedback_text)
     ev.bericht_anzahl_kinder = None   # Bucket ersetzt die Freitext-Zahl
     ev.bericht_probleme = None        # in „Wie gelaufen" aufgegangen
