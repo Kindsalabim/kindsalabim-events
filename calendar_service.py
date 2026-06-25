@@ -185,12 +185,24 @@ def sync_event_async(event_id):
 
 # ── Reservierungen (anthrazitfarbener Ganztags-Block) ───────────────────────────
 
+def _plus_eine_stunde(zeit: str) -> str:
+    """'HH:MM' + 1 Stunde, gedeckelt bei 24:00 (für die Default-Endzeit)."""
+    try:
+        h, m = (int(x) for x in zeit.split(":"))
+    except (ValueError, AttributeError):
+        return "24:00"
+    h = min(h + 1, 24)
+    return f"{h:02d}:{m:02d}" if h < 24 else "24:00"
+
+
 def _reservierung_body(r) -> dict:
     stadt = _stadt(r.veranstaltungsort or "")
-    kunde = (r.kunde_kontakt or "").strip() or (r.kunde_firma or "").strip()
-    frist = f"Frist {r.frist.strftime('%d.%m.')}" if r.frist else "Reservierung"
-    teile = [p for p in [stadt, kunde] if p]
-    summary = f"RES ({frist}) – " + (", ".join(teile) if teile else "Reservierung")
+    kontakt = (r.kunde_kontakt or "").strip() or (r.kunde_firma or "").strip()
+    art = (r.art or "Div.").strip()
+    rest = ", ".join(p for p in [stadt, r.anlass, kontakt] if p)
+    summary = f"({art})" + (f" {rest}" if rest else "")
+    if r.frist:
+        summary += f", reserv. bis {r.frist.strftime('%d.%m.%Y')}"
     lines = []
     if r.kunde_firma:   lines.append(f"Kunde: {r.kunde_firma}")
     if r.kunde_telefon: lines.append(f"Tel: {r.kunde_telefon}")
@@ -199,14 +211,21 @@ def _reservierung_body(r) -> dict:
     if r.notiz:         lines.append(f"Notiz: {r.notiz}")
     lines.append("")
     lines.append("Unverbindliche Reservierung (Kindsalabim-App)")
-    return {
+    body = {
         "summary": summary,
         "location": r.veranstaltungsort or "",
         "description": "\n".join(lines),
         "colorId": "8",  # Anthrazit – nur für Reservierungen
-        "start": {"date": r.datum.isoformat()},
-        "end": {"date": (r.datum + timedelta(days=1)).isoformat()},
     }
+    # Zeitgebunden, sobald eine Startzeit gesetzt ist; sonst Ganztags-Fallback
+    if r.startzeit:
+        ende = r.endzeit if (r.endzeit and r.endzeit > r.startzeit) else _plus_eine_stunde(r.startzeit)
+        body["start"] = _dt(r.datum, r.startzeit)
+        body["end"] = _dt(r.datum, ende)
+    else:
+        body["start"] = {"date": r.datum.isoformat()}
+        body["end"] = {"date": (r.datum + timedelta(days=1)).isoformat()}
+    return body
 
 
 def sync_reservierung_async(reservierung_id):

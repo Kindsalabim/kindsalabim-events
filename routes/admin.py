@@ -342,6 +342,7 @@ def reservierung_create(
     request: Request, background_tasks: BackgroundTasks,
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     datum: str = Form(...), kunde_firma: str = Form(...),
+    startzeit: str = Form(""), endzeit: str = Form(""), art: str = Form("Div."),
     anlass: str = Form(""), veranstaltungsort: str = Form(""),
     kunde_kontakt: str = Form(""), kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     marke: str = Form("Kindsalabim"), frist: str = Form(""), notiz: str = Form(""),
@@ -358,6 +359,7 @@ def reservierung_create(
         frist_d = datum_d  # Fallback; wird sonst über das Formular gesetzt
     r = Reservierung(
         datum=datum_d, kunde_firma=kunde_firma, anlass=anlass.strip() or None,
+        startzeit=startzeit.strip() or None, endzeit=endzeit.strip() or None, art=art.strip() or "Div.",
         veranstaltungsort=veranstaltungsort.strip() or None,
         kunde_kontakt=kunde_kontakt.strip() or None, kunde_telefon=kunde_telefon.strip() or None,
         kunde_email=kunde_email.strip() or None, marke=marke,
@@ -383,6 +385,7 @@ def reservierung_edit_save(
     res_id: int, background_tasks: BackgroundTasks,
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     datum: str = Form(...), kunde_firma: str = Form(...),
+    startzeit: str = Form(""), endzeit: str = Form(""), art: str = Form("Div."),
     anlass: str = Form(""), veranstaltungsort: str = Form(""),
     kunde_kontakt: str = Form(""), kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     marke: str = Form("Kindsalabim"), frist: str = Form(""), notiz: str = Form(""),
@@ -400,6 +403,9 @@ def reservierung_edit_save(
         except ValueError: frist_d = None
     r.frist = frist_d or r.datum
     r.kunde_firma = kunde_firma
+    r.startzeit = startzeit.strip() or None
+    r.endzeit = endzeit.strip() or None
+    r.art = art.strip() or "Div."
     r.anlass = anlass.strip() or None
     r.veranstaltungsort = veranstaltungsort.strip() or None
     r.kunde_kontakt = kunde_kontakt.strip() or None
@@ -430,7 +436,8 @@ def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
     if not r:
         return RedirectResponse("/admin/reservierungen", status_code=303)
     ev = Event(
-        anlass=r.anlass or "—", datum=r.datum, startzeit="10:00", endzeit="16:00",
+        anlass=r.anlass or "—", datum=r.datum,
+        startzeit=r.startzeit or "10:00", endzeit=r.endzeit or "16:00",
         veranstaltungsort=r.veranstaltungsort or "—", kunde_firma=r.kunde_firma,
         kunde_kontakt=r.kunde_kontakt, kunde_telefon=r.kunde_telefon, kunde_email=r.kunde_email,
         marke=r.marke, status="Gebucht",
