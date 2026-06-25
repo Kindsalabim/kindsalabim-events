@@ -1,0 +1,3 @@
+# Nur für lokale Tests – NICHT für den Render-Deploy nötig.
+# Installieren:  pip install -r requirements-dev.txt
+pytest>=8
