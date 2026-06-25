@@ -115,6 +115,10 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
         section("Hinweis")
         para(ev.hinweise)
 
+    if getattr(ev, "cl_weitere_details", None):
+        section("Weitere Details")
+        para(ev.cl_weitere_details)
+
     c.showPage()
     c.save()
     buf.seek(0)

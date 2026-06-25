@@ -49,6 +49,7 @@ def checklist_submit(
     verpflegung:           str = Form("Nein"),
     teamkleidung:          str = Form("Nein"),
     parkplatz:             str = Form(""),
+    weitere_details:       str = Form(""),
 ):
     ev = db.query(Event).filter(Event.checklist_token == token).first()
     if not ev:
@@ -67,6 +68,7 @@ def checklist_submit(
     ev.cl_verpflegung           = verpflegung
     ev.cl_teamkleidung          = teamkleidung
     ev.cl_parkplatz             = parkplatz
+    ev.cl_weitere_details       = weitere_details.strip() or None
     ev.cl_eingereicht_am        = datetime.now().strftime("%d.%m.%Y %H:%M")
     db.commit()
     # Status automatisch aktualisieren

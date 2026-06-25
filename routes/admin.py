@@ -1191,6 +1191,7 @@ def briefing_edit_save(
     abbau_von: str = Form(""), abbau_bis: str = Form(""),
     aufbauort: list = Form([]), verpflegung: str = Form(""),
     teamkleidung: str = Form(""), parkplatz: str = Form(""),
+    weitere_details: str = Form(""),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -1207,6 +1208,7 @@ def briefing_edit_save(
     ev.cl_verpflegung           = verpflegung
     ev.cl_teamkleidung          = teamkleidung
     ev.cl_parkplatz             = parkplatz
+    ev.cl_weitere_details       = weitere_details.strip() or None
     # Markiert die Daten als vorhanden (Workflow „eingegangen"); Kunden-Einreichzeit bleibt erhalten
     if not ev.cl_eingereicht_am:
         ev.cl_eingereicht_am = datetime.now().strftime("%d.%m.%Y %H:%M") + " (selbst ausgefüllt)"

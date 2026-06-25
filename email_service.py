@@ -747,6 +747,8 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
 
         {"" if not event.hinweise else f'<div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;">{event.hinweise}</p></div>'}
 
+        {"" if not getattr(event, 'cl_weitere_details', None) else f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Weitere Details</p><p style="margin:0;font-size:14px;color:#374151;white-space:pre-line;">{event.cl_weitere_details}</p></div>'}
+
         <p style="margin:0 0 8px;font-size:14px;color:#374151;">
           Deine Jobs findest du jederzeit in deinem Portal:
         </p>

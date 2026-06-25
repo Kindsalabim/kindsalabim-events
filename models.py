@@ -66,6 +66,7 @@ class Event(Base):
     cl_verpflegung           = Column(String)   # "Ja" / "Nein"
     cl_teamkleidung          = Column(String)   # "Ja" / "Nein"
     cl_parkplatz             = Column(Text)
+    cl_weitere_details       = Column(Text)     # Freitext „Weitere Details" (Kunde-Checkliste / Briefing)
     cl_eingereicht_am        = Column(String)
     checkliste_uebersprungen = Column(Boolean, default=False)  # Stammkunde: keine Kunden-Checkliste nötig
     zaubershow_event = Column(Boolean, default=False)  # Reines Zaubershow-Event: Firma/Ort/Aktion optional, kein Checkliste/Briefing/Bericht

@@ -131,6 +131,7 @@ def run_migrations():
     add_column("events", "material_abhol_erinnerung_gesendet", "BOOLEAN DEFAULT 0")
     add_column("verfuegbarkeitsanfragen", "als_logistiker", "BOOLEAN DEFAULT 0")
     add_column("verfuegbarkeitsanfragen", "logistik_transport", "VARCHAR")
+    add_column("events", "cl_weitere_details", "TEXT")
     add_column("reservierungen", "startzeit", "VARCHAR")
     add_column("reservierungen", "endzeit", "VARCHAR")
     add_column("reservierungen", "art", "VARCHAR DEFAULT 'Div.'")
