@@ -68,6 +68,14 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
             state["y"] -= 5 * mm
         state["y"] -= 3 * mm
 
+    def hinweis(text):
+        c.setFont("Helvetica-Oblique", 8.5); c.setFillColorRGB(0.55, 0.57, 0.60)
+        for ln in simpleSplit(str(text), "Helvetica-Oblique", 8.5, W - 2 * x):
+            newpage_if_needed()
+            c.drawString(x, state["y"], ln)
+            state["y"] -= 4.5 * mm
+        state["y"] -= 3 * mm
+
     # Titel
     c.setFillColorRGB(0.10, 0.10, 0.12); c.setFont("Helvetica-Bold", 16)
     c.drawString(x, state["y"], ev.anlass or "Event")
@@ -85,7 +93,6 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
         row("Aufbau", ev.cl_aufbau_von + (f" – {ev.cl_aufbau_bis}" if ev.cl_aufbau_bis else ""))
     if ev.cl_abbau_von:
         row("Abbau", ev.cl_abbau_von + (f" – {ev.cl_abbau_bis}" if ev.cl_abbau_bis else ""))
-    row("Ort", ev.veranstaltungsort)
     if ev.cl_aufbauort:
         row("Indoor/Outdoor", ev.cl_aufbauort)
     if ev.cl_parkplatz:
@@ -96,9 +103,22 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
         row("Verpflegung", ev.cl_verpflegung)
     row("Produkte", ev.produkte)
 
+    # Veranstaltungsanschrift (Checkliste bevorzugt, sonst grober Event-Ort)
+    an_firma = (getattr(ev, "cl_firma_name", "") or ev.kunde_firma or "").strip()
+    an_strasse = (getattr(ev, "cl_strasse", "") or "").strip()
+    an_plz_ort = (getattr(ev, "cl_plz_ort", "") or "").strip()
+    if not an_strasse and not an_plz_ort:
+        an_plz_ort = (ev.veranstaltungsort or "").strip()
+    section("Veranstaltungsanschrift")
+    row("Firma / Name", an_firma)
+    if an_strasse:
+        row("Straße", an_strasse)
+    row("PLZ / Ort", an_plz_ort)
+
     section("Ansprechpartner vor Ort")
-    row("Name", ev.kunde_kontakt)
-    row("Telefon", ev.kunde_telefon)
+    row("Name", (getattr(ev, "cl_ansprechpartner_name", "") or ev.kunde_kontakt or ""))
+    row("Telefon", (getattr(ev, "cl_ansprechpartner_mobil", "") or ev.kunde_telefon or ""))
+    hinweis("Nur für unseren Teamleiter. Für alle anderen ist die Kontaktperson unser Teamleiter.")
 
     section("Team")
     for m in dienstleister:
