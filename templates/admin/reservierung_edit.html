@@ -1,5 +1,7 @@
 {% extends "admin_base.html" %}
+{% from "macros.html" import time_select %}
 {% set active = 'dashboard' %}
+{% set art_optionen = [('Z','Z – Zaubershow'), ('B','B – Ballons'), ('ZB','ZB – Zauber + Ballons'), ('Div.','Div. – Sonstiges')] %}
 {% block title %}Reservierung bearbeiten – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 
@@ -26,6 +28,22 @@
       <select name="marke" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
         <option {% if r.marke == 'Kindsalabim' %}selected{% endif %}>Kindsalabim</option>
         <option {% if r.marke == 'Knallfrosch' %}selected{% endif %}>Knallfrosch</option>
+      </select>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Beginn <span class="text-gray-500 font-normal">(für Kalender-Uhrzeit)</span></label>
+      {{ time_select('startzeit', r.startzeit or '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Ende <span class="text-gray-500 font-normal">(sonst Beginn + 1 h)</span></label>
+      {{ time_select('endzeit', r.endzeit or '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Art <span class="text-gray-500 font-normal">(Kalender-Kürzel)</span></label>
+      <select name="art" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+        {% for val, label in art_optionen %}<option value="{{ val }}" {% if (r.art or 'Div.') == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </div>
   </div>

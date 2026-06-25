@@ -124,6 +124,9 @@ class Reservierung(Base):
 
     id                = Column(Integer, primary_key=True, index=True)
     datum             = Column(Date, nullable=False)     # angefragter Termin
+    startzeit         = Column(String)                   # HH:MM (für zeitgebundenen Kalendereintrag)
+    endzeit           = Column(String)                   # HH:MM (optional; sonst Start + 1 h)
+    art               = Column(String, default="Div.")   # Z | B | ZB | Div. (Kalender-Präfix)
     anlass            = Column(String)
     veranstaltungsort = Column(String)
     kunde_firma       = Column(String, nullable=False)
