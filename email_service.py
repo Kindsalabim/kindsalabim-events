@@ -710,6 +710,19 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
           <table cellpadding="0" cellspacing="0" width="100%">{team_rows}</table>
         </div>"""
 
+    # Veranstaltungsanschrift (Checkliste bevorzugt, sonst grober Event-Ort)
+    an_firma = (getattr(event, "cl_firma_name", "") or event.kunde_firma or "").strip()
+    an_strasse = (getattr(event, "cl_strasse", "") or "").strip()
+    an_plz_ort = (getattr(event, "cl_plz_ort", "") or "").strip()
+    if not an_strasse and not an_plz_ort:
+        an_plz_ort = (event.veranstaltungsort or "").strip()
+    anschrift_rows = (_info_row("Firma / Name", an_firma)
+                      + (_info_row("Straße", an_strasse) if an_strasse else "")
+                      + _info_row("PLZ / Ort", an_plz_ort))
+    # Ansprechpartner vor Ort (Checkliste bevorzugt)
+    ap_name = (getattr(event, "cl_ansprechpartner_name", "") or event.kunde_kontakt or "").strip()
+    ap_tel = (getattr(event, "cl_ansprechpartner_mobil", "") or event.kunde_telefon or "").strip()
+
     for d in dienstleister_list:
         content = f"""
         <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {d.vorname},</p>
@@ -726,7 +739,6 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
             {_info_row('Aufbau', (event.cl_aufbau_von + ' – ' + event.cl_aufbau_bis) if event.cl_aufbau_von and event.cl_aufbau_bis else (event.cl_aufbau_von or ''))}
             {_info_row('Abbau', (event.cl_abbau_von + ' – ' + event.cl_abbau_bis) if event.cl_abbau_von and event.cl_abbau_bis else (event.cl_abbau_von or ''))}
-            {_info_row('Ort', event.veranstaltungsort)}
             {_info_row('Indoor/Outdoor', event.cl_aufbauort)}
             {_info_row('Parkplatz', event.cl_parkplatz)}
             {_info_row('Teamkleidung', event.cl_teamkleidung)}
@@ -736,11 +748,17 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         </div>
 
         <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+          <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Veranstaltungsanschrift</p>
+          <table cellpadding="0" cellspacing="0" width="100%">{anschrift_rows}</table>
+        </div>
+
+        <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
           <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Ansprechpartner vor Ort</p>
           <table cellpadding="0" cellspacing="0" width="100%">
-            {_info_row('Name', event.kunde_kontakt)}
-            {_info_row('Telefon', event.kunde_telefon)}
+            {_info_row('Name', ap_name)}
+            {_info_row('Telefon', ap_tel)}
           </table>
+          <p style="margin:10px 0 0;font-size:12px;color:#9ca3af;font-style:italic;">Nur für unseren Teamleiter. Für alle anderen ist die Kontaktperson unser Teamleiter.</p>
         </div>
 
         {team_section}

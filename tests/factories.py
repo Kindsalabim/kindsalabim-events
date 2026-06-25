@@ -1,6 +1,7 @@
 """Kleine Helfer, um Testdaten anzulegen (eigene Session, geben die ID zurück)."""
 import itertools
 from datetime import date
+from types import SimpleNamespace
 
 from database import SessionLocal
 from models import Event, Dienstleister, Verfuegbarkeitsanfrage, ExternerTeamer
@@ -63,6 +64,28 @@ def reload(model, id_):
         return obj
     finally:
         s.close()
+
+
+def briefing_event_ns(**over):
+    """Event-artiges SimpleNamespace mit ALLEN Feldern, die send_briefing / build_briefing_pdf
+    lesen – zentral, damit neue Feld-Zugriffe nur hier ergänzt werden müssen."""
+    base = dict(
+        marke="Kindsalabim", anlass="Fest", kunde_firma="Kunde", datum=date(2026, 8, 1),
+        startzeit="14:00", endzeit="18:00", veranstaltungsort="Markt 1, 45127 Essen",
+        produkte="Zaubershow", kunde_kontakt="", kunde_telefon="", hinweise="", teamleiter_id=None,
+        cl_aufbau_von="", cl_aufbau_bis="", cl_abbau_von="", cl_abbau_bis="",
+        cl_aufbauort="", cl_parkplatz="", cl_teamkleidung="", cl_verpflegung="",
+        cl_weitere_details="", cl_firma_name="", cl_strasse="", cl_plz_ort="",
+        cl_ansprechpartner_name="", cl_ansprechpartner_mobil="",
+    )
+    base.update(over)
+    return SimpleNamespace(**base)
+
+
+def briefing_dl_ns(**over):
+    base = dict(id=1, vorname="Max", nachname="Muster", telefon="0151", email="dl@example.com")
+    base.update(over)
+    return SimpleNamespace(**base)
 
 
 def portal_login(client, dienstleister_id):
