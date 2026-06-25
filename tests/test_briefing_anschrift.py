@@ -6,6 +6,29 @@ from briefing_pdf import build_briefing_pdf
 from factories import briefing_event_ns, briefing_dl_ns
 
 
+def test_mail_none_string_wird_leer(mails):
+    ev = briefing_event_ns(kunde_kontakt="None", kunde_telefon="None")
+    email_service.send_briefing([briefing_dl_ns(telefon="None")], ev, "https://x")
+    html = mails[-1][2]
+    assert ">None<" not in html and ">None " not in html
+
+
+def test_team_telefon_bricht_nicht_um(mails):
+    ev = briefing_event_ns(teamleiter_id=1)
+    email_service.send_briefing([briefing_dl_ns(id=1, telefon="+4917655787913")], ev, "https://x")
+    html = mails[-1][2]
+    assert "+4917655787913" in html and "white-space:nowrap" in html
+
+
+def test_pdf_none_string_wird_leer():
+    import io
+    import pypdf
+    ev = briefing_event_ns(kunde_kontakt="None", kunde_telefon="None")
+    pdf = build_briefing_pdf(ev, [briefing_dl_ns(telefon="None")], [])
+    txt = "\n".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf)).pages)
+    assert "None" not in txt
+
+
 def _html(ev, mails):
     email_service.send_briefing([briefing_dl_ns()], ev, "https://x")
     return mails[-1][2]

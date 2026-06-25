@@ -14,6 +14,12 @@ def _brand_rgb(marke):
     return (0.102, 0.478, 0.102) if marke == "Knallfrosch" else (0.0, 0.220, 0.392)
 
 
+def _clean(x) -> str:
+    """Leerstring für None und den (aus dem alten Formular-Bug) gespeicherten Text 'None'."""
+    s = x if isinstance(x, str) else ("" if x is None else str(x))
+    return "" if s.strip().lower() == "none" else s
+
+
 def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
@@ -52,7 +58,7 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
         c.setFont("Helvetica", 10); c.setFillColorRGB(0.42, 0.45, 0.50)
         c.drawString(x, state["y"], label)
         c.setFillColorRGB(0.10, 0.10, 0.12)
-        lines = simpleSplit(str(value if value not in (None, "") else "–"),
+        lines = simpleSplit(_clean(value).strip() or "–",
                             "Helvetica", 10, W - x - 55 * mm)
         for i, ln in enumerate(lines):
             c.drawString(x + 45 * mm, state["y"], ln)
@@ -104,11 +110,11 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     row("Produkte", ev.produkte)
 
     # Veranstaltungsanschrift (Checkliste bevorzugt, sonst grober Event-Ort)
-    an_firma = (getattr(ev, "cl_firma_name", "") or ev.kunde_firma or "").strip()
-    an_strasse = (getattr(ev, "cl_strasse", "") or "").strip()
-    an_plz_ort = (getattr(ev, "cl_plz_ort", "") or "").strip()
+    an_firma = (_clean(getattr(ev, "cl_firma_name", "")) or _clean(ev.kunde_firma)).strip()
+    an_strasse = _clean(getattr(ev, "cl_strasse", "")).strip()
+    an_plz_ort = _clean(getattr(ev, "cl_plz_ort", "")).strip()
     if not an_strasse and not an_plz_ort:
-        an_plz_ort = (ev.veranstaltungsort or "").strip()
+        an_plz_ort = _clean(ev.veranstaltungsort).strip()
     section("Veranstaltungsanschrift")
     row("Firma / Name", an_firma)
     if an_strasse:
@@ -116,8 +122,8 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     row("PLZ / Ort", an_plz_ort)
 
     section("Ansprechpartner vor Ort")
-    row("Name", (getattr(ev, "cl_ansprechpartner_name", "") or ev.kunde_kontakt or ""))
-    row("Telefon", (getattr(ev, "cl_ansprechpartner_mobil", "") or ev.kunde_telefon or ""))
+    row("Name", (_clean(getattr(ev, "cl_ansprechpartner_name", "")) or _clean(ev.kunde_kontakt)))
+    row("Telefon", (_clean(getattr(ev, "cl_ansprechpartner_mobil", "")) or _clean(ev.kunde_telefon)))
     hinweis("Nur für unseren Teamleiter. Für alle anderen ist die Kontaktperson unser Teamleiter.")
 
     section("Team")
