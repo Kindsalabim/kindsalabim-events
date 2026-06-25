@@ -11,7 +11,7 @@ MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
 
 from sqlalchemy import func
 from database import get_db
-from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit, Reservierung
+from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit, Reservierung, ExternerTeamer
 import secrets
 from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
@@ -1107,10 +1107,52 @@ def send_briefing_route(
     ).all()
     anhaenge = [(d.filename, download_file(d.r2_key)) for d in planung]
     anhaenge = [(fn, data) for fn, data in anhaenge if data]
-    send_briefing(dienstleister, ev, base_url, anhaenge or None)
+    externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
+    send_briefing(dienstleister, ev, base_url, anhaenge or None, externe=externe)
     ev.status = "Briefing gesendet"
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+
+@router.get("/events/{event_id}/briefing/pdf")
+def briefing_pdf_download(event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Briefing als PDF zum Download (z. B. für externe Agentur-Leute ohne Portal)."""
+    from fastapi.responses import StreamingResponse
+    from briefing_pdf import build_briefing_pdf
+    import io
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    confirmed = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.event_id == event_id,
+        Verfuegbarkeitsanfrage.status == "Ja").all()
+    dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
+    externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
+    pdf = build_briefing_pdf(ev, dienstleister, externe)
+    fname = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.post("/events/{event_id}/extern-teamer")
+def extern_teamer_add(event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+                      name: str = Form(""), telefon: str = Form("")):
+    """Einmaligen (externen) Teamer fürs Event eintragen – erscheint in der Team-Liste."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    if name.strip():
+        db.add(ExternerTeamer(event_id=event_id, name=name.strip(), telefon=telefon.strip() or None))
+        db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}#wf-briefing", status_code=303)
+
+
+@router.post("/events/{event_id}/extern-teamer/{teamer_id}/delete")
+def extern_teamer_delete(event_id: int, teamer_id: int,
+                         db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    t = db.query(ExternerTeamer).filter(
+        ExternerTeamer.id == teamer_id, ExternerTeamer.event_id == event_id).first()
+    if t:
+        db.delete(t); db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}#wf-briefing", status_code=303)
 
 
 @router.get("/events/{event_id}/checklist/edit", response_class=HTMLResponse)

@@ -76,6 +76,17 @@ class Event(Base):
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="event", cascade="all, delete-orphan")
     dateien  = relationship("EventDatei", back_populates="event", cascade="all, delete-orphan")
     bastelvorschlaege = relationship("Bastelvorschlag", cascade="all, delete-orphan")
+    externe_teamer = relationship("ExternerTeamer", cascade="all, delete-orphan")
+
+
+class ExternerTeamer(Base):
+    """Einmaliges Team-Mitglied für genau ein Event (z. B. von einer externen Agentur),
+    das nicht im Dienstleister-Stamm steht. Erscheint nur in der Team-Liste des Briefings."""
+    __tablename__ = "externe_teamer"
+    id       = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    name     = Column(String, nullable=False)
+    telefon  = Column(String)
 
 
 class Dienstleister(Base):
