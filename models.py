@@ -98,6 +98,8 @@ class Dienstleister(Base):
     aktiv = Column(Boolean, default=True)
     logistiker = Column(Boolean, default=False)  # Kann Material transportieren
     fuehrerschein = Column(Boolean, default=False)
+    teamshirt_kindsalabim = Column(Boolean, default=False)  # hat ein Kindsalabim-Team-Shirt
+    teamshirt_knallfrosch = Column(Boolean, default=False)  # hat ein Knallfrosch-Team-Shirt
     password_hash = Column(String)               # für Portal-Login (Legacy)
     magic_token = Column(String)                 # Magic-Link-Token
     magic_token_expires = Column(String)         # ISO-Datetime
