@@ -153,11 +153,27 @@ def _wrap(content: str, brand_color: str, cfg: dict) -> str:
 </html>"""
 
 
+def _no_none(x) -> str:
+    """Leerstring für None und für den (aus dem alten Formular-Bug) gespeicherten Text 'None'."""
+    s = x if isinstance(x, str) else ("" if x is None else str(x))
+    return "" if s.strip().lower() == "none" else s
+
+
 def _info_row(label: str, value: str) -> str:
     return f"""
     <tr>
       <td style="padding:8px 16px 8px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">{label}</td>
-      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{value or '–'}</td>
+      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{_no_none(value) or '–'}</td>
+    </tr>"""
+
+
+def _team_row(name_html: str, telefon) -> str:
+    """Team-Zeile: Name (darf umbrechen) + Telefon rechts, das nie ziffernweise umbricht."""
+    tel = _no_none(telefon).strip() or "–"
+    return f"""
+    <tr>
+      <td style="padding:8px 12px 8px 0;font-size:14px;color:#111827;vertical-align:top;">{name_html}</td>
+      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;white-space:nowrap;text-align:right;vertical-align:top;">{tel}</td>
     </tr>"""
 
 
@@ -700,10 +716,10 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         name = f"{m.vorname} {m.nachname}"
         if event.teamleiter_id and m.id == event.teamleiter_id:
             name += ' <span style="display:inline-block;margin-left:6px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">★ Teamleiter</span>'
-        team_rows += _info_row(name, m.telefon or "–")
+        team_rows += _team_row(name, m.telefon)
     for e in (externe or []):
         ext_name = f'{e.name} <span style="display:inline-block;margin-left:6px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">extern</span>'
-        team_rows += _info_row(ext_name, e.telefon or "–")
+        team_rows += _team_row(ext_name, e.telefon)
     team_section = f"""
         <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
           <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Dein Team</p>
@@ -711,17 +727,17 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         </div>"""
 
     # Veranstaltungsanschrift (Checkliste bevorzugt, sonst grober Event-Ort)
-    an_firma = (getattr(event, "cl_firma_name", "") or event.kunde_firma or "").strip()
-    an_strasse = (getattr(event, "cl_strasse", "") or "").strip()
-    an_plz_ort = (getattr(event, "cl_plz_ort", "") or "").strip()
+    an_firma = (_no_none(getattr(event, "cl_firma_name", "")) or _no_none(event.kunde_firma)).strip()
+    an_strasse = _no_none(getattr(event, "cl_strasse", "")).strip()
+    an_plz_ort = _no_none(getattr(event, "cl_plz_ort", "")).strip()
     if not an_strasse and not an_plz_ort:
-        an_plz_ort = (event.veranstaltungsort or "").strip()
+        an_plz_ort = _no_none(event.veranstaltungsort).strip()
     anschrift_rows = (_info_row("Firma / Name", an_firma)
                       + (_info_row("Straße", an_strasse) if an_strasse else "")
                       + _info_row("PLZ / Ort", an_plz_ort))
     # Ansprechpartner vor Ort (Checkliste bevorzugt)
-    ap_name = (getattr(event, "cl_ansprechpartner_name", "") or event.kunde_kontakt or "").strip()
-    ap_tel = (getattr(event, "cl_ansprechpartner_mobil", "") or event.kunde_telefon or "").strip()
+    ap_name = (_no_none(getattr(event, "cl_ansprechpartner_name", "")) or _no_none(event.kunde_kontakt)).strip()
+    ap_tel = (_no_none(getattr(event, "cl_ansprechpartner_mobil", "")) or _no_none(event.kunde_telefon)).strip()
 
     for d in dienstleister_list:
         content = f"""
