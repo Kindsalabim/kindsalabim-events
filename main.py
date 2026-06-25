@@ -45,6 +45,8 @@ def run_migrations():
         ("magic_token_expires",      "VARCHAR"),
         ("logistiker",               "BOOLEAN DEFAULT 0"),
         ("fuehrerschein",            "BOOLEAN DEFAULT 0"),
+        ("teamshirt_kindsalabim",    "BOOLEAN DEFAULT 0"),
+        ("teamshirt_knallfrosch",    "BOOLEAN DEFAULT 0"),
         ("qualitaet",                "INTEGER"),
         ("kuenstler_sparte",         "VARCHAR"),
         ("gebiet",                   "VARCHAR"),

@@ -143,6 +143,25 @@
             </div>
           </label>
         </div>
+
+        <!-- Team-Shirt vorhanden -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">👕 Team-Shirt vorhanden</label>
+          <div class="flex flex-wrap gap-3">
+            <label class="flex items-center gap-2 text-sm cursor-pointer px-3 py-2 rounded-lg border border-gray-100 hover:border-gray-200">
+              <input type="checkbox" name="teamshirt_kindsalabim" value="true"
+                {% if d and d.teamshirt_kindsalabim %}checked{% endif %}
+                class="rounded border-gray-300" style="accent-color: #1D4E89;">
+              <span class="font-medium" style="color:#1D4E89;">Kindsalabim</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer px-3 py-2 rounded-lg border border-gray-100 hover:border-gray-200">
+              <input type="checkbox" name="teamshirt_knallfrosch" value="true"
+                {% if d and d.teamshirt_knallfrosch %}checked{% endif %}
+                class="rounded border-gray-300" style="accent-color: #1a7a1a;">
+              <span class="font-medium" style="color:#1a7a1a;">Knallfrosch</span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
 

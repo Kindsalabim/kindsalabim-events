@@ -1247,7 +1247,9 @@ def dienstleister_create(
     qualitaet: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
-    fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
+    fuehrerschein: bool = Form(False),
+    teamshirt_kindsalabim: bool = Form(False), teamshirt_knallfrosch: bool = Form(False),
+    portal_passwort: str = Form(""),
     gebiet: str = Form(""), verfuegbarkeit: str = Form(""),
     vertragstyp: str = Form(""), stundensatz_teamer: str = Form(""),
     stundensatz_kuenstler: str = Form(""),
@@ -1279,7 +1281,9 @@ def dienstleister_create(
         erfahrungspunkte=erfahrungspunkte, qualitaet=_qual(qualitaet),
         mobilitaet=mobilitaet,
         kleidergroesse=kleidergroesse, aktiv=aktiv, logistiker=logistiker,
-        fuehrerschein=fuehrerschein, password_hash=pw_hash,
+        fuehrerschein=fuehrerschein,
+        teamshirt_kindsalabim=teamshirt_kindsalabim, teamshirt_knallfrosch=teamshirt_knallfrosch,
+        password_hash=pw_hash,
         gebiet=gebiet.strip() or None, verfuegbarkeit=verfuegbarkeit.strip() or None,
         vertragstyp=vertragstyp.strip() or None,
         stundensatz_teamer=_f(stundensatz_teamer),
@@ -1319,7 +1323,9 @@ def dienstleister_update(
     qualitaet: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
-    fuehrerschein: bool = Form(False), portal_passwort: str = Form(""),
+    fuehrerschein: bool = Form(False),
+    teamshirt_kindsalabim: bool = Form(False), teamshirt_knallfrosch: bool = Form(False),
+    portal_passwort: str = Form(""),
     gebiet: str = Form(""), verfuegbarkeit: str = Form(""),
     vertragstyp: str = Form(""), stundensatz_teamer: str = Form(""),
     stundensatz_kuenstler: str = Form(""),
@@ -1346,6 +1352,8 @@ def dienstleister_update(
     d.qualitaet = int(qualitaet) if qualitaet.strip() in ("1", "2", "3", "4", "5") else None
     d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse
     d.aktiv = aktiv; d.logistiker = logistiker; d.fuehrerschein = fuehrerschein
+    d.teamshirt_kindsalabim = teamshirt_kindsalabim
+    d.teamshirt_knallfrosch = teamshirt_knallfrosch
     d.gebiet = gebiet.strip() or None
     d.verfuegbarkeit = verfuegbarkeit.strip() or None
     d.vertragstyp = vertragstyp.strip() or None
