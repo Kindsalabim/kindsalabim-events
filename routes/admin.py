@@ -253,7 +253,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
             Verfuegbarkeitsanfrage.event_id == ev.id,
             Verfuegbarkeitsanfrage.status == "Ja"
         ).all()
-        teamer    = sum(1 for a in anfragen if a.rolle_anfrage == "Teamer")
+        teamer    = sum(1 for a in anfragen if a.rolle_anfrage == "Teamer") + len(ev.externe_teamer or [])
         kuenstler = sum(1 for a in anfragen if a.rolle_anfrage == "Künstler")
         return max(0, ev.anzahl_teamer - teamer), max(0, ev.anzahl_kuenstler - kuenstler)
 
@@ -559,11 +559,12 @@ def _workflow_steps(ev, anfragen):
     """Berechnet die 5 Workflow-Stufen samt Status für die Chevron-Leiste im Event-Detail.
     state: 'done' (grün/erledigt) · 'doing' (in Arbeit, grau) · 'todo' (offen, grau) · 'na' (nicht nötig)."""
     confirmed = [a for a in anfragen if a.status == "Ja"]
-    teamer_ok    = sum(1 for a in confirmed if a.rolle_anfrage == "Teamer")   >= ev.anzahl_teamer
+    externe_n = len(ev.externe_teamer or [])
+    teamer_ok    = (sum(1 for a in confirmed if a.rolle_anfrage == "Teamer") + externe_n) >= ev.anzahl_teamer
     kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler") >= ev.anzahl_kuenstler
     logistiker_ok = (not ev.material_mitnahme) or bool(ev.logistiker_id) or any(
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
-    team_komplett = bool(confirmed) and teamer_ok and kuenstler_ok and logistiker_ok
+    team_komplett = (bool(confirmed) or externe_n > 0) and teamer_ok and kuenstler_ok and logistiker_ok
 
     if (ev.zaubershow_event or ev.checkliste_uebersprungen) and not ev.cl_eingereicht_am:
                                   checkliste = ("na", "nicht nötig")
@@ -868,7 +869,7 @@ def auto_status(ev, db) -> str:
         Verfuegbarkeitsanfrage.event_id == ev.id).all()
     confirmed = [a for a in anfragen if a.status == "Ja"]
 
-    teamer_ok    = sum(1 for a in confirmed if a.rolle_anfrage == "Teamer")    >= ev.anzahl_teamer
+    teamer_ok    = (sum(1 for a in confirmed if a.rolle_anfrage == "Teamer") + len(ev.externe_teamer or [])) >= ev.anzahl_teamer
     kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler")  >= ev.anzahl_kuenstler
 
     # Logistiker: nur nötig, wenn Material transportiert werden muss
