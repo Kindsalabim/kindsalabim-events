@@ -51,7 +51,7 @@ def test_mail_veranstaltungsanschrift_aus_checkliste(mails):
 
 def test_mail_teamleiter_hinweis(mails):
     html = _html(briefing_event_ns(), mails)
-    assert "Nur für unseren Teamleiter" in html
+    assert "Nur für den Teamleiter" in html and "font-weight:700" in html
 
 
 def test_mail_anschrift_fallback_auf_veranstaltungsort(mails):
@@ -72,4 +72,4 @@ def test_pdf_anschrift_und_ansprechpartner_und_hinweis():
     txt = _pdf_text(ev)
     assert "VERANSTALTUNGSANSCHRIFT" in txt and "Kita Sonne" in txt and "Hauptstr. 5" in txt
     assert "ANSPRECHPARTNER VOR ORT" in txt and "Frau Klar" in txt
-    assert "Nur für unseren Teamleiter" in txt
+    assert "Nur für den Teamleiter" in txt

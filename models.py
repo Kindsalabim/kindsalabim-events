@@ -30,6 +30,9 @@ class Event(Base):
     material_info = Column(Text)                         # Admin-Hinweis zur Menge/zum Transport (für Logistiker sichtbar)
     transporter_angeboten = Column(Boolean, default=False)  # Firmen-Transporter steht für dieses Event zur Verfügung
     logistiker_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)  # zugewiesener Material-Fahrer
+    ankunft_modus = Column(String, default="auto")  # auto|30|45|60|90|eigen|sonderfall (Vorlauf vor Aktionsbeginn)
+    ankunft_text  = Column(Text)                     # Freitext für Sonderfall (z. B. "Aufbau am Vortag bis 14 Uhr")
+    treffpunkt    = Column(String)                   # Treffpunkt-Text fürs Team (Default "vor dem Haupteingang")
     material_bereit = Column(Boolean, default=False)     # Material im Lager abholbereit
     material_bereit_gesendet = Column(Boolean, default=False)        # "bereit zur Abholung"-Mail verschickt?
     material_abhol_erinnerung_gesendet = Column(Boolean, default=False)  # 3-Tage-Abhol-Erinnerung verschickt?
