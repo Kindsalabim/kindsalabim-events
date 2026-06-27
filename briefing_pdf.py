@@ -84,16 +84,15 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
         state["y"] -= 3 * mm
 
     def warnung(text):
-        # fette, dunkle Warnzeile mit Amber-Balken (z. B. Teamleiter-Hinweis)
-        c.setFont("Helvetica-Bold", 9.5)
-        lines = simpleSplit(str(text), "Helvetica-Bold", 9.5, W - 2 * x - 4 * mm)
+        # dezenter, voll umrandeter Hinweiskasten (kein breiter Amber-Balken)
+        c.setFont("Helvetica-Bold", 9)
+        lines = simpleSplit(str(text), "Helvetica-Bold", 9, W - 2 * x - 8 * mm)
         h = len(lines) * 5 * mm + 3 * mm
         newpage_if_needed()
-        c.setFillColorRGB(1.0, 0.953, 0.847)
-        c.rect(x, state["y"] - h + 4 * mm, W - 2 * x, h, fill=1, stroke=0)
-        c.setFillColorRGB(0.961, 0.620, 0.043)
-        c.rect(x, state["y"] - h + 4 * mm, 1.3 * mm, h, fill=1, stroke=0)
-        c.setFillColorRGB(0.47, 0.21, 0.03)
+        c.setFillColorRGB(0.969, 0.976, 0.984)
+        c.setStrokeColorRGB(0.84, 0.86, 0.89); c.setLineWidth(0.8)
+        c.roundRect(x, state["y"] - h + 4 * mm, W - 2 * x, h, 2 * mm, fill=1, stroke=1)
+        c.setFillColorRGB(0.20, 0.24, 0.29)
         for ln in lines:
             c.drawString(x + 4 * mm, state["y"], ln)
             state["y"] -= 5 * mm
@@ -115,7 +114,7 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     if ev.cl_aufbauort:
         row("Indoor/Outdoor", ev.cl_aufbauort)
     if ev.cl_parkplatz:
-        row("Parkplatz", ev.cl_parkplatz)
+        row("Parkplatzsituation", ev.cl_parkplatz)
     if ev.cl_teamkleidung:
         row("Teamkleidung", ev.cl_teamkleidung)
     if ev.cl_verpflegung:
@@ -144,14 +143,32 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     row("Telefon", (_clean(getattr(ev, "cl_ansprechpartner_mobil", "")) or _clean(ev.kunde_telefon)))
     warnung("Nur für den Teamleiter. Alle anderen wenden sich vor Ort an unseren Teamleiter – nicht direkt an den Kunden-Ansprechpartner.")
 
+    def team_row(name, tel, teamleiter=False, extern=False):
+        newpage_if_needed()
+        tel = _clean(tel).strip() or "–"
+        if teamleiter:
+            c.setFont("Helvetica-Bold", 11); c.setFillColorRGB(r, g, b)
+            lead = f"★ {name}"
+            c.drawString(x, state["y"], lead)
+            lw = c.stringWidth(lead, "Helvetica-Bold", 11)
+            c.setFont("Helvetica-Bold", 7); c.setFillColorRGB(r, g, b)
+            c.drawString(x + lw + 3 * mm, state["y"] + 0.3 * mm, "TEAMLEITER")
+            c.setFont("Helvetica-Bold", 10)
+        else:
+            c.setFont("Helvetica", 10); c.setFillColorRGB(0.10, 0.10, 0.12)
+            c.drawString(x, state["y"], f"{name}  (extern)" if extern else name)
+        c.setFillColorRGB(0.10, 0.10, 0.12)
+        fnt = "Helvetica-Bold" if teamleiter else "Helvetica"
+        c.setFont(fnt, 10)
+        c.drawString(W - x - c.stringWidth(tel, fnt, 10), state["y"], tel)
+        state["y"] -= 7 * mm
+
     section("Team")
     for m in dienstleister:
-        nm = f"{m.vorname} {m.nachname}"
-        if ev.teamleiter_id and m.id == ev.teamleiter_id:
-            nm += "  (Teamleiter)"
-        row(nm, m.telefon or "–")
+        is_tl = bool(ev.teamleiter_id and m.id == ev.teamleiter_id)
+        team_row(f"{m.vorname} {m.nachname}", m.telefon, teamleiter=is_tl)
     for e in (externe or []):
-        row(f"{e.name}  (extern)", e.telefon or "–")
+        team_row(e.name, e.telefon, extern=True)
     if not dienstleister and not (externe or []):
         para("Noch kein Team eingetragen.")
 
