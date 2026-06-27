@@ -167,13 +167,20 @@ def _info_row(label: str, value: str) -> str:
     </tr>"""
 
 
-def _team_row(name_html: str, telefon) -> str:
-    """Team-Zeile: Name (darf umbrechen) + Telefon rechts, das nie ziffernweise umbricht."""
+def _team_row(name_html: str, telefon, highlight: bool = False, tint: str = "#eef3fb") -> str:
+    """Team-Zeile: Name (darf umbrechen) + Telefon rechts, das nie ziffernweise umbricht.
+    highlight tönt die Zeile (für den Teamleiter)."""
     tel = _no_none(telefon).strip() or "–"
+    if highlight:
+        cl = f"padding:10px 12px;background:{tint};"
+        cr = f"padding:10px 12px;background:{tint};"
+    else:
+        cl = "padding:8px 12px 8px 0;"
+        cr = "padding:8px 0;"
     return f"""
     <tr>
-      <td style="padding:8px 12px 8px 0;font-size:14px;color:#111827;vertical-align:top;">{name_html}</td>
-      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;white-space:nowrap;text-align:right;vertical-align:top;">{tel}</td>
+      <td style="{cl}font-size:14px;color:#111827;vertical-align:top;">{name_html}</td>
+      <td style="{cr}font-size:14px;color:#111827;font-weight:600;white-space:nowrap;text-align:right;vertical-align:top;">{tel}</td>
     </tr>"""
 
 
@@ -710,13 +717,19 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
           <p style="margin:8px 0 0;font-size:14px;color:#374151;">Per Mail an: <a href="mailto:{rechnung_mail}" style="color:{color};">{rechnung_mail}</a></p>
         </div>"""
 
-    # Team-Roster (für alle Empfänger gleich): Name + Telefon, Teamleiter markiert
+    # Team-Roster (für alle Empfänger gleich): Name + Telefon, Teamleiter klar markiert
+    tl_tint = "#ecf6ec" if event.marke == "Knallfrosch" else "#eef3fb"
     team_rows = ""
     for m in dienstleister_list:
-        name = f"{m.vorname} {m.nachname}"
-        if event.teamleiter_id and m.id == event.teamleiter_id:
-            name += ' <span style="display:inline-block;margin-left:6px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">★ Teamleiter</span>'
-        team_rows += _team_row(name, m.telefon)
+        is_tl = bool(event.teamleiter_id and m.id == event.teamleiter_id)
+        if is_tl:
+            name = (f'<strong style="color:#111827;">{m.vorname} {m.nachname}</strong>'
+                    f' <span style="display:inline-block;margin-left:6px;background:{color};color:#ffffff;'
+                    f'font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;'
+                    f'letter-spacing:0.04em;vertical-align:middle;">★ TEAMLEITER</span>')
+        else:
+            name = f"{m.vorname} {m.nachname}"
+        team_rows += _team_row(name, m.telefon, highlight=is_tl, tint=tl_tint)
     for e in (externe or []):
         ext_name = f'{e.name} <span style="display:inline-block;margin-left:6px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">extern</span>'
         team_rows += _team_row(ext_name, e.telefon)
@@ -758,7 +771,7 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             {_info_row('Datum', de_date(event.datum))}
             {_info_row('Aktionszeit', f"{event.startzeit} – {event.endzeit} Uhr")}
             {_info_row('Indoor/Outdoor', event.cl_aufbauort)}
-            {_info_row('Parkplatz', event.cl_parkplatz)}
+            {_info_row('Parkplatzsituation', event.cl_parkplatz)}
             {_info_row('Teamkleidung', event.cl_teamkleidung)}
             {_info_row('Verpflegung', event.cl_verpflegung)}
             {_info_row('Produkte', event.produkte)}
@@ -784,12 +797,14 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             {_info_row('Name', ap_name)}
             {_info_row('Telefon', ap_tel)}
           </table>
-          <p style="margin:12px 0 0;padding:10px 14px;background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 6px 6px 0;font-size:13px;color:#78350f;font-weight:700;">⚠ Nur für den Teamleiter. Alle anderen wenden sich vor Ort an unseren Teamleiter – nicht direkt an den Kunden-Ansprechpartner.</p>
+          <div style="margin:14px 0 0;padding:10px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;">
+            <p style="margin:0;font-size:13px;color:#4b5563;line-height:1.55;">🔒 <strong style="color:#1f2937;font-weight:700;">Nur für den Teamleiter:</strong> Den Kunden-Ansprechpartner kontaktiert ausschließlich der Teamleiter. Alle anderen wenden sich vor Ort an ihn.</p>
+          </div>
         </div>
 
         {team_section}
 
-        {"" if not event.hinweise else f'<div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;">{event.hinweise}</p></div>'}
+        {"" if not event.hinweise else f'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.04em;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;line-height:1.55;">{event.hinweise}</p></div>'}
 
         {"" if not getattr(event, 'cl_weitere_details', None) else f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Weitere Details</p><p style="margin:0;font-size:14px;color:#374151;white-space:pre-line;">{event.cl_weitere_details}</p></div>'}
 
