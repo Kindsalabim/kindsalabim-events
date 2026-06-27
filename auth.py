@@ -2,7 +2,7 @@ import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 import bcrypt
 from fastapi import Request, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -24,19 +24,25 @@ def create_token(data: dict, expires_minutes: int = 60 * 8) -> str:
     payload["exp"] = datetime.utcnow() + timedelta(minutes=expires_minutes)
     return jwt.encode(payload, cfg["secret_key"], algorithm="HS256")
 
-def decode_token(token: str) -> Optional[dict]:
+def decode_token(token: str, _ctx: str = "") -> Optional[dict]:
     cfg = get_config()
     try:
         return jwt.decode(token, cfg["secret_key"], algorithms=["HS256"])
-    except JWTError:
+    except ExpiredSignatureError:
+        print(f"[AUTH]{_ctx} Token ABGELAUFEN")
+        return None
+    except JWTError as e:
+        # z. B. Signatur ungültig -> deutet auf geänderten SECRET_KEY hin
+        print(f"[AUTH]{_ctx} Token UNGÜLTIG: {type(e).__name__}: {e}")
         return None
 
 def get_admin_user(request: Request):
     token = request.cookies.get("admin_token")
     if not token:
+        print("[AUTH] admin: KEIN admin_token-Cookie gesendet (Browser hat keins / abgelaufen / blockiert)")
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER,
                             headers={"Location": "/admin/login"})
-    payload = decode_token(token)
+    payload = decode_token(token, " admin:")
     if not payload or payload.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER,
                             headers={"Location": "/admin/login"})
