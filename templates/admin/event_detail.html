@@ -835,7 +835,10 @@
     <!-- Eventbericht -->
     <div>
       <p class="text-xs text-gray-500 mb-2">Eventbericht <span class="text-gray-300">(Teamleiter)</span></p>
-      {% if ev.bericht_eingereicht_am %}
+      {% if ev.zaubershow_event %}
+        <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:#f3f4f6;color:#6b7280;">nicht nötig</span>
+        <p class="text-sm text-gray-500 mt-2">Reines Zaubershow-Event – der Abschluss erfolgt allein über die Rechnung.</p>
+      {% elif ev.bericht_eingereicht_am %}
         <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full mb-3" style="background:var(--c-success-bg);color:var(--c-success);">✓ eingereicht {{ ev.bericht_eingereicht_am }}</span>
         {% set bericht_kinder = ev.bericht_kinder or (ev.bericht_anzahl_kinder if ev.bericht_anzahl_kinder is not none else None) %}
         <dl class="space-y-2 text-sm mt-1">

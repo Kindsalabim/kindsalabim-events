@@ -32,6 +32,38 @@ def test_zaubershow_without_produkte_ok(admin):
     assert r.status_code == 303
 
 
+def test_zaubershow_abschluss_nur_rechnung():
+    """Reines Zaubershow-Event: Abschluss allein über die Rechnung – KEIN Eventbericht nötig."""
+    from routes.admin import auto_status
+    from database import SessionLocal
+    eid = make_event(zaubershow_event=True, produkte="Zaubershow")
+    s = SessionLocal()
+    ev = s.get(Event, eid)
+    assert auto_status(ev, s) != "Abgeschlossen"      # ohne Rechnung noch offen
+    ev.rechnung_gestellt = True; s.commit()
+    assert auto_status(ev, s) == "Abgeschlossen"      # Rechnung reicht, ohne bericht_eingereicht_am
+    assert ev.bericht_eingereicht_am is None
+    s.close()
+
+
+def test_zaubershow_detail_zeigt_bericht_nicht_noetig(admin):
+    eid = make_event(zaubershow_event=True, produkte="Zaubershow")
+    r = admin.get(f"/admin/events/{eid}")
+    assert r.status_code == 200
+    assert "Abschluss erfolgt allein über die Rechnung" in r.text
+
+
+def test_normales_event_braucht_bericht_und_rechnung():
+    """Gegenprobe: Nicht-Zaubershow-Event schließt erst mit Bericht UND Rechnung."""
+    from routes.admin import auto_status
+    from database import SessionLocal
+    eid = make_event(status="Briefing gesendet", rechnung_gestellt=True)
+    s = SessionLocal()
+    ev = s.get(Event, eid)
+    assert auto_status(ev, s) != "Abgeschlossen"      # nur Rechnung reicht hier nicht
+    s.close()
+
+
 def test_abgesagt_saves_minimal(admin):
     eid = make_event()
     r = admin.post(f"/admin/events/{eid}/edit",
