@@ -872,6 +872,9 @@ def auto_status(ev, db) -> str:
     # "Abgeschlossen" und "Abgesagt" sind final – nie automatisch überschreiben
     if ev.status in ("Abgeschlossen", "Abgesagt"):
         return ev.status
+    # Reines Zaubershow-Event: kein Team/Briefing/Eventbericht – Abschluss allein über die Rechnung
+    if ev.zaubershow_event and ev.rechnung_gestellt:
+        return "Abgeschlossen"
     # Nach dem Briefing: automatischer Abschluss, sobald Bericht da UND Rechnung gestellt
     if ev.status == "Briefing gesendet":
         if ev.bericht_eingereicht_am and ev.rechnung_gestellt:
