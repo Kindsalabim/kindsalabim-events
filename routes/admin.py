@@ -27,6 +27,9 @@ templates.env.filters["de_date"] = de_date
 templates.env.filters["de_month"] = de_month
 templates.env.filters["de_euro"] = de_euro
 templates.env.globals["zeiten"] = ZEITEN
+import ankunft as _ankunft
+templates.env.globals["ankunft_anzeige"] = _ankunft.ankunft_anzeige
+templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
 
 PRODUKTE_LIST = [
     "Bunter Bastelspaß", "Spezielle Bastelaktionen (Bakerross)", "Glitzertattoos",
@@ -466,7 +469,8 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
                      anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
                      marke, status, event_id=None, serien_id=None,
                      checkliste_uebersprungen=False, zaubershow_event=False,
-                     material_info="", transporter_angeboten=False):
+                     material_info="", transporter_angeboten=False,
+                     ankunft_modus="auto", ankunft_text="", treffpunkt=""):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -487,6 +491,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
         checkliste_uebersprungen=checkliste_uebersprungen,
         zaubershow_event=zaubershow_event,
         material_info=material_info, transporter_angeboten=transporter_angeboten,
+        ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
     )
 
 
@@ -504,6 +509,7 @@ def event_create(
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     material_info_choice: str = Form(""), material_info_text: str = Form(""),
     transporter_angeboten: bool = Form(False),
+    ankunft_modus: str = Form("auto"), ankunft_text: str = Form(""), treffpunkt: str = Form(""),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
@@ -521,7 +527,8 @@ def event_create(
                                 anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
                                 marke, status, checkliste_uebersprungen=checkliste_uebersprungen,
                                 zaubershow_event=zaubershow_event,
-                                material_info=material_info, transporter_angeboten=transporter_angeboten)
+                                material_info=material_info, transporter_angeboten=transporter_angeboten,
+                                ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
@@ -533,6 +540,8 @@ def event_create(
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
         material_info=material_info, transporter_angeboten=transporter_angeboten,
+        ankunft_modus=ankunft_modus, ankunft_text=ankunft_text.strip() or None,
+        treffpunkt=treffpunkt.strip() or None,
         checkliste_uebersprungen=checkliste_uebersprungen,
         zaubershow_event=zaubershow_event,
         marke=marke, status=status
@@ -757,6 +766,7 @@ def event_update(
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     material_info_choice: str = Form(""), material_info_text: str = Form(""),
     transporter_angeboten: bool = Form(False),
+    ankunft_modus: str = Form("auto"), ankunft_text: str = Form(""), treffpunkt: str = Form(""),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
@@ -778,7 +788,8 @@ def event_update(
                                 marke, status, event_id=ev.id, serien_id=ev.serien_id,
                                 checkliste_uebersprungen=checkliste_uebersprungen,
                                 zaubershow_event=zaubershow_event,
-                                material_info=material_info, transporter_angeboten=transporter_angeboten)
+                                material_info=material_info, transporter_angeboten=transporter_angeboten,
+                                ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -791,6 +802,8 @@ def event_update(
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
     ev.material_info = material_info; ev.transporter_angeboten = transporter_angeboten
+    ev.ankunft_modus = ankunft_modus; ev.ankunft_text = ankunft_text.strip() or None
+    ev.treffpunkt = treffpunkt.strip() or None
     ev.checkliste_uebersprungen = checkliste_uebersprungen
     ev.zaubershow_event = zaubershow_event
     if crm_verknuepfen:

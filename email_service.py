@@ -738,6 +738,10 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     # Ansprechpartner vor Ort (Checkliste bevorzugt)
     ap_name = (_no_none(getattr(event, "cl_ansprechpartner_name", "")) or _no_none(event.kunde_kontakt)).strip()
     ap_tel = (_no_none(getattr(event, "cl_ansprechpartner_mobil", "")) or _no_none(event.kunde_telefon)).strip()
+    # Ankunft & Treffpunkt (Vorlauf aus den Aktionen / überschrieben)
+    import ankunft as _ankunft
+    ankunft_str = _ankunft.ankunft_anzeige(event)
+    treffpunkt_str = _ankunft.treffpunkt_anzeige(event)
 
     for d in dienstleister_list:
         content = f"""
@@ -752,14 +756,20 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             {_info_row('Anlass', event.anlass)}
             {_info_row('Kunde', event.kunde_firma)}
             {_info_row('Datum', de_date(event.datum))}
-            {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
-            {_info_row('Aufbau', (event.cl_aufbau_von + ' – ' + event.cl_aufbau_bis) if event.cl_aufbau_von and event.cl_aufbau_bis else (event.cl_aufbau_von or ''))}
-            {_info_row('Abbau', (event.cl_abbau_von + ' – ' + event.cl_abbau_bis) if event.cl_abbau_von and event.cl_abbau_bis else (event.cl_abbau_von or ''))}
+            {_info_row('Aktionszeit', f"{event.startzeit} – {event.endzeit} Uhr")}
             {_info_row('Indoor/Outdoor', event.cl_aufbauort)}
             {_info_row('Parkplatz', event.cl_parkplatz)}
             {_info_row('Teamkleidung', event.cl_teamkleidung)}
             {_info_row('Verpflegung', event.cl_verpflegung)}
             {_info_row('Produkte', event.produkte)}
+          </table>
+        </div>
+
+        <div style="background:#f9fafb;border:2px solid {color};border-radius:8px;padding:18px 22px;margin-bottom:24px;">
+          <p style="margin:0 0 10px;font-size:13px;font-weight:800;color:{color};text-transform:uppercase;letter-spacing:0.04em;">📍 Ankunft &amp; Treffpunkt</p>
+          <table cellpadding="0" cellspacing="0" width="100%">
+            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Ankunft</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{ankunft_str}</td></tr>
+            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Treffpunkt</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{treffpunkt_str}</td></tr>
           </table>
         </div>
 
@@ -774,7 +784,7 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             {_info_row('Name', ap_name)}
             {_info_row('Telefon', ap_tel)}
           </table>
-          <p style="margin:10px 0 0;font-size:12px;color:#9ca3af;font-style:italic;">Nur für unseren Teamleiter. Für alle anderen ist die Kontaktperson unser Teamleiter.</p>
+          <p style="margin:12px 0 0;padding:10px 14px;background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 6px 6px 0;font-size:13px;color:#78350f;font-weight:700;">⚠ Nur für den Teamleiter. Alle anderen wenden sich vor Ort an unseren Teamleiter – nicht direkt an den Kunden-Ansprechpartner.</p>
         </div>
 
         {team_section}

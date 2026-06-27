@@ -197,6 +197,10 @@
         <dt class="text-gray-500 w-28 shrink-0">Ort</dt>
         <dd class="text-gray-800">{{ ev.veranstaltungsort }}</dd>
       </div>
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-28 shrink-0">Ankunft</dt>
+        <dd class="text-gray-800 font-medium">{{ ankunft_anzeige(ev) }} <span class="text-gray-400 font-normal">· Treffpunkt: {{ treffpunkt_anzeige(ev) }}</span></dd>
+      </div>
       <div class="flex gap-3" id="wf-material" style="scroll-margin-top:1rem;">
         <dt class="text-gray-500 w-28 shrink-0">Material-Mitnahme</dt>
         <dd class="text-gray-800">{{ 'Ja – Logistiker nötig' if ev.material_mitnahme else 'Nein' }}</dd>

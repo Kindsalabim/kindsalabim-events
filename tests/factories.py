@@ -77,6 +77,7 @@ def briefing_event_ns(**over):
         cl_aufbauort="", cl_parkplatz="", cl_teamkleidung="", cl_verpflegung="",
         cl_weitere_details="", cl_firma_name="", cl_strasse="", cl_plz_ort="",
         cl_ansprechpartner_name="", cl_ansprechpartner_mobil="",
+        ankunft_modus="auto", ankunft_text="", treffpunkt="",
     )
     base.update(over)
     return SimpleNamespace(**base)

@@ -8,6 +8,7 @@ from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas as rl_canvas
 
 from choices import de_date
+import ankunft as _ankunft
 
 
 def _brand_rgb(marke):
@@ -82,6 +83,22 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
             state["y"] -= 4.5 * mm
         state["y"] -= 3 * mm
 
+    def warnung(text):
+        # fette, dunkle Warnzeile mit Amber-Balken (z. B. Teamleiter-Hinweis)
+        c.setFont("Helvetica-Bold", 9.5)
+        lines = simpleSplit(str(text), "Helvetica-Bold", 9.5, W - 2 * x - 4 * mm)
+        h = len(lines) * 5 * mm + 3 * mm
+        newpage_if_needed()
+        c.setFillColorRGB(1.0, 0.953, 0.847)
+        c.rect(x, state["y"] - h + 4 * mm, W - 2 * x, h, fill=1, stroke=0)
+        c.setFillColorRGB(0.961, 0.620, 0.043)
+        c.rect(x, state["y"] - h + 4 * mm, 1.3 * mm, h, fill=1, stroke=0)
+        c.setFillColorRGB(0.47, 0.21, 0.03)
+        for ln in lines:
+            c.drawString(x + 4 * mm, state["y"], ln)
+            state["y"] -= 5 * mm
+        state["y"] -= 4 * mm
+
     # Titel
     c.setFillColorRGB(0.10, 0.10, 0.12); c.setFont("Helvetica-Bold", 16)
     c.drawString(x, state["y"], ev.anlass or "Event")
@@ -94,11 +111,7 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     row("Anlass", ev.anlass)
     row("Kunde", ev.kunde_firma)
     row("Datum", de_date(ev.datum))
-    row("Uhrzeit", f"{ev.startzeit} – {ev.endzeit} Uhr" if ev.endzeit else (ev.startzeit or "–"))
-    if ev.cl_aufbau_von:
-        row("Aufbau", ev.cl_aufbau_von + (f" – {ev.cl_aufbau_bis}" if ev.cl_aufbau_bis else ""))
-    if ev.cl_abbau_von:
-        row("Abbau", ev.cl_abbau_von + (f" – {ev.cl_abbau_bis}" if ev.cl_abbau_bis else ""))
+    row("Aktionszeit", f"{ev.startzeit} – {ev.endzeit} Uhr" if ev.endzeit else (ev.startzeit or "–"))
     if ev.cl_aufbauort:
         row("Indoor/Outdoor", ev.cl_aufbauort)
     if ev.cl_parkplatz:
@@ -108,6 +121,11 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     if ev.cl_verpflegung:
         row("Verpflegung", ev.cl_verpflegung)
     row("Produkte", ev.produkte)
+
+    # Ankunft & Treffpunkt (prominent fürs Team)
+    section("Ankunft & Treffpunkt")
+    row("Ankunft", _ankunft.ankunft_anzeige(ev))
+    row("Treffpunkt", _ankunft.treffpunkt_anzeige(ev))
 
     # Veranstaltungsanschrift (Checkliste bevorzugt, sonst grober Event-Ort)
     an_firma = (_clean(getattr(ev, "cl_firma_name", "")) or _clean(ev.kunde_firma)).strip()
@@ -124,7 +142,7 @@ def build_briefing_pdf(ev, dienstleister, externe=None) -> bytes:
     section("Ansprechpartner vor Ort")
     row("Name", (_clean(getattr(ev, "cl_ansprechpartner_name", "")) or _clean(ev.kunde_kontakt)))
     row("Telefon", (_clean(getattr(ev, "cl_ansprechpartner_mobil", "")) or _clean(ev.kunde_telefon)))
-    hinweis("Nur für unseren Teamleiter. Für alle anderen ist die Kontaktperson unser Teamleiter.")
+    warnung("Nur für den Teamleiter. Alle anderen wenden sich vor Ort an unseren Teamleiter – nicht direkt an den Kunden-Ansprechpartner.")
 
     section("Team")
     for m in dienstleister:
