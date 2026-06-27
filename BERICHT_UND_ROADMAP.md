@@ -28,19 +28,27 @@ Seit dem ursprünglichen Audit wurde die App massiv ausgebaut. Die meisten kriti
 | **Wissensdatenbank** (Hierarchie, Karten, WYSIWYG, Sichtbarkeit, Confluence-Import) | ✅ | NEU |
 | **Ticket-/Sprint-System** (Kanban, Backlog, Kategorien, Jira-CSV-Import) | ✅ | NEU |
 
-### Noch offen / als Nächstes (Stand 20.06.2026)
-> CRM (✅), Baker-Ross-Recherche (✅ 18.06.) sowie Aykuts komplette Bug-/Wunschliste Tier 1+2 (✅ 17.–20.06., Details im Repo-`HANDOFF_SESSION.md`) sind inzwischen erledigt & deployed.
+### Noch offen / als Nächstes (Stand 28.06.2026)
+> Erledigt & deployed seit dem letzten Roadmap-Stand: Bug 2 (mehrtägige Events) & Bug 8 (Papierkorb/Notfall-Export), Logistiker-Workflow, Eventbericht, Briefing selbst-ausfüllen + Anschrift/Ansprechpartner aus Checkliste, Ankunft/Treffpunkt, **Briefing-Design-Politur (28.06.)**, **reines Zaubershow-Event schließt allein über die Rechnung (28.06.)**. Details im Repo-`HANDOFF_SESSION.md`.
 
-| Priorität | Thema |
-|-----------|-------|
-| 🔜 **Nächste Session** | **Bug 2 – mehrtägige Events** + **Bug 8 – Papierkorb/Notfall-Export gelöschter Datensätze** (beide architektonisch → erst Konzept, dann bauen). Bug 8 = Roadmap 1.2 (menschenlesbarer Export). |
+**Autonom umsetzbar (Claude kann allein – zuerst angehen):**
+| Prio | Thema |
+|------|-------|
 | 🟡 | Auto-Nachbesetzung bei Absage (Teil der „2.0"-Automatisierung) |
 | 🟡 | Abgelaufene Anfragen automatisch markieren (3.3) |
-| 🟢 | Material-/Logistik-Cockpit (4.4) |
-| 🟢 | Geocoding statt PLZ-Liste (3.4) |
-| 🟢 | Künstlern Sparten zuweisen (Daten-To-do, damit der Sparten-Filter greift) |
-| 🔒 | **R2-Secrets rotieren** (upload_*.py hatten Klartext-Keys, jetzt gitignored) |
+| 🟢 | Wöchentlicher CSV-Notfall-Export `/cron/backup` (1.2 – Bau autonom; Cron-Ping braucht Aykut, s. u.) |
+| 🟢 | Material-/Logistik-Cockpit (4.4) · Geocoding statt PLZ-Liste (3.4) |
 | 🔒 | CSRF-Token, Cron-Secret härten, Checklisten-Token-Ablauf (2.2–2.4) |
+
+**Braucht mich (Aykut – Klicks / Secrets / Accounts / Daten):**
+| Thema |
+|-------|
+| 📞 **AB0570** auf **10.07.2026** umstellen (+ Kalender-Verknüpfung, braucht Prod-DB-Schreibzugriff) |
+| ⏱️ **cron-job.org-Ping** für die Bericht-Erinnerung (stündlicher GET auf `/cron/bericht-erinnerung?secret=…`) |
+| 🎨 **Künstler-Sparten** zuweisen (Daten-To-do, damit der Sparten-Filter greift) |
+| 🔒 **R2-Secrets rotieren** (Cloudflare; `upload_*.py` hatten Klartext-Keys, jetzt gitignored) |
+| 📱 **Live-Gegencheck** des neuen Briefing-Designs (Mail + PDF) am Handy |
+| 🔌 *(optional)* **Filesystem-Connector** in Claude Chat – nur falls ein normaler Chat lokalen Dateizugriff braucht (Code + Cowork bereits abgedeckt) |
 
 *Die folgenden Abschnitte sind der historische Audit-Stand (06.06.2026) und dienen als Kontext.*
 
