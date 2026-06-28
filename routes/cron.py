@@ -149,6 +149,49 @@ def _run_material_abhol_erinnerungen(db: Session) -> int:
     return count
 
 
+def _run_abgelaufene_anfragen(db: Session) -> int:
+    """Markiert offene Verfügbarkeitsanfragen, deren Frist abgelaufen ist, als „Abgelaufen"
+    und benachrichtigt das Büro (Glocke, eine Meldung je Event) zum Nachbesetzen.
+
+    Nur für kommende, nicht abgesagte/abgeschlossene Events – vergangene Events brauchen keine
+    Nachbesetzung mehr. Die Soft-Frist bleibt: der Dienstleister sieht die Anfrage im Portal
+    weiter und kann verspätet antworten (das setzt den Status dann auf Ja/Nein). Idempotent –
+    einmal als „Abgelaufen" markierte Anfragen werden nicht erneut gefunden."""
+    today = date.today()
+    abgelaufen = db.query(Verfuegbarkeitsanfrage).join(
+        Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
+        Verfuegbarkeitsanfrage.status == "Ausstehend",
+        Verfuegbarkeitsanfrage.frist_datum != None,   # noqa: E711
+        Verfuegbarkeitsanfrage.frist_datum < today,
+        Event.datum >= today,
+        Event.status.notin_(["Abgesagt", "Abgeschlossen"]),
+    ).all()
+    if not abgelaufen:
+        return 0
+
+    pro_event: dict[int, int] = {}
+    for a in abgelaufen:
+        a.status = "Abgelaufen"
+        pro_event[a.event_id] = pro_event.get(a.event_id, 0) + 1
+
+    from notifications import notify
+    from routes.admin import vorschlag_ersatz, ersatz_label
+    for eid, n in pro_event.items():
+        ev = db.get(Event, eid)
+        datum = ev.datum.strftime("%d.%m.%Y") if ev and ev.datum else ""
+        anlass = (ev.anlass if ev else "") or "Event"
+        wort = "Anfrage" if n == 1 else "Anfragen"
+        v = vorschlag_ersatz(ev, db)
+        vorschlag = f" Vorschlag zum Nachbesetzen: {ersatz_label(v)}." if v else ""
+        notify(db, "anfrage_abgelaufen",
+               f"{n} {wort} abgelaufen: {anlass}",
+               f"{n} Verfügbarkeitsanfrage(n) für {anlass} am {datum} sind ohne Antwort "
+               f"abgelaufen – bitte nachbesetzen.{vorschlag}",
+               f"/admin/events/{eid}")
+    db.commit()
+    return len(abgelaufen)
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -223,6 +266,9 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
     # Material-Abhol-Erinnerung an den Logistiker (3 Tage vorher)
     material_abhol = _run_material_abhol_erinnerungen(db)
 
+    # Abgelaufene Anfragen markieren + Büro zum Nachbesetzen benachrichtigen
+    abgelaufene_anfragen = _run_abgelaufene_anfragen(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -238,6 +284,7 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
                          "teamleiter_mails": teamleiter_mails,
                          "bericht_erinnerungen": bericht_erinnerungen,
                          "material_abhol_erinnerungen": material_abhol,
+                         "abgelaufene_anfragen": abgelaufene_anfragen,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 

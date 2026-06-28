@@ -92,8 +92,9 @@
       <span class="text-xs font-medium px-2.5 py-1 rounded-full shrink-0
         {% if a.status == 'Ja' %}badge-status-bestaetigt
         {% elif a.status == 'Nein' %}bg-red-50 text-red-600
+        {% elif a.status == 'Abgelaufen' %}bg-amber-50 text-amber-600
         {% else %}bg-gray-100 text-gray-500{% endif %}">
-        {% if a.status == 'Ja' %}Zugesagt{% elif a.status == 'Nein' %}Abgesagt{% else %}Ausstehend{% endif %}
+        {% if a.status == 'Ja' %}Zugesagt{% elif a.status == 'Nein' %}Abgesagt{% elif a.status == 'Abgelaufen' %}Abgelaufen{% else %}Ausstehend{% endif %}
       </span>
     </a>
     {% endfor %}

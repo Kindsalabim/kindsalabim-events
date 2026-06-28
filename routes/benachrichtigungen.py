@@ -15,7 +15,7 @@ router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
 
 TYP_ICON = {"dl_zusage": "✅", "dl_absage": "❌", "dl_urlaub": "🌴",
-            "checkliste": "📋", "bericht": "📝"}
+            "checkliste": "📋", "bericht": "📝", "anfrage_abgelaufen": "⏳"}
 
 
 def tpl_context(request: Request, **kw):
