@@ -41,6 +41,12 @@
       <p class="text-sm font-medium" style="color: var(--c-amber);">Deine Absage wurde gespeichert. Aykut wurde informiert.</p>
     </div>
     {% endif %}
+    {% if request.query_params.get('absage_gesperrt') %}
+    <div class="card p-4" style="background: var(--c-danger-bg);">
+      <p class="text-sm font-semibold" style="color: var(--c-danger);">Absage per App nicht möglich.</p>
+      <p class="text-sm mt-1" style="color: var(--c-danger);">Extrem kurzfristige Absage. Bitte melde dich telefonisch im Büro.</p>
+    </div>
+    {% endif %}
 
     <!-- ── Offene Eventberichte (Teamleiter) ── -->
     {% if berichte_offen %}
@@ -238,6 +244,12 @@
             </span>
           </div>
 
+          {% if a.id in absage_gesperrt %}
+          <div class="mt-3 px-3.5 py-2.5 rounded-xl text-xs" style="background: var(--c-danger-bg); color: var(--c-danger);">
+            <span class="font-semibold">Absage per App nicht möglich.</span>
+            Extrem kurzfristig (unter 48 Std). Bitte melde dich <strong>telefonisch im Büro</strong>.
+          </div>
+          {% else %}
           <details class="mt-3">
             <summary class="text-xs text-gray-500 cursor-pointer select-none hover:text-gray-500 transition-colors">
               Doch nicht verfügbar?
@@ -255,6 +267,7 @@
               </button>
             </form>
           </details>
+          {% endif %}
         </div>
         {% endfor %}
       </div>

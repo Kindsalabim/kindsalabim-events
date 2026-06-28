@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 
 from database import get_db
 from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei, DienstleisterSperrzeit
@@ -19,6 +19,23 @@ templates.env.filters["plz_ort"] = plz_ort
 
 def tpl_context(request: Request, **kwargs):
     return {"request": request, "cfg": get_config(), **kwargs}
+
+
+# Absage-Dringlichkeit (bestätigte Einsätze)
+ABSAGE_SPERRE_STUNDEN = 48     # darunter: keine App-Absage – Teamer muss telefonisch absagen
+ABSAGE_MAIL_STUNDEN   = 7 * 24 # darunter: Büro wird in JEDEM Fall per Mail informiert (ignoriert Schalter)
+
+
+def _stunden_bis_event(ev) -> float | None:
+    """Stunden bis zum Eventbeginn (negativ = schon vorbei, None ohne Datum)."""
+    if not ev or not ev.datum:
+        return None
+    try:
+        h, m = (ev.startzeit or "00:00").split(":")
+        start = datetime.combine(ev.datum, time(int(h), int(m)))
+    except (ValueError, TypeError):
+        start = datetime.combine(ev.datum, time(0, 0))
+    return (start - datetime.now()).total_seconds() / 3600
 
 
 # ── Login (Magic Link) ─────────────────────────────────────────────────────────
@@ -106,7 +123,7 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
     # Offene Anfragen (inkl. abgelaufene anzeigen bis Dienstleister antwortet)
     anfragen_raw = db.query(Verfuegbarkeitsanfrage).filter(
         Verfuegbarkeitsanfrage.dienstleister_id == did,
-        Verfuegbarkeitsanfrage.status == "Ausstehend"
+        Verfuegbarkeitsanfrage.status.in_(["Ausstehend", "Abgelaufen"])
     ).all()
     anfragen = sorted(anfragen_raw, key=parse_date)
 
@@ -129,6 +146,13 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
     past     = sorted([a for a in confirmed if parse_date(a) < today],  key=parse_date, reverse=True)
     abgesagt = sorted(abgesagt, key=parse_date, reverse=True)
 
+    # Extrem kurzfristig (< 48 h): App-Absage gesperrt – Hinweis statt Button
+    absage_gesperrt = set()
+    for a in upcoming:
+        h = _stunden_bis_event(a.event)
+        if h is not None and h < ABSAGE_SPERRE_STUNDEN:
+            absage_gesperrt.add(a.id)
+
     # Offene Eventberichte: vergangene Einsätze, bei denen ich Teamleiter bin und noch kein Bericht vorliegt
     berichte_offen = [a for a in past
                       if a.event.teamleiter_id == did and not a.event.bericht_eingereicht_am]
@@ -137,6 +161,7 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
         tpl_context(request, dienstleister=d,
                     anfragen_data=anfragen_data,
                     upcoming=upcoming, past=past, abgesagt=abgesagt,
+                    absage_gesperrt=absage_gesperrt,
                     berichte_offen=berichte_offen))
 
 
@@ -190,8 +215,11 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
                    f"{name} hat für {ev.anlass} am {datum} zugesagt.{transport_text}",
                    f"/admin/events/{ev.id}")
         else:
+            from routes.admin import vorschlag_ersatz, ersatz_label
+            v = vorschlag_ersatz(ev, db, a.rolle_anfrage)
+            vorschlag = f" Vorschlag: {ersatz_label(v)}." if v else ""
             notify(db, "dl_absage", f"Absage auf Anfrage: {name}",
-                   f"{name} hat die Anfrage für {ev.anlass} am {datum} abgelehnt.",
+                   f"{name} hat die Anfrage für {ev.anlass} am {datum} abgelehnt.{vorschlag}",
                    f"/admin/events/{ev.id}")
         db.commit()
     return RedirectResponse("/portal", status_code=303)
@@ -209,6 +237,11 @@ def portal_absage(request: Request, anfrage_id: int, grund: str = Form(""),
         Verfuegbarkeitsanfrage.status == "Ja"
     ).first()
     if a:
+        stunden = _stunden_bis_event(a.event)
+        # Extrem kurzfristig (< 48 h): keine App-Absage – der Teamer muss telefonisch absagen,
+        # damit das Büro sofort reagieren kann. Status bleibt unverändert.
+        if stunden is not None and stunden < ABSAGE_SPERRE_STUNDEN:
+            return RedirectResponse("/portal?absage_gesperrt=1", status_code=303)
         a.status = "Nein"
         a.notiz = f"[Nachträgliche Absage] {grund}".strip() if grund else "[Nachträgliche Absage]"
         db.commit()
@@ -220,12 +253,17 @@ def portal_absage(request: Request, anfrage_id: int, grund: str = Form(""),
         name = f"{d.vorname} {d.nachname}" if d else "Ein Dienstleister"
         datum = ev.datum.strftime("%d.%m.%Y")
         zusatz = f" Grund: {grund}" if grund else ""
+        from routes.admin import vorschlag_ersatz, ersatz_label
+        v = vorschlag_ersatz(ev, db, a.rolle_anfrage)
+        vorschlag = f" Vorschlag zum Nachbesetzen: {ersatz_label(v)}." if v else ""
         notify(db, "dl_absage", f"Nachträgliche Absage: {name}",
-               f"{name} hat den bestätigten Einsatz {ev.anlass} am {datum} abgesagt.{zusatz}",
+               f"{name} hat den bestätigten Einsatz {ev.anlass} am {datum} abgesagt.{zusatz}{vorschlag}",
                f"/admin/events/{ev.id}")
         db.commit()
-        # Bestehende (schön formatierte) Absage-Mail – jetzt per Einstellung abschaltbar
-        if mail_enabled(db, "dl_absage"):
+        # Absage-Mail ans Büro: < 7 Tage vor dem Event IMMER (Schalter wird ignoriert –
+        # eine kurzfristige Absage darf nie still untergehen), sonst nach Einstellung.
+        dringend = stunden is not None and stunden < ABSAGE_MAIL_STUNDEN
+        if dringend or mail_enabled(db, "dl_absage"):
             from email_service import send_absage_admin
             base_url = str(request.base_url).rstrip("/")
             send_absage_admin(a.dienstleister, a.event, grund, base_url)
@@ -312,12 +350,13 @@ def portal_verlaengern(anfrage_id: int, db: Session = Depends(get_db),
     a = db.query(Verfuegbarkeitsanfrage).filter(
         Verfuegbarkeitsanfrage.id == anfrage_id,
         Verfuegbarkeitsanfrage.dienstleister_id == did,
-        Verfuegbarkeitsanfrage.status == "Ausstehend"
+        Verfuegbarkeitsanfrage.status.in_(["Ausstehend", "Abgelaufen"])
     ).first()
     if a:
-        # Frist um 2 Tage verlängern
+        # Frist um 2 Tage verlängern (eine abgelaufene Anfrage wird damit reaktiviert)
+        a.status = "Ausstehend"
         frist = a.frist_datum or date.today()
-        a.frist_datum = frist + timedelta(days=2)
+        a.frist_datum = max(frist, date.today()) + timedelta(days=2)
         a.frist_verlaengert = True
         db.commit()
         # Admin benachrichtigen

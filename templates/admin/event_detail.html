@@ -354,6 +354,33 @@
     </h2>
   </div>
 
+  {% if nachbesetzung_aktiv and (fehlend_teamer or fehlend_kuenstler) %}
+  <div class="mb-4 p-3.5 rounded-xl" style="background: var(--c-amber-bg); border: 1px solid var(--c-amber);">
+    <p class="text-sm font-semibold" style="color: var(--c-amber);">⚠ Team noch nicht komplett</p>
+    <p class="text-xs mt-0.5" style="color: var(--ink-2);">
+      Es fehlen{% if fehlend_teamer %} {{ fehlend_teamer }} Teamer{% endif %}{% if fehlend_teamer and fehlend_kuenstler %} und{% endif %}{% if fehlend_kuenstler %} {{ fehlend_kuenstler }} Künstler{% endif %}.
+    </p>
+    {% for rolle, v, fehlt in [('Teamer', vorschlag_teamer, fehlend_teamer), ('Künstler', vorschlag_kuenstler, fehlend_kuenstler)] %}
+    {% if fehlt %}
+    <div class="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+      {% if v %}
+      <span style="color: var(--ink-2);"><strong>Vorschlag {{ rolle }}:</strong> {{ v.vorname }} {{ v.nachname }}<span style="color: var(--ink-4);">{% if v.stadt %} · {{ v.stadt }}{% endif %}{% if v.rang_distanz_km is not none %} · {{ v.rang_distanz_km|round(0)|int }} km{% endif %}{% if v.qualitaet %} · {{ '⭐' * v.qualitaet }}{% endif %}</span></span>
+      <form method="post" action="/admin/events/{{ ev.id }}/anfragen" class="inline">
+        <input type="hidden" name="rolle" value="{{ rolle }}">
+        <input type="hidden" name="dienstleister_ids" value="{{ v.id }}">
+        <button type="submit" class="btn-primary text-xs px-3 py-1.5">✓ {{ v.vorname }} anfragen</button>
+      </form>
+      {% else %}
+      <span style="color: var(--ink-3);">Kein freier {{ rolle }}-Vorschlag verfügbar.</span>
+      {% endif %}
+      <button type="button" class="underline" style="color: var(--brand-primary);"
+              onclick="var d=document.getElementById('dl-anfragen'); if(d){d.open=true; d.scrollIntoView({behavior:'smooth', block:'center'});}">anderen wählen</button>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if anfragen %}
   <table class="w-full text-sm mb-5">
     <thead>
@@ -384,6 +411,10 @@
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               Abgesagt
+            </span>
+          {% elif a.status == 'Abgelaufen' %}
+            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);" title="Frist ohne Antwort verstrichen – ggf. nachbesetzen">
+              ⏳ Abgelaufen
             </span>
           {% else %}
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-entwurf">Ausstehend</span>
@@ -454,7 +485,7 @@
 
   <!-- Neue Anfragen -->
   {% if not gesperrt %}
-  <details class="{% if not anfragen %}open{% endif %}">
+  <details id="dl-anfragen" class="{% if not anfragen %}open{% endif %}">
     <summary class="text-sm font-medium cursor-pointer select-none hover:opacity-80 transition-opacity" style="color: var(--brand-primary);">
       + Verfügbarkeitsanfragen senden
     </summary>

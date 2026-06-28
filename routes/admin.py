@@ -58,6 +58,60 @@ def event_gesperrt(ev, entsperrt: bool = False) -> bool:
     return ev.status in GESPERRTE_STATUS and not entsperrt
 
 
+def vorschlag_ersatz(ev, db, rolle=None):
+    """Bester freier Ersatz-Dienstleister für eine Lücke (für Nachbesetzungs-Hinweise).
+    Berücksichtigt das Entfernungs-/Qualitäts-Ranking und schließt bereits Angefragte sowie
+    am Eventtag Gebuchte/Gesperrte aus. rolle=None → die Rolle mit der größten Lücke
+    (Teamer/Künstler). Gibt den Dienstleister (mit `rang_distanz_km`) oder None zurück."""
+    if not ev or not ev.datum:
+        return None
+    anfragen = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.event_id == ev.id).all()
+    anfragen_ids = {a.dienstleister_id for a in anfragen}
+    confirmed = [a for a in anfragen if a.status == "Ja"]
+    conf_teamer = sum(1 for a in confirmed if a.rolle_anfrage == "Teamer") + len(ev.externe_teamer or [])
+    conf_kuenstler = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler")
+    fehlend = {"Teamer":   max(0, (ev.anzahl_teamer or 0) - conf_teamer),
+               "Künstler": max(0, (ev.anzahl_kuenstler or 0) - conf_kuenstler)}
+    if rolle is None:
+        rolle = max(fehlend, key=lambda r: fehlend[r])
+    if fehlend.get(rolle, 0) <= 0:
+        return None
+
+    # Am Eventtag nicht verfügbar (anderweitig gebucht oder Sperrzeit/Urlaub)
+    gebucht = db.query(Verfuegbarkeitsanfrage).join(
+        Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
+        Verfuegbarkeitsanfrage.status == "Ja",
+        Verfuegbarkeitsanfrage.event_id != ev.id,
+        Event.datum == ev.datum).all()
+    unavailable = {a.dienstleister_id for a in gebucht}
+    sperr = db.query(DienstleisterSperrzeit).filter(
+        DienstleisterSperrzeit.von_datum <= ev.datum,
+        DienstleisterSperrzeit.bis_datum >= ev.datum).all()
+    unavailable |= {s.dienstleister_id for s in sperr}
+
+    rollen = ("Teamer", "Beides") if rolle == "Teamer" else ("Künstler", "Beides")
+    active = db.query(Dienstleister).filter(
+        Dienstleister.aktiv == True, Dienstleister.rolle.in_(rollen)).all()  # noqa: E712
+    ranked = rank_contractors(active, ev.veranstaltungsort, bool(ev.material_mitnahme), unavailable)
+    for d in ranked:
+        if d.id not in anfragen_ids and d.id not in unavailable:
+            return d
+    return None
+
+
+def ersatz_label(d) -> str:
+    """Kurzes Label für einen Ersatz-Vorschlag, z. B. 'Max Muster (Essen · 8 km)'."""
+    extra = []
+    if getattr(d, "stadt", None):
+        extra.append(d.stadt)
+    km = getattr(d, "rang_distanz_km", None)
+    if km is not None and km < 9000:   # 9999 = nicht verortbar → keine Distanz zeigen
+        extra.append(f"{round(km)} km")
+    name = f"{d.vorname} {d.nachname}"
+    return name + (f" ({' · '.join(extra)})" if extra else "")
+
+
 def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
     """Verknüpft das Event mit einem CRM-Kunden (Match über Firma, sonst neu anlegen)."""
     firma = (firma or "").strip()
@@ -657,6 +711,26 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     ranked_kuenstler = rank_contractors([d for d in active if d.rolle in ("Künstler", "Beides")],
                                         ev.veranstaltungsort, needs_material, unavailable_ids)
 
+    # Auto-Nachbesetzung (Vorschlag mit 1-Klick): offene Lücken + bester freier Ersatz.
+    # Greift bei jeder Lücke (Absage, abgelaufene Anfrage, Aufstockung) auf einem aktiven,
+    # kommenden Event. Der Vorschlag ist nur eine Vorauswahl – die volle Auswahlliste bleibt darunter.
+    confirmed_ja = [a for a in anfragen if a.status == "Ja"]
+    conf_teamer = sum(1 for a in confirmed_ja if a.rolle_anfrage == "Teamer") + len(ev.externe_teamer or [])
+    conf_kuenstler = sum(1 for a in confirmed_ja if a.rolle_anfrage == "Künstler")
+    fehlend_teamer = max(0, (ev.anzahl_teamer or 0) - conf_teamer)
+    fehlend_kuenstler = max(0, (ev.anzahl_kuenstler or 0) - conf_kuenstler)
+
+    def _erster_freier(ranked):
+        for d in ranked:
+            if d.id not in anfragen_ids and d.id not in unavailable_ids:
+                return d
+        return None
+
+    nachbesetzung_aktiv = (ev.status not in GESPERRTE_STATUS and not ev.zaubershow_event
+                           and bool(ev.datum) and ev.datum >= date.today())
+    vorschlag_teamer = _erster_freier(ranked_teamer) if (nachbesetzung_aktiv and fehlend_teamer) else None
+    vorschlag_kuenstler = _erster_freier(ranked_kuenstler) if (nachbesetzung_aktiv and fehlend_kuenstler) else None
+
     # "Länger nicht angefragt": letzte Anfrage je Dienstleister älter als 6 Monate
     grenze = date.today() - timedelta(days=180)
     letzte = db.query(Verfuegbarkeitsanfrage.dienstleister_id, func.max(Event.datum)).join(
@@ -711,6 +785,9 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                     sperrzeit_map=sperrzeit_map, lange_her_ids=lange_her_ids,
                     karte_data=karte_data, karte_ohne_standort=karte_ohne_standort,
                     needs_material=needs_material, serie_events=serie_events,
+                    nachbesetzung_aktiv=nachbesetzung_aktiv,
+                    fehlend_teamer=fehlend_teamer, fehlend_kuenstler=fehlend_kuenstler,
+                    vorschlag_teamer=vorschlag_teamer, vorschlag_kuenstler=vorschlag_kuenstler,
                     workflow=workflow))
 
 

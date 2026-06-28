@@ -22,6 +22,7 @@ NOTIF_TYPEN = [
     ("dl_urlaub",  "Dienstleister hat Urlaub eingetragen",  True,  False),
     ("checkliste", "Kunde hat Checkliste zurückgeschickt",  False, True),
     ("bericht",    "Eventbericht wurde eingereicht",        True,  False),
+    ("anfrage_abgelaufen", "Anfrage-Frist abgelaufen – nachbesetzen", True, False),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 
