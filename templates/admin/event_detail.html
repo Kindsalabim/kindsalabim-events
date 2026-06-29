@@ -35,23 +35,8 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Bearbeiten
       </a>
-      {% if not ((ev.checkliste_uebersprungen or ev.zaubershow_event) and not ev.cl_eingereicht_am) %}
-      <form method="post" action="/admin/events/{{ ev.id }}/checklist">
-        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
-        <button class="btn-secondary" {% if not ev.kunde_email %}title="Keine Kunden-E-Mail hinterlegt" disabled style="opacity:.5"{% endif %}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          Checkliste senden{% if ev.cl_eingereicht_am %} ✓{% endif %}
-        </button>
-      </form>
       {% endif %}
-      <form method="post" action="/admin/events/{{ ev.id }}/briefing" onsubmit="return confirm('Briefing an alle bestätigten Dienstleister senden?')">
-        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
-        <button class="btn-primary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Briefing senden
-        </button>
-      </form>
-      {% endif %}
+      {# Checkliste- & Briefing-Versand bewusst NICHT mehr hier – sie haben eigene Bereiche (wf-checkliste / wf-briefing). #}
       <form method="post" action="/admin/events/{{ ev.id }}/delete" onsubmit="return confirm('Event „{{ ev.kunde_firma }}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
         <button class="btn-secondary text-red-600 hover:text-red-700 hover:border-red-300">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -297,13 +282,22 @@
 </div>
 {% elif ev.cl_eingereicht_am %}
 <div class="card p-5 mb-5">
-  <div class="flex items-center justify-between mb-4">
+  <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
     <h2 class="text-sm font-semibold text-gray-700">Kunden-Angaben
       <span class="ml-2 text-xs font-normal text-gray-500">eingereicht {{ ev.cl_eingereicht_am }}</span>
     </h2>
-    {% if ev.checklist_token %}
-    <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Formular ansehen →</a>
-    {% endif %}
+    <div class="flex items-center gap-3">
+      {% if ev.checklist_token %}
+      <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Formular ansehen →</a>
+      {% endif %}
+      {% if not gesperrt and ev.kunde_email %}
+      <form method="post" action="/admin/events/{{ ev.id }}/checklist"
+            onsubmit="return confirm('Checklisten-Mail erneut an den Kunden senden? Er kann seine Angaben dann erneut ausfüllen.')">
+        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
+        <button type="submit" class="text-xs font-medium" style="color: var(--brand-primary);">↻ erneut senden</button>
+      </form>
+      {% endif %}
+    </div>
   </div>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
     {% macro cl_row(label, val) %}
@@ -326,9 +320,18 @@
   </div>
 </div>
 {% elif ev.checklist_token %}
-<div class="card p-4 mb-5 flex items-center justify-between">
+<div class="card p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
   <p class="text-sm text-gray-500">Checkliste wurde gesendet – noch nicht ausgefüllt.</p>
-  <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Link ansehen →</a>
+  <div class="flex items-center gap-3">
+    <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Link ansehen →</a>
+    {% if not gesperrt and ev.kunde_email %}
+    <form method="post" action="/admin/events/{{ ev.id }}/checklist"
+          onsubmit="return confirm('Checklisten-Mail als Erinnerung erneut an den Kunden senden?')">
+      {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
+      <button type="submit" class="text-xs font-medium" style="color: var(--brand-primary);">↻ erneut senden</button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 {% else %}
 <div class="card p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
