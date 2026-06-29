@@ -46,11 +46,13 @@
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlass *</label>
-          <select name="anlass" required class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
-            {% for a in anlass_list %}
-            <option value="{{ a }}" {% if event and event.anlass == a %}selected{% endif %}>{{ a }}</option>
-            {% endfor %}
-          </select>
+          <input type="text" name="anlass" required list="anlass_optionen" autocomplete="off"
+                 value="{{ event.anlass if event and event.anlass else '' }}"
+                 placeholder="Frei eingeben oder aus Vorschlägen wählen"
+                 class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+          <datalist id="anlass_optionen">
+            {% for a in anlass_list %}<option value="{{ a }}"></option>{% endfor %}
+          </datalist>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>

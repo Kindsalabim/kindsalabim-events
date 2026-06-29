@@ -8,8 +8,15 @@ Zugang über einen Google-Service-Account: Das JSON kommt als ENV-Secret
 Ohne Credentials sind alle Funktionen ein No-op (lokal / bis Setup steht).
 
 Format (mit Aykut abgestimmt):
-  Titel:  (div.) Stadt, Anlass, Ansprechpartner
+  Titel:  (KÜRZEL) Stadt, Anlass, Ansprechpartner
   Farbe:  Kindsalabim blau=bestätigt / grau=offen · Knallfrosch dunkelgrün/hellgrün
+
+Kürzel aus den gebuchten Aktionen (siehe _event_art):
+  (Z)        nur Zaubershow
+  (ZB)       Zaubershow + Ballonmodellage
+  (B)        nur Ballonmodellage
+  (Kischmi.) nur Kinderschminken
+  (div.)     alles andere (mehrere/verschiedene Dienstleistungen ohne klares Einzel-Kürzel)
 """
 import json
 import re
@@ -70,11 +77,31 @@ def _stadt(ort: str) -> str:
     return ort.split(",")[-1].strip()
 
 
+def _event_art(ev) -> str:
+    """Leitet das Kalender-Kürzel aus den gebuchten Aktionen (`ev.produkte`) ab.
+    (Z) nur Zaubershow · (ZB) Zaubershow+Ballonmodellage · (B) nur Ballonmodellage ·
+    (Kischmi.) nur Kinderschminken · (div.) alles andere/Gemischte."""
+    produkte = [p.strip().lower() for p in (getattr(ev, "produkte", None) or "").split(",") if p.strip()]
+    aktiv = [p for p in produkte if p != "kein material"]   # Marker, keine Aktivität
+    zauber  = any("zaubershow" in p for p in aktiv)
+    ballon  = any("ballonmod" in p for p in aktiv)
+    schmink = any("schmink" in p for p in aktiv)
+    # Aktivität ohne eigenes Einzel-Kürzel (Bastel, Hüpfburg, Zauberworkshop, …)
+    andere  = any(not ("zaubershow" in p or "ballonmod" in p or "schmink" in p) for p in aktiv)
+    if not andere:
+        if zauber and ballon and not schmink:   return "ZB"
+        if zauber and not ballon and not schmink: return "Z"
+        if ballon and not zauber and not schmink: return "B"
+        if schmink and not zauber and not ballon: return "Kischmi."
+    return "div."
+
+
 def _title(ev) -> str:
     stadt = _stadt(ev.veranstaltungsort)
     kontakt = (ev.kunde_kontakt or "").strip() or (ev.kunde_firma or "").strip()
     rest = ", ".join(p for p in [stadt, ev.anlass, kontakt] if p)
-    title = f"(div.) {rest}".strip() if rest else "(div.)"
+    art = _event_art(ev)
+    title = f"({art}) {rest}".strip() if rest else f"({art})"
     if ev.status == "Abgesagt":
         return f"ABGESAGT – {title}"
     return title

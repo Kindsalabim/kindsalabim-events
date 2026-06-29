@@ -36,7 +36,7 @@ PRODUKTE_LIST = [
     "Fotoaktion", "Spieleland", "Mitmachzirkus", "Mini Mitmachzirkus", "Knusperhäuschen", "Lebkuchenherzen",
     "Ballonmodellage", "Kinderschminken", "Buttonmaschine", "Prickeln",
     "Bastelspaß Weihnachten", "Kleinkind Spieleland", "Walkact", "Hüpfburg",
-    "Zaubershow", "Kein Material"
+    "Zaubershow", "Zauberworkshop", "Zaubershow + Ballonmodellage", "Kein Material"
 ]
 
 ANLASS_LIST = [
