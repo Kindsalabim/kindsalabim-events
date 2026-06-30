@@ -104,6 +104,33 @@ BLANKO = {
 }
 
 
+# Titel-Layout der individuellen Seiten – an den fertigen Folien ausgemessen
+# (Banner-Titel: weiß, fett-kursiv, Großbuchstaben, links beginnend, Versalhöhe ~ wie Vorlage).
+TITEL_FONT = "Helvetica-BoldOblique"   # fett + kursiv wie die Vorlagen
+TITEL_SIZE = 68                        # Basisgröße
+TITEL_MIN_SIZE = 30                    # Untergrenze, falls automatisch verkleinert
+TITEL_LINKS = 48                       # linke Kante über dem Banner
+TITEL_RECHTS = 800                     # rechte Grenze (Überlauf vermeiden)
+TITEL_MITTE_Y = 508                    # vertikale Mitte des Titels im Banner
+
+
+def _titel_caps(titel: str) -> str:
+    """Großbuchstaben wie auf den Vorlagen, aber das ß bleibt ß (statt zu SS zu werden)."""
+    return "".join(ch if ch == "ß" else ch.upper() for ch in (titel or ""))
+
+
+def _fit_titel_size(titel: str) -> float:
+    """Titel-Schriftgröße: TITEL_SIZE, aber automatisch verkleinert, falls der Titel sonst
+    breiter als das Banner (TITEL_LINKS..TITEL_RECHTS) würde – nie unter TITEL_MIN_SIZE."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    t = _titel_caps(titel)
+    avail = TITEL_RECHTS - TITEL_LINKS
+    w = stringWidth(t, TITEL_FONT, TITEL_SIZE)
+    if w <= avail or w == 0:
+        return TITEL_SIZE
+    return max(TITEL_MIN_SIZE, TITEL_SIZE * avail / w)
+
+
 def _build_custom_page(titel: str, foto_bytes_list: list[bytes], marke: str) -> bytes:
     """Custom-Seite: Blanko-Template aus R2 + Titel/Fotos als Overlay.
 
@@ -120,18 +147,17 @@ def _build_custom_page(titel: str, foto_bytes_list: list[bytes], marke: str) -> 
         (464.9 + PAD, 138.55 + PAD, 321.5 - PAD * 2, 288.0 - PAD * 2),  # rechts
     ]
 
-    # Titelbereich: oberhalb der Fotos (y=426.5 bis y=595.28 in Reportlab)
-    # Mitte dieses Bereichs ≈ y=500; weiße Schrift auf dem Pinselstrich-Hintergrund
-    TITEL_Y = 490
-
     overlay_buf = io.BytesIO()
     c = rl_canvas.Canvas(overlay_buf, pagesize=(W, H))
 
-    # Titel
+    # Titel – groß, fett-kursiv, GROSSBUCHSTABEN, links über dem Banner beginnend (wie die
+    # fertigen Folien); Größe bei Bedarf automatisch verkleinert, damit nichts hinausläuft.
+    titel_oben = _titel_caps(titel)
+    size = _fit_titel_size(titel)
+    c.setFont(TITEL_FONT, size)
     c.setFillColorRGB(1, 1, 1)
-    c.setFont("Helvetica-Bold", 30)
-    text_w = c.stringWidth(titel, "Helvetica-Bold", 30)
-    c.drawString((W - text_w) / 2, TITEL_Y, titel)
+    baseline = TITEL_MITTE_Y - 0.36 * size      # vertikal mittig im Banner
+    c.drawString(TITEL_LINKS, baseline, titel_oben)
 
     fotos = foto_bytes_list[:2]
     for i, fb in enumerate(fotos):
@@ -184,6 +210,37 @@ def _draw_foto(c, foto_bytes: bytes, x: float, y: float, w: float, h: float):
         c.drawImage(reader, dx, dy, width=dw, height=dh)
     except Exception as e:
         print(f"Foto-Fehler: {e}")
+
+
+RASTER_DPI = 150               # Auflösung beim Rastern (Mailgröße ↔ Schärfe – hier justierbar)
+RASTER_JPEG_QUALITY = 80       # JPEG-Qualität der gerasterten Seiten
+MAILBAR_LIMIT = 6 * 1024 * 1024  # bis hierher bleibt das PDF unangetastet (scharf/Text wählbar);
+                                 # erst darüber wird gerastert, damit es mailbar wird
+
+
+def _compress_pdf(pdf_bytes: bytes) -> bytes:
+    """Macht das fertige Angebot mailbar: rastert jede Seite zu einem JPEG (RASTER_DPI) und
+    baut daraus ein neues, schlankes PDF. Bei reinen Bildmaterial-Seiten kaum sichtbarer
+    Qualitätsverlust, aber ein Bruchteil der Größe – unabhängig davon, wie schwer die
+    Quell-PDFs intern sind. Bei jedem Fehler (oder wenn nicht kleiner) → Originalbytes."""
+    try:
+        import fitz  # PyMuPDF
+        src = fitz.open(stream=pdf_bytes, filetype="pdf")
+        out = fitz.open()
+        try:
+            for page in src:
+                pix = page.get_pixmap(dpi=RASTER_DPI, alpha=False)
+                jpeg = pix.tobytes("jpeg", jpg_quality=RASTER_JPEG_QUALITY)
+                rect = page.rect
+                out.new_page(width=rect.width, height=rect.height).insert_image(rect, stream=jpeg)
+            data = out.tobytes(garbage=4, deflate=True)
+        finally:
+            src.close()
+            out.close()
+        return data if data and len(data) < len(pdf_bytes) else pdf_bytes
+    except Exception as e:
+        print(f"PDF-Komprimierung übersprungen: {e}")
+        return pdf_bytes
 
 
 # ── Routes ──────────────────────────────────────────────────────────────────────
@@ -306,25 +363,12 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
         except Exception:
             continue
 
-    # 6. Bilder + Streams komprimieren, damit das PDF nicht unnötig groß wird.
-    #    Pro Bild/Seite abgesichert – ältere pypdf-Versionen ohne page.images
-    #    überspringen den Schritt einfach, statt zu crashen.
-    for page in writer.pages:
-        try:
-            for img in page.images:
-                pil = img.image
-                if max(pil.size) > 1800:
-                    pil.thumbnail((1800, 1800), Image.LANCZOS)
-                img.replace(pil, quality=72)
-        except Exception:
-            pass
-        try:
-            page.compress_content_streams()
-        except Exception:
-            pass
-
-    out_buf = io.BytesIO()
-    writer.write(out_buf)
+    # 6. Zusammengeklebtes PDF schreiben; nur wenn es zu groß zum Mailen ist, rastern (s. _compress_pdf).
+    raw_buf = io.BytesIO()
+    writer.write(raw_buf)
+    raw = raw_buf.getvalue()
+    final = _compress_pdf(raw) if len(raw) > MAILBAR_LIMIT else raw
+    out_buf = io.BytesIO(final)
     out_buf.seek(0)
 
     import re
