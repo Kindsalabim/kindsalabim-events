@@ -97,3 +97,32 @@ def test_material_info_preset_then_sonstige(admin):
                data=_form(material_mitnahme="true", material_info_choice="Sonstige", material_info_text="2 Kisten"),
                follow_redirects=False)
     assert reload(Event, eid).material_info == "2 Kisten"
+
+
+def test_edit_recompute_zaubershow_schliesst_ab(admin):
+    """DMT-Fall: Status wird beim Bearbeiten neu berechnet – nachträgliches Setzen von
+    „Zaubershow-Event" schließt bei bereits gestellter Rechnung das Event ab."""
+    eid = make_event(status="Briefing gesendet", rechnung_gestellt=True, produkte="Zaubershow")
+    admin.post(f"/admin/events/{eid}/edit",
+               data=_form(status="Briefing gesendet", zaubershow_event="true"),
+               follow_redirects=False)
+    assert reload(Event, eid).status == "Abgeschlossen"
+
+
+def test_edit_recompute_ohne_rechnung_bleibt_offen(admin):
+    """Gegenprobe: ohne Rechnung schließt das Zaubershow-Event NICHT (kein Über-Schließen)."""
+    eid = make_event(status="Briefing gesendet", produkte="Zaubershow")
+    admin.post(f"/admin/events/{eid}/edit",
+               data=_form(status="Briefing gesendet", zaubershow_event="true"),
+               follow_redirects=False)
+    assert reload(Event, eid).status == "Briefing gesendet"
+
+
+def test_edit_manueller_status_wird_respektiert(admin):
+    """Wird der Status im Formular bewusst geändert, bleibt die manuelle Wahl erhalten
+    (keine automatische Neuberechnung, die sie überschreiben würde)."""
+    eid = make_event(status="Gebucht")
+    admin.post(f"/admin/events/{eid}/edit",
+               data=_form(status="Planung fertig"),
+               follow_redirects=False)
+    assert reload(Event, eid).status == "Planung fertig"
