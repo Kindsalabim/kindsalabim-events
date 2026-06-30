@@ -870,6 +870,7 @@ def event_update(
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
+    alter_status = ev.status
     ev.datum = datum_d
     ev.anlass = anlass; ev.startzeit = startzeit
     ev.endzeit = endzeit; ev.veranstaltungsort = veranstaltungsort
@@ -886,6 +887,14 @@ def event_update(
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
+    # Status automatisch neu berechnen – aber nur, wenn er im Formular NICHT bewusst geändert
+    # wurde (sonst würde eine manuelle Status-Wahl überschrieben). So schließt z. B. das
+    # nachträgliche Setzen von „Zaubershow-Event" bei bereits gestellter Rechnung sofort ab.
+    if status == alter_status:
+        neu = auto_status(ev, db)
+        if neu != ev.status:
+            ev.status = neu
+            db.commit()
     # Termin-Serie: gemeinsame Stammdaten auf die anderen Tage übernehmen (tagesspezifische
     # Felder – Datum/Uhrzeit/Status/Teamleiter/Checkliste/Bericht/Anfragen – bleiben unberührt)
     geschwister_sync = []
