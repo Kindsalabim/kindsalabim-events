@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean, Float, Table
+from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean, Float, Table, UniqueConstraint
 from sqlalchemy.orm import relationship, backref
 from database import Base
 
@@ -172,6 +172,10 @@ class DienstleisterSperrzeit(Base):
 
 class Verfuegbarkeitsanfrage(Base):
     __tablename__ = "verfuegbarkeitsanfragen"
+    # Pro Event höchstens eine Anfrage je Dienstleister (verhindert Doppel-Anfragen
+    # durch Doppelklick/Race). (Review M4)
+    __table_args__ = (UniqueConstraint("event_id", "dienstleister_id",
+                                       name="ux_anfrage_event_dl"),)
 
     id = Column(Integer, primary_key=True, index=True)
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False)

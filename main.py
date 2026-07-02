@@ -152,6 +152,18 @@ def run_migrations():
         except Exception:
             conn.rollback()
 
+    # Eindeutigkeit: höchstens eine Anfrage je (Event, Dienstleister). (Review M4)
+    # Tolerant: enthält die Prod-DB historische Doppel-Anfragen (genau der alte Bug),
+    # schlägt die Index-Erzeugung fehl und wird übersprungen – ohne den Start zu blockieren.
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_anfrage_event_dl "
+                              "ON verfuegbarkeitsanfragen (event_id, dienstleister_id)"))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"[MIGRATION] ux_anfrage_event_dl übersprungen (evtl. Alt-Duplikate): {e}")
+
     # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
     def convert_date_column(table: str, col: str):
         """VARCHAR 'TT.MM.JJJJ' -> echter DATE-Typ. Idempotent & crash-sicher."""

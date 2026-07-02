@@ -17,7 +17,7 @@ from routes.fotos import generate_presigned_url, download_file
 from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
 from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
-from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie_anfrage
+from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie_anfrage, ANFRAGE_FRIST_TAGE
 from choices import ZEITEN, de_date, de_month, de_euro
 from validation import validate_event_form, validate_dienstleister_form
 
@@ -151,8 +151,10 @@ def _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, base_start, b
     return tage, None
 
 
-def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id):
-    """Kopiert die Stammdaten eines Events auf einen weiteren Termintag (neue Event-Zeile)."""
+def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id, status=None):
+    """Kopiert die Stammdaten eines Events auf einen weiteren Termintag (neue Event-Zeile).
+    status=None erbt den Status des Basis-Events (Anlegen mehrtägiger Events, alle Tage
+    starten gleich); ein nachträglich hinzugefügter Tag bekommt explizit „Gebucht"."""
     return Event(
         anlass=base_ev.anlass, datum=datum, startzeit=startzeit, endzeit=endzeit,
         veranstaltungsort=base_ev.veranstaltungsort, kunde_firma=base_ev.kunde_firma,
@@ -160,7 +162,7 @@ def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id):
         kunde_email=base_ev.kunde_email, produkte=base_ev.produkte,
         anzahl_teamer=base_ev.anzahl_teamer, anzahl_kuenstler=base_ev.anzahl_kuenstler,
         hinweise=base_ev.hinweise, material_mitnahme=base_ev.material_mitnahme,
-        marke=base_ev.marke, status=base_ev.status, kunde_id=base_ev.kunde_id,
+        marke=base_ev.marke, status=status or base_ev.status, kunde_id=base_ev.kunde_id,
         serien_id=serien_id,
     )
 
@@ -808,7 +810,9 @@ def serie_tag_add(event_id: int, background_tasks: BackgroundTasks,
         ev.serien_id = secrets.token_hex(8)
         db.flush()
     d, sz, ez = tage[0]
-    sib = _neues_geschwister_event(ev, d, sz, ez, ev.serien_id)
+    # Neuer Termintag startet frisch als „Gebucht" – nicht den (evtl. weit fortgeschrittenen)
+    # Status des Basis-Events erben, sonst wäre der neue Tag sofort „fertig"/gesperrt. (Review M2)
+    sib = _neues_geschwister_event(ev, d, sz, ez, ev.serien_id, status="Gebucht")
     db.add(sib); db.commit(); db.refresh(sib)
     import calendar_service
     background_tasks.add_task(calendar_service.sync_event_async, sib.id)
@@ -1013,10 +1017,12 @@ def send_anfragen(
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
     logi_ids = {int(x) for x in logistiker_ids}  # als Logistiker (Materialtransport) angefragt
 
-    # Ziel-Termine: ganze Serie (alle Tage gleichzeitig anfragen) oder nur dieses Event
+    # Ziel-Termine: ganze Serie (alle Tage gleichzeitig anfragen) oder nur dieses Event.
+    # Abgesagte/abgeschlossene Serientage überspringen – dafür braucht es keine Anfragen. (Review M3)
     if serie and ev.serien_id:
         ziel_events = db.query(Event).filter(
-            Event.serien_id == ev.serien_id).order_by(Event.datum).all()
+            Event.serien_id == ev.serien_id,
+            Event.status.notin_(GESPERRTE_STATUS)).order_by(Event.datum).all()
     else:
         ziel_events = [ev]
 
@@ -1065,7 +1071,7 @@ def send_anfragen(
                     event_id=ze.id, dienstleister_id=did,
                     rolle_anfrage=rolle, status="Ausstehend", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
-                    frist_datum=date.today() + timedelta(days=3),
+                    frist_datum=date.today() + timedelta(days=ANFRAGE_FRIST_TAGE),
                 )
                 db.add(a); db.flush()  # a.id für die Antwort-Links verfügbar machen
                 neue.append((ze, a))

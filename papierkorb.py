@@ -16,7 +16,8 @@ from sqlalchemy import Date as SA_Date, DateTime as SA_DateTime, Time as SA_Time
 
 from models import (GeloeschtesObjekt, Event, Dienstleister, Kunde, KundeTag,
                     Verfuegbarkeitsanfrage, EventDatei, Bastelvorschlag,
-                    DienstleisterSperrzeit, KundeAktivitaet, KundeWiedervorlage)
+                    DienstleisterSperrzeit, KundeAktivitaet, KundeWiedervorlage,
+                    ExternerTeamer)
 
 
 def _row(obj) -> dict:
@@ -39,6 +40,10 @@ def _snapshot_event(db, ev) -> dict:
             EventDatei.event_id == ev.id).all()],
         "bastelvorschlaege": [_row(b) for b in db.query(Bastelvorschlag).filter(
             Bastelvorschlag.event_id == ev.id).all()],
+        # Externe Teamer werden mit dem Event kaskadiert gelöscht → mitsichern,
+        # sonst gehen sie bei Löschen+Wiederherstellen verloren. (Review M13)
+        "externe_teamer": [_row(e) for e in db.query(ExternerTeamer).filter(
+            ExternerTeamer.event_id == ev.id).all()],
     }
 
 
@@ -117,6 +122,13 @@ def _coerce(model_cls, data: dict) -> dict:
 def _restore_event(db, daten):
     kw = _coerce(Event, daten["event"])
     kw["kalender_event_id"] = None  # alter Kalendereintrag ist gelöscht → neu synchronisieren
+    # Verweise auf zwischenzeitlich gelöschte Kunden/Dienstleister lösen, sonst bricht
+    # der komplette Restore am FK-Constraint ab (Postgres). Die Spalten sind nullable. (Review M14)
+    if kw.get("kunde_id") and not db.query(Kunde).filter(Kunde.id == kw["kunde_id"]).first():
+        kw["kunde_id"] = None
+    for fk in ("teamleiter_id", "logistiker_id"):
+        if kw.get(fk) and not db.query(Dienstleister).filter(Dienstleister.id == kw[fk]).first():
+            kw[fk] = None
     ev = Event(**kw)
     db.add(ev); db.flush()
     for a in daten.get("anfragen", []):
@@ -131,6 +143,9 @@ def _restore_event(db, daten):
     for b in daten.get("bastelvorschlaege", []):
         bkw = _coerce(Bastelvorschlag, b); bkw["event_id"] = ev.id
         db.add(Bastelvorschlag(**bkw))
+    for e in daten.get("externe_teamer", []):
+        ekw = _coerce(ExternerTeamer, e); ekw["event_id"] = ev.id
+        db.add(ExternerTeamer(**ekw))
     db.flush()
     return None, ev.id
 
