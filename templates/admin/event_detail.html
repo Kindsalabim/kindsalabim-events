@@ -572,7 +572,7 @@
       {% set sparte_icons = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'} %}
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen"
-            onsubmit="return this.querySelectorAll('input[name=dienstleister_ids]:checked').length > 0 || (alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'), false);">
+            onsubmit="if (this.querySelectorAll('input[name=dienstleister_ids]:checked').length === 0) { alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'); return false; } var b=this.querySelector('button[type=submit]'); setTimeout(function(){ b.disabled=true; b.textContent='Wird gesendet …'; }, 0); return true;">
         <input type="hidden" name="rolle" value="{{ rolle }}">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         <h4 class="text-sm font-medium text-gray-700 mb-3">{{ rolle }} anfragen</h4>

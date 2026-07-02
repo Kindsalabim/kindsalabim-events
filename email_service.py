@@ -27,6 +27,10 @@ def _html_to_text(html: str) -> str:
 # Empfänger für den wöchentlichen CSV-Backup-Export
 BACKUP_EMPFAENGER = "a.malca@kindsalabim.de"
 
+# Antwortfrist für Verfügbarkeitsanfragen (Tage). EINE Quelle für Mailtext UND das
+# in der DB gesetzte frist_datum, damit beide nie auseinanderlaufen. (Review H5)
+ANFRAGE_FRIST_TAGE = 3
+
 # Logos als Base64 (inline – funktioniert in allen E-Mail-Clients)
 try:
     from logo_b64 import KS_B64, KF_B64, KS_W, KS_H, KF_W, KF_H
@@ -639,7 +643,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
       <a href="{base_url}/portal/login" style="color:#6b7280;">{base_url}/portal/login</a> anmelden.
     </p>
     <p style="margin:0 0 0;font-size:14px;color:#6b7280;">
-      Bitte antworte innerhalb von 7 Tagen.
+      Bitte antworte innerhalb von {ANFRAGE_FRIST_TAGE} Tagen.
     </p>"""
 
     subject = f"Anfrage: {event.anlass} am {de_date(event.datum)}"
@@ -693,7 +697,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
       <a href="{base_url}/portal/login" style="color:#6b7280;">{base_url}/portal/login</a> anmelden.
     </p>
     <p style="margin:0 0 0;font-size:14px;color:#6b7280;">
-      Bitte antworte innerhalb von 7 Tagen.
+      Bitte antworte innerhalb von {ANFRAGE_FRIST_TAGE} Tagen.
     </p>"""
 
     subject = f"Anfrage: {leit.anlass} – {len(events)} Termine"
