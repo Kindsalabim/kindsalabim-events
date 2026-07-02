@@ -1525,9 +1525,11 @@ def dienstleister_delete(did: int, db: Session = Depends(get_db), user=Depends(g
             Verfuegbarkeitsanfrage.dienstleister_id == did).delete(synchronize_session=False)
         db.query(DienstleisterSperrzeit).filter(
             DienstleisterSperrzeit.dienstleister_id == did).delete(synchronize_session=False)
-        # Teamleiter-Verknüpfung an Events lösen (FK ohne Cascade)
+        # Teamleiter- und Logistiker-Verknüpfung an Events lösen (FK ohne Cascade)
         db.query(Event).filter(Event.teamleiter_id == did).update(
             {Event.teamleiter_id: None}, synchronize_session=False)
+        db.query(Event).filter(Event.logistiker_id == did).update(
+            {Event.logistiker_id: None}, synchronize_session=False)
         db.delete(d)
         db.commit()
     return RedirectResponse("/admin/dienstleister?geloescht=1", status_code=303)

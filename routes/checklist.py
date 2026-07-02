@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import Optional
 
 from database import get_db
@@ -15,12 +15,21 @@ templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
 templates.env.globals["zeiten"] = ZEITEN
 
+# Der Kunden-Link gilt bis 30 Tage nach dem Event – danach ist er abgelaufen (Roadmap 2.4).
+CHECKLIST_ABLAUF_TAGE = 30
+
+
+def _link_abgelaufen(ev) -> bool:
+    return bool(ev.datum) and date.today() > ev.datum + timedelta(days=CHECKLIST_ABLAUF_TAGE)
+
 
 @router.get("/checklist/{token}", response_class=HTMLResponse)
 def checklist_show(token: str, request: Request, db: Session = Depends(get_db)):
     ev = db.query(Event).filter(Event.checklist_token == token).first()
     if not ev:
         return HTMLResponse("<p style='font-family:sans-serif;padding:2rem'>Link ungültig oder abgelaufen.</p>", status_code=404)
+    if _link_abgelaufen(ev):
+        return HTMLResponse("<p style='font-family:sans-serif;padding:2rem'>Dieser Link ist abgelaufen. Bitte melden Sie sich bei uns, falls Sie noch Angaben machen möchten.</p>", status_code=410)
 
     already_submitted = bool(ev.cl_eingereicht_am)
     return templates.TemplateResponse("checklist.html", {
@@ -54,6 +63,17 @@ def checklist_submit(
     ev = db.query(Event).filter(Event.checklist_token == token).first()
     if not ev:
         return HTMLResponse("<p style='font-family:sans-serif;padding:2rem'>Link ungültig.</p>", status_code=404)
+    if _link_abgelaufen(ev):
+        return HTMLResponse("<p style='font-family:sans-serif;padding:2rem'>Dieser Link ist abgelaufen. Bitte melden Sie sich bei uns, falls Sie noch Angaben machen möchten.</p>", status_code=410)
+    if ev.cl_eingereicht_am:
+        # Bereits eingereicht → nicht mehr überschreibbar (Roadmap 2.4). Die Danke-Seite
+        # erscheint wie gehabt; Korrekturen macht das Büro über „Briefing bearbeiten".
+        return templates.TemplateResponse("checklist.html", {
+            "request": request,
+            "ev": ev,
+            "already_submitted": True,
+            "cfg": get_config(),
+        })
 
     ev.cl_ansprechpartner_name  = ansprechpartner_name
     ev.cl_ansprechpartner_mobil = ansprechpartner_mobil
