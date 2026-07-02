@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date, timedelta
 import calendar as _calendar
 from typing import Optional
@@ -10,7 +10,7 @@ MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
           "August", "September", "Oktober", "November", "Dezember"]
 
 from sqlalchemy import func
-from database import get_db
+from database import get_db, SessionLocal
 from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit, Reservierung, ExternerTeamer
 import secrets
 from routes.fotos import generate_presigned_url, download_file
@@ -305,16 +305,26 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     upcoming = sorted([e for e in events if e.status not in ("Abgeschlossen", "Abgesagt")], key=event_date)
     past     = sorted([e for e in events if e.status == "Abgeschlossen"], key=event_date, reverse=True)
 
-    # Fehlende Dienstleister berechnen
+    # Zusagen ("Ja") je Event/Rolle und externe Teamer je Event – je EINE Aggregat-Query
+    # statt einer Query pro Event (früheres N+1 im Dashboard).
+    ja_map = {}
+    for eid, rolle, cnt in db.query(
+            Verfuegbarkeitsanfrage.event_id, Verfuegbarkeitsanfrage.rolle_anfrage, func.count()).filter(
+            Verfuegbarkeitsanfrage.status == "Ja").group_by(
+            Verfuegbarkeitsanfrage.event_id, Verfuegbarkeitsanfrage.rolle_anfrage).all():
+        ja_map.setdefault(eid, {})[rolle] = cnt
+    ext_map = {}
+    for eid, cnt in db.query(ExternerTeamer.event_id, func.count()).group_by(
+            ExternerTeamer.event_id).all():
+        ext_map[eid] = cnt
+
     def fehlende_dl(ev):
-        """Gibt (fehlende_teamer, fehlende_kuenstler) zurück."""
-        anfragen = db.query(Verfuegbarkeitsanfrage).filter(
-            Verfuegbarkeitsanfrage.event_id == ev.id,
-            Verfuegbarkeitsanfrage.status == "Ja"
-        ).all()
-        teamer    = sum(1 for a in anfragen if a.rolle_anfrage == "Teamer") + len(ev.externe_teamer or [])
-        kuenstler = sum(1 for a in anfragen if a.rolle_anfrage == "Künstler")
-        return max(0, ev.anzahl_teamer - teamer), max(0, ev.anzahl_kuenstler - kuenstler)
+        """Gibt (fehlende_teamer, fehlende_kuenstler) zurück – aus den Aggregat-Maps."""
+        ja = ja_map.get(ev.id, {})
+        teamer    = ja.get("Teamer", 0) + ext_map.get(ev.id, 0)
+        kuenstler = ja.get("Künstler", 0)
+        return (max(0, (ev.anzahl_teamer or 0) - teamer),
+                max(0, (ev.anzahl_kuenstler or 0) - kuenstler))
 
     # Offene Dienstleister-Rückmeldungen je Event (eine Query)
     pending_map = {}
@@ -669,7 +679,8 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev:
         raise HTTPException(404)
-    anfragen = db.query(Verfuegbarkeitsanfrage).filter(
+    anfragen = db.query(Verfuegbarkeitsanfrage).options(
+        joinedload(Verfuegbarkeitsanfrage.dienstleister)).filter(
         Verfuegbarkeitsanfrage.event_id == event_id).all()
 
     anfragen_ids = {a.dienstleister_id: a for a in anfragen}
@@ -687,7 +698,8 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     gebucht_map = {}
     if ev.datum:
         konflikte = db.query(Verfuegbarkeitsanfrage).join(
-            Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
+            Event, Verfuegbarkeitsanfrage.event_id == Event.id).options(
+            joinedload(Verfuegbarkeitsanfrage.event)).filter(
             Verfuegbarkeitsanfrage.status == "Ja",
             Verfuegbarkeitsanfrage.event_id != ev.id,
             Event.datum == ev.datum,
@@ -1195,32 +1207,49 @@ def send_checklist(
     return RedirectResponse(f"/admin/events/{event_id}?checklist_sent=1", status_code=303)
 
 
+def _briefing_versenden_async(event_id: int, base_url: str):
+    """Lädt die Planungsdateien aus R2 und verschickt das Briefing an alle Zusagen.
+    Läuft als BackgroundTask mit eigener DB-Session – der R2-Download (bis 20 MB je
+    Datei) und der Versand pro Empfänger blockieren so nicht mehr den Request. (Review H6)"""
+    db = SessionLocal()
+    try:
+        ev = db.query(Event).filter(Event.id == event_id).first()
+        if not ev:
+            return
+        confirmed = db.query(Verfuegbarkeitsanfrage).options(
+            joinedload(Verfuegbarkeitsanfrage.dienstleister)).filter(
+            Verfuegbarkeitsanfrage.event_id == event_id,
+            Verfuegbarkeitsanfrage.status == "Ja").all()
+        dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
+        planung = db.query(EventDatei).filter(
+            EventDatei.event_id == event_id, EventDatei.typ == "planung").all()
+        anhaenge = [(d.filename, download_file(d.r2_key)) for d in planung]
+        anhaenge = [(fn, data) for fn, data in anhaenge if data]
+        externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
+        try:
+            send_briefing(dienstleister, ev, base_url, anhaenge or None, externe=externe)
+        except Exception as e:
+            print(f"[BRIEFING-VERSAND FEHLER] Event {event_id}: {e}")
+    finally:
+        db.close()
+
+
 @router.post("/events/{event_id}/briefing")
 def send_briefing_route(
-    request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    request: Request, event_id: int, background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), _=Depends(get_admin_user),
     entsperrt: bool = Form(False),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
     if event_gesperrt(ev, entsperrt):
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
-    confirmed = db.query(Verfuegbarkeitsanfrage).filter(
-        Verfuegbarkeitsanfrage.event_id == event_id,
-        Verfuegbarkeitsanfrage.status == "Ja"
-    ).all()
-    dienstleister = [a.dienstleister for a in confirmed]
     base_url = str(request.base_url).rstrip("/")
-    # Planungsdateien (Lageplan etc.) als Anhang mitschicken
-    planung = db.query(EventDatei).filter(
-        EventDatei.event_id == event_id, EventDatei.typ == "planung"
-    ).all()
-    anhaenge = [(d.filename, download_file(d.r2_key)) for d in planung]
-    anhaenge = [(fn, data) for fn, data in anhaenge if data]
-    externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
-    send_briefing(dienstleister, ev, base_url, anhaenge or None, externe=externe)
     ev.status = "Briefing gesendet"
     db.commit()
-    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+    # Versand (R2-Download + Mails) im Hintergrund – die Seite kehrt sofort zurück.
+    background_tasks.add_task(_briefing_versenden_async, event_id, base_url)
+    return RedirectResponse(f"/admin/events/{event_id}?briefing_sent=1", status_code=303)
 
 
 @router.get("/events/{event_id}/briefing/pdf")
@@ -1451,7 +1480,8 @@ def dienstleister_create(
 def dienstleister_detail(request: Request, did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
     if not d: raise HTTPException(404)
-    anfragen = db.query(Verfuegbarkeitsanfrage).filter(
+    anfragen = db.query(Verfuegbarkeitsanfrage).options(
+        joinedload(Verfuegbarkeitsanfrage.event)).filter(
         Verfuegbarkeitsanfrage.dienstleister_id == did
     ).all()
     anfragen = sorted(anfragen, key=lambda a: a.event.datum or date.min, reverse=True)

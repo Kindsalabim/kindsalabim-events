@@ -25,14 +25,19 @@ ALLOWED_FOTO     = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_SIZE_MB = 20
 
 
+_r2_cache = {}  # Modul-global: boto3-Client einmal bauen und wiederverwenden (Review Gruppe 4)
+
+
 def _r2_client():
+    if "client" in _r2_cache:
+        return _r2_cache["client"]
     cfg = get_config()
     account_id = cfg.get("r2_account_id", "")
     access_key = cfg.get("r2_access_key_id", "")
     secret_key = cfg.get("r2_secret_access_key", "")
     if not (account_id and access_key and secret_key):
         return None
-    return boto3.client(
+    client = boto3.client(
         "s3",
         endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
         aws_access_key_id=access_key,
@@ -40,6 +45,8 @@ def _r2_client():
         config=Config(signature_version="s3v4"),
         region_name="auto",
     )
+    _r2_cache["client"] = client
+    return client
 
 
 def generate_presigned_url(r2_key: str, expires: int = 3600) -> str | None:

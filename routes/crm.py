@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date
 
 from database import get_db
@@ -136,8 +136,9 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     heute = date.today()
     grenze = heute - timedelta(days=30)
 
-    # Offene Wiedervorlagen (mit zugehörigem Kunden)
-    wv = db.query(KundeWiedervorlage).filter(KundeWiedervorlage.erledigt == False).all()  # noqa: E712
+    # Offene Wiedervorlagen (mit zugehörigem Kunden – eager, sonst Query je Zeile im Template)
+    wv = db.query(KundeWiedervorlage).options(
+        joinedload(KundeWiedervorlage.kunde)).filter(KundeWiedervorlage.erledigt == False).all()  # noqa: E712
     wv_faellig = sorted([w for w in wv if w.faellig and w.faellig <= heute],
                         key=lambda w: w.faellig)
     wv_demnaechst = sorted([w for w in wv if w.faellig and w.faellig > heute],

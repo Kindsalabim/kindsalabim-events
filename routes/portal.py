@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date, time, timedelta
 
 from database import get_db
@@ -120,8 +120,11 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
             return None
         return (a.frist_datum - today).days
 
+    # Event je Anfrage eager laden – sonst je Anfrage eine Extra-Query (parse_date/Template).
+    _mit_event = joinedload(Verfuegbarkeitsanfrage.event)
+
     # Offene Anfragen (inkl. abgelaufene anzeigen bis Dienstleister antwortet)
-    anfragen_raw = db.query(Verfuegbarkeitsanfrage).filter(
+    anfragen_raw = db.query(Verfuegbarkeitsanfrage).options(_mit_event).filter(
         Verfuegbarkeitsanfrage.dienstleister_id == did,
         Verfuegbarkeitsanfrage.status.in_(["Ausstehend", "Abgelaufen"])
     ).all()
@@ -133,11 +136,11 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
         dl = days_left(a)
         anfragen_data.append({"anfrage": a, "days_left": dl})
 
-    confirmed = db.query(Verfuegbarkeitsanfrage).filter(
+    confirmed = db.query(Verfuegbarkeitsanfrage).options(_mit_event).filter(
         Verfuegbarkeitsanfrage.dienstleister_id == did,
         Verfuegbarkeitsanfrage.status == "Ja"
     ).all()
-    abgesagt = db.query(Verfuegbarkeitsanfrage).filter(
+    abgesagt = db.query(Verfuegbarkeitsanfrage).options(_mit_event).filter(
         Verfuegbarkeitsanfrage.dienstleister_id == did,
         Verfuegbarkeitsanfrage.status == "Nein"
     ).all()

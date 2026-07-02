@@ -164,6 +164,24 @@ def run_migrations():
             conn.rollback()
             print(f"[MIGRATION] ux_anfrage_event_dl übersprungen (evtl. Alt-Duplikate): {e}")
 
+    # Indizes auf häufig gefilterten Spalten (Review Gruppe 4). Idempotent + tolerant –
+    # bei aktueller Datenmenge kaum spürbar, aber Vorsorge fürs Wachstum.
+    def add_index(name: str, table: str, cols: str):
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON {table} ({cols})"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
+    add_index("ix_anfrage_dl_status", "verfuegbarkeitsanfragen", "dienstleister_id, status")
+    add_index("ix_anfrage_status",    "verfuegbarkeitsanfragen", "status")
+    add_index("ix_events_datum",      "events", "datum")
+    add_index("ix_events_status",     "events", "status")
+    add_index("ix_events_serien_id",  "events", "serien_id")
+    add_index("ix_events_kalender",   "events", "kalender_event_id")
+    add_index("ix_dl_magic_token",    "dienstleister", "magic_token")
+
     # Datums-Spalten von Text "TT.MM.JJJJ" auf echten DATE-Typ migrieren
     def convert_date_column(table: str, col: str):
         """VARCHAR 'TT.MM.JJJJ' -> echter DATE-Typ. Idempotent & crash-sicher."""
