@@ -18,3 +18,4 @@ bleach==6.1.0
 tinycss2==1.3.0
 google-api-python-client==2.137.0
 google-auth==2.32.0
+tzdata==2024.2

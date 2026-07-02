@@ -130,6 +130,7 @@ def run_migrations():
     add_column("events", "material_bereit", "BOOLEAN DEFAULT 0")
     add_column("events", "material_bereit_gesendet", "BOOLEAN DEFAULT 0")
     add_column("events", "material_abhol_erinnerung_gesendet", "BOOLEAN DEFAULT 0")
+    add_column("events", "material_erinnerung_gesendet", "BOOLEAN DEFAULT 0")
     add_column("verfuegbarkeitsanfragen", "als_logistiker", "BOOLEAN DEFAULT 0")
     add_column("verfuegbarkeitsanfragen", "logistik_transport", "VARCHAR")
     add_column("events", "cl_weitere_details", "TEXT")
@@ -252,7 +253,7 @@ async def lifespan(app: FastAPI):
     run_migrations()
     migrate_kunden()
     seed_admin()
-    if get_config().get("demo_mode"):
+    if get_config().get("demo_mode") and engine.dialect.name != "postgresql":
         from seed_demo import seed_demo_data
         seed_demo_data()  # seedt nur, wenn DB leer (frischer Start)
     yield
@@ -322,6 +323,12 @@ def root():
 # ── Demo-Umgebung (nur aktiv bei DEMO_MODE) ──────────────────────────────────────
 
 def _demo_on():
+    # Sicherheits-Riegel (Review H2): Der Demo-Modus – passwortlose Logins + Daten-Reset –
+    # wirkt NIE gegen eine PostgreSQL-DB. Selbst wenn DEMO_MODE versehentlich am Prod-Service
+    # (Postgres) gesetzt würde, bleiben alle Demo-Routen inert (404). Die echte Demo läuft
+    # bewusst auf SQLite.
+    if engine.dialect.name == "postgresql":
+        return False
     return bool(get_config().get("demo_mode"))
 
 

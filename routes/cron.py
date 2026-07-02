@@ -5,12 +5,29 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, date, time, timedelta
+from zoneinfo import ZoneInfo
 
 from database import get_db
 from models import Verfuegbarkeitsanfrage, Event, Dienstleister, KundeWiedervorlage, Admin
 from config import get_config
 
 router = APIRouter(prefix="/cron")
+
+# Render-Server laufen in UTC; alle Datums-/Zeitfenster hier beziehen sich aber auf
+# deutsche Ortszeit. Ohne diese Umrechnung verschieben sich Stichtage und Stunden-
+# fenster (z. B. „2 h nach Event-Ende") um 1–2 Stunden bzw. über Mitternacht um
+# einen Tag. (Review M6)
+_BERLIN = ZoneInfo("Europe/Berlin")
+
+
+def _jetzt() -> datetime:
+    """Aktuelle Zeit in deutscher Ortszeit als naives datetime (passend zu den
+    ebenfalls naiven „HH:MM"-Event-Zeiten)."""
+    return datetime.now(_BERLIN).replace(tzinfo=None)
+
+
+def _heute() -> date:
+    return _jetzt().date()
 
 
 def _check_secret(request: Request, secret: str = "") -> bool:
@@ -26,12 +43,16 @@ def _check_secret(request: Request, secret: str = "") -> bool:
 def _run_einsatz_erinnerungen(db: Session) -> dict:
     """Erinnert bestätigte Dienstleister 2 Tage vor ihrem Einsatz. Idempotent über
     das Flag einsatz_erinnerung_gesendet."""
-    in_2_tagen = date.today() + timedelta(days=2)
+    heute = _heute()
+    bis = heute + timedelta(days=2)
+    # Fenster [heute, heute+2] statt exaktem Stichtag: ein ausgefallener Cron-Tag holt
+    # die Erinnerung nach, das Flag verhindert Doppelversand. (Review K1)
     zusagen = db.query(Verfuegbarkeitsanfrage).join(
         Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
         Verfuegbarkeitsanfrage.status == "Ja",
         Verfuegbarkeitsanfrage.einsatz_erinnerung_gesendet == False,
-        Event.datum == in_2_tagen,
+        Event.datum >= heute,
+        Event.datum <= bis,
     ).all()
 
     from email_service import send_einsatz_erinnerung
@@ -40,19 +61,24 @@ def _run_einsatz_erinnerungen(db: Session) -> dict:
         try:
             send_einsatz_erinnerung(a.dienstleister, a.event)
             a.einsatz_erinnerung_gesendet = True
+            db.commit()   # pro Mail committen: ein Absturz mittendrin = kein Doppelversand
             count += 1
         except Exception as e:
+            db.rollback()
             print(f"Einsatz-Erinnerung fehlgeschlagen für {a.dienstleister.email}: {e}")
-    db.commit()
-    return {"einsatz_erinnerungen_gesendet": count, "datum": in_2_tagen.strftime("%d.%m.%Y")}
+    return {"einsatz_erinnerungen_gesendet": count, "datum": bis.strftime("%d.%m.%Y")}
 
 
 def _run_teamleiter_infos(db: Session) -> int:
     """Info-Mail an Kunden ~1 Woche vor dem Event mit dem Teamleiter als Ansprechpartner.
     Nur wenn Teamleiter gesetzt, Kunden-E-Mail vorhanden und noch nicht gesendet."""
-    in_7_tagen = date.today() + timedelta(days=7)
+    heute = _heute()
+    bis = heute + timedelta(days=7)
+    # Fenster [heute, heute+7] statt exaktem Stichtag – ein ausgefallener Cron-Tag
+    # holt die Info nach; das Flag verhindert Doppelversand. (Review K1)
     events = db.query(Event).filter(
-        Event.datum == in_7_tagen,
+        Event.datum >= heute,
+        Event.datum <= bis,
         Event.teamleiter_id != None,            # noqa: E711
         Event.kunde_email != None,              # noqa: E711
         Event.kunde_email != "",
@@ -65,10 +91,11 @@ def _run_teamleiter_infos(db: Session) -> int:
         try:
             send_teamleiter_info(ev)
             ev.teamleiter_mail_gesendet = True
+            db.commit()
             count += 1
         except Exception as e:
+            db.rollback()
             print(f"Teamleiter-Info-Mail fehlgeschlagen für Event {ev.id}: {e}")
-    db.commit()
     return count
 
 
@@ -82,7 +109,7 @@ def _run_bericht_erinnerungen(db: Session) -> int:
     Mindest-Wartezeiten, gesendet wird beim nächsten Cron-Lauf danach."""
     from email_service import send_bericht_erinnerung
     from auth import create_magic_token
-    now = datetime.now()
+    now = _jetzt()
     heute = now.date()
     kandidaten = db.query(Event).filter(
         Event.datum <= heute,
@@ -91,6 +118,7 @@ def _run_bericht_erinnerungen(db: Session) -> int:
         Event.status.notin_(["Abgesagt", "Abgeschlossen"]),
     ).all()
     count = 0
+    token_cache: dict[int, str] = {}   # ein Magic-Token je Teamleiter pro Lauf wiederverwenden
     for ev in kandidaten:
         if ev.zaubershow_event:   # reines Zaubershow-Event: kein Eventbericht nötig
             continue
@@ -113,23 +141,32 @@ def _run_bericht_erinnerungen(db: Session) -> int:
             except ValueError:
                 pass
         try:
-            token = create_magic_token(tl, db)
-            magic_url = f"{_APP_BASE}/portal/auth/{token}?next=/portal/bericht/{ev.id}"
+            # Hat der Teamleiter mehrere offene Berichte, würde ein zweiter create_magic_token
+            # den ersten Link entwerten → pro Teamleiter nur EINEN Token je Lauf erzeugen.
+            if tl.id not in token_cache:
+                token_cache[tl.id] = create_magic_token(tl, db)
+            magic_url = f"{_APP_BASE}/portal/auth/{token_cache[tl.id]}?next=/portal/bericht/{ev.id}"
             send_bericht_erinnerung(tl, ev, magic_url)
             ev.bericht_erinnerung_am = now.isoformat(timespec="seconds")
+            db.commit()   # pro Event committen: schließt das Doppelversand-Fenster
+                          # zwischen 2h-Ping und Tages-Cron (Review M7)
             count += 1
         except Exception as e:
+            db.rollback()
+            token_cache.pop(tl.id, None)   # Token wurde evtl. nicht persistiert
             print(f"Bericht-Erinnerung fehlgeschlagen für Event {ev.id}: {e}")
-    db.commit()
     return count
 
 
 def _run_material_abhol_erinnerungen(db: Session) -> int:
     """3 Tage vor dem Event: erinnert den zugeteilten Logistiker, das Material abzuholen/mitzunehmen.
     Nur wenn Materialmitnahme nötig + Logistiker gesetzt + Logistiker hat E-Mail + noch nicht erinnert."""
-    in_3_tagen = date.today() + timedelta(days=3)
+    heute = _heute()
+    bis = heute + timedelta(days=3)
+    # Fenster [heute, heute+3] statt exaktem Stichtag; Flag verhindert Doppelversand. (Review K1)
     events = db.query(Event).filter(
-        Event.datum == in_3_tagen,
+        Event.datum >= heute,
+        Event.datum <= bis,
         Event.material_mitnahme == True,                     # noqa: E712
         Event.logistiker_id != None,                          # noqa: E711
         Event.material_abhol_erinnerung_gesendet == False,    # noqa: E712
@@ -148,10 +185,11 @@ def _run_material_abhol_erinnerungen(db: Session) -> int:
         try:
             send_material_abhol_erinnerung(ev, log, transport)
             ev.material_abhol_erinnerung_gesendet = True
+            db.commit()
             count += 1
         except Exception as e:
+            db.rollback()
             print(f"Material-Abhol-Erinnerung fehlgeschlagen für Event {ev.id}: {e}")
-    db.commit()
     return count
 
 
@@ -163,7 +201,7 @@ def _run_abgelaufene_anfragen(db: Session) -> int:
     Nachbesetzung mehr. Die Soft-Frist bleibt: der Dienstleister sieht die Anfrage im Portal
     weiter und kann verspätet antworten (das setzt den Status dann auf Ja/Nein). Idempotent –
     einmal als „Abgelaufen" markierte Anfragen werden nicht erneut gefunden."""
-    today = date.today()
+    today = _heute()
     abgelaufen = db.query(Verfuegbarkeitsanfrage).join(
         Event, Verfuegbarkeitsanfrage.event_id == Event.id).filter(
         Verfuegbarkeitsanfrage.status == "Ausstehend",
@@ -204,12 +242,16 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    today = date.today()
+    today = _heute()
     morgen = today + timedelta(days=1)
 
+    # Frist-Erinnerung 24h vorher; „<= morgen" statt „== morgen", damit ein ausgefallener
+    # Cron-Tag nicht bedeutet, dass die Erinnerung nie rausgeht. Flag verhindert Doppel-
+    # versand; abgelaufene Anfragen wechseln später den Status und fallen aus dem Filter. (K1)
     offene = db.query(Verfuegbarkeitsanfrage).filter(
         Verfuegbarkeitsanfrage.status == "Ausstehend",
-        Verfuegbarkeitsanfrage.frist_datum == morgen,
+        Verfuegbarkeitsanfrage.frist_datum != None,   # noqa: E711
+        Verfuegbarkeitsanfrage.frist_datum <= morgen,
         Verfuegbarkeitsanfrage.erinnerung_gesendet == False
     ).all()
 
@@ -219,18 +261,24 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
         try:
             send_erinnerung(a.dienstleister, a.event)
             a.erinnerung_gesendet = True
+            db.commit()
             count += 1
         except Exception as e:
+            db.rollback()
             print(f"Erinnerung fehlgeschlagen für {a.dienstleister.email}: {e}")
 
-    db.commit()
-
-    # Material-Erinnerungen: 3 Wochen vor Event wenn Materialtransport nötig
+    # Material-Bestell-Erinnerung: bis 3 Wochen vor Event, wenn Materialtransport nötig und
+    # noch nicht bestellt. Fenster + eigenes Flag (material_erinnerung_gesendet) statt exaktem
+    # Stichtag ohne Flag – sonst Doppelversand bei Doppel-Aufruf bzw. Totalausfall bei Cron-
+    # Lücke. (Review K2)
     in_3_wochen = today + timedelta(weeks=3)
     material_events = db.query(Event).filter(
-        Event.datum == in_3_wochen,
+        Event.datum >= today,
+        Event.datum <= in_3_wochen,
         Event.material_mitnahme == True,
-        Event.material_bestellt == False
+        Event.material_bestellt == False,
+        Event.material_erinnerung_gesendet == False,
+        Event.status.notin_(["Abgesagt", "Abgeschlossen"]),
     ).all()
     material_count = 0
     from email_service import send_material_erinnerung
@@ -238,8 +286,11 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     for ev in material_events:
         try:
             send_material_erinnerung(ev, cfg["admin_email"])
+            ev.material_erinnerung_gesendet = True
+            db.commit()
             material_count += 1
         except Exception as e:
+            db.rollback()
             print(f"Material-Erinnerung fehlgeschlagen: {e}")
 
     # CRM-Wiedervorlagen: tägliche Sammel-Erinnerung an alle aktiven Admins
@@ -344,7 +395,7 @@ def send_backup(request: Request, secret: str = "", db: Session = Depends(get_db
     events = db.query(Event).all()
     dienstleister = db.query(Dienstleister).all()
 
-    datum = datetime.today().strftime("%Y-%m-%d")
+    datum = _heute().strftime("%Y-%m-%d")
     attachments = [
         (f"events_{datum}.csv", _model_to_csv(events, Event)),
         (f"dienstleister_{datum}.csv", _model_to_csv(dienstleister, Dienstleister)),

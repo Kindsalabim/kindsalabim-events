@@ -36,6 +36,7 @@ class Event(Base):
     material_bereit = Column(Boolean, default=False)     # Material im Lager abholbereit
     material_bereit_gesendet = Column(Boolean, default=False)        # "bereit zur Abholung"-Mail verschickt?
     material_abhol_erinnerung_gesendet = Column(Boolean, default=False)  # 3-Tage-Abhol-Erinnerung verschickt?
+    material_erinnerung_gesendet = Column(Boolean, default=False)    # 3-Wochen-Bestell-Erinnerung verschickt?
     status = Column(String, default="Gebucht")   # Gebucht → Dienstleister angefragt → Checkliste geschickt/eingegangen → Planung fertig → Briefing gesendet → Abgeschlossen · Abgesagt
     marke = Column(String, default="Kindsalabim")  # Kindsalabim, Knallfrosch
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
