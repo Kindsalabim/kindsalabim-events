@@ -451,5 +451,35 @@
 </div>
 {% endif %}
 {% block body %}{% endblock %}
+<script>
+/* Scroll-Position über Formular-Klicks hinweg erhalten.
+   Fast jede Aktion (Toggle, Senden, Löschen …) ist ein POST mit Redirect auf dieselbe
+   Seite – der Browser lädt sie sonst immer ganz oben. Hier: beim Absenden Position
+   merken, nach dem Neuladen derselben Seite wiederherstellen. Sprungmarken (#anker)
+   aus den Routen haben weiterhin Vorrang. */
+(function () {
+  var KEY = "kf_scroll";
+  document.addEventListener("submit", function (e) {
+    var f = e.target;
+    if (f && (f.method || "").toLowerCase() === "post") {
+      try {
+        sessionStorage.setItem(KEY, JSON.stringify(
+          { p: location.pathname, y: window.scrollY, t: Date.now() }));
+      } catch (_) {}
+    }
+  }, true);
+  try {
+    var raw = sessionStorage.getItem(KEY);
+    if (raw) {
+      sessionStorage.removeItem(KEY);
+      var s = JSON.parse(raw);
+      // Nur auf derselben Seite, ohne gesetzte Sprungmarke, und nur kurz danach (<30 s)
+      if (s && s.p === location.pathname && !location.hash && Date.now() - s.t < 30000) {
+        window.scrollTo(0, s.y);
+      }
+    }
+  } catch (_) {}
+})();
+</script>
 </body>
 </html>
