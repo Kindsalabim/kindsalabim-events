@@ -3,7 +3,7 @@ import json
 import re
 import urllib.request
 import urllib.error
-from html import unescape
+from html import unescape, escape as _esc
 from datetime import datetime
 from config import get_config
 from choices import de_date, plz_ort
@@ -160,17 +160,19 @@ def _no_none(x) -> str:
 
 
 def _info_row(label: str, value: str) -> str:
+    # HTML-Escaping des Werts: cl_*-Felder etc. stammen z. T. aus der öffentlichen
+    # Kunden-Checkliste und dürfen keinen HTML-Code in die Mail einschleusen.
     return f"""
     <tr>
       <td style="padding:8px 16px 8px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">{label}</td>
-      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{_no_none(value) or '–'}</td>
+      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{_esc(_no_none(value)) or '–'}</td>
     </tr>"""
 
 
 def _team_row(name_html: str, telefon, highlight: bool = False, tint: str = "#eef3fb") -> str:
     """Team-Zeile: Name (darf umbrechen) + Telefon rechts, das nie ziffernweise umbricht.
     highlight tönt die Zeile (für den Teamleiter)."""
-    tel = _no_none(telefon).strip() or "–"
+    tel = _esc(_no_none(telefon).strip()) or "–"
     if highlight:
         cl = f"padding:10px 12px;background:{tint};"
         cr = f"padding:10px 12px;background:{tint};"
@@ -561,7 +563,7 @@ def send_absage_admin(dienstleister, event, grund: str, base_url: str):
     admin_email = cfg.get("admin_email", BACKUP_EMPFAENGER)
     color = _brand_color(event.marke)
     event_url = f"{base_url}/admin/events/{event.id}"
-    grund_html = f"<p style='margin:12px 0 0;font-size:14px;color:#374151;'><strong>Grund:</strong> {grund}</p>" if grund else ""
+    grund_html = f"<p style='margin:12px 0 0;font-size:14px;color:#374151;'><strong>Grund:</strong> {_esc(grund)}</p>" if grund else ""
 
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#b91c1c;font-weight:600;">⚠️ Nachträgliche Absage</p>
@@ -722,16 +724,17 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     team_rows = ""
     for m in dienstleister_list:
         is_tl = bool(event.teamleiter_id and m.id == event.teamleiter_id)
+        voll_name = _esc(f"{m.vorname} {m.nachname}")
         if is_tl:
-            name = (f'<strong style="color:#111827;">{m.vorname} {m.nachname}</strong>'
+            name = (f'<strong style="color:#111827;">{voll_name}</strong>'
                     f' <span style="display:inline-block;margin-left:6px;background:{color};color:#ffffff;'
                     f'font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;'
                     f'letter-spacing:0.04em;vertical-align:middle;">★ TEAMLEITER</span>')
         else:
-            name = f"{m.vorname} {m.nachname}"
+            name = voll_name
         team_rows += _team_row(name, m.telefon, highlight=is_tl, tint=tl_tint)
     for e in (externe or []):
-        ext_name = f'{e.name} <span style="display:inline-block;margin-left:6px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">extern</span>'
+        ext_name = f'{_esc(e.name)} <span style="display:inline-block;margin-left:6px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">extern</span>'
         team_rows += _team_row(ext_name, e.telefon)
     team_section = f"""
         <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
@@ -781,8 +784,8 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         <div style="background:#f9fafb;border:2px solid {color};border-radius:8px;padding:18px 22px;margin-bottom:24px;">
           <p style="margin:0 0 10px;font-size:13px;font-weight:800;color:{color};text-transform:uppercase;letter-spacing:0.04em;">📍 Ankunft &amp; Treffpunkt</p>
           <table cellpadding="0" cellspacing="0" width="100%">
-            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Ankunft</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{ankunft_str}</td></tr>
-            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Treffpunkt</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{treffpunkt_str}</td></tr>
+            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Ankunft</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(ankunft_str)}</td></tr>
+            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Treffpunkt</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(treffpunkt_str)}</td></tr>
           </table>
         </div>
 
@@ -804,9 +807,9 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
 
         {team_section}
 
-        {"" if not event.hinweise else f'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.04em;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;line-height:1.55;">{event.hinweise}</p></div>'}
+        {"" if not event.hinweise else f'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.04em;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;line-height:1.55;">{_esc(event.hinweise)}</p></div>'}
 
-        {"" if not getattr(event, 'cl_weitere_details', None) else f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Weitere Details</p><p style="margin:0;font-size:14px;color:#374151;white-space:pre-line;">{event.cl_weitere_details}</p></div>'}
+        {"" if not getattr(event, 'cl_weitere_details', None) else f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Weitere Details</p><p style="margin:0;font-size:14px;color:#374151;white-space:pre-line;">{_esc(event.cl_weitere_details)}</p></div>'}
 
         <p style="margin:0 0 8px;font-size:14px;color:#374151;">
           Deine Jobs findest du jederzeit in deinem Portal:

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from database import engine, Base, SessionLocal
 from config import get_config
@@ -257,6 +258,29 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Knallfrosch Events", lifespan=lifespan)
+
+
+# ── CSRF-Schutz: Same-Origin-Check auf allen POSTs (Roadmap 2.2) ─────────────────
+# Browser senden bei Formular-POSTs einen Origin- (oder Referer-)Header. Kommt der
+# von einem fremden Hostnamen, wird die Anfrage geblockt – eine fremde Website kann
+# so keine Aktionen im Namen eines eingeloggten Nutzers auslösen. Ergänzt das
+# bestehende samesite=lax auf den Cookies. Anfragen ganz ohne Origin/Referer
+# (Cron-Skripte, Nicht-Browser-Clients) bleiben erlaubt.
+@app.middleware("http")
+async def same_origin_guard(request, call_next):
+    if request.method == "POST":
+        herkunft = request.headers.get("origin") or request.headers.get("referer") or ""
+        if herkunft:
+            host = (request.headers.get("host") or "").split(":")[0].lower()
+            quell_host = (urlparse(herkunft).hostname or "").lower()
+            # Ist ein Origin/Referer gesetzt, MUSS er zum eigenen Host passen.
+            # Ein nicht-parsebarer Wert (z. B. "Origin: null" aus einem sandboxed
+            # iframe) ergibt quell_host="" → wird nun abgelehnt statt durchgelassen.
+            if host and quell_host != host:
+                return PlainTextResponse("Anfrage abgelehnt (Cross-Site-Schutz).", status_code=403)
+    return await call_next(request)
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin_router)
 app.include_router(portal_router)

@@ -1,6 +1,7 @@
 import csv
 import io
-from fastapi import APIRouter, Depends
+import secrets
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, date, time, timedelta
@@ -12,9 +13,14 @@ from config import get_config
 router = APIRouter(prefix="/cron")
 
 
-def _check_secret(secret: str = "") -> bool:
+def _check_secret(request: Request, secret: str = "") -> bool:
+    """Cron-Auth: bevorzugt per Header X-Cron-Secret (landet nicht in Server-Logs),
+    der Query-Parameter ?secret= bleibt als Fallback für bestehende Aufrufer
+    (cron-job.org). Zeitkonstanter Vergleich gegen Timing-Angriffe."""
     cfg = get_config()
-    return secret == cfg.get("cron_secret", "")
+    erwartet = cfg.get("cron_secret", "") or ""
+    geliefert = request.headers.get("x-cron-secret") or secret or ""
+    return bool(erwartet) and secrets.compare_digest(geliefert, erwartet)
 
 
 def _run_einsatz_erinnerungen(db: Session) -> dict:
@@ -193,9 +199,9 @@ def _run_abgelaufene_anfragen(db: Session) -> int:
 
 
 @router.get("/erinnerung")
-def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
+def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
-    if not _check_secret(secret):
+    if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
     today = date.today()
@@ -290,28 +296,36 @@ def send_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
 
 
 @router.get("/einsatz-erinnerung")
-def send_einsatz_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
+def send_einsatz_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Manuell/separat auslösbar. Erinnert bestätigte Dienstleister 2 Tage vor ihrem
     Einsatz. (Läuft regulär im täglichen /cron/erinnerung mit.)"""
-    if not _check_secret(secret):
+    if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     return JSONResponse(_run_einsatz_erinnerungen(db))
 
 
 @router.get("/bericht-erinnerung")
-def send_bericht_erinnerungen(secret: str = "", db: Session = Depends(get_db)):
+def send_bericht_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Schlanker, zeitkritischer Endpunkt – NUR die Bericht-Erinnerung an den Teamleiter.
     Gedacht für einen häufigen Ping (z. B. stündlich via cron-job.org), damit die
     Erinnerung noch am selben Abend rausgeht. Idempotent (2h-Sperre + 3-Tage-Takt),
     läuft zusätzlich im täglichen /cron/erinnerung als Fallback."""
-    if not _check_secret(secret):
+    if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     return JSONResponse({"bericht_erinnerungen": _run_bericht_erinnerungen(db)})
 
 
+# Spalten, die NIE ins Backup-CSV dürfen: aktive Login-Geheimnisse. Ein Magic-Token
+# ist 36 h ein gültiger Portal-Login, checklist_token öffnet die Kunden-Checkliste –
+# beides würde in einer weiterleitbaren E-Mail landen. (Roadmap-Review H1)
+_CSV_GEHEIM = {"magic_token", "magic_token_expires", "checklist_token",
+               "password_hash", "reset_token", "reset_token_expires"}
+
+
 def _model_to_csv(rows, model) -> bytes:
-    """Exportiert alle Zeilen eines Modells als CSV (alle Spalten, ; getrennt, UTF-8 mit BOM für Excel)."""
-    cols = [c.name for c in model.__table__.columns]
+    """Exportiert alle Zeilen eines Modells als CSV (; getrennt, UTF-8 mit BOM für Excel).
+    Login-Geheimnisse (_CSV_GEHEIM) werden ausgelassen."""
+    cols = [c.name for c in model.__table__.columns if c.name not in _CSV_GEHEIM]
     buf = io.StringIO()
     writer = csv.writer(buf, delimiter=";")
     writer.writerow(cols)
@@ -321,10 +335,10 @@ def _model_to_csv(rows, model) -> bytes:
 
 
 @router.post("/backup")
-def send_backup(secret: str = "", db: Session = Depends(get_db)):
+def send_backup(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird wöchentlich (montags) von Render Cron aufgerufen. Schickt einen CSV-Export
     aller Events + Dienstleister als E-Mail-Anhang an den Admin."""
-    if not _check_secret(secret):
+    if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
     events = db.query(Event).all()

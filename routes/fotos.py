@@ -217,15 +217,20 @@ def delete_bericht_foto(
     ev = db.get(Event, event_id)
     if not ev or ev.teamleiter_id != did:
         raise HTTPException(403)
-    _delete(event_id, datei_id, db)
+    # SICHERHEIT: nur eigene Event-Fotos – niemals Auftragsbestätigung/Planungsdateien.
+    # Ohne diese Typ-Sperre könnte ein Teamleiter über eine geratene datei_id die
+    # (für ihn unsichtbare) Auftragsbestätigung seines Events löschen.
+    _delete(event_id, datei_id, db, nur_typ="bericht_foto")
     return RedirectResponse(f"/portal/bericht/{event_id}", status_code=303)
 
 
 # ── Shared ─────────────────────────────────────────────────────────────────────
 
-def _delete(event_id: int, datei_id: int, db: Session):
+def _delete(event_id: int, datei_id: int, db: Session, nur_typ: str | None = None):
     datei = db.get(EventDatei, datei_id)
     if not datei or datei.event_id != event_id:
+        raise HTTPException(404)
+    if nur_typ is not None and datei.typ != nur_typ:
         raise HTTPException(404)
     cfg = get_config()
     client = _r2_client()

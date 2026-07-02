@@ -6,9 +6,10 @@ import os
 import urllib.request
 
 secret = os.environ.get("CRON_SECRET", "")
-url = f"https://kindsalabim-events.onrender.com/cron/backup?secret={secret}"
+url = "https://kindsalabim-events.onrender.com/cron/backup"
 
-req = urllib.request.Request(url, method="POST")
+# Secret per Header statt Query-String – landet so nicht in Server-Logs (Roadmap 2.3).
+req = urllib.request.Request(url, method="POST", headers={"X-Cron-Secret": secret})
 try:
     with urllib.request.urlopen(req, timeout=60) as resp:
         body = resp.read().decode()
