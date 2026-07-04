@@ -106,7 +106,7 @@ class Dienstleister(Base):
     plz = Column(String)
     stadt = Column(String)
     rolle = Column(String, default="Teamer")     # Teamer, Künstler, Beides
-    kuenstler_sparte = Column(String)            # Kinderschminke, Ballonkünstler, Schminke + Ballon, Sonstiges (None = reiner Teamer)
+    kuenstler_sparte = Column(String)            # Kinderschminke, Ballonkünstler, Schminke + Ballon, Showact, Walkact, Sonstiges (None = reiner Teamer)
     erfahrungspunkte = Column(Integer, default=0)
     qualitaet = Column(Integer)                   # Bewertung 1–5 ⭐ (None = noch nicht bewertet)
     mobilitaet = Column(String, default="Auto")  # Auto, ÖPNV, Beides

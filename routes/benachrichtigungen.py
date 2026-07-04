@@ -9,7 +9,7 @@ from database import get_db
 from models import Benachrichtigung, Admin
 from auth import get_admin_user
 from config import get_config
-from notifications import NOTIF_TYPEN, mail_enabled, set_mail_enabled
+from notifications import NOTIF_TYPEN, mail_enabled, set_mail_enabled, get_setting, set_setting
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
@@ -39,9 +39,11 @@ def benachrichtigungen(request: Request, db: Session = Depends(get_db), user=Dep
 
 @router.get("/einstellungen", response_class=HTMLResponse)
 def einstellungen(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    from choices import BRIEFING_REGELN_DEFAULT
     schalter = [{"typ": t[0], "label": t[1], "on": mail_enabled(db, t[0])} for t in NOTIF_TYPEN]
     return templates.TemplateResponse("admin/einstellungen.html",
         tpl_context(request, schalter=schalter, active="einstellungen",
+                    briefing_regeln=get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT),
                     gespeichert=request.query_params.get("ok")))
 
 
@@ -50,5 +52,6 @@ async def einstellungen_speichern(request: Request, db: Session = Depends(get_db
     form = await request.form()
     for t in NOTIF_TYPEN:
         set_mail_enabled(db, t[0], form.get(f"mail_{t[0]}") == "1")
+    set_setting(db, "briefing_regeln", (form.get("briefing_regeln") or "").strip())
     db.commit()
     return RedirectResponse("/admin/einstellungen?ok=1", status_code=303)

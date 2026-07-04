@@ -48,6 +48,20 @@ def set_mail_enabled(db: Session, typ: str, on: bool):
     row.value = "1" if on else "0"
 
 
+def get_setting(db: Session, key: str, default: str = "") -> str:
+    """Freitext-Einstellung lesen (z. B. briefing_regeln)."""
+    row = db.query(AppEinstellung).filter(AppEinstellung.key == key).first()
+    return row.value if row and row.value is not None else default
+
+
+def set_setting(db: Session, key: str, value: str):
+    row = db.query(AppEinstellung).filter(AppEinstellung.key == key).first()
+    if row is None:
+        row = AppEinstellung(key=key)
+        db.add(row)
+    row.value = value
+
+
 def _active_admin_emails(db: Session):
     admins = db.query(Admin).filter(Admin.aktiv == True).all()  # noqa: E712
     return [a.email for a in admins if a.email and "@" in a.email]

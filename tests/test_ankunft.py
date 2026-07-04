@@ -67,8 +67,10 @@ def test_mail_ankunft_block_und_kein_aufbau(mails):
                            cl_aufbau_von="09:00", cl_aufbau_bis="11:00", cl_abbau_von="16:00")
     email_service.send_briefing([briefing_dl_ns()], ev, "https://x")
     html = mails[-1][2]
-    assert "Ankunft &amp; Treffpunkt" in html and "11:00 Uhr" in html
-    assert "Aktionszeit" in html
+    # Ankunft/Treffpunkt stehen jetzt DIREKT nach der Aktionszeit (Aykut 02.07. –
+    # die frühere separate Box darunter wurde übersehen)
+    assert "📍 Ankunft" in html and "11:00 Uhr" in html
+    assert html.index("Aktionszeit") < html.index("📍 Ankunft")
     # Kunden-Aufbau-/Abbauzeiten dürfen NICHT mehr im Dienstleister-Briefing stehen
     assert ">Aufbau<" not in html and ">Abbau<" not in html
 

@@ -42,6 +42,8 @@
     <option value="kinderschminke">🐱 Kinderschminke</option>
     <option value="ballonkünstler">🎈 Ballonkünstler</option>
     <option value="schminke + ballon">🎈🐱 Schminke + Ballon</option>
+    <option value="showact">🎩 Showact</option>
+    <option value="walkact">🚶 Walkact</option>
     <option value="sonstiges">🎭 Sonstiges</option>
   </select>
   <select id="dl-dsgvo" onchange="filterTable()"
@@ -108,7 +110,7 @@
         <td class="px-5 py-3.5 text-gray-600">
           {{ d.rolle }}
           {% if d.kuenstler_sparte %}
-          {% set icon = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'}.get(d.kuenstler_sparte, '') %}
+          {% set icon = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Showact':'🎩','Walkact':'🚶','Sonstiges':'🎭'}.get(d.kuenstler_sparte, '') %}
           <div class="text-xs text-gray-500 mt-0.5">{{ icon }} {{ d.kuenstler_sparte }}</div>
           {% endif %}
         </td>

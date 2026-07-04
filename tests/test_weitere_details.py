@@ -60,4 +60,5 @@ def test_briefing_pdf_zeigt_weitere_details():
     import pypdf
     pdf = build_briefing_pdf(ev, [], [])
     txt = "\n".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf)).pages)
-    assert "WEITERE DETAILS" in txt and "Buehne" in txt
+    # Karten-Layout: „Weitere Details" der Checkliste stehen jetzt in der Box „Besonderes"
+    assert "Besonderes" in txt and "Buehne" in txt

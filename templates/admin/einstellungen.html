@@ -27,6 +27,18 @@
     </label>
     {% endfor %}
   </div>
+  <div class="card p-5 mt-6">
+    <h2 class="text-sm font-semibold text-gray-800 mb-1">Allgemeine Regeln fürs Briefing</h2>
+    <p class="text-xs text-gray-500 mb-3">
+      Erscheint in jedem Briefing als Seite „Allgemeines" (PDF) bzw. Regel-Abschnitt (Mail).
+      Jede Zeile wird ein ▸-Punkt. Eine Zeile, die mit <code>##&nbsp;</code> beginnt, startet eine
+      neue Box mit dieser Überschrift. <code>{{ '{MARKE}' }}</code> wird automatisch durch
+      „Kindsalabim" bzw. „Knallfrosch Kinderevents" ersetzt. Komplett leeren = keine Regeln-Seite.
+    </p>
+    <textarea name="briefing_regeln" rows="16" placeholder="z. B. Pünktlichkeit, Kleidung, Verhalten vor Ort, Fotos …"
+      class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring resize-y">{{ briefing_regeln or '' }}</textarea>
+  </div>
+
   <div class="mt-5">
     <button class="btn-primary">Speichern</button>
   </div>

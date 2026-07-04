@@ -6,7 +6,7 @@ import urllib.error
 from html import unescape, escape as _esc
 from datetime import datetime
 from config import get_config
-from choices import de_date, plz_ort
+from choices import de_date, plz_ort, rechnung_anschrift, sparte_label, regeln_abschnitte
 
 
 def _html_to_text(html: str) -> str:
@@ -704,18 +704,16 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
-def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, externe=None):
+def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, externe=None,
+                  regeln: str = None):
     cfg = get_config()
     color = _brand_color(event.marke)
     subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
 
-    # "Rechnung senden an" – volle Anschrift je Marke (wie im Portal)
-    if event.marke == "Knallfrosch":
-        rechnung_firma = "Malca &amp; Akmanoglu GbR<br>Knallfrosch Kinderevents<br>Charlottenweg 55<br>45289 Essen"
-        rechnung_mail = "personal@knallfrosch-kinderevents.de"
-    else:
-        rechnung_firma = "Aykut Malca<br>Kindsalabim Kinderevents<br>Charlottenweg 55<br>45289 Essen"
-        rechnung_mail = cfg.get("company_email", "info@kindsalabim.de")
+    # "Rechnung senden an" – volle Anschrift je Marke (zentrale Quelle, wie im Portal/PDF)
+    ra = rechnung_anschrift(event.marke)
+    rechnung_firma = "<br>".join(_esc(z) for z in ra["zeilen"])
+    rechnung_mail = ra["mail"]
     rechnung_block = f"""
         <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;">
           <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Rechnung senden an</p>
@@ -723,12 +721,17 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
           <p style="margin:8px 0 0;font-size:14px;color:#374151;">Per Mail an: <a href="mailto:{rechnung_mail}" style="color:{color};">{rechnung_mail}</a></p>
         </div>"""
 
-    # Team-Roster (für alle Empfänger gleich): Name + Telefon, Teamleiter klar markiert
+    # Team-Roster (für alle Empfänger gleich): Teamleiter zuerst, Künstler mit Sparte
     tl_tint = "#ecf6ec" if event.marke == "Knallfrosch" else "#eef3fb"
     team_rows = ""
-    for m in dienstleister_list:
+    sortiert = sorted(dienstleister_list,
+                      key=lambda m: 0 if (event.teamleiter_id and m.id == event.teamleiter_id) else 1)
+    for m in sortiert:
         is_tl = bool(event.teamleiter_id and m.id == event.teamleiter_id)
         voll_name = _esc(f"{m.vorname} {m.nachname}")
+        sparte = sparte_label(m)
+        if sparte:
+            voll_name += f' <span style="color:#6b7280;font-weight:400;">{_esc(sparte)}</span>'
         if is_tl:
             name = (f'<strong style="color:#111827;">{voll_name}</strong>'
                     f' <span style="display:inline-block;margin-left:6px;background:{color};color:#ffffff;'
@@ -763,6 +766,18 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     ankunft_str = _ankunft.ankunft_anzeige(event)
     treffpunkt_str = _ankunft.treffpunkt_anzeige(event)
 
+    # Allgemeine Regeln (aus den Einstellungen): je „## "-Abschnitt eine Box mit Pfeilen
+    regeln_html = ""
+    for r_titel, r_punkte in regeln_abschnitte(regeln or "", event.marke):
+        li = "".join(
+            f'<tr><td style="padding:3px 8px 3px 0;color:{color};font-weight:700;vertical-align:top;">&#9656;</td>'
+            f'<td style="padding:3px 0;font-size:14px;color:#374151;line-height:1.55;">{_esc(p)}</td></tr>'
+            for p in r_punkte)
+        regeln_html += (
+            f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">'
+            f'<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">{_esc(r_titel)}</p>'
+            f'<table cellpadding="0" cellspacing="0" width="100%">{li}</table></div>')
+
     for d in dienstleister_list:
         content = f"""
         <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {d.vorname},</p>
@@ -777,19 +792,14 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             {_info_row('Kunde', event.kunde_firma)}
             {_info_row('Datum', de_date(event.datum))}
             {_info_row('Aktionszeit', f"{event.startzeit} – {event.endzeit} Uhr")}
+            <tr><td style="padding:8px 16px 8px 0;font-size:14px;font-weight:700;color:{color};white-space:nowrap;vertical-align:top;">📍 Ankunft</td><td style="padding:8px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(ankunft_str)}</td></tr>
+            <tr><td style="padding:8px 16px 8px 0;font-size:14px;font-weight:700;color:{color};white-space:nowrap;vertical-align:top;">📍 Treffpunkt</td><td style="padding:8px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(treffpunkt_str)}</td></tr>
             {_info_row('Indoor/Outdoor', event.cl_aufbauort)}
             {_info_row('Parkplatzsituation', event.cl_parkplatz)}
             {_info_row('Teamkleidung', event.cl_teamkleidung)}
+            <tr><td></td><td style="padding:0 0 8px;font-size:13px;color:#6b7280;">Dazu bitte eine zur Familienveranstaltung passende, gepflegte Hose / Rock / Shorts tragen.</td></tr>
             {_info_row('Verpflegung', event.cl_verpflegung)}
             {_info_row('Produkte', event.produkte)}
-          </table>
-        </div>
-
-        <div style="background:#f9fafb;border:2px solid {color};border-radius:8px;padding:18px 22px;margin-bottom:24px;">
-          <p style="margin:0 0 10px;font-size:13px;font-weight:800;color:{color};text-transform:uppercase;letter-spacing:0.04em;">📍 Ankunft &amp; Treffpunkt</p>
-          <table cellpadding="0" cellspacing="0" width="100%">
-            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Ankunft</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(ankunft_str)}</td></tr>
-            <tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">Treffpunkt</td><td style="padding:6px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(treffpunkt_str)}</td></tr>
           </table>
         </div>
 
@@ -814,6 +824,8 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         {"" if not event.hinweise else f'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.04em;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;line-height:1.55;">{_esc(event.hinweise)}</p></div>'}
 
         {"" if not getattr(event, 'cl_weitere_details', None) else f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Weitere Details</p><p style="margin:0;font-size:14px;color:#374151;white-space:pre-line;">{_esc(event.cl_weitere_details)}</p></div>'}
+
+        {regeln_html}
 
         <p style="margin:0 0 8px;font-size:14px;color:#374151;">
           Deine Jobs findest du jederzeit in deinem Portal:

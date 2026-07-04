@@ -1226,8 +1226,12 @@ def _briefing_versenden_async(event_id: int, base_url: str):
         anhaenge = [(d.filename, download_file(d.r2_key)) for d in planung]
         anhaenge = [(fn, data) for fn, data in anhaenge if data]
         externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
+        from notifications import get_setting
+        from choices import BRIEFING_REGELN_DEFAULT
+        regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
         try:
-            send_briefing(dienstleister, ev, base_url, anhaenge or None, externe=externe)
+            send_briefing(dienstleister, ev, base_url, anhaenge or None, externe=externe,
+                          regeln=regeln)
         except Exception as e:
             print(f"[BRIEFING-VERSAND FEHLER] Event {event_id}: {e}")
     finally:
@@ -1265,7 +1269,10 @@ def briefing_pdf_download(event_id: int, db: Session = Depends(get_db), _=Depend
         Verfuegbarkeitsanfrage.status == "Ja").all()
     dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
     externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
-    pdf = build_briefing_pdf(ev, dienstleister, externe)
+    from notifications import get_setting
+    from choices import BRIEFING_REGELN_DEFAULT
+    regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
+    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln)
     fname = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})
@@ -1310,8 +1317,6 @@ def briefing_edit(request: Request, event_id: int,
         "firma_name":            ev.cl_firma_name or ev.kunde_firma or "",
         "strasse":               ev.cl_strasse  or strasse_def.strip(),
         "plz_ort":               ev.cl_plz_ort  or plz_ort_def.strip(),
-        "aufbau_von":  ev.cl_aufbau_von or "",  "aufbau_bis": ev.cl_aufbau_bis or "",
-        "abbau_von":   ev.cl_abbau_von  or "",  "abbau_bis":  ev.cl_abbau_bis  or "",
         "aufbauort":   ev.cl_aufbauort  or (ev.outdoor_indoor or ""),
         "verpflegung": ev.cl_verpflegung or "",
         "teamkleidung": ev.cl_teamkleidung or ("Ja" if ev.teamkleidung else ""),
@@ -1325,8 +1330,6 @@ def briefing_edit_save(
     request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
     ansprechpartner_name: str = Form(""), ansprechpartner_mobil: str = Form(""),
     firma_name: str = Form(""), strasse: str = Form(""), plz_ort: str = Form(""),
-    aufbau_von: str = Form(""), aufbau_bis: str = Form(""),
-    abbau_von: str = Form(""), abbau_bis: str = Form(""),
     aufbauort: list = Form([]), verpflegung: str = Form(""),
     teamkleidung: str = Form(""), parkplatz: str = Form(""),
     weitere_details: str = Form(""),
@@ -1338,10 +1341,8 @@ def briefing_edit_save(
     ev.cl_firma_name            = firma_name
     ev.cl_strasse               = strasse
     ev.cl_plz_ort               = plz_ort
-    ev.cl_aufbau_von            = aufbau_von
-    ev.cl_aufbau_bis            = aufbau_bis
-    ev.cl_abbau_von             = abbau_von
-    ev.cl_abbau_bis             = abbau_bis
+    # Auf-/Abbauzeiten (cl_aufbau_*/cl_abbau_*) bleiben unangetastet – sie gehören der
+    # Kunden-Checkliste; das Briefing nutzt sie nicht mehr.
     ev.cl_aufbauort             = ", ".join(aufbauort)
     ev.cl_verpflegung           = verpflegung
     ev.cl_teamkleidung          = teamkleidung

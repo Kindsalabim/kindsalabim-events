@@ -70,6 +70,9 @@ def test_pdf_anschrift_und_ansprechpartner_und_hinweis():
     ev = briefing_event_ns(cl_ansprechpartner_name="Frau Klar", cl_ansprechpartner_mobil="0177",
                            cl_firma_name="Kita Sonne", cl_strasse="Hauptstr. 5", cl_plz_ort="45127 Essen")
     txt = _pdf_text(ev)
-    assert "VERANSTALTUNGSANSCHRIFT" in txt and "Kita Sonne" in txt and "Hauptstr. 5" in txt
-    assert "ANSPRECHPARTNER VOR ORT" in txt and "Frau Klar" in txt
-    assert "Nur für den Teamleiter" in txt
+    # Karten-Layout (Vorlage „Briefing 2.0"): Boxen heißen jetzt „Veranstaltungsadresse"
+    # und „Ansprechpartner Kunde"; der Teamleiter-Hinweis steht in der Ansprechpartner-Box.
+    assert "Veranstaltungsadresse" in txt and "Kita Sonne" in txt and "Hauptstr. 5" in txt
+    assert "Ansprechpartner Kunde" in txt and "Frau Klar" in txt
+    # (kann im schmalen Karten-Layout umbrechen → Teile einzeln prüfen)
+    assert "NUR über die" in txt and "Teamleitung" in txt

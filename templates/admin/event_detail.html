@@ -532,7 +532,7 @@
               .addTo(map).bindPopup('<b>Veranstaltungsort</b><br>'+(data.ort||''));
             bounds.push(data.event);
           }
-          var SPARTE_ICON = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'};
+          var SPARTE_ICON = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Showact':'🎩','Walkact':'🚶','Sonstiges':'🎭'};
           data.dienstleister.forEach(function(d){
             var icon = SPARTE_ICON[d.sparte];
             var t = '<b>'+d.name+(d.logistiker?' 🚚':'')+'</b><br>'+(d.stadt||'')+' · '+d.rolle;
@@ -569,7 +569,7 @@
       </script>
       {% endif %}
 
-      {% set sparte_icons = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Sonstiges':'🎭'} %}
+      {% set sparte_icons = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Showact':'🎩','Walkact':'🚶','Sonstiges':'🎭'} %}
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen"
             onsubmit="if (this.querySelectorAll('input[name=dienstleister_ids]:checked').length === 0) { alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'); return false; } var b=this.querySelector('button[type=submit]'); setTimeout(function(){ b.disabled=true; b.textContent='Wird gesendet …'; }, 0); return true;">
@@ -588,7 +588,7 @@
         {% if sparten_present %}
         <div class="flex flex-wrap gap-1.5 mb-3">
           <button type="button" onclick="filterSparte(this,'')" class="sparte-chip chip-active">Alle</button>
-          {% for s, icon in [('Kinderschminke','🐱'), ('Ballonkünstler','🎈'), ('Schminke + Ballon','🎈🐱'), ('Sonstiges','🎭')] %}
+          {% for s, icon in [('Kinderschminke','🐱'), ('Ballonkünstler','🎈'), ('Schminke + Ballon','🎈🐱'), ('Showact','🎩'), ('Walkact','🚶'), ('Sonstiges','🎭')] %}
           {% if s in sparten_present or (s in ['Kinderschminke', 'Ballonkünstler'] and kombi_present) %}
           <button type="button" onclick="filterSparte(this,'{{ s }}')" class="sparte-chip">{{ icon }} {{ s }}</button>
           {% endif %}
