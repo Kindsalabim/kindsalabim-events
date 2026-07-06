@@ -77,9 +77,45 @@
   <div class="lg:col-span-2">
     <div class="flex items-center gap-2.5 mb-4">
       <span class="section-head">Bevorstehend</span>
-      <span class="section-count" id="event-count">{{ upcoming|length }}</span>
+      <span class="section-count" id="event-count">{{ upcoming_data|length }}</span>
       <button type="button" id="filter-reset" onclick="clearFilters()" class="hidden ml-auto text-xs font-medium text-gray-500 hover:text-gray-600 transition-colors">✕ Filter zurücksetzen</button>
     </div>
+
+    <!-- Vergangen, aber noch nicht abgeschlossen – eingeklappt, damit die Liste übersichtlich bleibt -->
+    {% if ueberfaellig_data %}
+    <details class="overdue-box mb-4">
+      <summary class="overdue-summary">
+        <span class="overdue-dot"></span>
+        <span class="font-semibold text-sm" style="color:#92400e;">Vergangen, noch offen</span>
+        <span class="overdue-count">{{ ueberfaellig_data|length }}</span>
+        <span class="ml-auto text-xs" style="color:#b45309;">öffnen &amp; abschließen ▾</span>
+      </summary>
+      <div class="space-y-2 mt-3">
+        {% for item in ueberfaellig_data %}
+        {% set ev = item.ev %}
+        {% set overdue = -item.days_until %}
+        <a href="/admin/events/{{ ev.id }}" class="event-card" style="padding:0.75rem 1rem;">
+          <div class="date-badge {% if ev.marke == 'Knallfrosch' %}date-badge-kf{% endif %}" style="width:3rem;height:3rem;border-radius:0.75rem;">
+            <span class="d" style="font-size:1.1rem;">{% if ev.datum %}{{ ev.datum.day }}{% else %}–{% endif %}</span>
+            <span class="m">{{ ev.datum | de_month }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-3 flex-1 min-w-0">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-medium text-sm" style="color:var(--ink-1);">{{ ev.kunde_firma or ev.anlass }}</span>
+                {% if ev.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
+                {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
+                {{ status_badge(ev.status) }}
+              </div>
+              <p class="text-xs mt-0.5" style="color:var(--ink-4);">{{ ev.veranstaltungsort }}{% if ev.anlass %} · {{ ev.anlass }}{% endif %}</p>
+            </div>
+            <span class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap" style="background:#fef3c7;color:#92400e;">vor {{ overdue }} Tag{% if overdue != 1 %}en{% endif %}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
 
     {% if upcoming_data %}
     <div class="space-y-3" id="event-list">
@@ -257,6 +293,16 @@
 <style>
   .filter-card{cursor:pointer;}
   .filter-card.filter-active{outline:2px solid var(--brand-primary);outline-offset:1px;}
+  .overdue-box{border:1px solid #fde68a;border-radius:0.9rem;background:#fffbeb;}
+  .overdue-summary{display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;cursor:pointer;
+    list-style:none;user-select:none;border-radius:0.9rem;}
+  .overdue-summary::-webkit-details-marker{display:none;}
+  .overdue-dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;}
+  .overdue-count{background:#f59e0b;color:#fff;font-size:0.72rem;font-weight:700;
+    min-width:1.35rem;height:1.35rem;padding:0 0.4rem;border-radius:0.7rem;
+    display:inline-flex;align-items:center;justify-content:center;}
+  details.overdue-box[open] .overdue-summary{border-bottom:1px solid #fde68a;border-radius:0.9rem 0.9rem 0 0;}
+  .overdue-box > div{padding:0 0.75rem 0.75rem;}
 </style>
 <script>
 (function(){

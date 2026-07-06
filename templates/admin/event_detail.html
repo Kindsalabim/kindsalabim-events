@@ -182,6 +182,14 @@
         <dt class="text-gray-500 w-28 shrink-0">Ort</dt>
         <dd class="text-gray-800">{{ ev.veranstaltungsort }}</dd>
       </div>
+      {% set vo_name = ev.cl_ansprechpartner_name or ev.vor_ort_name or ev.kunde_kontakt %}
+      {% set vo_tel = ev.cl_ansprechpartner_mobil or ev.vor_ort_telefon or ev.kunde_telefon %}
+      {% if vo_name or vo_tel %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-28 shrink-0">Vor Ort</dt>
+        <dd class="text-gray-800">{{ vo_name or '–' }}{% if vo_tel %} · {{ vo_tel }}{% endif %}</dd>
+      </div>
+      {% endif %}
       <div class="flex gap-3">
         <dt class="text-gray-500 w-28 shrink-0">Ankunft</dt>
         <dd class="text-gray-800 font-medium">{{ ankunft_anzeige(ev) }} <span class="text-gray-400 font-normal">· Treffpunkt: {{ treffpunkt_anzeige(ev) }}</span></dd>
@@ -245,9 +253,15 @@
         <dt class="text-gray-500 w-28 shrink-0">Firma</dt>
         <dd class="text-gray-900 font-medium">{{ ev.kunde_firma }}</dd>
       </div>
+      {% if ev.kunde_adresse %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-28 shrink-0">Firmenadresse</dt>
+        <dd class="text-gray-800">{{ ev.kunde_adresse }}</dd>
+      </div>
+      {% endif %}
       <div class="flex gap-3">
         <dt class="text-gray-500 w-28 shrink-0">Kontakt</dt>
-        <dd class="text-gray-800">{{ ev.kunde_kontakt or '–' }}</dd>
+        <dd class="text-gray-800">{{ ev.kunde_kontakt or '–' }} <span class="text-gray-400 text-xs">(Buchung)</span></dd>
       </div>
       <div class="flex gap-3">
         <dt class="text-gray-500 w-28 shrink-0">Telefon</dt>

@@ -130,8 +130,20 @@
       </tr>
     </thead>
     <tbody>
+      {% set ns = namespace(monat=None) %}
       {% for row in rows %}
       {% set r = row.r %}
+      {% if row.monat != ns.monat %}{% set ns.monat = row.monat %}
+      <!-- Dezenter Monats-Hint (kleiner Akzentbalken + Monatsname) -->
+      <tr class="month-row">
+        <td colspan="15" style="padding:0.5rem 0.75rem;background:var(--bg);">
+          <span style="display:inline-flex;align-items:center;gap:0.45rem;">
+            <span style="width:3px;height:13px;border-radius:2px;background:var(--brand-primary);opacity:0.45;display:inline-block;"></span>
+            <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--ink-4);">{{ row.monat }}</span>
+          </span>
+        </td>
+      </tr>
+      {% endif %}
       <tr class="border-b border-gray-50 hover:bg-gray-50 transition {% if r.bezahlt %}opacity-60{% endif %}">
         <td class="px-3 py-2.5 text-xs" style="color:var(--ink-4);">{{ loop.index }}</td>
         <td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ r.datum | de_date }}</td>

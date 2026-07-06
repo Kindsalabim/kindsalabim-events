@@ -158,8 +158,11 @@ def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id, stat
     return Event(
         anlass=base_ev.anlass, datum=datum, startzeit=startzeit, endzeit=endzeit,
         veranstaltungsort=base_ev.veranstaltungsort, kunde_firma=base_ev.kunde_firma,
+        kunde_adresse=base_ev.kunde_adresse,
         kunde_kontakt=base_ev.kunde_kontakt, kunde_telefon=base_ev.kunde_telefon,
-        kunde_email=base_ev.kunde_email, produkte=base_ev.produkte,
+        kunde_email=base_ev.kunde_email,
+        vor_ort_name=base_ev.vor_ort_name, vor_ort_telefon=base_ev.vor_ort_telefon,
+        produkte=base_ev.produkte,
         anzahl_teamer=base_ev.anzahl_teamer, anzahl_kuenstler=base_ev.anzahl_kuenstler,
         hinweise=base_ev.hinweise, material_mitnahme=base_ev.material_mitnahme,
         marke=base_ev.marke, status=status or base_ev.status, kunde_id=base_ev.kunde_id,
@@ -349,6 +352,11 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
                               "days_until": days_until, "pending": pending,
                               "checkliste_offen": checkliste_offen, "urgent": urgent})
 
+    # Vergangene, aber noch nicht abgeschlossene Events aus der Hauptliste ausgruppieren
+    # (sie machen sie sonst unübersichtlich) → eigene eingeklappte Gruppe oben im Dashboard.
+    ueberfaellig_data = [d for d in upcoming_data if d["days_until"] < 0]
+    upcoming_data     = [d for d in upcoming_data if d["days_until"] >= 0]
+
     reservierungen_count = db.query(Reservierung).count()
     dringend_count = sum(1 for d in upcoming_data if d["urgent"])
 
@@ -391,6 +399,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 
     return templates.TemplateResponse("admin/dashboard.html",
         tpl_context(request, upcoming_data=upcoming_data, upcoming=upcoming,
+                    ueberfaellig_data=ueberfaellig_data,
                     past=past, kalender=kalender,
                     reservierungen_count=reservierungen_count,
                     offene_rueckmeldungen=offene_rueckmeldungen,
@@ -536,7 +545,8 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
                      marke, status, event_id=None, serien_id=None,
                      checkliste_uebersprungen=False, zaubershow_event=False,
                      material_info="", transporter_angeboten=False,
-                     ankunft_modus="auto", ankunft_text="", treffpunkt=""):
+                     ankunft_modus="auto", ankunft_text="", treffpunkt="",
+                     kunde_adresse="", vor_ort_name="", vor_ort_telefon=""):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -549,8 +559,9 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
     return SimpleNamespace(
         id=event_id, serien_id=serien_id, anlass=anlass, datum=d,
         startzeit=startzeit, endzeit=endzeit, veranstaltungsort=veranstaltungsort,
-        kunde_firma=kunde_firma, kunde_kontakt=kunde_kontakt,
+        kunde_firma=kunde_firma, kunde_adresse=kunde_adresse, kunde_kontakt=kunde_kontakt,
         kunde_telefon=kunde_telefon, kunde_email=kunde_email,
+        vor_ort_name=vor_ort_name, vor_ort_telefon=vor_ort_telefon,
         produkte=", ".join(produkte), anzahl_teamer=anzahl_teamer,
         anzahl_kuenstler=anzahl_kuenstler, hinweise=hinweise,
         material_mitnahme=material_mitnahme, marke=marke, status=status,
@@ -567,9 +578,11 @@ def event_create(
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
     startzeit: str = Form(...), endzeit: str = Form(""),
-    veranstaltungsort: str = Form(""),
-    kunde_firma: str = Form(""), kunde_kontakt: str = Form(""),
+    veranstaltungsort: str = Form(""), ort_abweichend: bool = Form(False),
+    kunde_firma: str = Form(""), kunde_adresse: str = Form(""),
+    kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
+    vor_ort_name: str = Form(""), vor_ort_telefon: str = Form(""),
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
@@ -583,6 +596,9 @@ def event_create(
     extra_endzeit: list = Form([]),
 ):
     material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
+    # Veranstaltungsort = Firmenadresse, außer der Admin hat „andere Adresse" gewählt
+    if not ort_abweichend:
+        veranstaltungsort = (kunde_adresse or "").strip()
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event, abgesagt=(status == "Abgesagt"))
     extra_tage, extra_fehler = _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, startzeit, endzeit)
     fehler = fehler or extra_fehler
@@ -594,15 +610,20 @@ def event_create(
                                 marke, status, checkliste_uebersprungen=checkliste_uebersprungen,
                                 zaubershow_event=zaubershow_event,
                                 material_info=material_info, transporter_angeboten=transporter_angeboten,
-                                ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt)
+                                ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
+                                kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
+                                vor_ort_telefon=vor_ort_telefon)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
     ev = Event(
         anlass=anlass, datum=datum_d, startzeit=startzeit, endzeit=endzeit,
         veranstaltungsort=veranstaltungsort, kunde_firma=kunde_firma,
+        kunde_adresse=kunde_adresse.strip() or None,
         kunde_kontakt=kunde_kontakt, kunde_telefon=kunde_telefon,
-        kunde_email=kunde_email, produkte=", ".join(produkte),
+        kunde_email=kunde_email,
+        vor_ort_name=vor_ort_name.strip() or None, vor_ort_telefon=vor_ort_telefon.strip() or None,
+        produkte=", ".join(produkte),
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
         material_info=material_info, transporter_angeboten=transporter_angeboten,
@@ -851,9 +872,11 @@ def event_update(
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     anlass: str = Form(...), datum: str = Form(...),
     startzeit: str = Form(...), endzeit: str = Form(""),
-    veranstaltungsort: str = Form(""),
-    kunde_firma: str = Form(""), kunde_kontakt: str = Form(""),
+    veranstaltungsort: str = Form(""), ort_abweichend: bool = Form(False),
+    kunde_firma: str = Form(""), kunde_adresse: str = Form(""),
+    kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
+    vor_ort_name: str = Form(""), vor_ort_telefon: str = Form(""),
     produkte: list = Form([]),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
@@ -870,6 +893,8 @@ def event_update(
     if event_gesperrt(ev, entsperrt):
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
+    if not ort_abweichend:
+        veranstaltungsort = (kunde_adresse or "").strip()
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event, abgesagt=(status == "Abgesagt"))
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
@@ -882,7 +907,9 @@ def event_update(
                                 checkliste_uebersprungen=checkliste_uebersprungen,
                                 zaubershow_event=zaubershow_event,
                                 material_info=material_info, transporter_angeboten=transporter_angeboten,
-                                ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt)
+                                ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
+                                kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
+                                vor_ort_telefon=vor_ort_telefon)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -890,8 +917,11 @@ def event_update(
     ev.datum = datum_d
     ev.anlass = anlass; ev.startzeit = startzeit
     ev.endzeit = endzeit; ev.veranstaltungsort = veranstaltungsort
-    ev.kunde_firma = kunde_firma; ev.kunde_kontakt = kunde_kontakt
+    ev.kunde_firma = kunde_firma; ev.kunde_adresse = kunde_adresse.strip() or None
+    ev.kunde_kontakt = kunde_kontakt
     ev.kunde_telefon = kunde_telefon; ev.kunde_email = kunde_email
+    ev.vor_ort_name = vor_ort_name.strip() or None
+    ev.vor_ort_telefon = vor_ort_telefon.strip() or None
     ev.produkte = ", ".join(produkte); ev.anzahl_teamer = anzahl_teamer
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
@@ -918,8 +948,10 @@ def event_update(
         geschwister = db.query(Event).filter(
             Event.serien_id == ev.serien_id, Event.id != ev.id).all()
         for g in geschwister:
-            g.kunde_firma = ev.kunde_firma; g.kunde_kontakt = ev.kunde_kontakt
+            g.kunde_firma = ev.kunde_firma; g.kunde_adresse = ev.kunde_adresse
+            g.kunde_kontakt = ev.kunde_kontakt
             g.kunde_telefon = ev.kunde_telefon; g.kunde_email = ev.kunde_email
+            g.vor_ort_name = ev.vor_ort_name; g.vor_ort_telefon = ev.vor_ort_telefon
             g.veranstaltungsort = ev.veranstaltungsort
             g.anlass = ev.anlass; g.marke = ev.marke; g.kunde_id = ev.kunde_id
             geschwister_sync.append(g.id)
@@ -1312,8 +1344,8 @@ def briefing_edit(request: Request, event_id: int,
     ort = (ev.veranstaltungsort or "").strip()
     strasse_def, plz_ort_def = (ort.split(",", 1) + [""])[:2] if "," in ort else (ort, "")
     vor = {
-        "ansprechpartner_name":  ev.cl_ansprechpartner_name  or ev.kunde_kontakt or "",
-        "ansprechpartner_mobil": ev.cl_ansprechpartner_mobil or ev.kunde_telefon or "",
+        "ansprechpartner_name":  ev.cl_ansprechpartner_name  or ev.vor_ort_name or ev.kunde_kontakt or "",
+        "ansprechpartner_mobil": ev.cl_ansprechpartner_mobil or ev.vor_ort_telefon or ev.kunde_telefon or "",
         "firma_name":            ev.cl_firma_name or ev.kunde_firma or "",
         "strasse":               ev.cl_strasse  or strasse_def.strip(),
         "plz_ort":               ev.cl_plz_ort  or plz_ort_def.strip(),

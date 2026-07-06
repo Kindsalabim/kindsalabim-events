@@ -21,6 +21,14 @@ def tpl_context(request, **kw):
     return {"request": request, "cfg": get_config(), **kw}
 
 
+_MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni",
+           "Juli", "August", "September", "Oktober", "November", "Dezember"]
+
+
+def _monat_label(d) -> str:
+    return f"{_MONATE[d.month - 1]} {d.year}" if d else "Ohne Datum"
+
+
 def parse_float(s: str) -> float:
     try:
         return float(str(s).replace(",", ".").strip()) if str(s).strip() else 0.0
@@ -61,7 +69,7 @@ def buchhaltung_list(request: Request, jahr: int = 0,
         .all()
     )
 
-    rows = [{"r": r, **compute(r)} for r in rechnungen]
+    rows = [{"r": r, "monat": _monat_label(r.datum), **compute(r)} for r in rechnungen]
 
     totals = {
         "brutto":  round(sum(r.brutto or 0 for r in rechnungen), 2),

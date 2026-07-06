@@ -103,8 +103,9 @@ def test_pdf_rechnung_und_sparte_und_tl_zuerst():
     team = [_dl(1, "Anna", "Erste", sparte="Kinderschminke"), _dl(2, "Bernd", "Leiter")]
     pdf = build_briefing_pdf(_ev(marke="Knallfrosch", teamleiter_id=2), team)
     txt = _pdf_text(pdf)
-    assert "Rechnung per Mail an" in txt               # Fußzeile
+    assert "Rechnung senden an" in txt                 # eigener Bereich (Karte)
     assert "Malca & Akmanoglu GbR" in txt              # Rechnungsanschrift je Marke
+    assert "personal@knallfrosch-kinderevents.de" in txt   # Rechnungs-Mail je Marke
     assert "(Kinderschminken)" in txt
     assert txt.index("Bernd Leiter") < txt.index("Anna Erste")   # Teamleitung zuerst
 

@@ -758,9 +758,13 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     anschrift_rows = (_info_row("Firma / Name", an_firma)
                       + (_info_row("Straße", an_strasse) if an_strasse else "")
                       + _info_row("PLZ / Ort", an_plz_ort))
-    # Ansprechpartner vor Ort (Checkliste bevorzugt)
-    ap_name = (_no_none(getattr(event, "cl_ansprechpartner_name", "")) or _no_none(event.kunde_kontakt)).strip()
-    ap_tel = (_no_none(getattr(event, "cl_ansprechpartner_mobil", "")) or _no_none(event.kunde_telefon)).strip()
+    # Ansprechpartner vor Ort: Checkliste (Kunde) → Vor-Ort-Felder (Admin) → alter Buchungskontakt
+    ap_name = (_no_none(getattr(event, "cl_ansprechpartner_name", ""))
+               or _no_none(getattr(event, "vor_ort_name", ""))
+               or _no_none(event.kunde_kontakt)).strip()
+    ap_tel = (_no_none(getattr(event, "cl_ansprechpartner_mobil", ""))
+              or _no_none(getattr(event, "vor_ort_telefon", ""))
+              or _no_none(event.kunde_telefon)).strip()
     # Ankunft & Treffpunkt (Vorlauf aus den Aktionen / überschrieben)
     import ankunft as _ankunft
     ankunft_str = _ankunft.ankunft_anzeige(event)

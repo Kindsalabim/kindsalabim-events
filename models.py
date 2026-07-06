@@ -12,9 +12,14 @@ class Event(Base):
     endzeit = Column(String, nullable=False)
     veranstaltungsort = Column(Text, nullable=False)
     kunde_firma = Column(String, nullable=False)
-    kunde_kontakt = Column(String)
+    kunde_adresse = Column(Text)                 # Firmenadresse des Kunden (intern, NICHT im Briefing)
+    kunde_kontakt = Column(String)               # Buchungs-/E-Mail-Kontakt beim Kunden (intern)
     kunde_telefon = Column(String)
     kunde_email = Column(String)
+    # Ansprechpartner vor Ort (fürs Team-Briefing) – kann vom Buchungskontakt abweichen.
+    # Briefing-Priorität: Checkliste (cl_ansprechpartner_*) → vor_ort_* → alter kunde_kontakt.
+    vor_ort_name = Column(String)
+    vor_ort_telefon = Column(String)
     produkte = Column(Text)                      # kommagetrennt
     anzahl_teamer = Column(Integer, default=0)
     anzahl_kuenstler = Column(Integer, default=0)

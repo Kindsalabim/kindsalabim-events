@@ -160,6 +160,8 @@ class _Seite:
         self.col_y = [start, start]
 
     def _fuss(self):
+        # Dezente Kopfzeile: Firmenname links (Briefkopf), Seitenzahl rechts. Die volle
+        # Rechnungsanschrift steht als eigener Bereich „Rechnung senden an" (nicht mehr nur hier).
         c = self.c
         ra = rechnung_anschrift(self.ev.marke)
         c.setStrokeColorRGB(*RAND)
@@ -167,16 +169,8 @@ class _Seite:
         c.line(self.marge, self.fuss_h - 4 * mm, self.W - self.marge, self.fuss_h - 4 * mm)
         c.setFont("Helvetica", 7.5)
         c.setFillColorRGB(*GRAU)
-        y = self.fuss_h - 8 * mm
-        for zeile in ra["zeilen"]:
-            c.drawString(self.marge, y, zeile)
-            y -= 3.4 * mm
-        c.setFont("Helvetica-Bold", 7.5)
-        c.drawRightString(self.W - self.marge, self.fuss_h - 8 * mm, "Rechnung per Mail an:")
-        c.setFont("Helvetica", 7.5)
-        c.drawRightString(self.W - self.marge, self.fuss_h - 11.4 * mm, ra["mail"])
-        c.setFont("Helvetica", 7.5)
-        c.drawCentredString(self.W / 2, self.fuss_h - 11.4 * mm, f"Seite {c.getPageNumber()}")
+        c.drawString(self.marge, self.fuss_h - 8 * mm, ra["zeilen"][1])
+        c.drawRightString(self.W - self.marge, self.fuss_h - 8 * mm, f"Seite {c.getPageNumber()}")
 
     def neue_seite(self, titel):
         self.titel = titel
@@ -317,8 +311,10 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None) -> bytes:
         ],
     }
 
-    ap_name = (_clean(getattr(ev, "cl_ansprechpartner_name", "")) or _clean(ev.kunde_kontakt))
-    ap_tel = (_clean(getattr(ev, "cl_ansprechpartner_mobil", "")) or _clean(ev.kunde_telefon))
+    ap_name = (_clean(getattr(ev, "cl_ansprechpartner_name", ""))
+               or _clean(getattr(ev, "vor_ort_name", "")) or _clean(ev.kunde_kontakt))
+    ap_tel = (_clean(getattr(ev, "cl_ansprechpartner_mobil", ""))
+              or _clean(getattr(ev, "vor_ort_telefon", "")) or _clean(ev.kunde_telefon))
     ansprechpartner = {
         "titel": "Ansprechpartner Kunde", "icon": "nachricht",
         "zeilen": [
@@ -376,8 +372,14 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None) -> bytes:
     besonderes_text = "\n\n".join(t for t in (
         _clean(ev.hinweise).strip(),
         _clean(getattr(ev, "cl_weitere_details", "")).strip()) if t)
-    besonderes = ({"titel": "Besonderes", "icon": "dokument",
+    besonderes = ({"titel": "Besonderes", "icon": "kids_corner",
                    "zeilen": [("text", besonderes_text)]} if besonderes_text else None)
+
+    # Rechnungsanschrift je Marke – eigener Bereich (früher nur in der Fußzeile)
+    ra = rechnung_anschrift(ev.marke)
+    rechnung = {"titel": "Rechnung senden an", "icon": "dokument",
+                "zeilen": [("text", "\n".join(ra["zeilen"])),
+                           ("kv", "Per Mail an", ra["mail"], False)]}
 
     # ── Zeichnen: links dann rechts (Lesereihenfolge der Textextraktion bleibt so) ──
     for k in (datum_zeit, ansprechpartner, team, aktionen):
@@ -385,6 +387,8 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None) -> bytes:
     for k in (adresse, standort, rahmen, besonderes):
         if k:
             seite.karte(1, k)
+    # Rechnung als voll­breiter Bereich unten (klar sichtbar, je Marke eigene Adresse)
+    seite.karte(0, rechnung, voll=True)
     seite.seite_abschliessen()
 
     # ── Seite „Allgemeines": Regeln-Boxen (nur wenn Regeln gepflegt) ──────────────
