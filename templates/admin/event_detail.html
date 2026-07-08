@@ -902,18 +902,19 @@
     </div>
 
     <!-- Rechnung -->
+    {% set serie_n = serie_events|length if serie_events else 0 %}
     <div>
-      <p class="text-xs text-gray-500 mb-2">Rechnung</p>
+      <p class="text-xs text-gray-500 mb-2">Rechnung{% if serie_n > 1 %} <span class="text-gray-400">· gilt für alle {{ serie_n }} Termine der Serie</span>{% endif %}</p>
       {% if ev.rechnung_gestellt %}
         <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ Rechnung gestellt</span>
         <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
           <input type="hidden" name="gestellt" value="0">
-          <button class="text-xs text-gray-500 hover:text-gray-600 ml-2 underline">rückgängig</button>
+          <button class="text-xs text-gray-500 hover:text-gray-600 ml-2 underline">rückgängig{% if serie_n > 1 %} (alle Termine){% endif %}</button>
         </form>
       {% else %}
         <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
           <input type="hidden" name="gestellt" value="1">
-          <button class="btn-secondary text-xs px-3 py-1">Als gestellt markieren</button>
+          <button class="btn-secondary text-xs px-3 py-1">Als gestellt markieren{% if serie_n > 1 %} (alle {{ serie_n }} Termine){% endif %}</button>
         </form>
       {% endif %}
     </div>

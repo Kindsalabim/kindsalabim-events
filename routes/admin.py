@@ -954,6 +954,9 @@ def event_update(
             g.vor_ort_name = ev.vor_ort_name; g.vor_ort_telefon = ev.vor_ort_telefon
             g.veranstaltungsort = ev.veranstaltungsort
             g.anlass = ev.anlass; g.marke = ev.marke; g.kunde_id = ev.kunde_id
+            # Zaubershow-Kennzeichen gilt für die ganze Buchung – mit übernehmen (sonst
+            # müsste man es pro Termintag einzeln setzen). Der Status bleibt pro Tag.
+            g.zaubershow_event = ev.zaubershow_event
             geschwister_sync.append(g.id)
         db.commit()
     import calendar_service
@@ -1161,9 +1164,17 @@ def toggle_rechnung_gestellt(
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
-    ev.rechnung_gestellt = (gestellt == "1")
+    wert = (gestellt == "1")
+    # Die Rechnung gehört zur ganzen Buchung: bei einer Serie für ALLE Termintage setzen,
+    # damit man nicht pro Tag klicken muss. auto_status schließt danach jeden Tag ab, sobald
+    # DESSEN Bedingungen erfüllt sind (reine Zaubershow sofort, sonst weiter erst mit Bericht).
+    ziel = (db.query(Event).filter(Event.serien_id == ev.serien_id).all()
+            if ev.serien_id else [ev])
+    for e in ziel:
+        e.rechnung_gestellt = wert
     db.commit()
-    ev.status = auto_status(ev, db)
+    for e in ziel:
+        e.status = auto_status(e, db)
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
