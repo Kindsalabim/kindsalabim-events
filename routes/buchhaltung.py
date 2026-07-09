@@ -65,11 +65,27 @@ def buchhaltung_list(request: Request, jahr: int = 0,
         db.query(Rechnung)
         .filter(Rechnung.datum >= date(jahr, 1, 1),
                 Rechnung.datum <= date(jahr, 12, 31))
-        .order_by(Rechnung.datum)
         .all()
     )
 
-    rows = [{"r": r, "monat": _monat_label(r.datum), **compute(r)} for r in rechnungen]
+    # Nach Monat gruppieren (neuester Monat zuerst), innerhalb nach Rechnungsnummer
+    # absteigend (zuletzt gestellte oben). Je Monat: Anzahl offener Rechnungen + Summe.
+    from itertools import groupby
+
+    def _ym(r):
+        return (r.datum.year, r.datum.month) if r.datum else (0, 0)
+
+    sortiert = sorted(rechnungen, key=lambda r: (_ym(r), r.rgnr or ""), reverse=True)
+    monatsgruppen = []
+    for _, grp in groupby(sortiert, key=_ym):
+        grp = list(grp)
+        offen = [r for r in grp if not r.bezahlt]
+        monatsgruppen.append({
+            "label": _monat_label(grp[0].datum),
+            "rows": [{"r": r, **compute(r)} for r in grp],
+            "offen_count": len(offen),
+            "offen_summe": round(sum(r.brutto or 0 for r in offen), 2),
+        })
 
     totals = {
         "brutto":  round(sum(r.brutto or 0 for r in rechnungen), 2),
@@ -87,8 +103,8 @@ def buchhaltung_list(request: Request, jahr: int = 0,
 
     today_iso = date.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("admin/buchhaltung.html", tpl_context(
-        request, rows=rows, jahr=jahr, jahre=jahre, totals=totals,
-        today=today_iso,
+        request, monatsgruppen=monatsgruppen, anzahl=len(rechnungen),
+        jahr=jahr, jahre=jahre, totals=totals, today=today_iso,
     ))
 
 

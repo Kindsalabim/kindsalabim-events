@@ -34,7 +34,7 @@
 
       <div>
         <label class="block text-sm font-semibold mb-1.5" style="color:var(--ink-2);">Brutto (€)</label>
-        <input type="text" name="brutto" value="{{ '%.2f' % (r.brutto or 0) | replace('.', ',') }}"
+        <input type="text" name="brutto" value="{{ '%.2f'|format(r.brutto or 0)|replace('.', ',') }}"
                class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
       </div>
 
@@ -42,13 +42,13 @@
 
       <div>
         <label class="block text-sm font-semibold mb-1.5" style="color:var(--ink-2);">Personalkosten (€)</label>
-        <input type="text" name="personalkosten" value="{{ '%.2f' % (r.personalkosten or 0) | replace('.', ',') }}"
+        <input type="text" name="personalkosten" value="{{ '%.2f'|format(r.personalkosten or 0)|replace('.', ',') }}"
                class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
       </div>
 
       <div>
         <label class="block text-sm font-semibold mb-1.5" style="color:var(--ink-2);">Materialkosten (€)</label>
-        <input type="text" name="materialkosten" value="{{ '%.2f' % (r.materialkosten or 0) | replace('.', ',') }}"
+        <input type="text" name="materialkosten" value="{{ '%.2f'|format(r.materialkosten or 0)|replace('.', ',') }}"
                class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
       </div>
 

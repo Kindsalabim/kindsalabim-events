@@ -1,7 +1,15 @@
 {% extends "admin_base.html" %}
 {% set active = 'buchhaltung' %}
 {% block title %}Buchhaltung {{ jahr }} – {{ cfg.app_name }}{% endblock %}
+{% block content_width %}max-w-none{% endblock %}
 {% block content %}
+
+<style>
+  /* Kunden-Spalte bleibt beim horizontalen Scrollen sichtbar */
+  .bh-table td.kunde, .bh-table th.kunde { position: sticky; left: 0; background: #fff; z-index: 1; }
+  .bh-table tr:hover td.kunde { background: #f9fafb; }
+  .bh-sum::-webkit-details-marker { display: none; }
+</style>
 
 <!-- ── Header ── -->
 <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
@@ -16,6 +24,11 @@
       </svg>
       CSV
     </a>
+    <button type="button" onclick="document.getElementById('neu-form').classList.toggle('hidden'); if(!document.getElementById('neu-form').classList.contains('hidden')){document.querySelector('#neu-form input[name=kunde]').focus();}"
+            class="btn-primary flex items-center gap-1.5">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Neue Rechnung
+    </button>
   </div>
 </div>
 
@@ -56,15 +69,10 @@
   </div>
 </div>
 
-<!-- ── Neue Rechnung ── -->
-<details class="card mb-6">
-  <summary class="p-4 flex items-center gap-2 cursor-pointer select-none font-semibold text-sm" style="color:var(--ink-1);">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-    </svg>
-    Neue Rechnung eintragen
-  </summary>
-  <form method="post" action="/admin/buchhaltung/neu" class="px-4 pb-4 pt-2 border-t border-gray-100">
+<!-- ── Neue Rechnung (per Button eingeblendet) ── -->
+<div id="neu-form" class="card p-5 mb-6 hidden">
+  <h2 class="text-sm font-semibold text-gray-700 mb-3">Neue Rechnung eintragen</h2>
+  <form method="post" action="/admin/buchhaltung/neu">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
       <div>
         <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Datum *</label>
@@ -104,145 +112,136 @@
     </div>
     <button type="submit" class="btn-primary">Rechnung speichern</button>
   </form>
-</details>
+</div>
 
-<!-- ── Rechnungsliste ── -->
-{% if rows %}
-<div class="card overflow-x-auto">
-  <table class="w-full text-sm" style="min-width:1000px;">
-    <thead>
-      <tr style="border-bottom:2px solid var(--line);">
-        <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">#</th>
-        <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">Datum</th>
-        <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">Kunde</th>
-        <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">Rgnr</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Brutto</th>
-        <th class="px-3 py-2.5 text-center text-xs font-semibold" style="color:var(--ink-4);">Bezahlt</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Pers.K.</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Mat.K.</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">MwSt.</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Netto</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Gewinn</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--c-amber);">Steuer 40%</th>
-        <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--c-sky);">Invest 10%</th>
-        <th class="px-3 py-2.5 text-center text-xs font-semibold" style="color:var(--ink-4);" title="Steuerrücklage überwiesen?">Rückl.</th>
-        <th class="px-3 py-2.5"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% set ns = namespace(monat=None) %}
-      {% for row in rows %}
-      {% set r = row.r %}
-      {% if row.monat != ns.monat %}{% set ns.monat = row.monat %}
-      <!-- Dezenter Monats-Hint (kleiner Akzentbalken + Monatsname) -->
-      <tr class="month-row">
-        <td colspan="15" style="padding:0.5rem 0.75rem;background:var(--bg);">
-          <span style="display:inline-flex;align-items:center;gap:0.45rem;">
-            <span style="width:3px;height:13px;border-radius:2px;background:var(--brand-primary);opacity:0.45;display:inline-block;"></span>
-            <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--ink-4);">{{ row.monat }}</span>
-          </span>
-        </td>
-      </tr>
-      {% endif %}
-      <tr class="border-b border-gray-50 hover:bg-gray-50 transition {% if r.bezahlt %}opacity-60{% endif %}">
-        <td class="px-3 py-2.5 text-xs" style="color:var(--ink-4);">{{ loop.index }}</td>
-        <td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ r.datum | de_date }}</td>
-        <td class="px-3 py-2.5 font-medium" style="color:var(--ink-1);">{{ r.kunde or "–" }}</td>
-        <td class="px-3 py-2.5 text-xs font-mono" style="color:var(--ink-3);">{{ r.rgnr or "–" }}</td>
-        <td class="px-3 py-2.5 text-right font-semibold whitespace-nowrap" style="color:var(--ink-1);">{{ (r.brutto or 0) | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-center">
-          <form method="post" action="/admin/buchhaltung/{{ r.id }}/bezahlt">
-            <button type="submit" title="{{ 'Bezahlt – klicken zum Rückgängig machen' if r.bezahlt else 'Als bezahlt markieren' }}"
-                    class="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition"
-                    style="background:{% if r.bezahlt %}var(--c-green-bg){% else %}#f3f4f6{% endif %};
-                           color:{% if r.bezahlt %}var(--c-green){% else %}var(--ink-4){% endif %};">
-              {% if r.bezahlt %}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-              {% else %}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
-              {% endif %}
-            </button>
-          </form>
-        </td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ (r.personalkosten or 0) | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ (r.materialkosten or 0) | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ row.mwst | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-2);">{{ row.netto | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs font-semibold whitespace-nowrap"
-            style="color:{% if row.nettogewinn >= 0 %}var(--c-green){% else %}var(--c-coral){% endif %};">
-          {{ row.nettogewinn | de_euro }} €
-        </td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
-            style="color:var(--c-amber);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
-          {{ row.steuer | de_euro }} €
-        </td>
-        <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
-            style="color:var(--c-sky);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
-          {{ row.invest | de_euro }} €
-        </td>
-        <td class="px-3 py-2.5 text-center">
-          <form method="post" action="/admin/buchhaltung/{{ r.id }}/steuer">
-            <button type="submit"
-                    title="{{ 'Rücklage erledigt – klicken zum Rückgängig' if r.steuer_erledigt else 'Rücklage als überwiesen markieren' }}"
-                    class="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition"
-                    style="background:{% if r.steuer_erledigt %}var(--c-green-bg){% else %}#f3f4f6{% endif %};
-                           color:{% if r.steuer_erledigt %}var(--c-green){% else %}var(--ink-4){% endif %};">
-              {% if r.steuer_erledigt %}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-              {% else %}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
-              {% endif %}
-            </button>
-          </form>
-        </td>
-        <td class="px-3 py-2.5">
-          <div class="flex items-center gap-1 justify-end">
-            <a href="/admin/buchhaltung/{{ r.id }}/edit"
-               class="p-1.5 rounded-lg hover:bg-gray-100 transition" title="Bearbeiten" style="color:var(--ink-3);">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </a>
-            <form method="post" action="/admin/buchhaltung/{{ r.id }}/loeschen"
-                  onsubmit="return confirm('Rechnung wirklich löschen?')">
-              <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 transition" title="Löschen" style="color:var(--c-coral);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                </svg>
+<!-- ── Rechnungen nach Monat (neueste zuerst, aufklappbar) ── -->
+{% if monatsgruppen %}
+{% for g in monatsgruppen %}
+<details class="card mb-3 overflow-hidden" {% if loop.first %}open{% endif %}>
+  <summary class="bh-sum flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none list-none">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" stroke-width="2.5" stroke-linecap="round" class="bh-chevron"><polyline points="6 9 12 15 18 9"/></svg>
+    <span class="font-semibold" style="color:var(--ink-1);">{{ g.label }}</span>
+    <span class="text-xs" style="color:var(--ink-4);">· {{ g.rows|length }} Rechnung{% if g.rows|length != 1 %}en{% endif %}</span>
+    {% if g.offen_count %}
+    <span class="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap" style="background:#fef3c7;color:#92400e;">{{ g.offen_count }} offen · {{ g.offen_summe | de_euro }} €</span>
+    {% else %}
+    <span class="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap" style="background:var(--c-green-bg);color:var(--c-green);">✓ alles bezahlt</span>
+    {% endif %}
+  </summary>
+
+  <div class="overflow-x-auto" style="border-top:1px solid var(--line);">
+    <table class="bh-table w-full text-sm">
+      <thead>
+        <tr style="border-bottom:2px solid var(--line);">
+          <th class="kunde px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">Kunde</th>
+          <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">Rgnr</th>
+          <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">Datum</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Brutto</th>
+          <th class="px-3 py-2.5 text-center text-xs font-semibold" style="color:var(--ink-4);">Bezahlt</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Pers.K.</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Mat.K.</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">MwSt.</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Netto</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Gewinn</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--c-amber);">Steuer 40%</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--c-sky);">Invest 10%</th>
+          <th class="px-3 py-2.5 text-center text-xs font-semibold" style="color:var(--ink-4);" title="Steuerrücklage überwiesen?">Rückl.</th>
+          <th class="px-3 py-2.5"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in g.rows %}
+        {% set r = row.r %}
+        <tr class="border-b border-gray-50 hover:bg-gray-50 transition {% if r.bezahlt %}opacity-60{% endif %}">
+          <td class="kunde px-3 py-2.5 font-medium whitespace-nowrap" style="color:var(--ink-1);">{{ r.kunde or "–" }}</td>
+          <td class="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style="color:var(--ink-3);">{{ r.rgnr or "–" }}</td>
+          <td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ r.datum | de_date }}</td>
+          <td class="px-3 py-2.5 text-right font-semibold whitespace-nowrap" style="color:var(--ink-1);">{{ (r.brutto or 0) | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-center">
+            <form method="post" action="/admin/buchhaltung/{{ r.id }}/bezahlt">
+              <button type="submit" title="{{ 'Bezahlt – klicken zum Rückgängig machen' if r.bezahlt else 'Als bezahlt markieren' }}"
+                      class="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition"
+                      style="background:{% if r.bezahlt %}var(--c-green-bg){% else %}#f3f4f6{% endif %};
+                             color:{% if r.bezahlt %}var(--c-green){% else %}var(--ink-4){% endif %};">
+                {% if r.bezahlt %}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                {% else %}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+                {% endif %}
               </button>
             </form>
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <!-- Summenzeile -->
-    <tfoot>
-      <tr style="border-top:2px solid var(--line);background:var(--bg);">
-        <td colspan="4" class="px-3 py-2.5 text-xs font-bold" style="color:var(--ink-2);">Gesamt ({{ rows|length }} Rechnungen)</td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--ink-1);">{{ totals.brutto | de_euro }} €</td>
-        <td></td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--ink-3);">{{ totals.pk | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--ink-3);">{{ totals.mk | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--ink-3);">{{ totals.mwst | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--ink-2);">{{ totals.netto | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--c-green);">{{ totals.gewinn | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--c-amber);">{{ totals.steuer | de_euro }} €</td>
-        <td class="px-3 py-2.5 text-right text-xs font-bold whitespace-nowrap" style="color:var(--c-sky);">{{ totals.invest | de_euro }} €</td>
-        <td></td>
-        <td></td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
+          </td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ (r.personalkosten or 0) | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ (r.materialkosten or 0) | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ row.mwst | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-2);">{{ row.netto | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs font-semibold whitespace-nowrap"
+              style="color:{% if row.nettogewinn >= 0 %}var(--c-green){% else %}var(--c-coral){% endif %};">
+            {{ row.nettogewinn | de_euro }} €
+          </td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
+              style="color:var(--c-amber);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
+            {{ row.steuer | de_euro }} €
+          </td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
+              style="color:var(--c-sky);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
+            {{ row.invest | de_euro }} €
+          </td>
+          <td class="px-3 py-2.5 text-center">
+            <form method="post" action="/admin/buchhaltung/{{ r.id }}/steuer">
+              <button type="submit"
+                      title="{{ 'Rücklage erledigt – klicken zum Rückgängig' if r.steuer_erledigt else 'Rücklage als überwiesen markieren' }}"
+                      class="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition"
+                      style="background:{% if r.steuer_erledigt %}var(--c-green-bg){% else %}#f3f4f6{% endif %};
+                             color:{% if r.steuer_erledigt %}var(--c-green){% else %}var(--ink-4){% endif %};">
+                {% if r.steuer_erledigt %}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                {% else %}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+                {% endif %}
+              </button>
+            </form>
+          </td>
+          <td class="px-3 py-2.5">
+            <div class="flex items-center gap-1 justify-end">
+              <a href="/admin/buchhaltung/{{ r.id }}/edit"
+                 class="p-1.5 rounded-lg hover:bg-gray-100 transition" title="Bearbeiten" style="color:var(--ink-3);">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </a>
+              <form method="post" action="/admin/buchhaltung/{{ r.id }}/loeschen"
+                    onsubmit="return confirm('Rechnung wirklich löschen?')">
+                <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 transition" title="Löschen" style="color:var(--c-coral);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endfor %}
+
+<p class="text-xs text-gray-400 mt-4">{{ anzahl }} Rechnung{% if anzahl != 1 %}en{% endif %} in {{ jahr }} · neuester Monat oben, innerhalb nach Rechnungsnummer sortiert.</p>
 
 {% else %}
 <div class="card p-12 text-center">
   <p class="text-base font-semibold mb-1" style="color:var(--ink-2);">Noch keine Rechnungen für {{ jahr }}</p>
-  <p class="text-sm" style="color:var(--ink-4);">Trage die erste Rechnung oben ein.</p>
+  <p class="text-sm" style="color:var(--ink-4);">Trage die erste Rechnung über „Neue Rechnung" oben ein.</p>
 </div>
 {% endif %}
+
+<style>
+  details[open] .bh-chevron { transform: rotate(180deg); }
+  .bh-chevron { transition: transform .15s; }
+</style>
 
 {% endblock %}
