@@ -897,11 +897,13 @@ def send_wiedervorlage_digest(to_email, wvs, heute):
     _send(to_email, subject, _wrap(content, color, cfg))
 
 
-def send_backup(attachments, n_events: int, n_dienstleister: int):
-    """Schickt die CSV-Dateien (Liste von (dateiname, bytes)) als Anhang an den Admin."""
+def send_backup(attachments, counts: dict):
+    """Schickt die CSV-Dateien (Liste von (dateiname, bytes)) als Anhang an den Admin.
+    counts: Beschriftung -> Anzahl (z. B. {'Events': 42, 'Rechnungen': 47, ...})."""
     cfg = get_config()
     color = "#003864"
     datum = datetime.today().strftime("%d.%m.%Y")
+    zeilen = "".join(_info_row(label, str(n)) for label, n in counts.items())
     content = f"""
     <p style="margin:0 0 16px;font-size:16px;color:#111827;">🗄️ Wöchentliches Daten-Backup</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
@@ -909,10 +911,7 @@ def send_backup(attachments, n_events: int, n_dienstleister: int):
       Bewahre die E-Mail auf – sie dient als menschenlesbares Notfall-Backup.
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
-      <table cellpadding="0" cellspacing="0" width="100%">
-        {_info_row('Events', str(n_events))}
-        {_info_row('Dienstleister', str(n_dienstleister))}
-      </table>
+      <table cellpadding="0" cellspacing="0" width="100%">{zeilen}</table>
     </div>
     <p style="margin:0;font-size:13px;color:#9ca3af;">
       Tipp: Die CSV-Dateien lassen sich direkt in Excel öffnen (Umlaute inklusive).

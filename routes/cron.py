@@ -8,7 +8,8 @@ from datetime import datetime, date, time, timedelta
 from zoneinfo import ZoneInfo
 
 from database import get_db
-from models import Verfuegbarkeitsanfrage, Event, Dienstleister, KundeWiedervorlage, Admin
+from models import (Verfuegbarkeitsanfrage, Event, Dienstleister, KundeWiedervorlage,
+                    Admin, Rechnung, Kunde)
 from config import get_config
 
 router = APIRouter(prefix="/cron")
@@ -388,24 +389,30 @@ def _model_to_csv(rows, model) -> bytes:
 @router.post("/backup")
 def send_backup(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird wöchentlich (montags) von Render Cron aufgerufen. Schickt einen CSV-Export
-    aller Events + Dienstleister als E-Mail-Anhang an den Admin."""
+    der wichtigsten Tabellen (Events, Dienstleister, Rechnungen, Kunden) als E-Mail-
+    Anhang an den Admin – menschenlesbares Off-Platform-Notfall-Backup."""
     if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    events = db.query(Event).all()
-    dienstleister = db.query(Dienstleister).all()
-
     datum = _heute().strftime("%Y-%m-%d")
-    attachments = [
-        (f"events_{datum}.csv", _model_to_csv(events, Event)),
-        (f"dienstleister_{datum}.csv", _model_to_csv(dienstleister, Dienstleister)),
+    # (Beschriftung, Dateiname-Präfix, Modell) – so lässt sich die Liste leicht erweitern.
+    export = [
+        ("Events",        "events",        Event),
+        ("Dienstleister", "dienstleister", Dienstleister),
+        ("Rechnungen",    "rechnungen",    Rechnung),
+        ("Kunden",        "kunden",        Kunde),
     ]
+    attachments, counts = [], {}
+    for label, praefix, modell in export:
+        zeilen = db.query(modell).all()
+        attachments.append((f"{praefix}_{datum}.csv", _model_to_csv(zeilen, modell)))
+        counts[label] = len(zeilen)
 
     from email_service import send_backup
     try:
-        send_backup(attachments, len(events), len(dienstleister))
+        send_backup(attachments, counts)
     except Exception as e:
         print(f"Backup-E-Mail fehlgeschlagen: {e}")
         return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
 
-    return JSONResponse({"status": "ok", "events": len(events), "dienstleister": len(dienstleister)})
+    return JSONResponse({"status": "ok", **counts})
