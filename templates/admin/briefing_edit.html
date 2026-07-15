@@ -18,6 +18,25 @@
     {% endif %}
   </div>
 
+  {# Stammkunden: Briefing vom letzten Event desselben Kunden übernehmen. #}
+  {% if uebernommen %}
+  <div class="card p-4 mb-4" style="border-left:3px solid var(--c-green); background:var(--c-green-bg);">
+    <p class="text-sm font-semibold" style="color:var(--c-green);">Werte übernommen aus „{{ quelle.anlass }}" ({{ quelle.datum | de_date }})</p>
+    <p class="text-xs mt-1" style="color:var(--ink-2);">Bitte prüfen und ggf. Einmaliges herauslöschen – <strong>gespeichert wird erst mit „Briefing-Daten speichern"</strong> unten.</p>
+  </div>
+  {% elif quelle %}
+  <div class="card p-4 mb-4" style="border-left:3px solid var(--brand-primary);">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <p class="text-sm font-medium text-gray-700">Stammkunde? Briefing vom letzten Event übernehmen</p>
+        <p class="text-xs text-gray-500 mt-0.5">Letztes Event mit Briefing-Daten: <strong>{{ quelle.anlass }}</strong> ({{ quelle.datum | de_date }})</p>
+      </div>
+      <a href="/admin/events/{{ ev.id }}/checklist/edit?uebernehmen=1"
+         class="btn-primary text-sm whitespace-nowrap">Werte übernehmen</a>
+    </div>
+  </div>
+  {% endif %}
+
   <form method="post" action="/admin/events/{{ ev.id }}/checklist/edit" class="space-y-4">
 
     <!-- Ansprechpartner -->
@@ -106,7 +125,7 @@
       <label class="block text-sm font-semibold text-gray-700 mb-1.5">Weitere Details</label>
       <p class="text-xs text-gray-500 mb-2">Zusätzliche Infos fürs Team – erscheinen im Briefing (Mail &amp; PDF).</p>
       <textarea name="weitere_details" rows="4" placeholder="z. B. Treffpunkt, Ablauf, besondere Wünsche des Kunden …"
-        class="{{ tw }} resize-none">{{ ev.cl_weitere_details or '' }}</textarea>
+        class="{{ tw }} resize-none">{{ vor.weitere_details }}</textarea>
     </div>
 
     <div class="flex items-center gap-3 pt-1">

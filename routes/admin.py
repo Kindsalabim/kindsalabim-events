@@ -1354,12 +1354,29 @@ def extern_teamer_delete(event_id: int, teamer_id: int,
     return RedirectResponse(f"/admin/events/{event_id}#wf-briefing", status_code=303)
 
 
+def _letztes_briefing_event(db: Session, ev: Event):
+    """Jüngstes anderes Event desselben Kunden, das schon Briefing-Daten hat.
+    Quelle für „Briefing übernehmen" bei Stammkunden (gleicher Ort/Ablauf wie immer).
+    Kundenzuordnung über die CRM-Verknüpfung, sonst über den Firmennamen."""
+    q = db.query(Event).filter(Event.id != ev.id,
+                               Event.cl_eingereicht_am.isnot(None))
+    if ev.kunde_id:
+        q = q.filter(Event.kunde_id == ev.kunde_id)
+    elif ev.kunde_firma:
+        q = q.filter(Event.kunde_firma == ev.kunde_firma)
+    else:
+        return None
+    return q.order_by(Event.datum.desc()).first()
+
+
 @router.get("/events/{event_id}/checklist/edit", response_class=HTMLResponse)
-def briefing_edit(request: Request, event_id: int,
+def briefing_edit(request: Request, event_id: int, uebernehmen: int = 0,
                   db: Session = Depends(get_db), _=Depends(get_admin_user)):
     """Admin-Formular, um die Checklisten-/Briefing-Daten (cl_*) selbst auszufüllen
     oder zu korrigieren – falls der Kunde die Checkliste nicht (rechtzeitig) schickt.
-    Leere Felder werden aus den Event-Daten vorbelegt (Checklisten-Werte haben Vorrang)."""
+    Leere Felder werden aus den Event-Daten vorbelegt (Checklisten-Werte haben Vorrang).
+    Mit ?uebernehmen=1 werden die Felder aus dem letzten Event desselben Kunden
+    vorbefüllt – gespeichert wird erst beim Absenden des Formulars."""
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
     # Veranstaltungsort grob in Straße / PLZ+Ort aufteilen (erster Komma-Trenner)
@@ -1375,8 +1392,25 @@ def briefing_edit(request: Request, event_id: int,
         "verpflegung": ev.cl_verpflegung or "",
         "teamkleidung": ev.cl_teamkleidung or ("Ja" if ev.teamkleidung else ""),
         "parkplatz":   ev.cl_parkplatz or (ev.parkplatz or ""),
+        "weitere_details": ev.cl_weitere_details or "",
     }
-    return templates.TemplateResponse("admin/briefing_edit.html", tpl_context(request, ev=ev, vor=vor))
+    quelle = _letztes_briefing_event(db, ev)
+    uebernommen = bool(uebernehmen and quelle)
+    if uebernommen:
+        # Werte des Vorgänger-Events gewinnen – leere Felder dort lassen die Vorbelegung stehen.
+        for ziel, feld in [
+            ("ansprechpartner_name", "cl_ansprechpartner_name"),
+            ("ansprechpartner_mobil", "cl_ansprechpartner_mobil"),
+            ("firma_name", "cl_firma_name"), ("strasse", "cl_strasse"),
+            ("plz_ort", "cl_plz_ort"), ("aufbauort", "cl_aufbauort"),
+            ("verpflegung", "cl_verpflegung"), ("teamkleidung", "cl_teamkleidung"),
+            ("parkplatz", "cl_parkplatz"), ("weitere_details", "cl_weitere_details"),
+        ]:
+            wert = getattr(quelle, feld, None)
+            if wert:
+                vor[ziel] = wert
+    return templates.TemplateResponse("admin/briefing_edit.html", tpl_context(
+        request, ev=ev, vor=vor, quelle=quelle, uebernommen=uebernommen))
 
 
 @router.post("/events/{event_id}/checklist/edit")
