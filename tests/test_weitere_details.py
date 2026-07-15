@@ -47,7 +47,8 @@ def test_briefing_mail_zeigt_weitere_details(mails):
     dl = SimpleNamespace(id=1, vorname="Max", nachname="M", telefon="0151", email="m@x.de")
     email_service.send_briefing([dl], ev, "https://x")
     html = mails[-1][2]
-    assert "Weitere Details" in html and "Treffpunkt Haupteingang" in html
+    # „Weitere Details" der Checkliste stehen jetzt in der Karte „Besonderes"
+    assert "Besonderes" in html and "Treffpunkt Haupteingang" in html
 
 
 def test_briefing_pdf_zeigt_weitere_details():

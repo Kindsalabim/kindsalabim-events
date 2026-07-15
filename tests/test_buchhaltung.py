@@ -105,6 +105,18 @@ def test_inline_nur_whitelist_felder(admin):
         s.close()
 
 
+def test_monats_summenzeile(admin):
+    # Pro Monat eine eigene Summenzeile (tfoot) mit aufsummiertem Brutto
+    _neu(admin, "2094-07-05", "Juli-Eins", "RE-2094-060", brutto="1000")
+    _neu(admin, "2094-07-18", "Juli-Zwei", "RE-2094-061", brutto="2000")
+    _neu(admin, "2094-06-10", "Juni-Eins", "RE-2094-050", brutto="500")
+    html = admin.get("/admin/buchhaltung?jahr=2094").text
+    assert "bh-summe" in html                       # Summenzeile vorhanden
+    assert "Summe Juli 2094" in html                # je Monat eine eigene Zeile
+    assert "Summe Juni 2094" in html
+    assert "3.000,00 €" in html                     # Juli-Brutto summiert (1000 + 2000)
+
+
 def test_kunde_spalte_gekuerzt_mit_tooltip(admin):
     lang = "Förderverein Evangelische Kindertagesstätte Pusteblume Heckstrasse Essen-Werden e.V"
     _neu(admin, "2099-08-01", lang, "RE-2099-003")

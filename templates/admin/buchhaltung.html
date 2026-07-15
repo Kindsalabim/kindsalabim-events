@@ -12,6 +12,9 @@
      Spalte so breit wie der längste Name und alles andere rutscht aus dem Bild */
   .bh-table td.kunde { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
   .bh-sum::-webkit-details-marker { display: none; }
+  /* Monats-Summenzeile (tfoot) dezent hervorheben – auch die sticky Kunden-Spalte */
+  .bh-summe td { background: var(--c-sky-bg); }
+  .bh-table tr.bh-summe td.kunde { background: var(--c-sky-bg); }
   /* Inline-editierbare Zellen (Excel-artig) */
   .bh-edit { cursor: pointer; }
   .bh-edit:hover { background: var(--c-sky-bg) !important; box-shadow: inset 0 -2px 0 var(--c-sky); }
@@ -239,6 +242,25 @@
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr class="bh-summe" style="border-top:2px solid var(--line);font-weight:700;">
+          <td class="kunde px-3 py-2.5 text-xs whitespace-nowrap" style="color:var(--ink-2);">Summe {{ g.label }}</td>
+          <td></td>
+          <td class="px-3 py-2.5 text-right text-xs" style="color:var(--ink-4);">{{ g.rows|length }}×</td>
+          <td class="px-3 py-2.5 text-right text-sm whitespace-nowrap" style="color:var(--ink-1);">{{ g.summe.brutto | de_euro }} €</td>
+          <td></td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ g.summe.pk | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ g.summe.mk | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ g.summe.mwst | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-2);">{{ g.summe.netto | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-sm whitespace-nowrap"
+              style="color:{% if g.summe.gewinn >= 0 %}var(--c-green){% else %}var(--c-coral){% endif %};">{{ g.summe.gewinn | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--c-amber);">{{ g.summe.steuer | de_euro }} €</td>
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--c-sky);">{{ g.summe.invest | de_euro }} €</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 </details>

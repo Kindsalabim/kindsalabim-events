@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date, time, timedelta
 
 from database import get_db
-from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei, DienstleisterSperrzeit
+from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei, DienstleisterSperrzeit, ExternerTeamer
 from routes.fotos import generate_presigned_url
 from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
@@ -101,6 +101,38 @@ def portal_logout():
     resp = RedirectResponse("/portal/login", status_code=303)
     resp.delete_cookie("portal_token")
     return resp
+
+
+@router.get("/events/{event_id}/briefing.pdf")
+def portal_briefing_pdf(event_id: int, db: Session = Depends(get_db),
+                        user=Depends(get_portal_user)):
+    """Briefing als PDF für den zugesagten Dienstleister (Download aufs Handy).
+    Zugriff nur, wenn der eingeloggte Teamer diesem Event zugesagt hat oder Teamleiter ist."""
+    import io
+    from briefing_pdf import build_briefing_pdf
+    did = int(user["sub"])
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev:
+        raise HTTPException(404)
+    zugesagt = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.event_id == event_id,
+        Verfuegbarkeitsanfrage.dienstleister_id == did,
+        Verfuegbarkeitsanfrage.status == "Ja").first()
+    if not zugesagt and ev.teamleiter_id != did:
+        raise HTTPException(403)
+    # Gleiche Team-/Regel-Zusammenstellung wie in der Admin-PDF-Route.
+    confirmed = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.event_id == event_id,
+        Verfuegbarkeitsanfrage.status == "Ja").all()
+    dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
+    externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
+    from notifications import get_setting
+    from choices import BRIEFING_REGELN_DEFAULT
+    regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
+    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln)
+    fname = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────

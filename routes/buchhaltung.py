@@ -82,6 +82,18 @@ def buchhaltung_list(request: Request, jahr: int = 0,
     def _ym(r):
         return (r.datum.year, r.datum.month) if r.datum else (0, 0)
 
+    def _summe(rows):
+        return {
+            "brutto": round(sum(r.brutto or 0 for r in rows), 2),
+            "pk":     round(sum(r.personalkosten or 0 for r in rows), 2),
+            "mk":     round(sum(r.materialkosten or 0 for r in rows), 2),
+            "mwst":   round(sum(compute(r)["mwst"] for r in rows), 2),
+            "netto":  round(sum(compute(r)["netto"] for r in rows), 2),
+            "gewinn": round(sum(compute(r)["nettogewinn"] for r in rows), 2),
+            "steuer": round(sum(compute(r)["steuer"] for r in rows), 2),
+            "invest": round(sum(compute(r)["invest"] for r in rows), 2),
+        }
+
     sortiert = sorted(rechnungen, key=lambda r: (_ym(r), r.rgnr or ""), reverse=True)
     monatsgruppen = []
     for _, grp in groupby(sortiert, key=_ym):
@@ -92,6 +104,7 @@ def buchhaltung_list(request: Request, jahr: int = 0,
             "rows": [{"r": r, **compute(r)} for r in grp],
             "offen_count": len(offen),
             "offen_summe": round(sum(r.brutto or 0 for r in offen), 2),
+            "summe": _summe(grp),
         })
 
     totals = {

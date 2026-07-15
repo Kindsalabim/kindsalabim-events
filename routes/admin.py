@@ -1272,9 +1272,20 @@ def _briefing_versenden_async(event_id: int, base_url: str):
         from notifications import get_setting
         from choices import BRIEFING_REGELN_DEFAULT
         regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
+        # Briefing zusätzlich als PDF an die Mail hängen – so kann der Teamer es
+        # direkt aufs Handy speichern (offline, ohne Login).
+        pdf_dabei = False
+        try:
+            from briefing_pdf import build_briefing_pdf
+            pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln)
+            pdf_name = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
+            anhaenge = (anhaenge or []) + [(pdf_name, pdf)]
+            pdf_dabei = True
+        except Exception as e:
+            print(f"[BRIEFING-PDF FEHLER] Event {event_id}: {e}")
         try:
             send_briefing(dienstleister, ev, base_url, anhaenge or None, externe=externe,
-                          regeln=regeln)
+                          regeln=regeln, pdf_hinweis=pdf_dabei)
         except Exception as e:
             print(f"[BRIEFING-VERSAND FEHLER] Event {event_id}: {e}")
     finally:

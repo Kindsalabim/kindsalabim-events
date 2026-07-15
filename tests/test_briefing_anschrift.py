@@ -39,19 +39,20 @@ def test_mail_ansprechpartner_aus_checkliste_bevorzugt(mails):
                            kunde_kontakt="Alt", kunde_telefon="0000")
     html = _html(ev, mails)
     assert "Frau Klar" in html and "0177 9" in html
-    assert "Ansprechpartner vor Ort" in html
+    assert "Ansprechpartner Kunde" in html        # Karten-Titel (wie im PDF)
 
 
 def test_mail_veranstaltungsanschrift_aus_checkliste(mails):
     ev = briefing_event_ns(cl_firma_name="Kita Sonne", cl_strasse="Hauptstr. 5", cl_plz_ort="45127 Essen")
     html = _html(ev, mails)
-    assert "Veranstaltungsanschrift" in html
+    assert "Veranstaltungsadresse" in html         # Karten-Titel (wie im PDF)
     assert "Kita Sonne" in html and "Hauptstr. 5" in html and "45127 Essen" in html
 
 
 def test_mail_teamleiter_hinweis(mails):
     html = _html(briefing_event_ns(), mails)
-    assert "Nur für den Teamleiter" in html and "font-weight:700" in html
+    # Kontakt-Regel steht jetzt in der Ansprechpartner-Karte
+    assert "nur über die Teamleitung" in html and "font-weight:700" in html
 
 
 def test_mail_anschrift_fallback_auf_veranstaltungsort(mails):

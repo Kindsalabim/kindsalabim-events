@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import re
 import urllib.request
 import urllib.error
@@ -171,6 +172,58 @@ def _info_row(label: str, value: str) -> str:
       <td style="padding:8px 16px 8px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">{label}</td>
       <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{_esc(_no_none(value)) or '–'}</td>
     </tr>"""
+
+
+_ROT = "#c0473f"   # roter Akzent für das Kritische (Ankunft/Treffpunkt) – wie im PDF
+
+
+def _info_row_rot(label: str, value: str) -> str:
+    return f"""
+    <tr>
+      <td style="padding:8px 16px 8px 0;font-size:14px;font-weight:700;color:{_ROT};white-space:nowrap;vertical-align:top;">{label}</td>
+      <td style="padding:8px 0;font-size:15px;color:#111827;font-weight:700;">{_esc(_no_none(value)) or '–'}</td>
+    </tr>"""
+
+
+# App-Linien-Icons als base64-PNG einbetten (Outlook-fest; für Knallfrosch grün umgefärbt).
+_ICON_DIR_MAIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "img", "icons")
+_KF_ICON_UMFAERBUNG = {"#1D4E89": "#1a7a1a", "#7FB3D9": "#8FCB8F"}
+_icon_cache_mail: dict = {}
+
+
+def _icon_b64(name: str, is_kf: bool) -> str:
+    """SVG-Icon → base64-PNG-Data-URI (gecacht). '' wenn nicht renderbar (Mail bleibt nutzbar)."""
+    key = (name, is_kf)
+    if key not in _icon_cache_mail:
+        uri = ""
+        try:
+            with open(os.path.join(_ICON_DIR_MAIL, f"{name}.svg"), encoding="utf-8") as f:
+                svg = f.read()
+            if is_kf:
+                for alt, neu in _KF_ICON_UMFAERBUNG.items():
+                    svg = svg.replace(alt, neu)
+            import fitz
+            doc = fitz.open(stream=svg.encode("utf-8"), filetype="svg")
+            pix = doc[0].get_pixmap(dpi=180, alpha=True)
+            uri = "data:image/png;base64," + base64.b64encode(pix.tobytes("png")).decode()
+            doc.close()
+        except Exception:
+            uri = ""
+        _icon_cache_mail[key] = uri
+    return _icon_cache_mail[key]
+
+
+def _mail_card(titel: str, icon_uri: str, inner_html: str, brand: str) -> str:
+    """Weiße Themen-Karte im PDF-Stil: zentrierter Titel mit Icon + markenfarbene Linie."""
+    icon = (f'<img src="{icon_uri}" width="15" height="15" alt="" '
+            f'style="vertical-align:-2px;margin-right:7px;">' if icon_uri else '')
+    return f"""
+        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;margin:0 0 16px;">
+          <div style="text-align:center;padding:12px 16px 11px;border-bottom:2px solid {brand};">
+            {icon}<span style="font-size:14px;font-weight:700;color:#111827;">{titel}</span>
+          </div>
+          <div style="padding:14px 20px;">{inner_html}</div>
+        </div>"""
 
 
 def _team_row(name_html: str, telefon, highlight: bool = False, tint: str = "#eef3fb") -> str:
@@ -705,24 +758,18 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
 
 
 def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, externe=None,
-                  regeln: str = None):
+                  regeln: str = None, pdf_hinweis: bool = False):
     cfg = get_config()
     color = _brand_color(event.marke)
+    is_kf = event.marke == "Knallfrosch"
     subject = f"Briefing: {event.anlass} bei {event.kunde_firma} am {de_date(event.datum)}"
+    T = 'cellpadding="0" cellspacing="0" width="100%"'
 
-    # "Rechnung senden an" – volle Anschrift je Marke (zentrale Quelle, wie im Portal/PDF)
-    ra = rechnung_anschrift(event.marke)
-    rechnung_firma = "<br>".join(_esc(z) for z in ra["zeilen"])
-    rechnung_mail = ra["mail"]
-    rechnung_block = f"""
-        <div style="background:#f9fafb;border-radius:8px;padding:16px 20px;">
-          <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Rechnung senden an</p>
-          <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{rechnung_firma}</p>
-          <p style="margin:8px 0 0;font-size:14px;color:#374151;">Per Mail an: <a href="mailto:{rechnung_mail}" style="color:{color};">{rechnung_mail}</a></p>
-        </div>"""
+    def ic(name):
+        return _icon_b64(name, is_kf)
 
-    # Team-Roster (für alle Empfänger gleich): Teamleiter zuerst, Künstler mit Sparte
-    tl_tint = "#ecf6ec" if event.marke == "Knallfrosch" else "#eef3fb"
+    # ── Team (Teamleitung zuerst, Künstler mit Sparte) ──
+    tl_tint = "#ecf6ec" if is_kf else "#eef3fb"
     team_rows = ""
     sortiert = sorted(dienstleister_list,
                       key=lambda m: 0 if (event.teamleiter_id and m.id == event.teamleiter_id) else 1)
@@ -733,115 +780,121 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         if sparte:
             voll_name += f' <span style="color:#6b7280;font-weight:400;">{_esc(sparte)}</span>'
         if is_tl:
-            name = (f'<strong style="color:#111827;">{voll_name}</strong>'
-                    f' <span style="display:inline-block;margin-left:6px;background:{color};color:#ffffff;'
-                    f'font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;'
-                    f'letter-spacing:0.04em;vertical-align:middle;">★ TEAMLEITER</span>')
+            name = (f'<strong style="color:{_ROT};">Teamleitung:</strong> '
+                    f'<strong style="color:#111827;">{voll_name}</strong>')
         else:
             name = voll_name
         team_rows += _team_row(name, m.telefon, highlight=is_tl, tint=tl_tint)
     for e in (externe or []):
-        ext_name = f'{_esc(e.name)} <span style="display:inline-block;margin-left:6px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;">extern</span>'
+        ext_name = f'{_esc(e.name)} <span style="color:#6b7280;font-size:12px;">(extern)</span>'
         team_rows += _team_row(ext_name, e.telefon)
-    team_section = f"""
-        <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
-          <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Dein Team</p>
-          <table cellpadding="0" cellspacing="0" width="100%">{team_rows}</table>
-        </div>"""
 
-    # Veranstaltungsanschrift (Checkliste bevorzugt, sonst grober Event-Ort)
+    # ── Veranstaltungsanschrift (Checkliste bevorzugt) ──
     an_firma = (_no_none(getattr(event, "cl_firma_name", "")) or _no_none(event.kunde_firma)).strip()
     an_strasse = _no_none(getattr(event, "cl_strasse", "")).strip()
     an_plz_ort = _no_none(getattr(event, "cl_plz_ort", "")).strip()
     if not an_strasse and not an_plz_ort:
         an_plz_ort = _no_none(event.veranstaltungsort).strip()
-    anschrift_rows = (_info_row("Firma / Name", an_firma)
-                      + (_info_row("Straße", an_strasse) if an_strasse else "")
-                      + _info_row("PLZ / Ort", an_plz_ort))
-    # Ansprechpartner vor Ort: Checkliste (Kunde) → Vor-Ort-Felder (Admin) → alter Buchungskontakt
+    adr = "<br>".join(_esc(x) for x in (an_firma, an_strasse, an_plz_ort) if x) or "–"
+
+    # ── Ansprechpartner vor Ort: Checkliste (Kunde) → Vor-Ort-Felder → alter Buchungskontakt ──
     ap_name = (_no_none(getattr(event, "cl_ansprechpartner_name", ""))
                or _no_none(getattr(event, "vor_ort_name", ""))
                or _no_none(event.kunde_kontakt)).strip()
     ap_tel = (_no_none(getattr(event, "cl_ansprechpartner_mobil", ""))
               or _no_none(getattr(event, "vor_ort_telefon", ""))
               or _no_none(event.kunde_telefon)).strip()
-    # Ankunft & Treffpunkt (Vorlauf aus den Aktionen / überschrieben)
+
     import ankunft as _ankunft
     ankunft_str = _ankunft.ankunft_anzeige(event)
     treffpunkt_str = _ankunft.treffpunkt_anzeige(event)
+    ra = rechnung_anschrift(event.marke)
 
-    # Allgemeine Regeln (aus den Einstellungen): je „## "-Abschnitt eine Box mit Pfeilen
-    regeln_html = ""
-    for r_titel, r_punkte in regeln_abschnitte(regeln or "", event.marke):
-        li = "".join(
-            f'<tr><td style="padding:3px 8px 3px 0;color:{color};font-weight:700;vertical-align:top;">&#9656;</td>'
-            f'<td style="padding:3px 0;font-size:14px;color:#374151;line-height:1.55;">{_esc(p)}</td></tr>'
-            for p in r_punkte)
-        regeln_html += (
-            f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">'
-            f'<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">{_esc(r_titel)}</p>'
-            f'<table cellpadding="0" cellspacing="0" width="100%">{li}</table></div>')
-
-    for d in dienstleister_list:
-        content = f"""
-        <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {d.vorname},</p>
-        <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
-          hier ist dein Briefing für das bevorstehende Event. Bitte lies es sorgfältig durch.
-        </p>
-
-        <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
-          <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Veranstaltung</p>
-          <table cellpadding="0" cellspacing="0" width="100%">
-            {_info_row('Anlass', event.anlass)}
-            {_info_row('Kunde', event.kunde_firma)}
+    # ── Karten (empfängerunabhängig – einmal bauen) ──────────────────────────────
+    karten = _mail_card("Datum &amp; Uhrzeit", ic("zeitplan"), f"""<table {T}>
             {_info_row('Datum', de_date(event.datum))}
             {_info_row('Aktionszeit', f"{event.startzeit} – {event.endzeit} Uhr")}
-            <tr><td style="padding:8px 16px 8px 0;font-size:14px;font-weight:700;color:{color};white-space:nowrap;vertical-align:top;">📍 Ankunft</td><td style="padding:8px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(ankunft_str)}</td></tr>
-            <tr><td style="padding:8px 16px 8px 0;font-size:14px;font-weight:700;color:{color};white-space:nowrap;vertical-align:top;">📍 Treffpunkt</td><td style="padding:8px 0;font-size:16px;color:#111827;font-weight:700;">{_esc(treffpunkt_str)}</td></tr>
-            {_info_row('Indoor/Outdoor', event.cl_aufbauort)}
-            {_info_row('Parkplatzsituation', event.cl_parkplatz)}
-            {_info_row('Teamkleidung', event.cl_teamkleidung)}
-            <tr><td></td><td style="padding:0 0 8px;font-size:13px;color:#6b7280;">Dazu bitte eine zur Familienveranstaltung passende, gepflegte Hose / Rock / Shorts tragen.</td></tr>
-            {_info_row('Verpflegung', event.cl_verpflegung)}
-            {_info_row('Produkte', event.produkte)}
-          </table>
-        </div>
+            {_info_row_rot('Ankunft', ankunft_str)}
+            {_info_row_rot('Treffpunkt', treffpunkt_str)}
+          </table>""", color)
 
-        <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
-          <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Veranstaltungsanschrift</p>
-          <table cellpadding="0" cellspacing="0" width="100%">{anschrift_rows}</table>
-        </div>
+    karten += _mail_card("Veranstaltungsadresse", ic("standort"),
+        f'<p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{adr}</p>', color)
 
-        <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
-          <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Ansprechpartner vor Ort</p>
-          <table cellpadding="0" cellspacing="0" width="100%">
+    karten += _mail_card("Ansprechpartner Kunde", ic("nachricht"), f"""<table {T}>
             {_info_row('Name', ap_name)}
             {_info_row('Telefon', ap_tel)}
           </table>
-          <div style="margin:14px 0 0;padding:10px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;">
-            <p style="margin:0;font-size:13px;color:#4b5563;line-height:1.55;">🔒 <strong style="color:#1f2937;font-weight:700;">Nur für den Teamleiter:</strong> Den Kunden-Ansprechpartner kontaktiert ausschließlich der Teamleiter. Alle anderen wenden sich vor Ort an ihn.</p>
-          </div>
-        </div>
+          <p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">Kontakt zum Kunden läuft <strong>nur über die Teamleitung</strong>.</p>""", color)
 
-        {team_section}
+    karten += _mail_card("Team", ic("team"), f'<table {T}>{team_rows}</table>', color)
 
-        {"" if not event.hinweise else f'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.04em;">Hinweis</p><p style="margin:0;font-size:14px;color:#78350f;line-height:1.55;">{_esc(event.hinweise)}</p></div>'}
+    karten += _mail_card("Aktionen", ic("kreativaktion"),
+        f'<p style="margin:0;font-size:14px;color:#111827;">{_esc(_no_none(event.produkte)) or "–"}</p>', color)
 
-        {"" if not getattr(event, 'cl_weitere_details', None) else f'<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin-bottom:24px;"><p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;">Weitere Details</p><p style="margin:0;font-size:14px;color:#374151;white-space:pre-line;">{_esc(event.cl_weitere_details)}</p></div>'}
+    # Standort & Parken – nur wenn Angaben vorhanden
+    sp_rows = ""
+    if _no_none(getattr(event, "cl_aufbauort", "")):
+        sp_rows += _info_row("Aufbauort", event.cl_aufbauort)
+    if _no_none(getattr(event, "cl_parkplatz", "")):
+        sp_rows += _info_row("Parkplätze", event.cl_parkplatz)
+    if sp_rows:
+        karten += _mail_card("Standort &amp; Parken", ic("fahrzeug"), f"<table {T}>{sp_rows}</table>", color)
 
-        {regeln_html}
+    # Dresscode & Verpflegung (Kleidungs-Hinweis steht immer)
+    dc = (f"<table {T}>"
+          + (_info_row("Teamkleidung", event.cl_teamkleidung) if _no_none(getattr(event, "cl_teamkleidung", "")) else "")
+          + '<tr><td></td><td style="padding:2px 0 8px;font-size:13px;color:#6b7280;line-height:1.5;">Dazu bitte eine zur Familienveranstaltung passende, gepflegte Hose / Rock / Shorts tragen.</td></tr>'
+          + (_info_row("Verpflegung", event.cl_verpflegung) if _no_none(getattr(event, "cl_verpflegung", "")) else "")
+          + "</table>")
+    karten += _mail_card("Dresscode &amp; Verpflegung", ic("einsatz"), dc, color)
 
-        <p style="margin:0 0 8px;font-size:14px;color:#374151;">
-          Deine Jobs findest du jederzeit in deinem Portal:
+    # Besonderes – nur wenn Inhalt
+    bes = ""
+    if _no_none(event.hinweise):
+        bes += f'<p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.55;white-space:pre-line;">{_esc(_no_none(event.hinweise).strip())}</p>'
+    if _no_none(getattr(event, "cl_weitere_details", "")):
+        bes += f'<p style="margin:0;font-size:14px;color:#374151;line-height:1.55;white-space:pre-line;">{_esc(_no_none(event.cl_weitere_details).strip())}</p>'
+    if bes:
+        karten += _mail_card("Besonderes", ic("kids_corner"), bes, color)
+
+    # Rechnung senden an (je Marke eigene Anschrift + Mail)
+    rechnung_inner = (
+        f'<p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{"<br>".join(_esc(z) for z in ra["zeilen"])}</p>'
+        f'<p style="margin:10px 0 0;font-size:14px;color:#374151;">Per Mail an: '
+        f'<a href="mailto:{ra["mail"]}" style="color:{color};">{ra["mail"]}</a></p>')
+    karten += _mail_card("Rechnung senden an", ic("dokument"), rechnung_inner, color)
+
+    pdf_hinweis_html = ""
+    if pdf_hinweis:
+        pdf_hinweis_html = (
+            '<p style="margin:6px 0 14px;font-size:14px;color:#374151;line-height:1.6;">'
+            '&#128206; Dein Briefing hängt auch als <strong>PDF an dieser Mail</strong> – '
+            'so kannst du es direkt aufs Handy speichern.</p>')
+
+    portal_btn = f"""
+        {pdf_hinweis_html}
+        <p style="margin:6px 0 8px;font-size:14px;color:#374151;">Deine Jobs findest du jederzeit in deinem Portal:</p>
+        <a href="{base_url}/portal" style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;margin-bottom:8px;">Zum Portal →</a>"""
+
+    # Allgemeine Regeln – je „## "-Abschnitt eine eigene Karte
+    regeln_html = ""
+    for r_titel, r_punkte in regeln_abschnitte(regeln or "", event.marke):
+        li = "".join(
+            f'<tr><td style="padding:4px 8px 4px 0;color:{color};font-weight:700;vertical-align:top;">&#9656;</td>'
+            f'<td style="padding:4px 0;font-size:14px;color:#374151;line-height:1.55;">{_esc(p)}</td></tr>'
+            for p in r_punkte)
+        regeln_html += _mail_card(_esc(r_titel), ic("checkliste"), f"<table {T}>{li}</table>", color)
+
+    for d in dienstleister_list:
+        content = f"""
+        <p style="margin:0 0 6px;font-size:16px;color:#111827;">Hallo {_esc(d.vorname)},</p>
+        <p style="margin:0 0 22px;font-size:15px;color:#374151;line-height:1.6;">
+          hier ist dein Briefing für das bevorstehende Event. Bitte lies es sorgfältig durch.
         </p>
-        <a href="{base_url}/portal"
-           style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
-                  padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;margin-bottom:24px;">
-          Zum Portal →
-        </a>
-
-        {rechnung_block}"""
-
+        {karten}
+        {portal_btn}
+        {regeln_html}"""
         _deliver(d.email, subject, _wrap(content, color, cfg), anhaenge)
 
 

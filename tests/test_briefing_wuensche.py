@@ -34,7 +34,8 @@ def _dl(id, vorname, nachname, sparte=None):
 def test_mail_ankunft_direkt_nach_aktionszeit(mails):
     email_service.send_briefing([_dl(1, "Max", "M")], _ev(), "https://x")
     html = mails[-1][2]
-    assert html.index("Aktionszeit") < html.index("📍 Ankunft") < html.index("📍 Treffpunkt") < html.index("Indoor/Outdoor")
+    # In der ersten Karte: Datum → Aktionszeit → Ankunft → Treffpunkt
+    assert html.index("Aktionszeit") < html.index("Ankunft") < html.index("Treffpunkt")
 
 
 def test_mail_teamleiter_steht_zuerst(mails):
@@ -42,7 +43,7 @@ def test_mail_teamleiter_steht_zuerst(mails):
     email_service.send_briefing(team, _ev(teamleiter_id=2), "https://x")
     html = mails[-1][2]
     assert html.index("Bernd Leiter") < html.index("Anna Erste")
-    assert "TEAMLEITER" in html
+    assert "Teamleitung" in html          # rote „Teamleitung:"-Markierung (wie im PDF)
 
 
 def test_mail_kuenstler_sparte_erscheint(mails):
