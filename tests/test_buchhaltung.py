@@ -65,3 +65,49 @@ def test_volle_breite_aktiv(admin):
     # #4: Buchhaltung nutzt die volle Seitenbreite (kein max-w-5xl-Deckel)
     html = admin.get("/admin/buchhaltung?jahr=2098").text
     assert "max-w-none" in html
+
+
+# ── Inline-Editieren (Excel-artig) + gekürzte Kunden-Spalte ──────────────────────
+
+def test_parse_float_deutsches_format():
+    from routes.buchhaltung import parse_float
+    assert parse_float("1.234,56") == 1234.56    # Tausenderpunkt (machte vorher 0,00 daraus!)
+    assert parse_float("1234,56") == 1234.56
+    assert parse_float("1450") == 1450.0
+    assert parse_float("1.450") == 1.45          # nur Punkt = Dezimalpunkt (engl. Eingabe)
+    assert parse_float(" 99,90 € ") == 99.9
+    assert parse_float("") == 0.0
+
+
+def test_inline_feld_aendern(admin):
+    rid = _neu(admin, "2099-07-01", "Inline-Kunde", "RE-2099-001", brutto="500")
+    admin.post(f"/admin/buchhaltung/{rid}/feld",
+               data={"feld": "brutto", "wert": "1.234,56"}, follow_redirects=False)
+    s = SessionLocal()
+    try:
+        assert abs(s.get(Rechnung, rid).brutto - 1234.56) < 0.01
+    finally:
+        s.close()
+
+
+def test_inline_nur_whitelist_felder(admin):
+    rid = _neu(admin, "2099-07-02", "Whitelist-Kunde", "RE-2099-002", brutto="500")
+    # berechnete/fremde Felder dürfen nicht über den Inline-Weg änderbar sein
+    admin.post(f"/admin/buchhaltung/{rid}/feld",
+               data={"feld": "kunde", "wert": "Gehackt"}, follow_redirects=False)
+    admin.post(f"/admin/buchhaltung/{rid}/feld",
+               data={"feld": "bezahlt", "wert": "1"}, follow_redirects=False)
+    s = SessionLocal()
+    try:
+        r = s.get(Rechnung, rid)
+        assert r.kunde == "Whitelist-Kunde" and r.bezahlt is False
+    finally:
+        s.close()
+
+
+def test_kunde_spalte_gekuerzt_mit_tooltip(admin):
+    lang = "Förderverein Evangelische Kindertagesstätte Pusteblume Heckstrasse Essen-Werden e.V"
+    _neu(admin, "2099-08-01", lang, "RE-2099-003")
+    html = admin.get("/admin/buchhaltung?jahr=2099").text
+    assert f'title="{lang}"' in html          # voller Name als Maus-Tooltip
+    assert "text-overflow: ellipsis" in html  # Spalte wird gekürzt statt zu wachsen

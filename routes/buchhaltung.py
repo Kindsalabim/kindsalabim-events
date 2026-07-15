@@ -30,8 +30,15 @@ def _monat_label(d) -> str:
 
 
 def parse_float(s: str) -> float:
+    """Deutsche Zahleneingaben robust parsen: „1.234,56", „1234,56", „1450".
+    (Vorher machte ein Tausenderpunkt den Wert stillschweigend zu 0,00.)"""
+    t = str(s).strip().replace("€", "").strip()
+    if not t:
+        return 0.0
+    if "," in t:
+        t = t.replace(".", "").replace(",", ".")   # 1.234,56 → 1234.56
     try:
-        return float(str(s).replace(",", ".").strip()) if str(s).strip() else 0.0
+        return float(t)
     except Exception:
         return 0.0
 
@@ -175,6 +182,24 @@ def buchhaltung_edit_save(
     _apply_form(r, datum, kunde, rgnr, brutto, personalkosten, materialkosten, notiz)
     db.commit()
     return RedirectResponse(f"/admin/buchhaltung?jahr={r.datum.year}", status_code=303)
+
+
+# ── Inline-Editieren (Excel-artig: Klick auf den Wert in der Liste) ─────────────
+
+_INLINE_FELDER = {"brutto", "personalkosten", "materialkosten"}
+
+
+@router.post("/{rid}/feld")
+def buchhaltung_feld(rid: int, feld: str = Form(...), wert: str = Form(""),
+                     db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    """Einzelnes Zahlenfeld direkt aus der Liste ändern (Whitelist – die berechneten
+    Spalten wie MwSt/Netto/Gewinn sind bewusst nicht änderbar)."""
+    r = db.query(Rechnung).filter(Rechnung.id == rid).first()
+    if r and feld in _INLINE_FELDER:
+        setattr(r, feld, parse_float(wert))
+        db.commit()
+    jahr = r.datum.year if r and r.datum else date.today().year
+    return RedirectResponse(f"/admin/buchhaltung?jahr={jahr}", status_code=303)
 
 
 # ── Bezahlt-Toggle ─────────────────────────────────────────────────────────────

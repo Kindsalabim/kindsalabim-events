@@ -8,7 +8,15 @@
   /* Kunden-Spalte bleibt beim horizontalen Scrollen sichtbar */
   .bh-table td.kunde, .bh-table th.kunde { position: sticky; left: 0; background: #fff; z-index: 1; }
   .bh-table tr:hover td.kunde { background: #f9fafb; }
+  /* Lange Kundennamen kürzen (voller Name per Maus-Tooltip) – sonst wird die
+     Spalte so breit wie der längste Name und alles andere rutscht aus dem Bild */
+  .bh-table td.kunde { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
   .bh-sum::-webkit-details-marker { display: none; }
+  /* Inline-editierbare Zellen (Excel-artig) */
+  .bh-edit { cursor: pointer; }
+  .bh-edit:hover { background: var(--c-sky-bg) !important; box-shadow: inset 0 -2px 0 var(--c-sky); }
+  .bh-edit input { width: 6.5rem; text-align: right; font-size: 0.8rem; padding: 2px 6px;
+    border: 1.5px solid var(--brand-primary); border-radius: 6px; outline: none; }
 </style>
 
 <!-- ── Header ── -->
@@ -153,10 +161,12 @@
         {% for row in g.rows %}
         {% set r = row.r %}
         <tr class="border-b border-gray-50 hover:bg-gray-50 transition {% if r.bezahlt %}opacity-60{% endif %}">
-          <td class="kunde px-3 py-2.5 font-medium whitespace-nowrap" style="color:var(--ink-1);">{{ r.kunde or "–" }}</td>
+          <td class="kunde px-3 py-2.5 font-medium whitespace-nowrap" style="color:var(--ink-1);" title="{{ r.kunde or '' }}">{{ r.kunde or "–" }}</td>
           <td class="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style="color:var(--ink-3);">{{ r.rgnr or "–" }}</td>
           <td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ r.datum | de_date }}</td>
-          <td class="px-3 py-2.5 text-right font-semibold whitespace-nowrap" style="color:var(--ink-1);">{{ (r.brutto or 0) | de_euro }} €</td>
+          <td class="bh-edit px-3 py-2.5 text-right font-semibold whitespace-nowrap" style="color:var(--ink-1);"
+              data-rid="{{ r.id }}" data-feld="brutto" data-wert="{{ '%.2f'|format(r.brutto or 0)|replace('.', ',') }}"
+              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.brutto or 0) | de_euro }} €</td>
           <td class="px-3 py-2.5 text-center">
             <form method="post" action="/admin/buchhaltung/{{ r.id }}/bezahlt">
               <button type="submit" title="{{ 'Bezahlt – klicken zum Rückgängig machen' if r.bezahlt else 'Als bezahlt markieren' }}"
@@ -171,8 +181,12 @@
               </button>
             </form>
           </td>
-          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ (r.personalkosten or 0) | de_euro }} €</td>
-          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ (r.materialkosten or 0) | de_euro }} €</td>
+          <td class="bh-edit px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);"
+              data-rid="{{ r.id }}" data-feld="personalkosten" data-wert="{{ '%.2f'|format(r.personalkosten or 0)|replace('.', ',') }}"
+              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.personalkosten or 0) | de_euro }} €</td>
+          <td class="bh-edit px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);"
+              data-rid="{{ r.id }}" data-feld="materialkosten" data-wert="{{ '%.2f'|format(r.materialkosten or 0)|replace('.', ',') }}"
+              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.materialkosten or 0) | de_euro }} €</td>
           <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ row.mwst | de_euro }} €</td>
           <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-2);">{{ row.netto | de_euro }} €</td>
           <td class="px-3 py-2.5 text-right text-xs font-semibold whitespace-nowrap"
@@ -243,5 +257,69 @@
   details[open] .bh-chevron { transform: rotate(180deg); }
   .bh-chevron { transition: transform .15s; }
 </style>
+
+<script>
+(function(){
+  // ── Inline-Editieren (Excel-artig): Klick auf Brutto/Personal-/Materialkosten ──
+  document.querySelectorAll('.bh-edit').forEach(function(td){
+    td.addEventListener('click', function(){
+      if (td.querySelector('input')) return;           // schon im Bearbeiten-Modus
+      var anzeige = td.textContent;
+      td.textContent = '';
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = td.dataset.wert || '';
+      inp.setAttribute('inputmode', 'decimal');
+      td.appendChild(inp);
+      inp.focus(); inp.select();
+
+      var fertig = false;
+      function abbrechen(){ if (fertig) return; fertig = true; td.textContent = anzeige; }
+      function speichern(){
+        if (fertig) return; fertig = true;
+        var f = document.createElement('form');
+        f.method = 'post';
+        f.action = '/admin/buchhaltung/' + td.dataset.rid + '/feld';
+        [['feld', td.dataset.feld], ['wert', inp.value]].forEach(function(p){
+          var h = document.createElement('input');
+          h.type = 'hidden'; h.name = p[0]; h.value = p[1];
+          f.appendChild(h);
+        });
+        document.body.appendChild(f);
+        // requestSubmit statt submit(): feuert das submit-Event → die Scroll-Position
+        // bleibt nach dem Neuladen erhalten (Scroll-Merker in base.html)
+        if (f.requestSubmit) { f.requestSubmit(); } else { f.submit(); }
+      }
+      inp.addEventListener('keydown', function(e){
+        if (e.key === 'Enter'){ e.preventDefault(); speichern(); }
+        if (e.key === 'Escape'){ abbrechen(); }
+      });
+      inp.addEventListener('blur', function(){ setTimeout(abbrechen, 150); });
+    });
+  });
+
+  // ── Offene Monatsgruppen über das Neuladen hinweg merken ──
+  var KEY = 'bh_offen_{{ jahr }}';
+  var gespeichert = null;
+  try { gespeichert = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch(_){}
+  var alle = document.querySelectorAll('details.card');
+  if (gespeichert){
+    alle.forEach(function(d){
+      var label = d.querySelector('summary span');
+      if (label && gespeichert.indexOf(label.textContent.trim()) !== -1) d.open = true;
+      else if (label && gespeichert.indexOf(label.textContent.trim()) === -1) d.open = false;
+    });
+  }
+  function merken(){
+    var offen = [];
+    alle.forEach(function(d){
+      var label = d.querySelector('summary span');
+      if (d.open && label) offen.push(label.textContent.trim());
+    });
+    try { sessionStorage.setItem(KEY, JSON.stringify(offen)); } catch(_){}
+  }
+  alle.forEach(function(d){ d.addEventListener('toggle', merken); });
+})();
+</script>
 
 {% endblock %}
