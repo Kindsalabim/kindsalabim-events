@@ -7,7 +7,8 @@ import urllib.error
 from html import unescape, escape as _esc
 from datetime import datetime
 from config import get_config
-from choices import de_date, plz_ort, rechnung_anschrift, sparte_label, regeln_abschnitte
+from choices import (de_date, plz_ort, rechnung_anschrift, sparte_label,
+                     regeln_abschnitte, zeit_bis_text)
 
 
 def _html_to_text(html: str) -> str:
@@ -348,13 +349,22 @@ def send_erinnerung(dienstleister, event):
           _wrap(content, color, cfg))
 
 
+def _gross(s: str) -> str:
+    """Nur den ersten Buchstaben groß – str.capitalize() würde „in 3 Wochen"
+    zu „In 3 wochen" verstümmeln."""
+    return s[:1].upper() + s[1:]
+
+
 def send_einsatz_erinnerung(dienstleister, event):
     cfg = get_config()
     color = _brand_color(event.marke)
+    # Versand läuft über ein Fenster [heute, heute+2] – die Restzeit echt ausrechnen
+    # statt „In 2 Tagen" fest hinzuschreiben.
+    wann = zeit_bis_text(event.datum)
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      kleine Erinnerung: In <strong>2 Tagen</strong> hast du folgenden Einsatz. Wir freuen uns auf dich!
+      kleine Erinnerung: <strong>{wann}</strong> hast du folgenden Einsatz. Wir freuen uns auf dich!
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <table cellpadding="0" cellspacing="0" width="100%">
@@ -372,7 +382,7 @@ def send_einsatz_erinnerung(dienstleister, event):
       Zum Portal →
     </a>"""
     _send(dienstleister.email,
-          f"📅 In 2 Tagen: {event.anlass} bei {event.kunde_firma}",
+          f"📅 {_gross(wann)}: {event.anlass} bei {event.kunde_firma}",
           _wrap(content, color, cfg))
 
 
@@ -458,11 +468,13 @@ def send_frist_verlaengerung(dienstleister, event, admin_email: str):
 def send_material_erinnerung(event, admin_email: str):
     cfg = get_config()
     color = _brand_color(event.marke)
+    # Fenster [heute, heute+3 Wochen] – echte Restzeit statt „In 3 Wochen".
+    wann = zeit_bis_text(event.datum)
     content = f"""
     <p style="margin:0 0 16px;font-size:16px;color:#111827;">📦 Material-Erinnerung</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      In <strong>3 Wochen</strong> findet folgendes Event statt, bei dem eine
-      <strong>Bakerross-Bastelaktion</strong> gebucht wurde. Bitte Material rechtzeitig bestellen!
+      <strong>{_gross(wann)}</strong> findet folgendes Event statt, bei dem eine
+      <strong>Bastelaktion</strong> gebucht wurde. Bitte Material rechtzeitig bestellen!
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <table cellpadding="0" cellspacing="0" width="100%">
@@ -473,7 +485,7 @@ def send_material_erinnerung(event, admin_email: str):
       </table>
     </div>
     <p style="margin:0;font-size:13px;color:#9ca3af;">
-      Diese Erinnerung wird automatisch 3 Wochen vor dem Event-Datum gesendet.
+      Diese Erinnerung wird automatisch bis spätestens 3 Wochen vor dem Event-Datum gesendet.
     </p>"""
     _send(admin_email,
           f"📦 Material bestellen: {event.anlass} am {de_date(event.datum)} – {event.kunde_firma}",
@@ -519,10 +531,11 @@ def send_material_abhol_erinnerung(event, logistiker, logistik_transport: str = 
     color = _brand_color(event.marke)
     tt = _transport_text(logistik_transport)
     transp_zeile = f"<br>Du nimmst es <strong>{tt}</strong> mit." if tt else ""
+    wann = zeit_bis_text(event.datum)
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {logistiker.vorname},</p>
     <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">
-      kleine Erinnerung: In <strong>3 Tagen</strong> ist dein Einsatz – bitte denk daran, das
+      kleine Erinnerung: <strong>{wann}</strong> ist dein Einsatz – bitte denk daran, das
       <strong>Material</strong> für das Event mitzunehmen.{transp_zeile}
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">

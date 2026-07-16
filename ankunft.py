@@ -16,7 +16,7 @@ VORLAUF = {
     "Spieleland": 60, "Kleinkind Spieleland": 60, "Mitmachzirkus": 60,
     "Mini Mitmachzirkus": 60, "Hüpfburg": 60,
     # 45 – Bastelaktionen
-    "Bunter Bastelspaß": 45, "Spezielle Bastelaktionen (Bakerross)": 45,
+    "Bunter Bastelspaß": 45, "Bastelaktion": 45,
     "Prickeln": 45, "Knusperhäuschen": 45, "Lebkuchenherzen": 45,
     "Bastelspaß Weihnachten": 45,
     # 30 – leichte Aktionen / Betreuung / Kinderschminken im Mix

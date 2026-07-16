@@ -155,6 +155,19 @@ def run_migrations():
         except Exception:
             conn.rollback()
 
+    # Aktion umbenannt: Der Lieferant hat im Briefing nichts zu suchen (Dienstleister
+    # müssen nicht wissen, wo wir bestellen). Bestands-Events mitziehen, sonst zeigen
+    # sie weiter den alten Namen und fallen aus der Vorlauf-Tabelle (ankunft.VORLAUF).
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("UPDATE events SET produkte = REPLACE(produkte, "
+                              "'Spezielle Bastelaktionen (Bakerross)', 'Bastelaktion') "
+                              "WHERE produkte LIKE '%Bakerross%'"))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"[MIGRATION] Bastelaktion-Umbenennung übersprungen: {e}")
+
     # Eindeutigkeit: höchstens eine Anfrage je (Event, Dienstleister). (Review M4)
     # Tolerant: enthält die Prod-DB historische Doppel-Anfragen (genau der alte Bug),
     # schlägt die Index-Erzeugung fehl und wird übersprungen – ohne den Start zu blockieren.

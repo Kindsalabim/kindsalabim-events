@@ -32,7 +32,7 @@ templates.env.globals["ankunft_anzeige"] = _ankunft.ankunft_anzeige
 templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
 
 PRODUKTE_LIST = [
-    "Bunter Bastelspaß", "Spezielle Bastelaktionen (Bakerross)", "Glitzertattoos",
+    "Bunter Bastelspaß", "Bastelaktion", "Glitzertattoos",
     "Fotoaktion", "Spieleland", "Mitmachzirkus", "Mini Mitmachzirkus", "Knusperhäuschen", "Lebkuchenherzen",
     "Ballonmodellage", "Kinderschminken", "Buttonmaschine", "Prickeln",
     "Bastelspaß Weihnachten", "Kleinkind Spieleland", "Walkact", "Hüpfburg",

@@ -103,6 +103,30 @@ def de_date(d) -> str:
     return d.strftime("%d.%m.%Y") if d else ""
 
 
+def zeit_bis_text(d, heute=None) -> str:
+    """Wie weit ist `d` entfernt? „heute", „morgen", „in 5 Tagen", „in 3 Wochen".
+
+    Erinnerungs-Mails gehen in einem Zeitfenster raus (z. B. „bis 3 Wochen vorher"),
+    nicht an einem exakten Stichtag – ein fest verdrahteter Text wie „In 3 Wochen"
+    ist deshalb regelmäßig falsch. Diese Funktion rechnet die echte Restzeit aus.
+    """
+    from datetime import date as _date
+    if not d:
+        return ""
+    heute = heute or _date.today()
+    tage = (d - heute).days
+    if tage < 0:
+        return "bereits vorbei"
+    if tage == 0:
+        return "heute"
+    if tage == 1:
+        return "morgen"
+    if tage < 14:
+        return f"in {tage} Tagen"
+    wochen = round(tage / 7)
+    return f"in {wochen} Wochen"
+
+
 _MONATE_KURZ = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN",
                 "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"]
 
