@@ -14,7 +14,8 @@ from database import get_db, SessionLocal
 from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit, Reservierung, ExternerTeamer
 import secrets
 from routes.fotos import generate_presigned_url, download_file
-from auth import get_admin_user, verify_password, hash_password, create_token, COOKIE_SECURE
+from auth import (get_admin_user, verify_password, hash_password, create_token,
+                  decode_token, COOKIE_SECURE)
 from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
 from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie_anfrage, ANFRAGE_FRIST_TAGE
@@ -186,6 +187,12 @@ def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id, stat
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
+    # Schon eingeloggt → direkt ins Dashboard. Sonst wirkt ein Lesezeichen auf
+    # /admin/login wie „ausgeloggt", obwohl die Sitzung noch gültig ist.
+    token = request.cookies.get("admin_token")
+    payload = decode_token(token, " admin:") if token else None
+    if payload and payload.get("role") == "admin":
+        return RedirectResponse("/admin/dashboard", status_code=303)
     return templates.TemplateResponse("admin/login.html", tpl_context(request))
 
 @router.post("/login")
