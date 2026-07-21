@@ -111,6 +111,9 @@
             {% if a.event.produkte %}
             <p class="flex items-center gap-2" style="color: var(--ink-3);">{{ ic('check', 14) }} {{ a.event.produkte }}</p>
             {% endif %}
+            {% if a.budget %}
+            <p class="flex items-center gap-2 font-semibold" style="color: var(--ink-1);">{{ ic('star', 14) }} Budget: {{ a.budget | de_euro }} € pauschal <span class="font-normal" style="color: var(--ink-3);">(inkl. Fahrtkosten)</span></p>
+            {% endif %}
           </div>
 
           <!-- Frist -->

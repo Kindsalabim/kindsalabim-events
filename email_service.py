@@ -7,7 +7,7 @@ import urllib.error
 from html import unescape, escape as _esc
 from datetime import datetime
 from config import get_config
-from choices import (de_date, plz_ort, rechnung_anschrift, sparte_label,
+from choices import (de_date, de_euro, plz_ort, rechnung_anschrift, sparte_label,
                      regeln_abschnitte, zeit_bis_text)
 
 
@@ -660,8 +660,16 @@ def send_absage_admin(dienstleister, event, grund: str, base_url: str):
     _send(admin_email, subject, _wrap(content, color, cfg))
 
 
+def _budget_row(budget):
+    """Budget-Zeile für die Anfrage-Mail – nur wenn ein Budget gesetzt ist."""
+    if not budget:
+        return ""
+    return _info_row('Budget', f"{de_euro(budget)} € pauschal (inkl. Fahrtkosten)")
+
+
 def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str,
-                                magic_url: str = "", als_logistiker: bool = False):
+                                magic_url: str = "", als_logistiker: bool = False,
+                                budget=None):
     cfg = get_config()
     color = _brand_color(event.marke)
     portal_url = magic_url or f"{base_url}/portal/login"
@@ -694,6 +702,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
         {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
         {_info_row('Ort', plz_ort(event.veranstaltungsort))}
         {_info_row('Produkte', event.produkte)}
+        {_budget_row(budget)}
       </table>
     </div>
     {logistik_block}
@@ -716,7 +725,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
-def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""):
+def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = "", budget=None):
     """Kombinierte Anfrage für ein mehrtägiges Event (mehrere Termintage).
     Eine Mail listet alle Tage; der Dienstleister kann im Portal jeden Tag einzeln zusagen."""
     cfg = get_config()
@@ -742,6 +751,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
         {_info_row('Anlass', leit.anlass)}
         {_info_row('Ort', plz_ort(leit.veranstaltungsort))}
         {_info_row('Produkte', leit.produkte)}
+        {(_info_row('Budget je Tag', f"{de_euro(budget)} € pauschal (inkl. Fahrtkosten)") if budget else "")}
       </table>
     </div>
 

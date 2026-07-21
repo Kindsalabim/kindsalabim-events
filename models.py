@@ -195,6 +195,7 @@ class Verfuegbarkeitsanfrage(Base):
     einsatz_erinnerung_gesendet = Column(Boolean, default=False)  # Einsatz-Erinnerung 2 Tage vorher
     als_logistiker = Column(Boolean, default=False)  # auch als Logistiker (Materialtransport) angefragt
     logistik_transport = Column(String)  # Antwort des Logistikers: eigenes_auto | transporter | ohne (None = offen)
+    budget = Column(Float)  # Künstler-Budget (pauschal, netto, inkl. Fahrtkosten) – None = keine Angabe
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")

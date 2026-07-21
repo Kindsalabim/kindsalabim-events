@@ -417,6 +417,7 @@
           {% if a.dienstleister.logistiker %}<span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}
           {% if a.dienstleister_id == ev.teamleiter_id %}<span class="inline-flex items-center gap-1 ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">★ Teamleiter</span>{% endif %}
           {% if a.notiz %}<span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span>{% endif %}
+          {% if a.budget %}<span class="block text-xs font-medium mt-0.5" style="color: var(--brand-primary);">💶 Budget: {{ a.budget | de_euro }} € pauschal</span>{% endif %}
         </td>
         <td class="py-3 text-gray-500">{{ a.rolle_anfrage }}</td>
         <td class="py-3">
@@ -655,6 +656,34 @@
           </label>
           {% endfor %}
         </div>
+        {% if rolle == 'Künstler' %}
+        <div class="mb-3 p-3 rounded-lg" style="background:#f9fafb;border:1px solid #f0f0f0;">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Budget für die Künstlerin <span class="text-gray-400 font-normal">(optional)</span></label>
+          {% if ab_budget_vorschlaege %}
+          <p class="text-xs text-gray-500 mb-1.5">Aus der Auftragsbestätigung (Position −20 % Provision) – anklicken zum Übernehmen:</p>
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            {% for v in ab_budget_vorschlaege %}
+            <button type="button" onclick="setBudget(this, {{ v.budget }})"
+                    class="text-xs font-medium px-2.5 py-1 rounded-full" style="background:var(--brand-primary-light);color:var(--brand-primary);">
+              {{ v.aktion }}: {{ v.netto | de_euro }} € → {{ v.budget | de_euro }} €
+            </button>
+            {% endfor %}
+          </div>
+          {% elif ab_vorhanden %}
+          <p class="text-xs text-gray-500 mb-2">Keine passende Position in der Auftragsbestätigung gefunden – Budget bitte manuell eintragen.</p>
+          {% else %}
+          <p class="text-xs text-gray-500 mb-2">Keine Auftragsbestätigung hochgeladen – Budget manuell eintragen (oder leer lassen).</p>
+          {% endif %}
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="relative">
+              <input type="number" step="0.01" min="0" name="budget" placeholder="z. B. 296"
+                     class="w-32 border border-gray-200 rounded-lg pl-3 pr-7 py-2 text-sm focus-ring">
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">€</span>
+            </div>
+            <span class="text-xs text-gray-500">pauschal (inkl. Fahrtkosten). Leer = keine Budget-Angabe.</span>
+          </div>
+        </div>
+        {% endif %}
         <label class="flex items-start gap-2.5 cursor-pointer mb-3 text-sm p-2.5 rounded-lg bg-gray-50 border border-gray-100">
           <input type="checkbox" name="direkt" value="1" class="mt-0.5 rounded" style="accent-color: var(--brand-primary);"
                  onchange="this.closest('form').querySelector('button[type=submit]').textContent = this.checked ? 'Als zugesagt eintragen' : 'Anfragen senden';">
@@ -670,6 +699,10 @@
         .sparte-chip.chip-active{background:var(--brand-primary-light);border-color:var(--brand-primary);color:var(--brand-primary);font-weight:600;}
       </style>
       <script>
+        function setBudget(btn, val){
+          var inp = btn.closest('form').querySelector('input[name=budget]');
+          if (inp) inp.value = val;
+        }
         function filterSparte(btn, sparte){
           var form = btn.closest('form');
           form.querySelectorAll('.sparte-chip').forEach(function(c){ c.classList.remove('chip-active'); });

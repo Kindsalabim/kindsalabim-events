@@ -826,6 +826,23 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     ).order_by(EventDatei.uploaded_at).all()
     ab_urls = [(d, generate_presigned_url(d.r2_key)) for d in ab_dateien]
 
+    # Budget-Vorschläge aus der Auftragsbestätigung (Netto-Position der gebuchten
+    # Künstler-Aktion × 80 %). Nur wenn eine AB vorliegt und Künstler-Aktionen gebucht
+    # sind – tolerant: ein Parse-Fehler darf die Seite nie beeinträchtigen.
+    from choices import PRODUKT_SPARTE
+    ab_vorhanden = bool(ab_dateien)
+    kuenstler_aktionen = [p for p in (ev.produkte or "").split(", ") if p in PRODUKT_SPARTE]
+    ab_budget_vorschlaege = []
+    if ab_dateien and kuenstler_aktionen:
+        try:
+            from routes.fotos import download_file
+            from ab_budget import budget_vorschlaege
+            pdf_bytes = download_file(ab_dateien[0].r2_key)
+            if pdf_bytes:
+                ab_budget_vorschlaege = budget_vorschlaege(pdf_bytes, kuenstler_aktionen)
+        except Exception as e:
+            print(f"[AB-BUDGET] Parsen fehlgeschlagen (Event {event_id}): {e}")
+
     # Logistiker-Warnung: Material-Mitnahme nötig, aber kein Logistiker zugesagt
     logistiker_zugesagt = any(
         a.dienstleister.logistiker for a in anfragen
@@ -843,6 +860,7 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                     nachbesetzung_aktiv=nachbesetzung_aktiv,
                     fehlend_teamer=fehlend_teamer, fehlend_kuenstler=fehlend_kuenstler,
                     vorschlag_teamer=vorschlag_teamer, vorschlag_kuenstler=vorschlag_kuenstler,
+                    ab_vorhanden=ab_vorhanden, ab_budget_vorschlaege=ab_budget_vorschlaege,
                     workflow=workflow))
 
 
@@ -1075,6 +1093,7 @@ def send_anfragen(
     entsperrt: bool = Form(False),
     serie: bool = Form(False),
     direkt: bool = Form(False),
+    budget: str = Form(""),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -1083,6 +1102,14 @@ def send_anfragen(
     if not dienstleister_ids:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
     logi_ids = {int(x) for x in logistiker_ids}  # als Logistiker (Materialtransport) angefragt
+    # Künstler-Budget (pauschal, netto, inkl. Fahrtkosten) – leer/ungültig = keine Angabe.
+    budget_val = None
+    b = (budget or "").strip().replace("€", "").replace(",", ".").strip()
+    if b:
+        try:
+            budget_val = round(float(b), 2)
+        except ValueError:
+            budget_val = None
 
     # Ziel-Termine: ganze Serie (alle Tage gleichzeitig anfragen) oder nur dieses Event.
     # Abgesagte/abgeschlossene Serientage überspringen – dafür braucht es keine Anfragen. (Review M3)
@@ -1119,6 +1146,7 @@ def send_anfragen(
                     rolle_anfrage=rolle, status="Ja", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     notiz="Manuell als zugesagt eingetragen (ohne Mail)",
+                    budget=budget_val,
                 ))
                 if did in logi_ids:
                     ze.logistiker_id = did  # direkt eingetragener Logistiker
@@ -1139,6 +1167,7 @@ def send_anfragen(
                     rolle_anfrage=rolle, status="Ausstehend", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     frist_datum=date.today() + timedelta(days=ANFRAGE_FRIST_TAGE),
+                    budget=budget_val,
                 )
                 db.add(a); db.flush()  # a.id für die Antwort-Links verfügbar machen
                 neue.append((ze, a))
@@ -1146,9 +1175,10 @@ def send_anfragen(
             if len(neue) == 1:
                 ze, a = neue[0]
                 send_verfuegbarkeitsanfrage(d, ze, a.id, base_url, magic_url=magic_url,
-                                            als_logistiker=(did in logi_ids))
+                                            als_logistiker=(did in logi_ids), budget=budget_val)
             else:
-                send_serie_anfrage(d, [ze for ze, a in neue], base_url, magic_url=magic_url)
+                send_serie_anfrage(d, [ze for ze, a in neue], base_url, magic_url=magic_url,
+                                   budget=budget_val)
             db.commit()
             gesendet += 1
         except Exception as e:

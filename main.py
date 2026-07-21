@@ -136,6 +136,7 @@ def run_migrations():
     add_column("events", "vor_ort_telefon", "VARCHAR")
     add_column("verfuegbarkeitsanfragen", "als_logistiker", "BOOLEAN DEFAULT 0")
     add_column("verfuegbarkeitsanfragen", "logistik_transport", "VARCHAR")
+    add_column("verfuegbarkeitsanfragen", "budget", "FLOAT")
     add_column("events", "cl_weitere_details", "TEXT")
     add_column("events", "ankunft_modus", "VARCHAR DEFAULT 'auto'")
     add_column("events", "ankunft_text", "TEXT")

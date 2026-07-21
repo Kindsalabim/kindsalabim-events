@@ -9,13 +9,14 @@ from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei, Die
 from routes.fotos import generate_presigned_url
 from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
-from choices import de_date, de_month, plz_ort
+from choices import de_date, de_month, plz_ort, de_euro
 
 router = APIRouter(prefix="/portal")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
 templates.env.filters["de_month"] = de_month
 templates.env.filters["plz_ort"] = plz_ort
+templates.env.filters["de_euro"] = de_euro
 
 def tpl_context(request: Request, **kwargs):
     return {"request": request, "cfg": get_config(), **kwargs}
