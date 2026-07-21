@@ -1178,6 +1178,32 @@ def toggle_rechnung_gestellt(
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
 
+@router.post("/events/{event_id}/anfrage/{anfrage_id}/entfernen")
+def anfrage_entfernen(
+    event_id: int, anfrage_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+):
+    """Einen Dienstleister vom Event entfernen (Anfrage löschen) – z. B. wenn er
+    versehentlich eingetragen wurde. Betrifft nur diesen einen Termin(-tag); bei einer
+    Serie bleiben die anderen Tage unberührt. War die Person Teamleiter/Logistiker
+    dieses Events, werden diese Zuordnungen mitgelöst."""
+    a = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.id == anfrage_id,
+        Verfuegbarkeitsanfrage.event_id == event_id).first()
+    if not a:
+        raise HTTPException(404)
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    did = a.dienstleister_id
+    if ev and ev.teamleiter_id == did:
+        ev.teamleiter_id = None
+    if ev and ev.logistiker_id == did:
+        ev.logistiker_id = None
+    db.delete(a)
+    db.commit()
+    if ev:
+        ev.status = auto_status(ev, db)
+        db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}#wf-team", status_code=303)
+
 @router.post("/events/{event_id}/teamleiter")
 def set_teamleiter(
     event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
