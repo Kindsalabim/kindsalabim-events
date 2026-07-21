@@ -18,7 +18,7 @@ from auth import get_admin_user, verify_password, hash_password, create_token, C
 from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
 from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie_anfrage, ANFRAGE_FRIST_TAGE
-from choices import ZEITEN, de_date, de_month, de_euro
+from choices import ZEITEN, de_date, de_month, de_euro, benoetigte_sparten, kuenstler_passt
 from validation import validate_event_form, validate_dienstleister_form
 
 router = APIRouter(prefix="/admin")
@@ -31,13 +31,22 @@ import ankunft as _ankunft
 templates.env.globals["ankunft_anzeige"] = _ankunft.ankunft_anzeige
 templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
 
-PRODUKTE_LIST = [
-    "Bunter Bastelspaß", "Bastelaktion", "Glitzertattoos",
-    "Fotoaktion", "Spieleland", "Mitmachzirkus", "Mini Mitmachzirkus", "Knusperhäuschen", "Lebkuchenherzen",
-    "Ballonmodellage", "Kinderschminken", "Buttonmaschine", "Prickeln",
-    "Bastelspaß Weihnachten", "Kleinkind Spieleland", "Walkact", "Hüpfburg",
-    "Zaubershow", "Zauberworkshop", "Zaubershow + Ballonmodellage", "Kein Material"
+# Gebuchte Aktionen – gruppiert fürs Formular (Reihenfolge = Anzeige-Reihenfolge).
+# Gruppe 1 = die Aktionen, für die wir Künstler brauchen.
+PRODUKTE_GRUPPEN = [
+    ("Künstler-Aktionen", [
+        "Zaubershow", "Zaubershow + Ballonmodellage", "Kinderschminken",
+        "Ballonmodellage", "Walkact", "Zauberworkshop"]),
+    ("Weitere Aktionen", [
+        "Glitzertattoos", "Spieleland", "Mitmachzirkus", "Mini Mitmachzirkus",
+        "Bastelaktion", "Bunter Bastelspaß", "Fotoaktion", "Buttonmaschine",
+        "Prickeln", "U3 Spieleland", "Hüpfburg"]),
+    ("Saisonale Aktionen", [
+        "Knusperhäuschen", "Lebkuchenherzen", "Bastelspaß Weihnachten", "Kein Material"]),
 ]
+# Flache Liste (Validierung, „nicht in Standardliste"-Check) – bleibt automatisch in Sync.
+PRODUKTE_LIST = [p for _, aktionen in PRODUKTE_GRUPPEN for p in aktionen]
+templates.env.globals["produkte_gruppen"] = PRODUKTE_GRUPPEN
 
 ANLASS_LIST = [
     "Weihnachtsfeier", "Adventsfeier", "Osteraktion", "Sommerfest",
@@ -94,8 +103,11 @@ def vorschlag_ersatz(ev, db, rolle=None):
     active = db.query(Dienstleister).filter(
         Dienstleister.aktiv == True, Dienstleister.rolle.in_(rollen)).all()  # noqa: E712
     ranked = rank_contractors(active, ev.veranstaltungsort, bool(ev.material_mitnahme), unavailable)
+    # Bei Künstler-Lücken die Sparte berücksichtigen: für „Kinderschminken" keinen
+    # Zauberer vorschlagen. Ohne ableitbare Anforderung (leere Menge) wirkt kein Filter.
+    benoetigt = benoetigte_sparten(ev.produkte) if rolle == "Künstler" else set()
     for d in ranked:
-        if d.id not in anfragen_ids and d.id not in unavailable:
+        if d.id not in anfragen_ids and d.id not in unavailable and kuenstler_passt(d, benoetigt):
             return d
     return None
 
@@ -745,6 +757,11 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                                      ev.veranstaltungsort, needs_material, unavailable_ids)
     ranked_kuenstler = rank_contractors([d for d in active if d.rolle in ("Künstler", "Beides")],
                                         ev.veranstaltungsort, needs_material, unavailable_ids)
+    # Passende Sparte (z. B. Kinderschminke) nach oben – stabil, Entfernungs-Reihenfolge
+    # bleibt innerhalb der Gruppen erhalten. Niemand wird ausgeblendet.
+    benoetigt_kuenstler = benoetigte_sparten(ev.produkte)
+    if benoetigt_kuenstler:
+        ranked_kuenstler.sort(key=lambda d: 0 if kuenstler_passt(d, benoetigt_kuenstler) else 1)
 
     # Auto-Nachbesetzung (Vorschlag mit 1-Klick): offene Lücken + bester freier Ersatz.
     # Greift bei jeder Lücke (Absage, abgelaufene Anfrage, Aufstockung) auf einem aktiven,
@@ -755,16 +772,19 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     fehlend_teamer = max(0, (ev.anzahl_teamer or 0) - conf_teamer)
     fehlend_kuenstler = max(0, (ev.anzahl_kuenstler or 0) - conf_kuenstler)
 
-    def _erster_freier(ranked):
+    def _erster_freier(ranked, benoetigt=None):
         for d in ranked:
-            if d.id not in anfragen_ids and d.id not in unavailable_ids:
+            if (d.id not in anfragen_ids and d.id not in unavailable_ids
+                    and kuenstler_passt(d, benoetigt or set())):
                 return d
         return None
 
     nachbesetzung_aktiv = (ev.status not in GESPERRTE_STATUS and not ev.zaubershow_event
                            and bool(ev.datum) and ev.datum >= date.today())
     vorschlag_teamer = _erster_freier(ranked_teamer) if (nachbesetzung_aktiv and fehlend_teamer) else None
-    vorschlag_kuenstler = _erster_freier(ranked_kuenstler) if (nachbesetzung_aktiv and fehlend_kuenstler) else None
+    # Künstler-Vorschlag nur mit passender Sparte (sonst kein Vorschlag statt falschem).
+    vorschlag_kuenstler = (_erster_freier(ranked_kuenstler, benoetigt_kuenstler)
+                           if (nachbesetzung_aktiv and fehlend_kuenstler) else None)
 
     # "Länger nicht angefragt": letzte Anfrage je Dienstleister älter als 6 Monate
     grenze = date.today() - timedelta(days=180)

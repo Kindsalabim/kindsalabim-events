@@ -13,7 +13,7 @@ KUENSTLER = {"Zaubershow", "Walkact", "Ballonmodellage", "Kinderschminken"}
 # Vorlauf je Aktion in Minuten (Künstler-Aktionen = 0, zählen im Mix nicht hoch)
 VORLAUF = {
     # 60 – große Aufbauten
-    "Spieleland": 60, "Kleinkind Spieleland": 60, "Mitmachzirkus": 60,
+    "Spieleland": 60, "U3 Spieleland": 60, "Mitmachzirkus": 60,
     "Mini Mitmachzirkus": 60, "Hüpfburg": 60,
     # 45 – Bastelaktionen
     "Bunter Bastelspaß": 45, "Bastelaktion": 45,

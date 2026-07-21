@@ -40,6 +40,35 @@ def sparte_label(dienstleister) -> str:
     return f"({s})" if s else ""
 
 
+# Welche Künstler-Sparte(n) deckt eine gebuchte Aktion ab? Für die Nachbesetzungs-
+# Vorschläge: ein Zauberer soll nicht für eine Kinderschminken-Lücke vorgeschlagen werden.
+PRODUKT_SPARTE = {
+    "Kinderschminken":              {"Kinderschminke", "Schminke + Ballon"},
+    "Ballonmodellage":              {"Ballonkünstler", "Schminke + Ballon"},
+    "Zaubershow":                   {"Showact"},
+    "Zauberworkshop":               {"Showact"},
+    "Zaubershow + Ballonmodellage": {"Showact"},
+    "Walkact":                      {"Walkact"},
+}
+
+
+def benoetigte_sparten(produkte) -> set:
+    """Künstler-Sparten, die die gebuchten Aktionen abdecken müssen.
+    Leere Menge = keine ableitbare Anforderung → dann NICHT nach Sparte filtern."""
+    out = set()
+    for p in (produkte or "").split(","):
+        out |= PRODUKT_SPARTE.get(p.strip(), set())
+    return out
+
+
+def kuenstler_passt(dienstleister, benoetigt) -> bool:
+    """Passt die Profil-Sparte zu (mindestens) einer benötigten Sparte?
+    Ohne benötigte Sparte passt jeder (kein Filter)."""
+    if not benoetigt:
+        return True
+    return (getattr(dienstleister, "kuenstler_sparte", None) or "") in benoetigt
+
+
 # Standard-Regeln für Seite 2 des Briefings – übernommen aus der bewährten
 # „Briefing 2.0"-Vorlage (Stand 07/2026, laut Aykut weiterhin gültig). Editierbar
 # unter /admin/einstellungen; "## " beginnt eine neue Box, {MARKE} wird durch den

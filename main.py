@@ -168,6 +168,19 @@ def run_migrations():
             conn.rollback()
             print(f"[MIGRATION] Bastelaktion-Umbenennung übersprungen: {e}")
 
+    # Aktion umbenannt: „Kleinkind Spieleland" → „U3 Spieleland" (kürzer). Bestands-Events
+    # mitziehen, sonst zeigen sie den alten Namen als „(übernommen)" und fallen aus der
+    # Vorlauf-Tabelle. Nur die volle Wortgruppe wird ersetzt – „Spieleland" allein bleibt.
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("UPDATE events SET produkte = REPLACE(produkte, "
+                              "'Kleinkind Spieleland', 'U3 Spieleland') "
+                              "WHERE produkte LIKE '%Kleinkind Spieleland%'"))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"[MIGRATION] U3-Spieleland-Umbenennung übersprungen: {e}")
+
     # Eindeutigkeit: höchstens eine Anfrage je (Event, Dienstleister). (Review M4)
     # Tolerant: enthält die Prod-DB historische Doppel-Anfragen (genau der alte Bug),
     # schlägt die Index-Erzeugung fehl und wird übersprungen – ohne den Start zu blockieren.

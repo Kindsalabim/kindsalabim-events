@@ -128,6 +128,11 @@
           <datalist id="kunden-vorschlaege">
             {% for k in kunden|default([]) %}<option value="{{ k.firma }}">{% endfor %}
           </datalist>
+          <p class="text-xs text-gray-500 mt-1">Bekannten Kunden auswählen → Adresse &amp; Kontakt werden automatisch übernommen.</p>
+          {# Stammdaten je Kunde für das Auto-Ausfüllen; |tojson escaped sauber (Umlaute/Anführungszeichen). #}
+          <script type="application/json" id="kunden-daten">
+          [{% for k in kunden|default([]) %}{"firma": {{ k.firma|tojson }}, "strasse": {{ (k.strasse or '')|tojson }}, "plz": {{ (k.plz or '')|tojson }}, "ort": {{ (k.ort or '')|tojson }}, "kontakt": {{ (k.ansprechpartner or '')|tojson }}, "telefon": {{ (k.telefon or '')|tojson }}, "email": {{ (k.email or '')|tojson }}}{{ "," if not loop.last }}{% endfor %}]
+          </script>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Firmenadresse</label>
@@ -247,26 +252,43 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Gebuchte Aktionen *</label>
         <p class="text-xs text-gray-500 mb-2">Mindestens eine auswählen. Reine Betreuung ohne Spiel-/Bastelmaterial? → „Kein Material" anhaken.</p>
-        <div class="grid grid-cols-2 gap-2">
-          {% set selected = (event.produkte.split(', ') if event and event.produkte else []) %}
-          {% for p in produkte_list %}
-          <label class="flex items-center gap-2.5 text-sm p-2.5 rounded-lg border border-gray-100 hover:border-gray-200 cursor-pointer transition-colors">
-            <input type="checkbox" name="produkte" value="{{ p }}"
-              {% if p in selected %}checked{% endif %}
-              class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
-            {{ p }}
-          </label>
+        {% set selected = (event.produkte.split(', ') if event and event.produkte else []) %}
+        <div class="space-y-3">
+          {% for gruppe, aktionen in produkte_gruppen %}
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide mb-1.5" style="color:var(--brand-primary);">{{ gruppe }}</p>
+            <div class="grid grid-cols-2 gap-2">
+              {% for p in aktionen %}
+              <label class="flex items-center gap-2.5 text-sm p-2.5 rounded-lg border border-gray-100 hover:border-gray-200 cursor-pointer transition-colors">
+                <input type="checkbox" name="produkte" value="{{ p }}"
+                  {% if p in selected %}checked{% endif %}
+                  class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+                {{ p }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
           {% endfor %}
-          {# Aus Import/Altdaten übernommene Aktionen, die nicht in der Standardliste stehen
-             (z. B. "Zaubershow") – vorausgewählt anzeigen, damit sie sichtbar sind, erhalten
-             bleiben und die "mind. eine Aktion"-Pflicht erfüllen. #}
-          {% for p in selected if p and p not in produkte_list %}
-          <label class="flex items-center gap-2.5 text-sm p-2.5 rounded-lg border cursor-pointer transition-colors" style="border-color:var(--brand-primary);">
-            <input type="checkbox" name="produkte" value="{{ p }}" checked
-              class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
-            {{ p }} <span class="text-xs text-gray-400">(übernommen)</span>
-          </label>
-          {% endfor %}
+          {# Aus Import/Altdaten übernommene Aktionen, die nicht in der Standardliste stehen –
+             vorausgewählt anzeigen, damit sie sichtbar sind, erhalten bleiben und die
+             "mind. eine Aktion"-Pflicht erfüllen. #}
+          {% set ns = namespace(extra=[]) %}
+          {% for p in selected if p and p not in produkte_list %}{% set ns.extra = ns.extra + [p] %}{% endfor %}
+          {% set uebernommen = ns.extra %}
+          {% if uebernommen %}
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide mb-1.5 text-gray-400">Übernommen</p>
+            <div class="grid grid-cols-2 gap-2">
+              {% for p in uebernommen %}
+              <label class="flex items-center gap-2.5 text-sm p-2.5 rounded-lg border cursor-pointer transition-colors" style="border-color:var(--brand-primary);">
+                <input type="checkbox" name="produkte" value="{{ p }}" checked
+                  class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+                {{ p }} <span class="text-xs text-gray-400">(übernommen)</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
       <div class="grid grid-cols-2 gap-4">
@@ -412,6 +434,53 @@ document.addEventListener('DOMContentLoaded', function(){
     if(el) el.addEventListener('input', function(){ if(cb.checked) syncVorOrt(); });
   });
   syncVorOrt();   // Vorbelegtes Häkchen → Felder direkt sperren/grau zeichnen
+});
+
+// ── Kundendaten aus dem CRM auto-übernehmen, sobald ein bekannter Kunde gewählt wird ──
+document.addEventListener('DOMContentLoaded', function(){
+  var el = document.getElementById('kunden-daten');
+  var firma = document.querySelector('input[name=kunde_firma]');
+  if(!el || !firma) return;
+  var liste;
+  try { liste = JSON.parse(el.textContent); } catch(_){ return; }
+  var byName = {};
+  liste.forEach(function(k){ byName[(k.firma || '').trim().toLowerCase()] = k; });
+
+  var ziele = {
+    kunde_adresse: document.querySelector('input[name=kunde_adresse]'),
+    kunde_kontakt: document.querySelector('input[name=kunde_kontakt]'),
+    kunde_telefon: document.querySelector('input[name=kunde_telefon]'),
+    kunde_email:   document.querySelector('input[name=kunde_email]'),
+  };
+  // Manuelle Eingabe schützt ein Feld: danach wird es nie mehr auto-überschrieben.
+  Object.keys(ziele).forEach(function(key){
+    var inp = ziele[key];
+    if(inp) inp.addEventListener('input', function(){ delete inp.dataset.auto; });
+  });
+
+  function adresse(k){
+    var plz_ort = [k.plz, k.ort].filter(Boolean).join(' ').trim();
+    return [k.strasse, plz_ort].filter(function(t){ return t && t.trim(); }).join(', ');
+  }
+  function setzen(inp, wert){
+    if(!inp || !wert) return;
+    // Nur leere oder zuvor selbst gefüllte Felder – nie eine manuelle Eingabe überschreiben.
+    if(inp.value.trim() === '' || inp.dataset.auto === '1'){
+      inp.value = wert;
+      inp.dataset.auto = '1';
+    }
+  }
+  function uebernehmen(){
+    var k = byName[(firma.value || '').trim().toLowerCase()];
+    if(!k) return;
+    setzen(ziele.kunde_adresse, adresse(k));
+    setzen(ziele.kunde_kontakt, k.kontakt);
+    setzen(ziele.kunde_telefon, k.telefon);
+    setzen(ziele.kunde_email, k.email);
+    if(typeof syncVorOrt === 'function') syncVorOrt();   // „gleich wie Kontaktperson" mitziehen
+  }
+  firma.addEventListener('change', uebernehmen);
+  firma.addEventListener('input', uebernehmen);
 });
 
 function checkEventForm(f){
