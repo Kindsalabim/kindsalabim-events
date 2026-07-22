@@ -44,6 +44,7 @@ def sparte_label(dienstleister) -> str:
 # Vorschläge: ein Zauberer soll nicht für eine Kinderschminken-Lücke vorgeschlagen werden.
 PRODUKT_SPARTE = {
     "Kinderschminken":              {"Kinderschminke", "Schminke + Ballon"},
+    "Airbrush-Tattoos":             {"Kinderschminke", "Schminke + Ballon"},
     "Ballonmodellage":              {"Ballonkünstler", "Schminke + Ballon"},
     "Zaubershow":                   {"Showact"},
     "Zauberworkshop":               {"Showact"},

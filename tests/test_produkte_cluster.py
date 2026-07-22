@@ -9,7 +9,7 @@ def test_gruppen_reihenfolge_und_titel():
     assert titel == ["Künstler-Aktionen", "Weitere Aktionen", "Saisonale Aktionen"]
     kuenstler = dict(PRODUKTE_GRUPPEN)["Künstler-Aktionen"]
     assert kuenstler == ["Zaubershow", "Zaubershow + Ballonmodellage", "Kinderschminken",
-                         "Ballonmodellage", "Walkact", "Zauberworkshop"]
+                         "Airbrush-Tattoos", "Ballonmodellage", "Walkact", "Zauberworkshop"]
 
 
 def test_flache_liste_bleibt_in_sync():

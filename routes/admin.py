@@ -37,7 +37,7 @@ templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
 PRODUKTE_GRUPPEN = [
     ("Künstler-Aktionen", [
         "Zaubershow", "Zaubershow + Ballonmodellage", "Kinderschminken",
-        "Ballonmodellage", "Walkact", "Zauberworkshop"]),
+        "Airbrush-Tattoos", "Ballonmodellage", "Walkact", "Zauberworkshop"]),
     ("Weitere Aktionen", [
         "Glitzertattoos", "Spieleland", "Mitmachzirkus", "Mini Mitmachzirkus",
         "Bastelaktion", "Bunter Bastelspaß", "Fotoaktion", "Buttonmaschine",
@@ -47,6 +47,14 @@ PRODUKTE_GRUPPEN = [
 ]
 # Flache Liste (Validierung, „nicht in Standardliste"-Check) – bleibt automatisch in Sync.
 PRODUKTE_LIST = [p for _, aktionen in PRODUKTE_GRUPPEN for p in aktionen]
+
+
+def _mit_freitext(produkte, freitext):
+    """Freitext-Aktionen (Komma-getrennt) an die angehakten Aktionen anhängen –
+    für ausgefallene Buchungen ohne eigene Checkbox. Beim späteren Bearbeiten
+    erscheinen sie als „übernommen"-Checkbox und bleiben so erhalten."""
+    extra = [p.strip() for p in (freitext or "").split(",") if p.strip()]
+    return produkte + [p for p in extra if p not in produkte]
 templates.env.globals["produkte_gruppen"] = PRODUKTE_GRUPPEN
 
 ANLASS_LIST = [
@@ -602,7 +610,7 @@ def event_create(
     kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     vor_ort_name: str = Form(""), vor_ort_telefon: str = Form(""),
-    produkte: list = Form([]),
+    produkte: list = Form([]), produkte_freitext: str = Form(""),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     material_info_choice: str = Form(""), material_info_text: str = Form(""),
@@ -614,6 +622,7 @@ def event_create(
     extra_datum: list = Form([]), extra_startzeit: list = Form([]),
     extra_endzeit: list = Form([]),
 ):
+    produkte = _mit_freitext(produkte, produkte_freitext)
     material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
     # Veranstaltungsort = Firmenadresse, außer der Admin hat „andere Adresse" gewählt
     if not ort_abweichend:
@@ -922,7 +931,7 @@ def event_update(
     kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     vor_ort_name: str = Form(""), vor_ort_telefon: str = Form(""),
-    produkte: list = Form([]),
+    produkte: list = Form([]), produkte_freitext: str = Form(""),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
     material_info_choice: str = Form(""), material_info_text: str = Form(""),
@@ -933,6 +942,7 @@ def event_update(
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     entsperrt: bool = Form(False), serie_propagieren: bool = Form(False),
 ):
+    produkte = _mit_freitext(produkte, produkte_freitext)
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
     if event_gesperrt(ev, entsperrt):

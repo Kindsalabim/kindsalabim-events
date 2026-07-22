@@ -289,6 +289,13 @@
             </div>
           </div>
           {% endif %}
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5" for="produkte_freitext">Ausgefallene Aktion (Freitext)</label>
+            <input type="text" name="produkte_freitext" id="produkte_freitext" value=""
+              placeholder="z. B. Riesenseifenblasen-Show"
+              class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+            <p class="text-xs text-gray-500 mt-1">Für Buchungen ohne eigene Checkbox – mehrere mit Komma trennen. Erscheint danach beim Bearbeiten als eigene Checkbox unter „Übernommen".</p>
+          </div>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-4">
@@ -487,8 +494,9 @@ function checkEventForm(f){
   // Zaubershow- oder abgesagtes Event: keine weiteren Pflichten/Warnungen
   var status = f.elements['status'] ? f.elements['status'].value : '';
   if(zsAn(f) || status === 'Abgesagt'){ return true; }
-  // Mindestens eine Aktion auswählen (oder "Kein Material")
-  if(f.querySelectorAll('input[name=produkte]:checked').length === 0){
+  // Mindestens eine Aktion auswählen (oder "Kein Material" / Freitext-Aktion)
+  var freitext = f.elements['produkte_freitext'] ? f.elements['produkte_freitext'].value.trim() : '';
+  if(f.querySelectorAll('input[name=produkte]:checked').length === 0 && !freitext){
     alert('Bitte mindestens eine Aktion auswählen – oder „Kein Material“ für reine Betreuung.');
     return false;
   }

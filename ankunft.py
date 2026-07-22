@@ -8,7 +8,8 @@ Künstler-Buchung: "in Eigenverantwortung" (kein fester Treffpunkt/Ankunftszeit)
 """
 
 # Reine Künstler-Aktionen: sind ALLE gebuchten Aktionen daraus → Eigenverantwortung
-KUENSTLER = {"Zaubershow", "Walkact", "Ballonmodellage", "Kinderschminken"}
+KUENSTLER = {"Zaubershow", "Walkact", "Ballonmodellage", "Kinderschminken",
+             "Airbrush-Tattoos"}
 
 # Vorlauf je Aktion in Minuten (Künstler-Aktionen = 0, zählen im Mix nicht hoch)
 VORLAUF = {
@@ -21,7 +22,7 @@ VORLAUF = {
     "Bastelspaß Weihnachten": 45,
     # 30 – leichte Aktionen / Betreuung / Kinderschminken im Mix
     "Glitzertattoos": 30, "Fotoaktion": 30, "Buttonmaschine": 30,
-    "Kein Material": 30, "Kinderschminken": 30,
+    "Kein Material": 30, "Kinderschminken": 30, "Airbrush-Tattoos": 30,
     # 0 – reine Künstler
     "Zaubershow": 0, "Walkact": 0, "Ballonmodellage": 0,
 }
