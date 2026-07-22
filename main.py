@@ -287,6 +287,52 @@ def migrate_kunden():
         db.close()
 
 
+def backfill_kunden():
+    """Füllt LEERE Profilfelder bestehender CRM-Kunden (Adresse/Kontakt/Telefon/Mail)
+    aus ihren verknüpften Events nach – jüngstes Event zuerst. Einmal-Auffüllung für
+    Altprofile, die migrate_kunden()/link_kunde früher ohne Adresse angelegt haben;
+    gepflegte CRM-Daten werden nie überschrieben. Idempotent: ohne Lücken passiert nichts."""
+    from database import SessionLocal
+    from models import Event, Kunde
+    from routes.admin import _adresse_in_profil
+    from datetime import datetime
+    db = SessionLocal()
+    try:
+        jetzt = datetime.now().isoformat(timespec="seconds")
+        ergaenzt = 0
+        for k in db.query(Kunde).all():
+            def komplett():
+                return ((k.strasse or k.plz or k.ort) and k.ansprechpartner
+                        and k.telefon and k.email)
+            if komplett():
+                continue
+            geaendert = False
+            events = (db.query(Event).filter(Event.kunde_id == k.id)
+                      .order_by(Event.datum.desc()).all())
+            for ev in events:
+                if _adresse_in_profil(k, ev.kunde_adresse):
+                    geaendert = True
+                for attr, wert in (("ansprechpartner", ev.kunde_kontakt),
+                                   ("telefon", ev.kunde_telefon),
+                                   ("email", ev.kunde_email)):
+                    wert = (wert or "").strip()
+                    if wert and not getattr(k, attr):
+                        setattr(k, attr, wert); geaendert = True
+                if komplett():
+                    break
+            if geaendert:
+                k.aktualisiert_am = jetzt
+                ergaenzt += 1
+        db.commit()
+        if ergaenzt:
+            print(f"[MIGRATION] Kunden-Auffüllung: {ergaenzt} Profile aus Events ergänzt")
+    except Exception as e:
+        db.rollback()
+        print(f"Kunden-Auffüllung übersprungen: {e}")
+    finally:
+        db.close()
+
+
 def seed_admin():
     """Übernimmt den bestehenden Config/ENV-Admin einmalig in die admins-Tabelle."""
     from database import SessionLocal
@@ -312,6 +358,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     run_migrations()
     migrate_kunden()
+    backfill_kunden()
     seed_admin()
     if get_config().get("demo_mode") and engine.dialect.name != "postgresql":
         from seed_demo import seed_demo_data

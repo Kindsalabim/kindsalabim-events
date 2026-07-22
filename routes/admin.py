@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date, timedelta
 import calendar as _calendar
+import re
 from typing import Optional
 
 MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
@@ -133,19 +134,44 @@ def ersatz_label(d) -> str:
     return name + (f" ({' · '.join(extra)})" if extra else "")
 
 
+def _adresse_in_profil(k, adresse) -> bool:
+    """Füllt die (komplett leeren) Adressfelder des CRM-Profils aus der Event-Adresse.
+    „Musterweg 5, 45127 Essen" → strasse/plz/ort; ohne erkennbare PLZ landet alles in
+    strasse (das Formular-Autofill setzt die Teile ohnehin wieder zusammen)."""
+    adresse = (adresse or "").strip()
+    if not adresse or k.strasse or k.plz or k.ort:
+        return False
+    m = re.search(r"^(.*?)[\s,]*\b(\d{5})\s+(\S.*)$", adresse)
+    if m:
+        k.strasse = m.group(1).strip(" ,") or None
+        k.plz, k.ort = m.group(2), m.group(3).strip()
+    else:
+        k.strasse = adresse
+    return True
+
+
 def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
-    """Verknüpft das Event mit einem CRM-Kunden (Match über Firma, sonst neu anlegen)."""
+    """Verknüpft das Event mit einem CRM-Kunden (Match über Firma, sonst neu anlegen).
+    Füllt dabei LEERE Profilfelder (Adresse/Kontakt/Telefon/Mail) aus dem Event nach –
+    gepflegte CRM-Daten werden nie überschrieben. So wächst das Kunden-Autofill des
+    Event-Formulars mit jedem verknüpften Event von selbst."""
     firma = (firma or "").strip()
     if not firma:
         return
+    jetzt = datetime.now().isoformat(timespec="seconds")
     k = db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first()
     if not k:
-        jetzt = datetime.now().isoformat(timespec="seconds")
-        k = Kunde(firma=firma, ansprechpartner=(kontakt or "").strip() or None,
-                  telefon=(telefon or "").strip() or None, email=(email or "").strip() or None,
-                  marke=marke or "Kindsalabim", pipeline_status="gebucht",
+        k = Kunde(firma=firma, marke=marke or "Kindsalabim", pipeline_status="gebucht",
                   erstellt_am=jetzt, aktualisiert_am=jetzt)
-        db.add(k); db.flush()
+        db.add(k)
+    geaendert = _adresse_in_profil(k, ev.kunde_adresse)
+    for attr, wert in (("ansprechpartner", kontakt), ("telefon", telefon), ("email", email)):
+        wert = (wert or "").strip()
+        if wert and not getattr(k, attr):
+            setattr(k, attr, wert); geaendert = True
+    if geaendert:
+        k.aktualisiert_am = jetzt
+    db.flush()
     ev.kunde_id = k.id
 
 
