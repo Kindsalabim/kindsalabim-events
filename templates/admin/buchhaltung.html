@@ -164,7 +164,12 @@
         {% for row in g.rows %}
         {% set r = row.r %}
         <tr class="border-b border-gray-50 hover:bg-gray-50 transition {% if r.bezahlt %}opacity-60{% endif %}">
-          <td class="kunde px-3 py-2.5 font-medium whitespace-nowrap" style="color:var(--ink-1);" title="{{ r.kunde or '' }}">{{ r.kunde or "–" }}</td>
+          <td class="kunde px-3 py-2.5 font-medium whitespace-nowrap" style="color:var(--ink-1);" title="{{ r.kunde or '' }}">{{ r.kunde or "–" }}
+            {% if rechnung_ueberfaellig(r) %}
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style="background:#fee2e2;color:#b91c1c;"
+                  title="Fällig seit {{ rechnung_faellig_am(r) | de_date }} (14 Werktage) – noch nicht bezahlt">überfällig</span>
+            {% endif %}
+          </td>
           <td class="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style="color:var(--ink-3);">{{ r.rgnr or "–" }}</td>
           <td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ r.datum | de_date }}</td>
           <td class="bh-edit px-3 py-2.5 text-right font-semibold whitespace-nowrap" style="color:var(--ink-1);"

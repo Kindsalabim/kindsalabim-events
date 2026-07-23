@@ -147,6 +147,7 @@ def run_migrations():
     add_column("admins", "notifications_gesehen_bis", "VARCHAR")
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")
+    add_column("rechnungen", "ueberfaellig_erinnert", "BOOLEAN DEFAULT 0")
 
     # Status-Modell vereinheitlicht: "Entwurf"/"Bestätigt" gibt es nicht mehr → "Gebucht".
     with engine.connect() as conn:

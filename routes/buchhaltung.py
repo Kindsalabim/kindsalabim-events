@@ -9,12 +9,14 @@ from database import get_db
 from models import Rechnung
 from auth import get_admin_user
 from config import get_config
-from choices import de_date, de_euro
+from choices import de_date, de_euro, rechnung_faellig_am, rechnung_ueberfaellig
 
 router = APIRouter(prefix="/admin/buchhaltung")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
 templates.env.filters["de_euro"] = de_euro
+templates.env.globals["rechnung_faellig_am"] = rechnung_faellig_am
+templates.env.globals["rechnung_ueberfaellig"] = rechnung_ueberfaellig
 
 
 def tpl_context(request, **kw):

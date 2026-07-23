@@ -7,7 +7,7 @@ import urllib.error
 from html import unescape, escape as _esc
 from datetime import datetime
 from config import get_config
-from choices import (de_date, de_euro, plz_ort, rechnung_anschrift, sparte_label,
+from choices import (anfrage_ort, de_date, de_euro, plz_ort, rechnung_anschrift, sparte_label,
                      regeln_abschnitte, zeit_bis_text)
 
 
@@ -669,7 +669,7 @@ def _budget_row(budget):
 
 def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str,
                                 magic_url: str = "", als_logistiker: bool = False,
-                                budget=None):
+                                budget=None, rolle: str = "Künstler"):
     cfg = get_config()
     color = _brand_color(event.marke)
     portal_url = magic_url or f"{base_url}/portal/login"
@@ -700,7 +700,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
         {_info_row('Anlass', event.anlass)}
         {_info_row('Datum', de_date(event.datum))}
         {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
-        {_info_row('Ort', plz_ort(event.veranstaltungsort))}
+        {_info_row('Ort', anfrage_ort(event.veranstaltungsort, rolle))}
         {_info_row('Produkte', event.produkte)}
         {_budget_row(budget)}
       </table>
@@ -725,7 +725,8 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
 
 
-def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = "", budget=None):
+def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = "",
+                       budget=None, rolle: str = "Künstler"):
     """Kombinierte Anfrage für ein mehrtägiges Event (mehrere Termintage).
     Eine Mail listet alle Tage; der Dienstleister kann im Portal jeden Tag einzeln zusagen."""
     cfg = get_config()
@@ -749,7 +750,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', leit.anlass)}
-        {_info_row('Ort', plz_ort(leit.veranstaltungsort))}
+        {_info_row('Ort', anfrage_ort(leit.veranstaltungsort, rolle))}
         {_info_row('Produkte', leit.produkte)}
         {(_info_row('Budget je Tag', f"{de_euro(budget)} € pauschal (inkl. Fahrtkosten)") if budget else "")}
       </table>
@@ -778,6 +779,19 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
 
     subject = f"Anfrage: {leit.anlass} – {len(events)} Termine"
     _send(dienstleister.email, subject, _wrap(content, color, cfg))
+
+
+def _infoblatt_teamleiter(marke: str):
+    """Markengerechtes Teamleiter-Infoblatt aus static/ als Mail-Anhang (Name, Bytes).
+    Fehlt die Datei, kommt None zurück – das Briefing geht trotzdem raus."""
+    import os
+    kf = (marke == "Knallfrosch")
+    pfad = os.path.join("static", f"infoblatt-teamleiter-{'knallfrosch' if kf else 'kindsalabim'}.pdf")
+    try:
+        with open(pfad, "rb") as f:
+            return (f"Teamleiter-Infoblatt {'Knallfrosch' if kf else 'Kindsalabim'}.pdf", f.read())
+    except OSError:
+        return None
 
 
 def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, externe=None,
@@ -909,16 +923,38 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             for p in r_punkte)
         regeln_html += _mail_card(_esc(r_titel), ic("checkliste"), f"<table {T}>{li}</table>", color)
 
+    # Teamleiter-Extras: Hinweis auf die Eventbericht-Mail (inkl. Fotos!) als eigene
+    # Karte + das markengerechte Infoblatt als PDF-Anhang. Nur für die Teamleitung –
+    # Teamer/Künstler bekommen das normale Briefing.
+    infoblatt = _infoblatt_teamleiter(event.marke)
+    infoblatt_zeile = ""
+    if infoblatt:
+        infoblatt_zeile = (
+            '<p style="margin:10px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">'
+            '&#128206; An dieser Mail hängt außerdem dein <strong>Teamleiter-Infoblatt (PDF)</strong> '
+            'mit allen wichtigen Infos zu deiner Rolle.</p>')
+    tl_karte = _mail_card("Nach dem Event: Eventbericht ausfüllen", ic("checkliste"),
+        f'<p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">'
+        f'Denk bitte daran: Als <strong>Teamleitung</strong> bekommst du kurz nach dem Event '
+        f'automatisch eine E-Mail mit dem Link zum <strong>Eventbericht</strong>. '
+        f'Bitte fülle ihn zeitnah aus – <strong>inklusive 2–3 Fotos</strong> von der Aktion.</p>'
+        f'{infoblatt_zeile}', color)
+
     for d in dienstleister_list:
+        is_tl = bool(event.teamleiter_id and d.id == event.teamleiter_id)
         content = f"""
         <p style="margin:0 0 6px;font-size:16px;color:#111827;">Hallo {_esc(d.vorname)},</p>
         <p style="margin:0 0 22px;font-size:15px;color:#374151;line-height:1.6;">
           hier ist dein Briefing für das bevorstehende Event. Bitte lies es sorgfältig durch.
         </p>
         {karten}
+        {tl_karte if is_tl else ""}
         {portal_btn}
         {regeln_html}"""
-        _deliver(d.email, subject, _wrap(content, color, cfg), anhaenge)
+        anhaenge_d = anhaenge
+        if is_tl and infoblatt:
+            anhaenge_d = list(anhaenge or []) + [infoblatt]
+        _deliver(d.email, subject, _wrap(content, color, cfg), anhaenge_d)
 
 
 def send_wiedervorlage_digest(to_email, wvs, heute):

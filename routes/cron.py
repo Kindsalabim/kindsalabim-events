@@ -237,6 +237,40 @@ def _run_abgelaufene_anfragen(db: Session) -> int:
     return len(abgelaufen)
 
 
+def _run_ueberfaellige_rechnungen(db: Session) -> int:
+    """Meldet unbezahlte Rechnungen, deren Zahlungsziel (14 Werktage nach Rechnungs-
+    datum) abgelaufen ist – Glocke + Admin-Mail via notify(), einmal je Rechnung
+    (Flag ueberfaellig_erinnert). Wird die Rechnung nie bezahlt, bleibt sie in der
+    Buchhaltung rot markiert (Badge), es kommt aber keine tägliche Wiederholung."""
+    from choices import rechnung_faellig_am, de_euro, ZAHLUNGSZIEL_WERKTAGE
+    from notifications import notify
+    heute = _heute()
+    offene = db.query(Rechnung).filter(
+        Rechnung.bezahlt == False,                    # noqa: E712
+        Rechnung.ueberfaellig_erinnert == False,      # noqa: E712
+        Rechnung.datum != None,                       # noqa: E711
+    ).all()
+    count = 0
+    for r in offene:
+        faellig = rechnung_faellig_am(r)
+        if not faellig or heute <= faellig:
+            continue
+        try:
+            notify(db, "rechnung_ueberfaellig",
+                   f"Rechnung überfällig: {r.rgnr or 'ohne Nr.'} – {r.kunde or 'unbekannt'}",
+                   f"Rechnung vom {r.datum.strftime('%d.%m.%Y')} über {de_euro(r.brutto)} € "
+                   f"brutto war am {faellig.strftime('%d.%m.%Y')} fällig "
+                   f"({ZAHLUNGSZIEL_WERKTAGE} Werktage) und ist noch nicht als bezahlt markiert.",
+                   "/admin/buchhaltung")
+            r.ueberfaellig_erinnert = True
+            db.commit()   # pro Rechnung committen: kein Doppelversand bei Absturz
+            count += 1
+        except Exception as e:
+            db.rollback()
+            print(f"Überfällig-Meldung fehlgeschlagen für Rechnung {r.id}: {e}")
+    return count
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -327,6 +361,9 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # Abgelaufene Anfragen markieren + Büro zum Nachbesetzen benachrichtigen
     abgelaufene_anfragen = _run_abgelaufene_anfragen(db)
 
+    # Unbezahlte Rechnungen nach Zahlungsziel (14 Werktage) melden
+    rechnungen_ueberfaellig = _run_ueberfaellige_rechnungen(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -343,6 +380,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "bericht_erinnerungen": bericht_erinnerungen,
                          "material_abhol_erinnerungen": material_abhol,
                          "abgelaufene_anfragen": abgelaufene_anfragen,
+                         "rechnungen_ueberfaellig": rechnungen_ueberfaellig,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 

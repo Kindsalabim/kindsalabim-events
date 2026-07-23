@@ -100,14 +100,14 @@
                 {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
                 {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
               </div>
-              <p class="text-xs mt-1" style="color: var(--ink-3);">{{ a.event.veranstaltungsort | plz_ort }}</p>
+              <p class="text-xs mt-1" style="color: var(--ink-3);">{{ anfrage_ort(a.event.veranstaltungsort, a.rolle_anfrage) }}</p>
             </div>
           </div>
 
           <!-- Eckdaten -->
           <div class="mt-3.5 space-y-1.5 text-xs" style="color: var(--ink-2);">
             <p class="flex items-center gap-2">{{ ic('clock', 14) }} {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
-            <p class="flex items-center gap-2">{{ ic('pin', 14) }} {{ a.event.veranstaltungsort | plz_ort }}</p>
+            <p class="flex items-center gap-2">{{ ic('pin', 14) }} {{ anfrage_ort(a.event.veranstaltungsort, a.rolle_anfrage) }}</p>
             {% if a.event.produkte %}
             <p class="flex items-center gap-2" style="color: var(--ink-3);">{{ ic('check', 14) }} {{ a.event.produkte }}</p>
             {% endif %}

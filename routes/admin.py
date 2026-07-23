@@ -1218,10 +1218,11 @@ def send_anfragen(
             if len(neue) == 1:
                 ze, a = neue[0]
                 send_verfuegbarkeitsanfrage(d, ze, a.id, base_url, magic_url=magic_url,
-                                            als_logistiker=(did in logi_ids), budget=budget_val)
+                                            als_logistiker=(did in logi_ids), budget=budget_val,
+                                            rolle=rolle)
             else:
                 send_serie_anfrage(d, [ze for ze, a in neue], base_url, magic_url=magic_url,
-                                   budget=budget_val)
+                                   budget=budget_val, rolle=rolle)
             db.commit()
             gesendet += 1
         except Exception as e:

@@ -116,6 +116,15 @@ def regeln_abschnitte(text: str, marke: str = "") -> list:
     return abschnitte
 
 
+def anfrage_ort(ort: str, rolle: str = "Künstler") -> str:
+    """Ortsangabe in der Verfügbarkeitsanfrage (Mail + Portal): Künstler sehen nur
+    PLZ/Ort (Kundenschutz), Teamer die volle Adresse – sie können sich so besser auf
+    den Job einstellen (Aykut, 22.07.2026). Default konservativ = maskiert."""
+    if (rolle or "Künstler") == "Künstler":
+        return plz_ort(ort)
+    return (ort or "").strip()
+
+
 def plz_ort(ort: str) -> str:
     """Nur PLZ + Ort aus einer Adresse (Straße/Hausnummer entfernt) – für die Anfrage-
     Ansicht, in der Dienstleister den Kunden noch nicht vollständig sehen sollen."""
@@ -164,6 +173,35 @@ _MONATE_KURZ = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN",
 def de_month(d) -> str:
     """Deutsches Monatskürzel (z. B. MAI) aus einem date-Objekt."""
     return _MONATE_KURZ[d.month - 1] if d else ""
+
+
+# ── Rechnungs-Fälligkeit ────────────────────────────────────────────────────────
+# Zahlungsziel laut AB: 14 Tage nach Rechnungseingang; Aykut rechnet in Werktagen
+# (Mo–Fr, ohne Feiertage – bewusst einfach gehalten).
+ZAHLUNGSZIEL_WERKTAGE = 14
+
+
+def werktage_spaeter(start, n: int):
+    """Datum n Werktage (Mo–Fr) nach `start`."""
+    from datetime import timedelta
+    d, rest = start, n
+    while rest > 0:
+        d += timedelta(days=1)
+        if d.weekday() < 5:
+            rest -= 1
+    return d
+
+
+def rechnung_faellig_am(r):
+    """Fälligkeitsdatum einer Rechnung (None ohne Rechnungsdatum)."""
+    return werktage_spaeter(r.datum, ZAHLUNGSZIEL_WERKTAGE) if r.datum else None
+
+
+def rechnung_ueberfaellig(r, heute=None) -> bool:
+    """Unbezahlt UND Zahlungsziel abgelaufen?"""
+    from datetime import date as _date
+    f = rechnung_faellig_am(r)
+    return bool(f and not r.bezahlt and (heute or _date.today()) > f)
 
 
 def de_euro(value) -> str:

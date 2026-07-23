@@ -23,6 +23,7 @@ NOTIF_TYPEN = [
     ("checkliste", "Kunde hat Checkliste zurückgeschickt",  False, True),
     ("bericht",    "Eventbericht wurde eingereicht",        True,  False),
     ("anfrage_abgelaufen", "Anfrage-Frist abgelaufen – nachbesetzen", True, False),
+    ("rechnung_ueberfaellig", "Rechnung überfällig (Zahlungsziel abgelaufen)", True, True),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 
