@@ -466,7 +466,8 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 def reservierungen_list(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     res = db.query(Reservierung).order_by(Reservierung.datum, Reservierung.frist.is_(None), Reservierung.frist).all()
     return templates.TemplateResponse("admin/reservierungen.html",
-        tpl_context(request, reservierungen=res, today=date.today()))
+        tpl_context(request, reservierungen=res, today=date.today(),
+                    frist_default=date.today() + timedelta(days=5)))
 
 @router.post("/reservierungen/new")
 def reservierung_create(

@@ -212,6 +212,24 @@ def _json_aus_text(text):
 
 # ── Stichwort-Filter (Katalog vorfiltern) ────────────────────────────────────
 
+# Reines Material (Sticker, Stempel, Stifte …) ist kein Bastelset und fliegt aus
+# den Kandidaten – außer der Name weist es ausdrücklich als Bastelset aus
+# (z. B. "Sticker-Mosaik-Bastelsets" oder "Stiftehalter-Bastelsets").
+MATERIAL_MUSTER = re.compile(
+    r"sticker|aufkleber|abziehbild|stempel|tattoo|stifte?\b|marker\b|kreide|"
+    r"wackelaugen|pompon|pompom|perlen\b|pailletten|konfetti|moosgummi|"
+    r"pfeifenreiniger|federn\b|kleber\b|klebstoff|klebepunkte|bänder\b|"
+    r"geschenktüten|deko\b",
+    re.I,
+)
+
+
+def _ist_bastelset(produkt):
+    name = (produkt.name or "").lower()
+    if "bastelset" in name or "bastel-set" in name:
+        return True
+    return not MATERIAL_MUSTER.search(name)
+
 def _expand_stichworte(query):
     """Motto/Saison -> Liste von Suchbegriffen (Saison-Map + eigene Wörter)."""
     q = (query or "").lower()
@@ -234,6 +252,7 @@ def _score(produkt, stichworte):
 def _kandidaten(db, query, stichworte, cap=80):
     from models import BastelProdukt
     produkte = db.query(BastelProdukt).filter(BastelProdukt.aktiv == True).all()  # noqa: E712
+    produkte = [p for p in produkte if _ist_bastelset(p)]
     bewertet = [(p, _score(p, stichworte)) for p in produkte]
     bewertet = [(p, s) for p, s in bewertet if s > 0]
     bewertet.sort(key=lambda x: x[1], reverse=True)
@@ -277,7 +296,9 @@ def kurate(db, query, max_results=12, faktor=2.5):
         )
         antwort = _claude(
             "Du kuratierst Bastelsets für ein Kinder-Event-Unternehmen. Wähle nur aus der "
-            "vorgegebenen Liste. Erfinde keine Produkte. Antworte nur mit JSON.",
+            "vorgegebenen Liste. Wähle ausschließlich komplette Bastelsets (Sets, die Kinder "
+            "zusammenbauen/gestalten) – KEIN loses Material wie Sticker, Aufkleber, Stempel, "
+            "Stifte, Perlen oder Deko. Erfinde keine Produkte. Antworte nur mit JSON.",
             f"Motto/Saison: \"{query}\".\n\nWähle die {max_results} am besten passenden "
             f"Bastelsets aus dieser Liste (Format 'ID: Name – Beschreibung'):\n\n{liste}\n\n"
             f"Antworte als JSON-Array: [{{\"id\": <ID>, \"grund\": \"<kurze Begründung, "

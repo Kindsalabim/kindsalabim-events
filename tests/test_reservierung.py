@@ -63,3 +63,10 @@ def test_reservierung_liste_zeigt_uhrzeit(admin):
     _make_res(startzeit="17:45", endzeit="18:45")
     h = admin.get("/admin/reservierungen").text
     assert "17:45–18:45 Uhr" in h
+
+
+def test_neue_reservierung_frist_vorbelegt_heute_plus_5(admin):
+    from datetime import timedelta
+    h = admin.get("/admin/reservierungen").text
+    erwartet = (date.today() + timedelta(days=5)).isoformat()
+    assert f'name="frist" value="{erwartet}"' in h
