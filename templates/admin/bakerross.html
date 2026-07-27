@@ -65,6 +65,51 @@
   </div>
 </form>
 
+{% if ziel_event %}
+<!-- ── Angedockte Bastelsets des gewählten Events ── -->
+<div class="card p-5 mb-6">
+  <div class="flex items-center gap-2 mb-1">
+    <h2 class="text-sm font-semibold text-gray-700">Angedockte Bastelsets</h2>
+    <span class="ml-1 text-xs text-gray-500">{{ ziel_event.datum|de_date }} · {{ ziel_event.anlass }} · {{ ziel_event.kunde_firma }}</span>
+  </div>
+
+  {% if ziel_event.bastelvorschlaege %}
+  <ul class="mt-4 mb-4 space-y-2">
+    {% for v in ziel_event.bastelvorschlaege %}
+    <li class="flex items-center gap-3 text-sm py-2 px-3 rounded-lg" style="background: #f9fafb;">
+      {% if v.bild_url %}
+      <img src="{{ v.bild_url }}" alt="{{ v.name }}" loading="lazy" class="w-12 h-12 object-contain rounded bg-white shrink-0">
+      {% endif %}
+      <div class="flex-1 min-w-0">
+        <a href="{{ v.url }}" target="_blank" rel="noopener" class="font-medium text-gray-700 hover:underline">{{ v.name }}</a>
+        {% if v.begruendung %}<p class="text-xs text-gray-500 italic">{{ v.begruendung }}</p>{% endif %}
+        <p class="text-xs text-gray-500 mt-0.5">
+          {% if v.br_preis is not none %}BR {{ '%.2f'|format(v.br_preis) }} €{% if v.stueckzahl %} / {{ v.stueckzahl }} Stk{% endif %} →{% endif %}
+          {% if v.kundenpreis is not none %}<span class="font-semibold text-gray-700">Kunde {{ '%.2f'|format(v.kundenpreis) }} €/Stück</span>{% endif %}
+        </p>
+      </div>
+      <form method="post" action="/admin/bakerross/vorschlag/{{ v.id }}/delete"
+            onsubmit="return confirm('Vorschlag entfernen?')">
+        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Bastelsets angedockt.</p>
+  {% endif %}
+
+  <div class="flex flex-wrap gap-2">
+    {% if ziel_event.bastelvorschlaege %}
+    <a href="/admin/angebot?event_id={{ ziel_event.id }}" class="btn-secondary text-sm px-4 py-2 inline-block">Bilder ins Angebot-PDF übernehmen</a>
+    {% endif %}
+    <a href="/admin/events/{{ ziel_event.id }}" class="text-sm text-gray-400 hover:text-gray-700 px-2 py-2 inline-block">Zum Event ↗</a>
+  </div>
+</div>
+{% endif %}
+
 {% if treffer is not none %}
   <!-- ── Andock-Ziel (Event) ── -->
   <div class="card p-4 mb-4 flex items-center gap-3 flex-wrap">

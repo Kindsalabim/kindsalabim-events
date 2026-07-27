@@ -48,6 +48,12 @@ def _events_liste(db: Session):
     return db.query(Event).order_by(Event.datum.desc()).limit(150).all()
 
 
+def _ziel_event(db: Session, event_id):
+    if not event_id:
+        return None
+    return db.query(Event).filter(Event.id == event_id).first()
+
+
 def tpl(request, **kw):
     ctx = {"request": request, "cfg": get_config(), "active": "bakerross",
            "heute": date.today(), "ki_an": br.ki_verfuegbar(),
@@ -61,7 +67,8 @@ def index(request: Request, event_id: int = None, db: Session = Depends(get_db),
           _=Depends(get_admin_user)):
     return templates.TemplateResponse("admin/bakerross.html", tpl(
         request, status=_katalog_status(db), events=_events_liste(db),
-        event_id=event_id, treffer=None, query=""))
+        event_id=event_id, ziel_event=_ziel_event(db, event_id),
+        treffer=None, query=""))
 
 
 @router.post("/suche", response_class=HTMLResponse)
@@ -73,7 +80,8 @@ def suche(request: Request, query: str = Form(...), faktor: float = Form(None),
     treffer = br.kurate(db, query.strip(), max_results=max_results, faktor=faktor)
     return templates.TemplateResponse("admin/bakerross.html", tpl(
         request, status=_katalog_status(db), events=_events_liste(db),
-        event_id=event_id, treffer=treffer, query=query, faktor=faktor))
+        event_id=event_id, ziel_event=_ziel_event(db, event_id),
+        treffer=treffer, query=query, faktor=faktor))
 
 
 @router.post("/an-event")
@@ -95,7 +103,8 @@ def an_event(event_id: int = Form(...), name: str = Form(...), url: str = Form("
         erstellt_am=datetime.now().isoformat(timespec="seconds"),
     ))
     db.commit()
-    return RedirectResponse(f"/admin/events/{ev.id}#bastel", status_code=303)
+    return RedirectResponse(f"/admin/bakerross?event_id={ev.id}&msg=Bastelset+angedockt",
+                            status_code=303)
 
 
 @router.get("/bild")
@@ -131,7 +140,7 @@ def vorschlag_delete(vid: int, db: Session = Depends(get_db), _=Depends(get_admi
     eid = v.event_id
     db.delete(v)
     db.commit()
-    return RedirectResponse(f"/admin/events/{eid}#bastel", status_code=303)
+    return RedirectResponse(f"/admin/bakerross?event_id={eid}", status_code=303)
 
 
 @router.post("/refresh")
