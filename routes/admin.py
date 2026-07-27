@@ -886,11 +886,13 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         except Exception as e:
             print(f"[AB-BUDGET] Parsen fehlgeschlagen (Event {event_id}): {e}")
 
-    # Logistiker-Warnung: Material-Mitnahme nötig, aber kein Logistiker zugesagt
+    # Logistiker-Warnung: Material-Mitnahme nötig, aber weder ein Logistiker
+    # zugesagt noch manuell einer zugewiesen (ev.logistiker_id)
     logistiker_zugesagt = any(
         a.dienstleister.logistiker for a in anfragen
         if a.status == "Ja" and a.dienstleister)
-    logistiker_warnung = bool(ev.material_mitnahme and not logistiker_zugesagt)
+    logistiker_warnung = bool(ev.material_mitnahme and not ev.logistiker_id
+                              and not logistiker_zugesagt)
 
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
