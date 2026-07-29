@@ -276,15 +276,14 @@ def _run_reservierungen_aufraeumen(db: Session) -> int:
 
 def _run_ueberfaellige_rechnungen(db: Session) -> int:
     """Meldet unbezahlte Rechnungen, deren Zahlungsziel (14 Werktage nach Rechnungs-
-    datum) abgelaufen ist – Glocke + Admin-Mail via notify(), einmal je Rechnung
-    (Flag ueberfaellig_erinnert). Wird die Rechnung nie bezahlt, bleibt sie in der
-    Buchhaltung rot markiert (Badge), es kommt aber keine tägliche Wiederholung."""
+    datum) abgelaufen ist – Glocke + Admin-Mail via notify(). Wiederholt sich alle
+    7 Tage (ueberfaellig_erinnert_am = Datum der letzten Meldung), bis die Rechnung
+    als bezahlt markiert ist."""
     from choices import rechnung_faellig_am, de_euro, ZAHLUNGSZIEL_WERKTAGE
     from notifications import notify
     heute = _heute()
     offene = db.query(Rechnung).filter(
         Rechnung.bezahlt == False,                    # noqa: E712
-        Rechnung.ueberfaellig_erinnert == False,      # noqa: E712
         Rechnung.datum != None,                       # noqa: E711
     ).all()
     count = 0
@@ -292,14 +291,22 @@ def _run_ueberfaellige_rechnungen(db: Session) -> int:
         faellig = rechnung_faellig_am(r)
         if not faellig or heute <= faellig:
             continue
+        if r.ueberfaellig_erinnert_am:
+            try:
+                if heute < date.fromisoformat(r.ueberfaellig_erinnert_am) + timedelta(days=7):
+                    continue
+            except ValueError:
+                pass   # kaputter Wert → lieber erinnern als nie wieder
         try:
             notify(db, "rechnung_ueberfaellig",
                    f"Rechnung überfällig: {r.rgnr or 'ohne Nr.'} – {r.kunde or 'unbekannt'}",
                    f"Rechnung vom {r.datum.strftime('%d.%m.%Y')} über {de_euro(r.brutto)} € "
                    f"brutto war am {faellig.strftime('%d.%m.%Y')} fällig "
-                   f"({ZAHLUNGSZIEL_WERKTAGE} Werktage) und ist noch nicht als bezahlt markiert.",
+                   f"({ZAHLUNGSZIEL_WERKTAGE} Werktage) und ist noch nicht als bezahlt markiert. "
+                   f"Diese Erinnerung wiederholt sich wöchentlich, bis die Rechnung in der "
+                   f"Buchhaltung als bezahlt markiert ist.",
                    "/admin/buchhaltung")
-            r.ueberfaellig_erinnert = True
+            r.ueberfaellig_erinnert_am = heute.isoformat()
             db.commit()   # pro Rechnung committen: kein Doppelversand bei Absturz
             count += 1
         except Exception as e:

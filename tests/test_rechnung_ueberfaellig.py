@@ -1,6 +1,7 @@
-"""Überfällige Rechnungen: Zahlungsziel 14 Werktage; unbezahlt danach → einmalige
-Glocken-/Mail-Benachrichtigung (Cron) + Badge in der Buchhaltung."""
-from datetime import date
+"""Überfällige Rechnungen: Zahlungsziel 14 Werktage; unbezahlt danach → Glocken-/
+Mail-Benachrichtigung (Cron), wiederholt alle 7 Tage bis bezahlt + Badge in der
+Buchhaltung."""
+from datetime import date, timedelta
 
 from choices import werktage_spaeter, rechnung_faellig_am, rechnung_ueberfaellig
 from models import Rechnung, Benachrichtigung
@@ -22,7 +23,7 @@ def test_faelligkeit_und_ueberfaellig_logik():
     assert rechnung_faellig_am(Rechnung(datum=None)) is None
 
 
-def test_cron_meldet_einmalig_und_setzt_flag(db):
+def test_cron_meldet_und_wiederholt_alle_7_tage(db):
     db.add(Rechnung(datum=date(2026, 1, 5), kunde="Säumig GmbH", rgnr="RE-UEB-1",
                     brutto=1190.0, bezahlt=False))
     db.add(Rechnung(datum=date(2026, 1, 5), kunde="Pünktlich AG", rgnr="RE-UEB-2",
@@ -31,17 +32,36 @@ def test_cron_meldet_einmalig_und_setzt_flag(db):
     assert _run_ueberfaellige_rechnungen(db) >= 1
     r = db.query(Rechnung).filter(Rechnung.rgnr == "RE-UEB-1").one()
     db.refresh(r)
-    assert r.ueberfaellig_erinnert is True
+    assert r.ueberfaellig_erinnert_am == date.today().isoformat()
     meldungen = db.query(Benachrichtigung).filter(
         Benachrichtigung.titel.contains("RE-UEB-1")).count()
     assert meldungen == 1
     # Bezahlte Rechnung löst nichts aus
     assert db.query(Benachrichtigung).filter(
         Benachrichtigung.titel.contains("RE-UEB-2")).count() == 0
-    # Zweiter Lauf: keine Wiederholung für dieselbe Rechnung
+    # Zweiter Lauf am selben Tag: keine Wiederholung
     _run_ueberfaellige_rechnungen(db)
     assert db.query(Benachrichtigung).filter(
         Benachrichtigung.titel.contains("RE-UEB-1")).count() == 1
+    # 6 Tage später (simuliert): noch keine Wiederholung
+    r.ueberfaellig_erinnert_am = (date.today() - timedelta(days=6)).isoformat()
+    db.commit()
+    _run_ueberfaellige_rechnungen(db)
+    assert db.query(Benachrichtigung).filter(
+        Benachrichtigung.titel.contains("RE-UEB-1")).count() == 1
+    # 7 Tage später (simuliert): Meldung wiederholt sich
+    r.ueberfaellig_erinnert_am = (date.today() - timedelta(days=7)).isoformat()
+    db.commit()
+    _run_ueberfaellige_rechnungen(db)
+    assert db.query(Benachrichtigung).filter(
+        Benachrichtigung.titel.contains("RE-UEB-1")).count() == 2
+    # Als bezahlt markiert → keine weiteren Meldungen mehr
+    r.bezahlt = True
+    r.ueberfaellig_erinnert_am = (date.today() - timedelta(days=30)).isoformat()
+    db.commit()
+    _run_ueberfaellige_rechnungen(db)
+    assert db.query(Benachrichtigung).filter(
+        Benachrichtigung.titel.contains("RE-UEB-1")).count() == 2
 
 
 def test_badge_in_buchhaltung(admin, db):

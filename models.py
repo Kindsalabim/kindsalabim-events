@@ -342,8 +342,8 @@ class Rechnung(Base):
     rgnr           = Column(String)       # Rechnungsnummer, z. B. RE-2026-001
     brutto         = Column(Float, default=0.0)
     bezahlt          = Column(Boolean, default=False)
-    # Überfällig-Meldung (Glocke/Mail) schon raus? Verhindert tägliche Wiederholung.
-    ueberfaellig_erinnert = Column(Boolean, default=False)
+    # Letzte Überfällig-Meldung (ISO-Datum) – wiederholt sich alle 7 Tage, bis bezahlt.
+    ueberfaellig_erinnert_am = Column(String)
     steuer_erledigt  = Column(Boolean, default=False)
     personalkosten   = Column(Float, default=0.0)
     materialkosten   = Column(Float, default=0.0)
