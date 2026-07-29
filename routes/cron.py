@@ -237,6 +237,43 @@ def _run_abgelaufene_anfragen(db: Session) -> int:
     return len(abgelaufen)
 
 
+def _run_reservierung_farben(db: Session) -> int:
+    """Färbt den Google-Kalender-Block abgelaufener Reservierungen um (Anthrazit →
+    Flamingo). Die Farbe selbst bestimmt calendar_service._reservierung_body anhand
+    der Frist; hier wird nur der Re-Sync angestoßen. Idempotent über das Flag
+    kalender_abgelaufen_markiert – es wird erst gesetzt, wenn der Kalender-Update
+    wirklich durchging (sonst nächster Lauf)."""
+    from models import Reservierung
+    import calendar_service
+    heute = _heute()
+    faellig = db.query(Reservierung).filter(
+        Reservierung.frist != None,                          # noqa: E711
+        Reservierung.frist < heute,
+        Reservierung.kalender_event_id != None,              # noqa: E711
+        Reservierung.kalender_abgelaufen_markiert == False,  # noqa: E712
+    ).all()
+    count = 0
+    for r in faellig:
+        if calendar_service.sync_reservierung_async(r.id):
+            r.kalender_abgelaufen_markiert = True
+            db.commit()
+            count += 1
+    return count
+
+
+def _run_reservierungen_aufraeumen(db: Session) -> int:
+    """Löscht Reservierungen aus der App, deren reservierter Termin verstrichen ist
+    (ab dem Folgetag). Der Google-Kalender-Block bleibt bewusst stehen – nur die
+    App-Liste wird aufgeräumt."""
+    from models import Reservierung
+    heute = _heute()
+    alte = db.query(Reservierung).filter(Reservierung.datum < heute).all()
+    for r in alte:
+        db.delete(r)
+    db.commit()
+    return len(alte)
+
+
 def _run_ueberfaellige_rechnungen(db: Session) -> int:
     """Meldet unbezahlte Rechnungen, deren Zahlungsziel (14 Werktage nach Rechnungs-
     datum) abgelaufen ist – Glocke + Admin-Mail via notify(), einmal je Rechnung
@@ -364,6 +401,11 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # Unbezahlte Rechnungen nach Zahlungsziel (14 Werktage) melden
     rechnungen_ueberfaellig = _run_ueberfaellige_rechnungen(db)
 
+    # Reservierungen mit verstrichenem Termin aus der App löschen (Kalender bleibt),
+    # danach abgelaufene Fristen im Google-Kalender umfärben (Anthrazit → Flamingo)
+    reservierungen_geloescht = _run_reservierungen_aufraeumen(db)
+    reservierung_farben = _run_reservierung_farben(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -381,6 +423,8 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "material_abhol_erinnerungen": material_abhol,
                          "abgelaufene_anfragen": abgelaufene_anfragen,
                          "rechnungen_ueberfaellig": rechnungen_ueberfaellig,
+                         "reservierungen_umgefaerbt": reservierung_farben,
+                         "reservierungen_geloescht": reservierungen_geloescht,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 

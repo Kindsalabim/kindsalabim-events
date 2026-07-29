@@ -465,9 +465,14 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 @router.get("/reservierungen", response_class=HTMLResponse)
 def reservierungen_list(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     res = db.query(Reservierung).order_by(Reservierung.datum, Reservierung.frist.is_(None), Reservierung.frist).all()
+    heute = date.today()
+    aktive = [r for r in res if not (r.frist and r.frist < heute)]
+    # Abgelaufene eingeklappt darunter, zuletzt abgelaufene zuerst
+    abgelaufene = sorted((r for r in res if r.frist and r.frist < heute),
+                         key=lambda r: r.frist, reverse=True)
     return templates.TemplateResponse("admin/reservierungen.html",
-        tpl_context(request, reservierungen=res, today=date.today(),
-                    frist_default=date.today() + timedelta(days=5)))
+        tpl_context(request, aktive=aktive, abgelaufene=abgelaufene, today=heute,
+                    frist_default=heute + timedelta(days=5)))
 
 @router.post("/reservierungen/new")
 def reservierung_create(
@@ -534,6 +539,7 @@ def reservierung_edit_save(
         try: frist_d = date.fromisoformat(frist)
         except ValueError: frist_d = None
     r.frist = frist_d or r.datum
+    r.kalender_abgelaufen_markiert = False  # Frist evtl. geändert → Cron prüft die Kalenderfarbe neu
     r.kunde_firma = kunde_firma
     r.startzeit = startzeit.strip() or None
     r.endzeit = endzeit.strip() or None

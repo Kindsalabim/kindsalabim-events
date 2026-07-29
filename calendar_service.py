@@ -20,7 +20,8 @@ Kürzel aus den gebuchten Aktionen (siehe _event_art):
 """
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from config import get_config
 
@@ -28,7 +29,8 @@ _SCOPES = ["https://www.googleapis.com/auth/calendar"]
 _BASE_URL = "https://kindsalabim-events.onrender.com"
 
 # Google colorId: 7=Peacock(blau) 8=Graphite(anthrazit) 4=Flamingo 10=Basil(dunkelgrün)
-# Events sind immer gebucht → blau/grün. Abgesagt → flamingo. Anthrazit ist Reservierungen vorbehalten.
+# Events sind immer gebucht → blau/grün. Abgesagt → flamingo.
+# Reservierungen: anthrazit, nach Fristablauf flamingo (Umfärbung via Cron).
 
 _svc = None  # gecachter Client (einmal bauen, danach wiederverwenden)
 
@@ -238,11 +240,13 @@ def _reservierung_body(r) -> dict:
     if r.notiz:         lines.append(f"Notiz: {r.notiz}")
     lines.append("")
     lines.append("Unverbindliche Reservierung (Kindsalabim-App)")
+    heute = datetime.now(ZoneInfo("Europe/Berlin")).date()
+    abgelaufen = bool(r.frist and r.frist < heute)
     body = {
         "summary": summary,
         "location": r.veranstaltungsort or "",
         "description": "\n".join(lines),
-        "colorId": "8",  # Anthrazit – nur für Reservierungen
+        "colorId": "4" if abgelaufen else "8",  # Flamingo nach Fristablauf, sonst Anthrazit
     }
     # Zeitgebunden, sobald eine Startzeit gesetzt ist; sonst Ganztags-Fallback
     if r.startzeit:
@@ -255,19 +259,21 @@ def _reservierung_body(r) -> dict:
     return body
 
 
-def sync_reservierung_async(reservierung_id):
-    """Hintergrund-Sync für eine Reservierung – legt/aktualisiert den anthrazit-Block."""
+def sync_reservierung_async(reservierung_id) -> bool:
+    """Hintergrund-Sync für eine Reservierung – legt/aktualisiert den Kalender-Block
+    (anthrazit; flamingo nach Fristablauf). Gibt True zurück, wenn der Kalender
+    tatsächlich aktualisiert wurde (für die Cron-Umfärbung)."""
     from database import SessionLocal
     from models import Reservierung
     db = SessionLocal()
     try:
         r = db.query(Reservierung).filter(Reservierung.id == reservierung_id).first()
         if not r or not r.datum:
-            return
+            return False
         svc = _service()
         cid = _calendar_id(r)
         if not svc or not cid:
-            return
+            return False
         body = _reservierung_body(r)
         if r.kalender_event_id:
             svc.events().update(calendarId=cid, eventId=r.kalender_event_id, body=body).execute()
@@ -275,7 +281,9 @@ def sync_reservierung_async(reservierung_id):
             created = svc.events().insert(calendarId=cid, body=body).execute()
             r.kalender_event_id = created.get("id")
         db.commit()
+        return True
     except Exception as e:
         print(f"Reservierungs-Sync fehlgeschlagen ({reservierung_id}): {e}")
+        return False
     finally:
         db.close()

@@ -38,12 +38,14 @@ def test_create_reservierung_mit_uhrzeit(admin):
 
 
 def test_reservierung_body_zeitgebunden_und_format():
-    rid = _make_res(startzeit="17:45", endzeit="18:45", art="Z")
+    # Frist in der Zukunft → Anthrazit (abgelaufene Fristen werden flamingo,
+    # siehe test_reservierung_abgelaufen.py)
+    rid = _make_res(startzeit="17:45", endzeit="18:45", art="Z", frist=date(2099, 7, 10))
     res = reload(Reservierung, rid)
     body = calendar_service._reservierung_body(res)
     assert body["start"] == {"dateTime": "2026-07-20T17:45:00", "timeZone": "Europe/Berlin"}
     assert body["end"] == {"dateTime": "2026-07-20T18:45:00", "timeZone": "Europe/Berlin"}
-    assert body["summary"] == "(Z) Köln, Kindergeburtstag, Fr. Otto, reserv. bis 10.07.2026"
+    assert body["summary"] == "(Z) Köln, Kindergeburtstag, Fr. Otto, reserv. bis 10.07.2099"
     assert body["colorId"] == "8"
 
 

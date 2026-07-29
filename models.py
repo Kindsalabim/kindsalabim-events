@@ -160,6 +160,7 @@ class Reservierung(Base):
     frist             = Column(Date)                      # bis wann der Kunde sich melden muss
     notiz             = Column(Text)
     kalender_event_id = Column(String)                    # anthrazitfarbener Block im Google-Kalender
+    kalender_abgelaufen_markiert = Column(Boolean, default=False)  # Kalender-Block nach Fristablauf auf Flamingo umgefärbt (Cron-Idempotenz)
     erstellt_am       = Column(String)
 
 

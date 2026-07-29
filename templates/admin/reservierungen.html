@@ -86,11 +86,8 @@
   </form>
 </details>
 
-<!-- Liste -->
-{% if reservierungen %}
-<div class="space-y-3">
-  {% for r in reservierungen %}
-  {% set abgelaufen = r.frist and r.frist < today %}
+<!-- Reservierungs-Karte (aktiv + abgelaufen identisch aufgebaut) -->
+{% macro res_card(r, abgelaufen) %}
   <div class="card p-4 flex flex-col md:flex-row md:items-center gap-4 {% if abgelaufen %}border-red-200{% endif %}"
        {% if abgelaufen %}style="border-color:#fecaca;background:#fef2f2;"{% endif %}>
 
@@ -141,13 +138,31 @@
       </form>
     </div>
   </div>
-  {% endfor %}
+{% endmacro %}
+
+<!-- Aktive Reservierungen -->
+{% if aktive %}
+<div class="space-y-3">
+  {% for r in aktive %}{{ res_card(r, false) }}{% endfor %}
 </div>
 {% else %}
 <div class="card p-12 text-center">
   <h3 class="font-semibold text-lg mb-1" style="color:var(--ink-1);">Keine offenen Reservierungen</h3>
   <p class="text-sm" style="color:var(--ink-3);">Lege oben eine an, wenn ein Kunde einen Termin unverbindlich anfragt.</p>
 </div>
+{% endif %}
+
+<!-- Abgelaufene Reservierungen (eingeklappt) -->
+{% if abgelaufene %}
+<details class="mt-6">
+  <summary class="text-sm font-semibold cursor-pointer select-none inline-flex items-center gap-1.5" style="color:var(--c-danger);">
+    ⚠ Abgelaufene Reservierungen ({{ abgelaufene|length }})
+  </summary>
+  <p class="text-xs mt-1 mb-3" style="color:var(--ink-4);">Frist verstrichen – umwandeln, Frist verlängern oder löschen.</p>
+  <div class="space-y-3">
+    {% for r in abgelaufene %}{{ res_card(r, true) }}{% endfor %}
+  </div>
+</details>
 {% endif %}
 
 {% endblock %}

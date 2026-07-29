@@ -144,6 +144,7 @@ def run_migrations():
     add_column("reservierungen", "startzeit", "VARCHAR")
     add_column("reservierungen", "endzeit", "VARCHAR")
     add_column("reservierungen", "art", "VARCHAR DEFAULT 'Div.'")
+    add_column("reservierungen", "kalender_abgelaufen_markiert", "BOOLEAN DEFAULT 0")
     add_column("admins", "notifications_gesehen_bis", "VARCHAR")
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")
