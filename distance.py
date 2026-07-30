@@ -64,6 +64,8 @@ def get_coords_for_dienstleister(d):
 # --- Empfehlungs-Scoring -----------------------------------------------------
 # Score 0–100, höher = zuerst anfragen. Gewichtung mit Aykut abgestimmt (13.06.2026):
 #   Entfernung 40 · Qualität 30 · Logistik 20 (nur wenn Event Material braucht) · Erfahrung 10
+# Dazu seit 31.07.2026: +15 Stammkunden-Bonus (schon bei diesem Kunden im Einsatz gewesen),
+# vergeben in rank_contractors.
 _MAX_KM = 80          # ab dieser Entfernung 0 Entfernungspunkte
 _XP_VOLL = 50         # ab so vielen Erfahrungspunkten die vollen 10 Punkte
 _QUALITAET_UNBEWERTET = 3   # noch nicht bewertet → neutral behandeln (nicht abstrafen)
@@ -99,17 +101,23 @@ def compute_score(d, event_coords, needs_material: bool):
 
 
 def rank_contractors(contractors, event_address: str, needs_material: bool = False,
-                     unavailable_ids=None):
+                     unavailable_ids=None, bekannt_beim_kunden=None):
     """
     Sortiert Dienstleister als Empfehlungsreihenfolge (bester zuerst).
     Nicht verfügbare (Sperrzeit / am Tag schon gebucht) rutschen ans Ende, bleiben aber sichtbar.
-    Hängt pro Objekt rang_score und rang_distanz_km an (für die Anzeige).
+    bekannt_beim_kunden: {dienstleister_id: Anzahl Zusagen bei früheren Events desselben
+    Kunden} → +15 Score-Bonus (kennt Kunde/Location), Anzahl landet in rang_kunde_einsaetze.
+    Hängt pro Objekt rang_score, rang_distanz_km und rang_kunde_einsaetze an (für die Anzeige).
     """
     unavailable_ids = unavailable_ids or set()
+    bekannt = bekannt_beim_kunden or {}
     event_coords = get_coords_for_address(event_address)
 
     for d in contractors:
         score, dist = compute_score(d, event_coords, needs_material)
+        d.rang_kunde_einsaetze = bekannt.get(d.id, 0)
+        if d.rang_kunde_einsaetze:
+            score += 15
         d.rang_score = score
         d.rang_distanz_km = dist
 

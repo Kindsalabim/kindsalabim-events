@@ -831,10 +831,28 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     # Empfehlungs-Ranking: nicht verfügbare (gebucht/Sperrzeit) ans Ende
     unavailable_ids = set(gebucht_map) | set(sperrzeit_map)
     needs_material = bool(ev.material_mitnahme)
+    # Stammkunden-Bonus: wer bei anderen Events dieses Kunden schon zugesagt hat,
+    # bekommt einen Score-Aufschlag + Hinweis in der Auswahlliste (kennt Kunde/Location).
+    from sqlalchemy import or_
+    kunde_filter = []
+    if ev.kunde_id:
+        kunde_filter.append(Event.kunde_id == ev.kunde_id)
+    if (ev.kunde_firma or "").strip():
+        kunde_filter.append(Event.kunde_firma == ev.kunde_firma)
+    bekannt_beim_kunden = {}
+    if kunde_filter:
+        rows = (db.query(Verfuegbarkeitsanfrage.dienstleister_id, func.count())
+                .join(Event, Verfuegbarkeitsanfrage.event_id == Event.id)
+                .filter(or_(*kunde_filter), Event.id != ev.id,
+                        Verfuegbarkeitsanfrage.status == "Ja")
+                .group_by(Verfuegbarkeitsanfrage.dienstleister_id).all())
+        bekannt_beim_kunden = dict(rows)
     ranked_teamer = rank_contractors([d for d in active if d.rolle in ("Teamer", "Beides")],
-                                     ev.veranstaltungsort, needs_material, unavailable_ids)
+                                     ev.veranstaltungsort, needs_material, unavailable_ids,
+                                     bekannt_beim_kunden)
     ranked_kuenstler = rank_contractors([d for d in active if d.rolle in ("Künstler", "Beides")],
-                                        ev.veranstaltungsort, needs_material, unavailable_ids)
+                                        ev.veranstaltungsort, needs_material, unavailable_ids,
+                                        bekannt_beim_kunden)
     # Passende Sparte (z. B. Kinderschminke) nach oben – stabil, Entfernungs-Reihenfolge
     # bleibt innerhalb der Gruppen erhalten. Niemand wird ausgeblendet.
     benoetigt_kuenstler = benoetigte_sparten(ev.produkte)

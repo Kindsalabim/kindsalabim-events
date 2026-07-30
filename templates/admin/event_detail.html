@@ -623,21 +623,24 @@
         {% set kombi_present = 'Schminke + Ballon' in sparten_present %}
         {% if sparten_present %}
         <div class="flex flex-wrap gap-1.5 mb-3">
-          <button type="button" onclick="filterSparte(this,'')" class="sparte-chip chip-active">Alle</button>
+          <button type="button" data-sparte="" onclick="filterSparte(this)" class="sparte-chip chip-active">Alle</button>
           {% for s, icon in [('Kinderschminke','🐱'), ('Ballonkünstler','🎈'), ('Schminke + Ballon','🎈🐱'), ('Showact','🎩'), ('Walkact','🚶'), ('Sonstiges','🎭')] %}
           {% if s in sparten_present or (s in ['Kinderschminke', 'Ballonkünstler'] and kombi_present) %}
-          <button type="button" onclick="filterSparte(this,'{{ s }}')" class="sparte-chip">{{ icon }} {{ s }}</button>
+          <button type="button" data-sparte="{{ s }}" onclick="filterSparte(this)" class="sparte-chip">{{ icon }} {{ s }}</button>
           {% endif %}
           {% endfor %}
         </div>
         {% endif %}
         {% endif %}
+        <input type="text" class="dl-suche w-full border border-gray-200 rounded-lg px-3.5 py-2 text-sm mb-3 focus-ring"
+               placeholder="🔍 Name eintippen zum Filtern …" autocomplete="off"
+               oninput="applyDlFilter(this.closest('form'))">
         <div class="grid grid-cols-2 gap-2 mb-3">
           {% for d in ranked %}
           {% set already = d.id in anfragen_ids %}
           {% set gebucht = gebucht_map.get(d.id) %}
           {% set sperrzeit = sperrzeit_map.get(d.id) %}
-          <label data-dlsparte="{{ d.kuenstler_sparte or '' }}" class="dl-pick flex items-start gap-2.5 text-sm p-2.5 rounded-lg border {% if already %}opacity-40 bg-gray-50 border-gray-100{% elif gebucht %}border-red-200 bg-red-50 cursor-pointer{% elif sperrzeit %}border-orange-200 bg-orange-50 cursor-pointer{% else %}border-gray-100 hover:border-gray-200 cursor-pointer{% endif %} transition-colors">
+          <label data-dlsparte="{{ d.kuenstler_sparte or '' }}" data-dlname="{{ (d.vorname ~ ' ' ~ d.nachname) | lower }}" class="dl-pick flex items-start gap-2.5 text-sm p-2.5 rounded-lg border {% if already %}opacity-40 bg-gray-50 border-gray-100{% elif gebucht %}border-red-200 bg-red-50 cursor-pointer{% elif sperrzeit %}border-orange-200 bg-orange-50 cursor-pointer{% else %}border-gray-100 hover:border-gray-200 cursor-pointer{% endif %} transition-colors">
             <input type="checkbox" name="dienstleister_ids" value="{{ d.id }}"
               {% if already %}disabled{% endif %}
               class="mt-0.5 rounded border-gray-300" style="accent-color: var(--brand-primary);">
@@ -646,6 +649,7 @@
               <span class="block text-xs text-gray-500 mt-0.5">
                 {{ d.stadt or '–' }}{% if d.rang_distanz_km is not none %} · {{ d.rang_distanz_km|round(0)|int }} km{% endif %}{% if d.qualitaet %} · {{ '⭐' * d.qualitaet }}{% else %} · <span class="italic">nicht bewertet</span>{% endif %}
               </span>
+              {% if d.rang_kunde_einsaetze %}<span class="block text-xs font-medium mt-0.5" style="color:var(--c-success);">🤝 {{ d.rang_kunde_einsaetze }}× bei diesem Kunden im Einsatz</span>{% endif %}
               {% if d.id in lange_her_ids and not gebucht and not sperrzeit %}<span class="block text-xs mt-0.5" style="color:#6b7280;">🕒 länger nicht angefragt</span>{% endif %}
               {% if gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:var(--c-danger);">⚠ Bereits gebucht ({{ gebucht.startzeit }}–{{ gebucht.endzeit }} Uhr · {{ gebucht.kunde_firma }})</span>{% endif %}
               {% if sperrzeit and not gebucht %}<span class="block text-xs font-medium mt-0.5" style="color:#c2410c;">🚫 Nicht verfügbar{% if sperrzeit.grund %} ({{ sperrzeit.grund }}){% endif %}</span>{% endif %}
@@ -659,7 +663,7 @@
               {% endif %}
             </span>
             <span class="ml-auto shrink-0 text-right">
-              <span class="inline-block text-xs font-semibold px-1.5 py-0.5 rounded" style="background: var(--brand-primary-light); color: var(--brand-primary);" title="Empfehlungs-Score (Entfernung, Qualität, Logistik, Erfahrung)">{{ d.rang_score }}</span>
+              <span class="inline-block text-xs font-semibold px-1.5 py-0.5 rounded" style="background: var(--brand-primary-light); color: var(--brand-primary);" title="Empfehlungs-Score (Entfernung, Qualität, Logistik, Erfahrung, Stammkunden-Bonus)">{{ d.rang_score }}</span>
               {% if already %}<span class="block text-xs text-gray-500 mt-1">angefragt</span>{% endif %}
             </span>
           </label>
@@ -712,16 +716,25 @@
           var inp = btn.closest('form').querySelector('input[name=budget]');
           if (inp) inp.value = val;
         }
-        function filterSparte(btn, sparte){
+        function applyDlFilter(form){
+          // Sparten-Chip und Namens-Suche kombinieren (beide Filter gelten gleichzeitig)
+          var chip = form.querySelector('.sparte-chip.chip-active');
+          var sparte = chip ? (chip.dataset.sparte || '') : '';
+          var suche = form.querySelector('.dl-suche');
+          var q = suche ? suche.value.trim().toLowerCase() : '';
+          form.querySelectorAll('.dl-pick').forEach(function(l){
+            var s = l.dataset.dlsparte;
+            var okSparte = !sparte || s === sparte
+              || ((sparte === 'Kinderschminke' || sparte === 'Ballonkünstler') && s === 'Schminke + Ballon');
+            var okName = !q || (l.dataset.dlname || '').indexOf(q) !== -1;
+            l.style.display = (okSparte && okName) ? '' : 'none';
+          });
+        }
+        function filterSparte(btn){
           var form = btn.closest('form');
           form.querySelectorAll('.sparte-chip').forEach(function(c){ c.classList.remove('chip-active'); });
           btn.classList.add('chip-active');
-          form.querySelectorAll('.dl-pick').forEach(function(l){
-            var s = l.dataset.dlsparte;
-            var show = !sparte || s === sparte
-              || ((sparte === 'Kinderschminke' || sparte === 'Ballonkünstler') && s === 'Schminke + Ballon');
-            l.style.display = show ? '' : 'none';
-          });
+          applyDlFilter(form);
         }
       </script>
     </div>
