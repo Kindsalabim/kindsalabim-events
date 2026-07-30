@@ -29,21 +29,25 @@
       </div>
       <p class="text-sm text-gray-500">{{ ev.anlass }} · {{ ev.datum | de_date }} · {{ ev.startzeit }}–{{ ev.endzeit }} Uhr</p>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-      {% if not gesperrt %}
-      <a href="/admin/events/{{ ev.id }}/edit{% if entsperrt_mode %}?entsperrt=1{% endif %}" class="btn-secondary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Bearbeiten
-      </a>
-      {% endif %}
-      <a href="/admin/events/{{ ev.id }}/kopieren" class="btn-secondary"
-         title="Neues Event mit diesen Stammdaten vorbefüllen – z. B. wenn der Kunde dieselbe Aktion wieder bucht">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        Kopieren
-      </a>
+    <div class="flex flex-col gap-1 items-start md:items-end">
+      <div class="flex flex-wrap items-center gap-2">
+        {% if not gesperrt %}
+        <a href="/admin/events/{{ ev.id }}/edit{% if entsperrt_mode %}?entsperrt=1{% endif %}" class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Bearbeiten
+        </a>
+        {% endif %}
+        <a href="/admin/events/{{ ev.id }}/kopieren" class="btn-secondary"
+           title="Neues Event mit diesen Stammdaten vorbefüllen – z. B. wenn der Kunde dieselbe Aktion wieder bucht">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Kopieren
+        </a>
+      </div>
       {# Checkliste- & Briefing-Versand bewusst NICHT mehr hier – sie haben eigene Bereiche (wf-checkliste / wf-briefing). #}
-      <form method="post" action="/admin/events/{{ ev.id }}/delete" onsubmit="return confirm('Event „{{ ev.kunde_firma }}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
-        <button class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-600 transition-colors px-2 py-2" title="Event löschen">
+      {# Löschen bewusst dezent in zweiter Zeile, mittig unter dem Kopieren-Button #}
+      <form method="post" action="/admin/events/{{ ev.id }}/delete" class="md:mr-3"
+            onsubmit="return confirm('Event „{{ ev.kunde_firma }}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
+        <button class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-600 transition-colors px-2 py-1" title="Event löschen">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           Löschen
         </button>
