@@ -10,6 +10,7 @@ import os
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import simpleSplit, ImageReader
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas as rl_canvas
 
 from choices import de_date, rechnung_anschrift, sparte_label, regeln_abschnitte
@@ -81,6 +82,21 @@ def _wrap(text, font, size, width):
     return simpleSplit(_clean(text).strip() or "–", font, size, width) or ["–"]
 
 
+def _team_zusatz_passt(zeile, inhalt_w) -> bool:
+    """True, wenn der graue Zusatz („(Kinderschminken)"/„(extern)") noch zwischen
+    Name und rechtsbündige Telefonnummer passt – sonst bekommt er eine eigene Zeile
+    (statt in die Nummer zu laufen, z. B. Teamleitung mit Künstler-Sparte)."""
+    _, name, tel, is_tl, zusatz = zeile
+    if not zusatz:
+        return True
+    tel_txt = _clean(tel).strip() or "–"
+    fnt = "Helvetica-Bold" if is_tl else "Helvetica"
+    links = ((26 * mm + stringWidth(name, "Helvetica-Bold", 10)) if is_tl
+             else stringWidth(name, "Helvetica", 9.5)) + 2.5 * mm
+    frei = inhalt_w - stringWidth(tel_txt, fnt, 9.5) - 2.5 * mm - links
+    return stringWidth(str(zusatz), "Helvetica", 8) <= frei
+
+
 def _zeilen_hoehe(zeile, inhalt_w):
     typ = zeile[0]
     if typ == "kv":
@@ -93,7 +109,8 @@ def _zeilen_hoehe(zeile, inhalt_w):
             n += len(simpleSplit(absatz, "Helvetica", 9.5, inhalt_w) or [""])
         return n * _LH + 1.2 * mm
     if typ == "team":
-        return _LH + 1.6 * mm
+        n = 1 if _team_zusatz_passt(zeile, inhalt_w) else 2
+        return n * _LH + 1.6 * mm
     if typ == "punkt":
         n = len(simpleSplit(str(zeile[1]), "Helvetica", 9.5, inhalt_w - _PUNKT_EINZUG) or [""])
         return n * _LH + 1.6 * mm
@@ -219,14 +236,23 @@ class _Seite:
                 c.setFillColorRGB(*INK)
                 c.drawString(x, y, name)
                 cursor = x + c.stringWidth(name, "Helvetica", 9.5) + 2.5 * mm
-            if zusatz:
+            tel_txt = _clean(tel).strip() or "–"
+            fnt = "Helvetica-Bold" if is_tl else "Helvetica"
+            passt = _team_zusatz_passt(zeile, inhalt_w)
+            if zusatz and passt:
                 c.setFont("Helvetica", 8)
                 c.setFillColorRGB(*GRAU)
-                c.drawString(cursor, y, zusatz)
+                c.drawString(cursor, y, str(zusatz))
             c.setFillColorRGB(*INK)
-            fnt = "Helvetica-Bold" if is_tl else "Helvetica"
             c.setFont(fnt, 9.5)
-            c.drawRightString(x + inhalt_w, y, _clean(tel).strip() or "–")
+            c.drawRightString(x + inhalt_w, y, tel_txt)
+            if zusatz and not passt:
+                # Zwischen Name und Nummer ist kein Platz → eigene Zeile darunter
+                y -= _LH
+                c.setFont("Helvetica", 8)
+                c.setFillColorRGB(*GRAU)
+                c.drawString(x + (26 * mm if is_tl else 0), y, str(zusatz))
+                c.setFillColorRGB(*INK)
             return y - _LH - 1.6 * mm
         if typ == "punkt":
             # Pfeil-Dreieck wie in der Vorlage (als Pfad – Helvetica hat kein ▶-Glyph)

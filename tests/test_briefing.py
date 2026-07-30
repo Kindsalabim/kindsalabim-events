@@ -35,6 +35,25 @@ def test_briefing_pdf_download(admin):
     assert "attachment" in r.headers.get("content-disposition", "")
 
 
+def test_briefing_pdf_teamleitung_mit_sparte_bleibt_lesbar():
+    # Teamleitung ist zugleich Kinderschminkerin: Sparten-Zusatz passt nicht mehr
+    # zwischen Namen und Telefonnummer → eigene Zeile statt Überlappung/Wegfall
+    ev = SimpleNamespace(marke="Kindsalabim", anlass="Fest", kunde_firma="X", datum=date(2026, 8, 1),
+                         startzeit="14:00", endzeit="18:00", veranstaltungsort="Markt 1, 45127 Essen",
+                         produkte="Kinderschminken", kunde_kontakt="Hr. A", kunde_telefon="0201",
+                         hinweise="", teamleiter_id=1,
+                         cl_aufbau_von="", cl_aufbau_bis="", cl_abbau_von="", cl_abbau_bis="",
+                         cl_aufbauort="", cl_parkplatz="", cl_teamkleidung="", cl_verpflegung="")
+    team = [SimpleNamespace(id=1, vorname="Birgit", nachname="Völlings", telefon="01738156876",
+                            kuenstler_sparte="Kinderschminke")]
+    import pypdf
+    pdf = build_briefing_pdf(ev, team, [])
+    txt = "\n".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf)).pages)
+    assert "Birgit Völlings" in txt
+    assert "01738156876" in txt
+    assert "(Kinderschminken)" in txt   # Zusatz darf nicht wegfallen
+
+
 def test_briefing_pdf_enthaelt_team_und_externe():
     ev = SimpleNamespace(marke="Kindsalabim", anlass="Fest", kunde_firma="X", datum=date(2026, 8, 1),
                          startzeit="14:00", endzeit="18:00", veranstaltungsort="Markt 1, 45127 Essen",
