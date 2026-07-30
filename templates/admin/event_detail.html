@@ -36,6 +36,11 @@
         Bearbeiten
       </a>
       {% endif %}
+      <a href="/admin/events/{{ ev.id }}/kopieren" class="btn-secondary"
+         title="Neues Event mit diesen Stammdaten vorbefüllen – z. B. wenn der Kunde dieselbe Aktion wieder bucht">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Kopieren
+      </a>
       {# Checkliste- & Briefing-Versand bewusst NICHT mehr hier – sie haben eigene Bereiche (wf-checkliste / wf-briefing). #}
       <form method="post" action="/admin/events/{{ ev.id }}/delete" onsubmit="return confirm('Event „{{ ev.kunde_firma }}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
         <button class="btn-secondary text-red-600 hover:text-red-700 hover:border-red-300">
@@ -903,17 +908,29 @@
     <!-- Rechnung -->
     {% set serie_n = serie_events|length if serie_events else 0 %}
     <div>
-      <p class="text-xs text-gray-500 mb-2">Rechnung{% if serie_n > 1 %} <span class="text-gray-400">· gilt für alle {{ serie_n }} Termine der Serie</span>{% endif %}</p>
+      <p class="text-xs text-gray-500 mb-2">Rechnung</p>
       {% if ev.rechnung_gestellt %}
         <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ Rechnung gestellt</span>
         <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
           <input type="hidden" name="gestellt" value="0">
-          <button class="text-xs text-gray-500 hover:text-gray-600 ml-2 underline">rückgängig{% if serie_n > 1 %} (alle Termine){% endif %}</button>
+          {% if serie_n > 1 %}
+          <label class="inline-flex items-center gap-1 text-xs text-gray-500 ml-2 cursor-pointer">
+            <input type="checkbox" name="serie" value="1" checked class="rounded" style="accent-color: var(--brand-primary);">
+            für alle {{ serie_n }} Termine der Serie
+          </label>
+          {% endif %}
+          <button class="text-xs text-gray-500 hover:text-gray-600 ml-2 underline">rückgängig</button>
         </form>
       {% else %}
         <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
           <input type="hidden" name="gestellt" value="1">
-          <button class="btn-secondary text-xs px-3 py-1">Als gestellt markieren{% if serie_n > 1 %} (alle {{ serie_n }} Termine){% endif %}</button>
+          <button class="btn-secondary text-xs px-3 py-1">Als gestellt markieren</button>
+          {% if serie_n > 1 %}
+          <label class="inline-flex items-center gap-1 text-xs text-gray-500 ml-2 cursor-pointer">
+            <input type="checkbox" name="serie" value="1" checked class="rounded" style="accent-color: var(--brand-primary);">
+            für alle {{ serie_n }} Termine der Serie <span class="text-gray-400">(abwählen = nur dieser Tag, z. B. bei getrennten Rechnungen je Aktionstag)</span>
+          </label>
+          {% endif %}
         </form>
       {% endif %}
     </div>
@@ -924,7 +941,7 @@
 {% if (serie_events and serie_events|length > 1) or not gesperrt %}
 <div class="card p-4 mt-5" style="border-left:3px solid var(--brand-primary);">
   {% if serie_events and serie_events|length > 1 %}
-  <p class="text-sm font-semibold text-gray-700 mb-2">🔗 Mehrtägiges Event · {{ serie_events|length }} Termine</p>
+  <p class="text-sm font-semibold text-gray-700 mb-2">🔗 Termin-Serie (ein Auftrag, mehrere Aktionstage) · {{ serie_events|length }} Termine</p>
   <div class="flex flex-wrap gap-1.5">
     {% for se in serie_events %}
       {% if se.id == ev.id %}
@@ -937,7 +954,7 @@
   {% endif %}
   {% if not gesperrt %}
   <details class="{% if serie_events and serie_events|length > 1 %}mt-3{% endif %}">
-    <summary class="text-sm font-medium cursor-pointer" style="color:var(--brand-primary);">+ Termin hinzufügen{% if serie_events and serie_events|length > 1 %} (zur Serie){% else %} (mehrtägiges Event){% endif %}</summary>
+    <summary class="text-sm font-medium cursor-pointer" style="color:var(--brand-primary);">+ Termin hinzufügen{% if serie_events and serie_events|length > 1 %} (zur Serie){% else %} (weiterer Aktionstag – übernimmt alle Stammdaten dieses Events){% endif %}</summary>
     <form method="post" action="/admin/events/{{ ev.id }}/serie/add" class="flex flex-wrap items-end gap-3 mt-3">
       <div>
         <label class="block text-xs text-gray-500 mb-1">Datum</label>

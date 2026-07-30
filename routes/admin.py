@@ -599,6 +599,35 @@ def event_new(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
         tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
                     kunden=kunden, error=None))
 
+
+@router.get("/events/{event_id}/kopieren", response_class=HTMLResponse)
+def event_kopieren(event_id: int, request: Request, db: Session = Depends(get_db),
+                   _=Depends(get_admin_user)):
+    """Neues-Event-Formular mit den Stammdaten eines bestehenden Events vorbefüllen –
+    für Stammkunden, die dieselbe Aktion wieder buchen (z. B. jedes Jahr). Datum bleibt
+    leer, Status startet bei „Gebucht"; Dienstleister, Checkliste, Bericht und
+    Rechnungs-Status werden bewusst nicht übernommen."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev:
+        raise HTTPException(404)
+    kopie = _event_form_echo(
+        None, "", ev.anlass or "", ev.startzeit or "", ev.endzeit or "",
+        ev.veranstaltungsort or "", ev.kunde_firma or "", ev.kunde_kontakt or "",
+        ev.kunde_telefon or "", ev.kunde_email or "",
+        (ev.produkte or "").split(", ") if ev.produkte else [],
+        ev.anzahl_teamer or 0, ev.anzahl_kuenstler or 0, ev.hinweise or "",
+        bool(ev.material_mitnahme), ev.marke, "Gebucht",
+        zaubershow_event=bool(ev.zaubershow_event),
+        material_info=ev.material_info or "",
+        transporter_angeboten=bool(ev.transporter_angeboten),
+        ankunft_modus=ev.ankunft_modus or "auto", ankunft_text=ev.ankunft_text or "",
+        treffpunkt=ev.treffpunkt or "", kunde_adresse=ev.kunde_adresse or "",
+        vor_ort_name=ev.vor_ort_name or "", vor_ort_telefon=ev.vor_ort_telefon or "")
+    kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
+    return templates.TemplateResponse("admin/event_form.html",
+        tpl_context(request, event=kopie, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
+                    kunden=kunden, error=None))
+
 def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungsort,
                      kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, produkte,
                      anzahl_teamer, anzahl_kuenstler, hinweise, material_mitnahme,
@@ -1263,16 +1292,17 @@ def toggle_material_bestellt(
 @router.post("/events/{event_id}/rechnung-gestellt")
 def toggle_rechnung_gestellt(
     event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
-    gestellt: str = Form(""),
+    gestellt: str = Form(""), serie: str = Form(""),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
     wert = (gestellt == "1")
-    # Die Rechnung gehört zur ganzen Buchung: bei einer Serie für ALLE Termintage setzen,
-    # damit man nicht pro Tag klicken muss. auto_status schließt danach jeden Tag ab, sobald
-    # DESSEN Bedingungen erfüllt sind (reine Zaubershow sofort, sonst weiter erst mit Bericht).
+    # Standard (Häkchen gesetzt): eine Buchung = eine Rechnung → für ALLE Termintage der
+    # Serie setzen. Häkchen entfernt: nur dieser Tag (getrennte Rechnungen je Aktionstag).
+    # auto_status schließt danach jeden Tag ab, sobald DESSEN Bedingungen erfüllt sind
+    # (reine Zaubershow sofort, sonst weiter erst mit Bericht).
     ziel = (db.query(Event).filter(Event.serien_id == ev.serien_id).all()
-            if ev.serien_id else [ev])
+            if ev.serien_id and serie == "1" else [ev])
     for e in ziel:
         e.rechnung_gestellt = wert
     db.commit()
