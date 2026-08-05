@@ -67,6 +67,17 @@ def test_reservierung_liste_zeigt_uhrzeit(admin):
     assert "17:45–18:45 Uhr" in h
 
 
+def test_workshop_art_im_formular_und_kalender(admin):
+    # WORKSHOP als Art wählbar (Neu + Bearbeiten); Kalender-Titel beginnt mit "(WORKSHOP)"
+    h = admin.get("/admin/reservierungen").text
+    assert 'value="WORKSHOP"' in h
+    rid = _make_res(art="WORKSHOP", startzeit="10:00")
+    body = calendar_service._reservierung_body(reload(Reservierung, rid))
+    assert body["summary"].startswith("(WORKSHOP)")
+    h2 = admin.get(f"/admin/reservierungen/{rid}/edit").text
+    assert 'value="WORKSHOP" selected' in h2
+
+
 def test_neue_reservierung_frist_vorbelegt_heute_plus_5(admin):
     from datetime import timedelta
     h = admin.get("/admin/reservierungen").text
