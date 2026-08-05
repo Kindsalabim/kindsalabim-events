@@ -470,9 +470,10 @@ def reservierungen_list(request: Request, db: Session = Depends(get_db), _=Depen
     # Abgelaufene eingeklappt darunter, zuletzt abgelaufene zuerst
     abgelaufene = sorted((r for r in res if r.frist and r.frist < heute),
                          key=lambda r: r.frist, reverse=True)
+    kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/reservierungen.html",
         tpl_context(request, aktive=aktive, abgelaufene=abgelaufene, today=heute,
-                    frist_default=heute + timedelta(days=5)))
+                    frist_default=heute + timedelta(days=5), kunden=kunden))
 
 @router.post("/reservierungen/new")
 def reservierung_create(

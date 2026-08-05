@@ -67,6 +67,19 @@ def test_reservierung_liste_zeigt_uhrzeit(admin):
     assert "17:45–18:45 Uhr" in h
 
 
+def test_kunden_autofill_daten_im_formular(admin):
+    # CRM-Kunden stehen als Vorschlagsliste + JSON im Neue-Reservierung-Formular
+    from models import Kunde
+    s = SessionLocal()
+    s.add(Kunde(firma="Autofill Reserva GmbH", ansprechpartner="Fr. Reserva",
+                telefon="0201 999", email="reserva@example.com"))
+    s.commit(); s.close()
+    h = admin.get("/admin/reservierungen").text
+    assert 'list="res-kunden-vorschlaege"' in h
+    assert '<option value="Autofill Reserva GmbH">' in h
+    assert '"kontakt": "Fr. Reserva"' in h
+
+
 def test_workshop_art_im_formular_und_kalender(admin):
     # WORKSHOP als Art wählbar (Neu + Bearbeiten); Kalender-Titel beginnt mit "(WORKSHOP)"
     h = admin.get("/admin/reservierungen").text

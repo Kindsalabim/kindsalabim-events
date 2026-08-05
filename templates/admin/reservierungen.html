@@ -55,7 +55,12 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Kunde / Firma *</label>
-        <input type="text" name="kunde_firma" required class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <input type="text" name="kunde_firma" required list="res-kunden-vorschlaege" autocomplete="off"
+               class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <datalist id="res-kunden-vorschlaege">
+          {% for k in kunden|default([]) %}<option value="{{ k.firma }}">{% endfor %}
+        </datalist>
+        <p class="text-xs text-gray-500 mt-1">Bekannten Kunden auswählen → Ansprechpartner, Telefon &amp; E-Mail werden übernommen.</p>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Ansprechpartner</label>
@@ -85,6 +90,53 @@
     <button type="submit" class="btn-primary px-5 py-2.5">Reservierung anlegen</button>
   </form>
 </details>
+
+<script type="application/json" id="res-kunden-daten">
+[{% for k in kunden|default([]) %}{"firma": {{ k.firma|tojson }}, "kontakt": {{ (k.ansprechpartner or '')|tojson }}, "telefon": {{ (k.telefon or '')|tojson }}, "email": {{ (k.email or '')|tojson }}}{{ "," if not loop.last }}{% endfor %}]
+</script>
+<script>
+// Kundendaten aus dem CRM auto-übernehmen (wie im Event-Formular): bekannter
+// Firmenname → Ansprechpartner/Telefon/E-Mail füllen. Manuelle Eingaben werden
+// nie überschrieben.
+document.addEventListener('DOMContentLoaded', function(){
+  var el = document.getElementById('res-kunden-daten');
+  var form = document.querySelector('form[action="/admin/reservierungen/new"]');
+  if(!el || !form) return;
+  var firma = form.querySelector('input[name=kunde_firma]');
+  if(!firma) return;
+  var liste;
+  try { liste = JSON.parse(el.textContent); } catch(_){ return; }
+  var byName = {};
+  liste.forEach(function(k){ byName[(k.firma || '').trim().toLowerCase()] = k; });
+
+  var ziele = {
+    kunde_kontakt: form.querySelector('input[name=kunde_kontakt]'),
+    kunde_telefon: form.querySelector('input[name=kunde_telefon]'),
+    kunde_email:   form.querySelector('input[name=kunde_email]'),
+  };
+  Object.keys(ziele).forEach(function(key){
+    var inp = ziele[key];
+    if(inp) inp.addEventListener('input', function(){ delete inp.dataset.auto; });
+  });
+
+  function setzen(inp, wert){
+    if(!inp || !wert) return;
+    if(inp.value.trim() === '' || inp.dataset.auto === '1'){
+      inp.value = wert;
+      inp.dataset.auto = '1';
+    }
+  }
+  function uebernehmen(){
+    var k = byName[(firma.value || '').trim().toLowerCase()];
+    if(!k) return;
+    setzen(ziele.kunde_kontakt, k.kontakt);
+    setzen(ziele.kunde_telefon, k.telefon);
+    setzen(ziele.kunde_email, k.email);
+  }
+  firma.addEventListener('change', uebernehmen);
+  firma.addEventListener('input', uebernehmen);
+});
+</script>
 
 <!-- Reservierungs-Karte (aktiv + abgelaufen identisch aufgebaut) -->
 {% macro res_card(r, abgelaufen) %}
