@@ -795,7 +795,7 @@ def _infoblatt_teamleiter(marke: str):
 
 
 def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, externe=None,
-                  regeln: str = None, pdf_hinweis: bool = False):
+                  regeln: str = None, pdf_hinweis: bool = False, rollen=None):
     cfg = get_config()
     color = _brand_color(event.marke)
     is_kf = event.marke == "Knallfrosch"
@@ -813,7 +813,9 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     for m in sortiert:
         is_tl = bool(event.teamleiter_id and m.id == event.teamleiter_id)
         voll_name = _esc(f"{m.vorname} {m.nachname}")
-        sparte = sparte_label(m)
+        # Sparte nur, wenn die Person bei DIESEM Event als Künstler eingesetzt ist
+        # (rollen = {dienstleister_id: rolle_anfrage}); ohne rollen wie bisher.
+        sparte = sparte_label(m) if (rollen is None or rollen.get(m.id) == "Künstler") else ""
         if sparte:
             voll_name += f' <span style="color:#6b7280;font-weight:400;">{_esc(sparte)}</span>'
         if is_tl:

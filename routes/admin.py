@@ -1442,6 +1442,7 @@ def _briefing_versenden_async(event_id: int, base_url: str):
             Verfuegbarkeitsanfrage.event_id == event_id,
             Verfuegbarkeitsanfrage.status == "Ja").all()
         dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
+        rollen = {a.dienstleister_id: a.rolle_anfrage for a in confirmed}
         planung = db.query(EventDatei).filter(
             EventDatei.event_id == event_id, EventDatei.typ == "planung").all()
         anhaenge = [(d.filename, download_file(d.r2_key)) for d in planung]
@@ -1455,7 +1456,7 @@ def _briefing_versenden_async(event_id: int, base_url: str):
         pdf_dabei = False
         try:
             from briefing_pdf import build_briefing_pdf
-            pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln)
+            pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen)
             pdf_name = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
             anhaenge = (anhaenge or []) + [(pdf_name, pdf)]
             pdf_dabei = True
@@ -1463,7 +1464,7 @@ def _briefing_versenden_async(event_id: int, base_url: str):
             print(f"[BRIEFING-PDF FEHLER] Event {event_id}: {e}")
         try:
             send_briefing(dienstleister, ev, base_url, anhaenge or None, externe=externe,
-                          regeln=regeln, pdf_hinweis=pdf_dabei)
+                          regeln=regeln, pdf_hinweis=pdf_dabei, rollen=rollen)
         except Exception as e:
             print(f"[BRIEFING-VERSAND FEHLER] Event {event_id}: {e}")
     finally:
@@ -1500,11 +1501,12 @@ def briefing_pdf_download(event_id: int, db: Session = Depends(get_db), _=Depend
         Verfuegbarkeitsanfrage.event_id == event_id,
         Verfuegbarkeitsanfrage.status == "Ja").all()
     dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
+    rollen = {a.dienstleister_id: a.rolle_anfrage for a in confirmed}
     externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
     from notifications import get_setting
     from choices import BRIEFING_REGELN_DEFAULT
     regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
-    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln)
+    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen)
     fname = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})

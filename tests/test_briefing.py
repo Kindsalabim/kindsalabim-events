@@ -35,6 +35,28 @@ def test_briefing_pdf_download(admin):
     assert "attachment" in r.headers.get("content-disposition", "")
 
 
+def test_briefing_sparte_nur_bei_kuenstler_einsatz(mails):
+    # Kevin-Fall: Profil-Sparte Ballonkünstler, aber für DIESES Event als Teamer/
+    # Teamleitung eingesetzt → keine Sparte im Briefing (PDF + Mail). Als Künstler
+    # eingesetzt → Sparte wie gehabt.
+    from factories import briefing_event_ns
+    import pypdf
+    ev = briefing_event_ns(teamleiter_id=1)
+    team = [SimpleNamespace(id=1, vorname="Kevin", nachname="Haller", telefon="0170",
+                            email="kevin@example.com", kuenstler_sparte="Ballonkünstler")]
+
+    pdf = build_briefing_pdf(ev, team, [], rollen={1: "Teamer"})
+    txt = "\n".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf)).pages)
+    assert "Kevin Haller" in txt and "Ballonmodellage" not in txt
+
+    pdf2 = build_briefing_pdf(ev, team, [], rollen={1: "Künstler"})
+    txt2 = "\n".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf2)).pages)
+    assert "(Ballonmodellage)" in txt2
+
+    email_service.send_briefing(team, ev, "https://x", rollen={1: "Teamer"})
+    assert "Ballonmodellage" not in mails[-1][2]
+
+
 def test_briefing_pdf_teamleitung_mit_sparte_bleibt_lesbar():
     # Teamleitung ist zugleich Kinderschminkerin: Sparten-Zusatz passt nicht mehr
     # zwischen Namen und Telefonnummer → eigene Zeile statt Überlappung/Wegfall

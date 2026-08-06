@@ -319,7 +319,7 @@ class _Seite:
             self.col_y[spalte] = neu_y
 
 
-def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None) -> bytes:
+def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None) -> bytes:
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
     seite = _Seite(c, ev)
@@ -355,8 +355,11 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None) -> bytes:
                       key=lambda m: 0 if (ev.teamleiter_id and m.id == ev.teamleiter_id) else 1)
     for m in sortiert:
         is_tl = bool(ev.teamleiter_id and m.id == ev.teamleiter_id)
+        # Sparte nur zeigen, wenn die Person bei DIESEM Event als Künstler eingesetzt
+        # ist (rollen = {dienstleister_id: rolle_anfrage}); ohne rollen wie bisher.
+        zeige_sparte = rollen is None or rollen.get(m.id) == "Künstler"
         team_zeilen.append(("team", f"{m.vorname} {m.nachname}", m.telefon, is_tl,
-                            sparte_label(m)))
+                            sparte_label(m) if zeige_sparte else ""))
     for e in (externe or []):
         team_zeilen.append(("team", e.name, e.telefon, False, "(extern)"))
     if not team_zeilen:

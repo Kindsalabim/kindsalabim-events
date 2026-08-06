@@ -127,11 +127,12 @@ def portal_briefing_pdf(event_id: int, db: Session = Depends(get_db),
         Verfuegbarkeitsanfrage.event_id == event_id,
         Verfuegbarkeitsanfrage.status == "Ja").all()
     dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
+    rollen = {a.dienstleister_id: a.rolle_anfrage for a in confirmed}
     externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
     from notifications import get_setting
     from choices import BRIEFING_REGELN_DEFAULT
     regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
-    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln)
+    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen)
     fname = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})
