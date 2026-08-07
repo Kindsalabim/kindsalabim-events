@@ -60,3 +60,23 @@ def test_custom_page_baut_gueltiges_einseitiges_pdf():
     pdf = _build_custom_page("Test-Titel", [], "Kindsalabim")
     assert pdf[:4] == b"%PDF"
     assert len(PdfReader(io.BytesIO(pdf)).pages) == 1
+
+
+def test_angebot_erstellen_liefert_pdf(admin):
+    # End-to-End über den (speicherschonenden) PyMuPDF-Zusammenbau: ohne R2 bleiben
+    # nur die Custom-Seiten übrig → gültiges 1-Seiten-PDF als Download.
+    r = admin.post("/admin/angebot/erstellen", data={
+        "marke": "Kindsalabim", "kundenname": "Test",
+        "custom_titel": "Herbstbasteln", "foto_index": "[]", "custom_foto_urls": "[]",
+    })
+    assert r.status_code == 200
+    assert r.content[:4] == b"%PDF"
+    assert len(PdfReader(io.BytesIO(r.content)).pages) == 1
+
+
+def test_angebot_erstellen_ohne_seiten_400(admin):
+    r = admin.post("/admin/angebot/erstellen", data={
+        "marke": "Kindsalabim", "kundenname": "Test",
+        "foto_index": "[]", "custom_foto_urls": "[]",
+    })
+    assert r.status_code == 400

@@ -218,25 +218,36 @@ MAILBAR_LIMIT = 6 * 1024 * 1024  # bis hierher bleibt das PDF unangetastet (scha
                                  # erst darüber wird gerastert, damit es mailbar wird
 
 
-def _compress_pdf(pdf_bytes: bytes) -> bytes:
-    """Macht das fertige Angebot mailbar: rastert jede Seite zu einem JPEG (RASTER_DPI) und
-    baut daraus ein neues, schlankes PDF. Bei reinen Bildmaterial-Seiten kaum sichtbarer
-    Qualitätsverlust, aber ein Bruchteil der Größe – unabhängig davon, wie schwer die
-    Quell-PDFs intern sind. Bei jedem Fehler (oder wenn nicht kleiner) → Originalbytes."""
+def _raster_doc(src) -> bytes | None:
+    """Rastert ein offenes PyMuPDF-Dokument seitenweise zu einem schlanken JPEG-PDF
+    (RASTER_DPI). Bei reinen Bildmaterial-Seiten kaum sichtbarer Qualitätsverlust,
+    aber ein Bruchteil der Größe. None bei Fehlern."""
+    import fitz  # PyMuPDF
+    out = fitz.open()
     try:
-        import fitz  # PyMuPDF
+        for page in src:
+            pix = page.get_pixmap(dpi=RASTER_DPI, alpha=False)
+            jpeg = pix.tobytes("jpeg", jpg_quality=RASTER_JPEG_QUALITY)
+            rect = page.rect
+            out.new_page(width=rect.width, height=rect.height).insert_image(rect, stream=jpeg)
+        return out.tobytes(garbage=4, deflate=True)
+    except Exception as e:
+        print(f"PDF-Komprimierung übersprungen: {e}")
+        return None
+    finally:
+        out.close()
+
+
+def _compress_pdf(pdf_bytes: bytes) -> bytes:
+    """Macht ein fertiges PDF mailbar (siehe _raster_doc). Bei jedem Fehler
+    (oder wenn nicht kleiner) → Originalbytes."""
+    try:
+        import fitz
         src = fitz.open(stream=pdf_bytes, filetype="pdf")
-        out = fitz.open()
         try:
-            for page in src:
-                pix = page.get_pixmap(dpi=RASTER_DPI, alpha=False)
-                jpeg = pix.tobytes("jpeg", jpg_quality=RASTER_JPEG_QUALITY)
-                rect = page.rect
-                out.new_page(width=rect.width, height=rect.height).insert_image(rect, stream=jpeg)
-            data = out.tobytes(garbage=4, deflate=True)
+            data = _raster_doc(src)
         finally:
             src.close()
-            out.close()
         return data if data and len(data) < len(pdf_bytes) else pdf_bytes
     except Exception as e:
         print(f"PDF-Komprimierung übersprungen: {e}")
@@ -311,13 +322,15 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
         page_idx = foto_index[i] if i < len(foto_index) else 0
         foto_gruppen.setdefault(page_idx, []).append(data)
 
-    pages_data: list[bytes] = []
+    # 1.–4. Seiten-Quellen einsammeln – als Lade-Funktionen, damit immer nur EINE
+    # Quelle gleichzeitig im Speicher liegt. Vorher lagen alle Quell-PDFs gleichzeitig
+    # als Bytes + pypdf-Objektbäume + Gesamtkopie im RAM → Render-Neustart wegen
+    # Speicherlimit beim Export (31.07.2026).
+    quellen: list = []
 
     # 1. Titelseite
     tk = TITELSEITE["ks"] if marke == "Kindsalabim" else TITELSEITE["kf"]
-    titel_bytes = _fetch_r2(tk)
-    if titel_bytes:
-        pages_data.append(titel_bytes)
+    quellen.append(lambda k=tk: _fetch_r2(k))
 
     # 2. Gewählte Aktionen (Team-Seite ausgenommen – kommt immer ganz ans Ende)
     aktion_map = {a["key"]: a for a in AKTIONEN}
@@ -328,46 +341,51 @@ async def angebot_erstellen(request: Request, _=Depends(get_admin_user)):
         if not a:
             continue
         datei = a["ks"] if marke == "Kindsalabim" else a["kf"]
-        if not datei:
-            continue
-        pdf_bytes = _fetch_r2(datei)
-        if pdf_bytes:
-            pages_data.append(pdf_bytes)
+        if datei:
+            quellen.append(lambda k=datei: _fetch_r2(k))
 
     # 3. Custom-Seiten
     for i, titel in enumerate(custom_titel):
         if not titel.strip():
             continue
-        fotos = foto_gruppen.get(i, [])
-        custom_pdf = _build_custom_page(titel.strip(), fotos, marke)
-        pages_data.append(custom_pdf)
+        quellen.append(lambda t=titel.strip(), f=foto_gruppen.get(i, []):
+                       _build_custom_page(t, f, marke))
 
     # 4. Team-Seite immer als letzte Seite (auch nach den individuellen Seiten)
     if "team" in aktionen_keys:
         team_a = aktion_map.get("team")
         team_datei = team_a["ks"] if marke == "Kindsalabim" else team_a["kf"]
-        team_bytes = _fetch_r2(team_datei) if team_datei else None
-        if team_bytes:
-            pages_data.append(team_bytes)
+        if team_datei:
+            quellen.append(lambda k=team_datei: _fetch_r2(k))
 
-    # 5. Alle Seiten zusammenkleben
-    if not pages_data:
-        return HTMLResponse("<p>Keine Seiten ausgewählt.</p>", status_code=400)
-
-    writer = PdfWriter()
-    for pdf_bytes in pages_data:
+    # 5. Zusammenkleben mit PyMuPDF: Quelle laden → Seiten übernehmen → sofort freigeben
+    # (insert_pdf kopiert den Inhalt, die Quelle kann direkt geschlossen werden).
+    import fitz
+    merged = fitz.open()
+    for lade in quellen:
         try:
-            reader = PdfReader(io.BytesIO(pdf_bytes))
-            for page in reader.pages:
-                writer.add_page(page)
+            b = lade()
+            if not b:
+                continue
+            src = fitz.open(stream=b, filetype="pdf")
+            merged.insert_pdf(src)
+            src.close()
         except Exception:
             continue
 
-    # 6. Zusammengeklebtes PDF schreiben; nur wenn es zu groß zum Mailen ist, rastern (s. _compress_pdf).
-    raw_buf = io.BytesIO()
-    writer.write(raw_buf)
-    raw = raw_buf.getvalue()
-    final = _compress_pdf(raw) if len(raw) > MAILBAR_LIMIT else raw
+    if merged.page_count == 0:
+        merged.close()
+        return HTMLResponse("<p>Keine Seiten ausgewählt.</p>", status_code=400)
+
+    # 6. Nur wenn zu groß zum Mailen: direkt aus dem offenen Dokument rastern –
+    # ohne die früheren Zwischenkopien (pypdf-Writer + Rohfassung + Neu-Öffnen).
+    raw = merged.tobytes(garbage=4, deflate=True)
+    final = raw
+    if len(raw) > MAILBAR_LIMIT:
+        data = _raster_doc(merged)
+        if data and len(data) < len(raw):
+            final = data
+    merged.close()
     out_buf = io.BytesIO(final)
     out_buf.seek(0)
 

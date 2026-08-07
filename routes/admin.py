@@ -25,6 +25,11 @@ from validation import validate_event_form, validate_dienstleister_form
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
+
+# Cache für AB-Budget-Vorschläge: {(r2_key, aktionen): [vorschlaege]} – erspart den
+# R2-Download + PDF-Parse bei jedem Event-Seitenaufruf (Speicher! Neustart leert ihn;
+# eine neue AB-Datei bekommt einen neuen r2_key und damit automatisch einen neuen Eintrag).
+_AB_BUDGET_CACHE: dict = {}
 templates.env.filters["de_date"] = de_date
 templates.env.filters["de_month"] = de_month
 templates.env.filters["de_euro"] = de_euro
@@ -926,19 +931,29 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     # Budget-Vorschläge aus der Auftragsbestätigung (Netto-Position der gebuchten
     # Künstler-Aktion × 80 %). Nur wenn eine AB vorliegt und Künstler-Aktionen gebucht
     # sind – tolerant: ein Parse-Fehler darf die Seite nie beeinträchtigen.
+    # Ergebnis wird pro (AB-Datei, Aktionen) gecacht: sonst lädt JEDER Seitenaufruf
+    # das komplette PDF aus R2 und parst es neu – unnötiger Speicher-/Zeitfresser
+    # (Render-RAM-Limit 31.07.2026).
     from choices import PRODUKT_SPARTE
     ab_vorhanden = bool(ab_dateien)
     kuenstler_aktionen = [p for p in (ev.produkte or "").split(", ") if p in PRODUKT_SPARTE]
     ab_budget_vorschlaege = []
     if ab_dateien and kuenstler_aktionen:
-        try:
-            from routes.fotos import download_file
-            from ab_budget import budget_vorschlaege
-            pdf_bytes = download_file(ab_dateien[0].r2_key)
-            if pdf_bytes:
-                ab_budget_vorschlaege = budget_vorschlaege(pdf_bytes, kuenstler_aktionen)
-        except Exception as e:
-            print(f"[AB-BUDGET] Parsen fehlgeschlagen (Event {event_id}): {e}")
+        cache_key = (ab_dateien[0].r2_key, tuple(kuenstler_aktionen))
+        if cache_key in _AB_BUDGET_CACHE:
+            ab_budget_vorschlaege = _AB_BUDGET_CACHE[cache_key]
+        else:
+            try:
+                from routes.fotos import download_file
+                from ab_budget import budget_vorschlaege
+                pdf_bytes = download_file(ab_dateien[0].r2_key)
+                if pdf_bytes:
+                    ab_budget_vorschlaege = budget_vorschlaege(pdf_bytes, kuenstler_aktionen)
+                    if len(_AB_BUDGET_CACHE) > 500:   # Schutzkappe, Neustart leert ohnehin
+                        _AB_BUDGET_CACHE.clear()
+                    _AB_BUDGET_CACHE[cache_key] = ab_budget_vorschlaege
+            except Exception as e:
+                print(f"[AB-BUDGET] Parsen fehlgeschlagen (Event {event_id}): {e}")
 
     # Logistiker-Warnung: Material-Mitnahme nötig, aber weder ein Logistiker
     # zugesagt noch manuell einer zugewiesen (ev.logistiker_id)
