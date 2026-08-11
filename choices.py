@@ -34,6 +34,38 @@ SPARTE_BRIEFING = {
 }
 
 
+def weitere_ap_liste(obj) -> list:
+    """Weitere Ansprechpartner eines Events ODER Kunden als [{'name','telefon',('email')}]
+    – gespeichert als JSON in der Spalte weitere_ansprechpartner. Tolerant: kaputte/
+    leere Werte → []."""
+    import json
+    raw = getattr(obj, "weitere_ansprechpartner", None)
+    if not raw:
+        return []
+    try:
+        return [x for x in json.loads(raw)
+                if isinstance(x, dict) and (x.get("name") or "").strip()]
+    except Exception:
+        return []
+
+
+def weitere_ap_json(namen, telefone, emails=None):
+    """Formular-Listen → JSON für die Spalte weitere_ansprechpartner. Zeilen ohne
+    Namen werden übersprungen; None wenn nichts übrig bleibt."""
+    import json
+    out = []
+    for i, n in enumerate(namen or []):
+        n = (n or "").strip()
+        if not n:
+            continue
+        eintrag = {"name": n,
+                   "telefon": (telefone[i] if i < len(telefone or []) else "").strip()}
+        if emails is not None:
+            eintrag["email"] = (emails[i] if i < len(emails or []) else "").strip()
+        out.append(eintrag)
+    return json.dumps(out, ensure_ascii=False) if out else None
+
+
 def sparte_label(dienstleister) -> str:
     """Briefing-Zusatz wie „(Ballonmodellage)" aus der Profil-Sparte; '' wenn keine."""
     s = SPARTE_BRIEFING.get(getattr(dienstleister, "kuenstler_sparte", None) or "")

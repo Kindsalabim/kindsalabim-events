@@ -113,3 +113,34 @@ def test_frist_verlaengern_reaktiviert_abgelaufene_anfrage(client):
     assert a.status == "Ausstehend"
     assert a.frist_datum > date.today()
     assert a.frist_verlaengert is True
+
+
+def test_frist_verlaengern_erzeugt_glocke_und_uebersteht_mailfehler(client, monkeypatch):
+    """Fall Joalina (01.08.2026): Verlängerung muss eine Glocke im Verlauf hinterlassen –
+    auch wenn der Mailversand komplett fehlschlägt (kein 500, Verlängerung gespeichert)."""
+    import email_service
+    from models import Benachrichtigung
+    from database import SessionLocal
+
+    def kaputt(*a, **kw):
+        raise RuntimeError("Resend down")
+    monkeypatch.setattr(email_service, "send_frist_verlaengerung", kaputt)
+
+    eid = make_event(datum=BALD, anlass="Museumsfest")
+    did = make_dienstleister(vorname="Joalina", nachname="Testerin")
+    aid = make_anfrage(eid, did, status="Abgelaufen", frist_datum=GESTERN)
+    portal_login(client, did)
+    r = client.post(f"/portal/verlaengern/{aid}", follow_redirects=False)
+    assert r.status_code == 303                          # kein 500 trotz Mailfehler
+    a = reload(Verfuegbarkeitsanfrage, aid)
+    assert a.status == "Ausstehend" and a.frist_verlaengert is True
+
+    s = SessionLocal()
+    try:
+        b = (s.query(Benachrichtigung).filter(Benachrichtigung.typ == "frist_verlaengert")
+             .order_by(Benachrichtigung.id.desc()).first())
+        assert b is not None
+        assert "Joalina" in b.titel
+        assert f"/admin/events/{eid}" == b.link
+    finally:
+        s.close()

@@ -19,6 +19,7 @@ class Event(Base):
     # Ansprechpartner vor Ort (fürs Team-Briefing) – kann vom Buchungskontakt abweichen.
     # Briefing-Priorität: Checkliste (cl_ansprechpartner_*) → vor_ort_* → alter kunde_kontakt.
     vor_ort_name = Column(String)
+    weitere_ansprechpartner = Column(Text)  # JSON [{"name","telefon"}] – zusätzliche Ansprechpartner (Formular + Briefing)
     vor_ort_telefon = Column(String)
     produkte = Column(Text)                      # kommagetrennt
     anzahl_teamer = Column(Integer, default=0)
@@ -382,6 +383,7 @@ class Kunde(Base):
     ort           = Column(String)
     website       = Column(String)
     branche       = Column(String)
+    weitere_ansprechpartner = Column(Text)  # JSON [{"name","telefon","email"}] – zusätzliche Kontakte (z. B. Planung)
     marke         = Column(String, default="Kindsalabim")
 
     # Vertrieb / Pipeline (Kanban folgt in Stufe 3)

@@ -141,6 +141,8 @@ def run_migrations():
     add_column("events", "ankunft_modus", "VARCHAR DEFAULT 'auto'")
     add_column("events", "ankunft_text", "TEXT")
     add_column("events", "treffpunkt", "VARCHAR")
+    add_column("events", "weitere_ansprechpartner", "TEXT")
+    add_column("kunden", "weitere_ansprechpartner", "TEXT")
     add_column("reservierungen", "startzeit", "VARCHAR")
     add_column("reservierungen", "endzeit", "VARCHAR")
     add_column("reservierungen", "art", "VARCHAR DEFAULT 'Div.'")

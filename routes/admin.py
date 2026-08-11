@@ -20,7 +20,8 @@ from auth import (get_admin_user, verify_password, hash_password, create_token,
 from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
 from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie_anfrage, ANFRAGE_FRIST_TAGE
-from choices import ZEITEN, de_date, de_month, de_euro, benoetigte_sparten, kuenstler_passt
+from choices import (ZEITEN, de_date, de_month, de_euro, benoetigte_sparten,
+                     kuenstler_passt, weitere_ap_liste, weitere_ap_json)
 from validation import validate_event_form, validate_dienstleister_form
 
 router = APIRouter(prefix="/admin")
@@ -37,6 +38,7 @@ templates.env.globals["zeiten"] = ZEITEN
 import ankunft as _ankunft
 templates.env.globals["ankunft_anzeige"] = _ankunft.ankunft_anzeige
 templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
+templates.env.globals["weitere_ap_liste"] = weitere_ap_liste
 
 # Gebuchte Aktionen – gruppiert fürs Formular (Reihenfolge = Anzeige-Reihenfolge).
 # Gruppe 1 = die Aktionen, für die wir Künstler brauchen.
@@ -214,6 +216,7 @@ def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id, stat
         kunde_kontakt=base_ev.kunde_kontakt, kunde_telefon=base_ev.kunde_telefon,
         kunde_email=base_ev.kunde_email,
         vor_ort_name=base_ev.vor_ort_name, vor_ort_telefon=base_ev.vor_ort_telefon,
+        weitere_ansprechpartner=base_ev.weitere_ansprechpartner,
         produkte=base_ev.produkte,
         anzahl_teamer=base_ev.anzahl_teamer, anzahl_kuenstler=base_ev.anzahl_kuenstler,
         hinweise=base_ev.hinweise, material_mitnahme=base_ev.material_mitnahme,
@@ -628,7 +631,8 @@ def event_kopieren(event_id: int, request: Request, db: Session = Depends(get_db
         transporter_angeboten=bool(ev.transporter_angeboten),
         ankunft_modus=ev.ankunft_modus or "auto", ankunft_text=ev.ankunft_text or "",
         treffpunkt=ev.treffpunkt or "", kunde_adresse=ev.kunde_adresse or "",
-        vor_ort_name=ev.vor_ort_name or "", vor_ort_telefon=ev.vor_ort_telefon or "")
+        vor_ort_name=ev.vor_ort_name or "", vor_ort_telefon=ev.vor_ort_telefon or "",
+        weitere_ansprechpartner=ev.weitere_ansprechpartner)
     kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/event_form.html",
         tpl_context(request, event=kopie, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
@@ -641,7 +645,8 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
                      checkliste_uebersprungen=False, zaubershow_event=False,
                      material_info="", transporter_angeboten=False,
                      ankunft_modus="auto", ankunft_text="", treffpunkt="",
-                     kunde_adresse="", vor_ort_name="", vor_ort_telefon=""):
+                     kunde_adresse="", vor_ort_name="", vor_ort_telefon="",
+                     weitere_ansprechpartner=None):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -657,6 +662,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
         kunde_firma=kunde_firma, kunde_adresse=kunde_adresse, kunde_kontakt=kunde_kontakt,
         kunde_telefon=kunde_telefon, kunde_email=kunde_email,
         vor_ort_name=vor_ort_name, vor_ort_telefon=vor_ort_telefon,
+        weitere_ansprechpartner=weitere_ansprechpartner,
         produkte=", ".join(produkte), anzahl_teamer=anzahl_teamer,
         anzahl_kuenstler=anzahl_kuenstler, hinweise=hinweise,
         material_mitnahme=material_mitnahme, marke=marke, status=status,
@@ -678,6 +684,7 @@ def event_create(
     kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     vor_ort_name: str = Form(""), vor_ort_telefon: str = Form(""),
+    wap_name: list = Form([]), wap_telefon: list = Form([]),
     produkte: list = Form([]), produkte_freitext: str = Form(""),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
@@ -692,6 +699,7 @@ def event_create(
 ):
     produkte = _mit_freitext(produkte, produkte_freitext)
     material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
+    wap_json = weitere_ap_json(wap_name, wap_telefon)
     # Veranstaltungsort = Firmenadresse, außer der Admin hat „andere Adresse" gewählt
     if not ort_abweichend:
         veranstaltungsort = (kunde_adresse or "").strip()
@@ -708,7 +716,8 @@ def event_create(
                                 material_info=material_info, transporter_angeboten=transporter_angeboten,
                                 ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
                                 kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
-                                vor_ort_telefon=vor_ort_telefon)
+                                vor_ort_telefon=vor_ort_telefon,
+                                weitere_ansprechpartner=wap_json)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
@@ -719,6 +728,7 @@ def event_create(
         kunde_kontakt=kunde_kontakt, kunde_telefon=kunde_telefon,
         kunde_email=kunde_email,
         vor_ort_name=vor_ort_name.strip() or None, vor_ort_telefon=vor_ort_telefon.strip() or None,
+        weitere_ansprechpartner=wap_json,
         produkte=", ".join(produkte),
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
@@ -1029,6 +1039,7 @@ def event_update(
     kunde_kontakt: str = Form(""),
     kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     vor_ort_name: str = Form(""), vor_ort_telefon: str = Form(""),
+    wap_name: list = Form([]), wap_telefon: list = Form([]),
     produkte: list = Form([]), produkte_freitext: str = Form(""),
     anzahl_teamer: int = Form(0), anzahl_kuenstler: int = Form(0),
     hinweise: str = Form(""), material_mitnahme: bool = Form(False),
@@ -1041,6 +1052,7 @@ def event_update(
     entsperrt: bool = Form(False), serie_propagieren: bool = Form(False),
 ):
     produkte = _mit_freitext(produkte, produkte_freitext)
+    wap_json = weitere_ap_json(wap_name, wap_telefon)
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
     if event_gesperrt(ev, entsperrt):
@@ -1062,7 +1074,8 @@ def event_update(
                                 material_info=material_info, transporter_angeboten=transporter_angeboten,
                                 ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
                                 kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
-                                vor_ort_telefon=vor_ort_telefon)
+                                vor_ort_telefon=vor_ort_telefon,
+                                weitere_ansprechpartner=wap_json)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -1075,6 +1088,7 @@ def event_update(
     ev.kunde_telefon = kunde_telefon; ev.kunde_email = kunde_email
     ev.vor_ort_name = vor_ort_name.strip() or None
     ev.vor_ort_telefon = vor_ort_telefon.strip() or None
+    ev.weitere_ansprechpartner = wap_json
     ev.produkte = ", ".join(produkte); ev.anzahl_teamer = anzahl_teamer
     ev.anzahl_kuenstler = anzahl_kuenstler; ev.hinweise = hinweise
     ev.material_mitnahme = material_mitnahme; ev.marke = marke; ev.status = status
@@ -1105,6 +1119,7 @@ def event_update(
             g.kunde_kontakt = ev.kunde_kontakt
             g.kunde_telefon = ev.kunde_telefon; g.kunde_email = ev.kunde_email
             g.vor_ort_name = ev.vor_ort_name; g.vor_ort_telefon = ev.vor_ort_telefon
+            g.weitere_ansprechpartner = ev.weitere_ansprechpartner
             g.veranstaltungsort = ev.veranstaltungsort
             g.anlass = ev.anlass; g.marke = ev.marke; g.kunde_id = ev.kunde_id
             # Zaubershow-Kennzeichen gilt für die ganze Buchung – mit übernehmen (sonst

@@ -78,6 +78,23 @@
       </div>
       {% endif %}
     </div>
+    {% set weitere_ap = weitere_ap_liste(kunde) %}
+    {% if weitere_ap %}
+    <p class="text-xs text-gray-500 mt-4 mb-1.5">Weitere Ansprechpartner</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {% for ap in weitere_ap %}
+      <div class="text-sm text-gray-700 py-2 px-3 rounded-lg" style="background:#f9fafb;">
+        <span class="font-medium">{{ ap.name }}</span>
+        <span class="block text-xs text-gray-500 mt-0.5">
+          {% if ap.telefon %}<a href="tel:{{ ap.telefon }}" class="hover:underline">{{ ap.telefon }}</a>{% endif %}
+          {% if ap.telefon and ap.email %} · {% endif %}
+          {% if ap.email %}<a href="mailto:{{ ap.email }}" class="hover:underline">{{ ap.email }}</a>{% endif %}
+          {% if not ap.telefon and not ap.email %}–{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 
   {% set prio_farben = {'hoch':'#c0473f','mittel':'#b07d1a','niedrig':'#6b7280'} %}

@@ -16,11 +16,12 @@ from models import (Kunde, KundeTag, Event, KUNDE_STATUS,
                     KundeAktivitaet, KundeWiedervorlage)
 from auth import get_admin_user
 from config import get_config
-from choices import de_date
+from choices import de_date, weitere_ap_liste, weitere_ap_json
 
 router = APIRouter(prefix="/admin/crm")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
+templates.env.globals["weitere_ap_liste"] = weitere_ap_liste
 
 STATUS_LABEL = {
     "lead":     "Neuer Lead",
@@ -221,11 +222,14 @@ def kunde_new(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 
 @router.post("/new")
 async def kunde_create(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    form = dict(await request.form())
+    raw = await request.form()
+    form = dict(raw)
     if not form.get("firma", "").strip():
         return templates.TemplateResponse("admin/crm_kunde_form.html",
             tpl(request, active="crm", kunde=None, error="Firma / Name ist erforderlich."))
     k = Kunde(erstellt_am=_now())
+    k.weitere_ansprechpartner = weitere_ap_json(
+        raw.getlist("kap_name"), raw.getlist("kap_telefon"), raw.getlist("kap_email"))
     _apply_form(db, k, form)
     db.add(k); db.commit(); db.refresh(k)
     return RedirectResponse(f"/admin/crm/{k.id}", status_code=303)
@@ -259,10 +263,13 @@ async def kunde_update(request: Request, kid: int, db: Session = Depends(get_db)
     k = db.query(Kunde).filter(Kunde.id == kid).first()
     if not k:
         raise HTTPException(404)
-    form = dict(await request.form())
+    raw = await request.form()
+    form = dict(raw)
     if not form.get("firma", "").strip():
         return templates.TemplateResponse("admin/crm_kunde_form.html",
             tpl(request, active="crm", kunde=k, error="Firma / Name ist erforderlich."))
+    k.weitere_ansprechpartner = weitere_ap_json(
+        raw.getlist("kap_name"), raw.getlist("kap_telefon"), raw.getlist("kap_email"))
     _apply_form(db, k, form)
     db.commit()
     return RedirectResponse(f"/admin/crm/{kid}", status_code=303)

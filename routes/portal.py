@@ -396,12 +396,25 @@ def portal_verlaengern(anfrage_id: int, db: Session = Depends(get_db),
         frist = a.frist_datum or date.today()
         a.frist_datum = max(frist, date.today()) + timedelta(days=2)
         a.frist_verlaengert = True
+        d, ev = a.dienstleister, a.event
+        # Glocke + Verlauf IMMER (nachvollziehbar, auch wenn die Mail untergeht);
+        # die Mail zusätzlich, abschaltbar und fehlertolerant – ein Resend-Ausfall
+        # darf weder die Verlängerung verhindern noch dem Portal einen 500 zeigen.
+        from notifications import notify, mail_enabled
+        notify(db, "frist_verlaengert",
+               f"Fristverlängerung: {d.vorname} {d.nachname} – {ev.anlass or 'Event'}",
+               f"{d.vorname} {d.nachname} hat für {ev.anlass or 'das Event'} am "
+               f"{ev.datum.strftime('%d.%m.%Y')} eine Fristverlängerung angefordert. "
+               f"Neue Frist: {a.frist_datum.strftime('%d.%m.%Y')}.",
+               f"/admin/events/{ev.id}")
         db.commit()
-        # Admin benachrichtigen
-        from email_service import send_frist_verlaengerung
-        from config import get_config
-        cfg = get_config()
-        send_frist_verlaengerung(a.dienstleister, a.event, cfg["admin_email"])
+        if mail_enabled(db, "frist_verlaengert"):
+            try:
+                from email_service import send_frist_verlaengerung
+                from config import get_config
+                send_frist_verlaengerung(d, ev, get_config()["admin_email"])
+            except Exception as e:
+                print(f"Fristverlängerungs-Mail fehlgeschlagen (Anfrage {a.id}): {e}")
     return RedirectResponse("/portal", status_code=303)
 
 

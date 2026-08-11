@@ -50,6 +50,45 @@
         </div>
       </div>
 
+      <!-- Weitere Ansprechpartner (z. B. für die Planung) -->
+      <div id="extra-kap" class="space-y-2">
+        {% set weitere_ap = weitere_ap_liste(kunde) if kunde else [] %}
+        {% for ap in weitere_ap %}
+        <div class="grid grid-cols-3 gap-3 extra-kap-row">
+          <input type="text" name="kap_name" value="{{ ap.name }}" placeholder="Name"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+          <input type="tel" name="kap_telefon" value="{{ ap.telefon }}" inputmode="tel" placeholder="Telefon"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+          <div class="flex gap-2 items-center">
+            <input type="email" name="kap_email" value="{{ ap.email or '' }}" placeholder="E-Mail"
+              class="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+            <button type="button" onclick="this.closest('.extra-kap-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Ansprechpartner entfernen">&times;</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="addKap()" class="text-sm font-medium" style="color:var(--brand-primary);">+ weitere Ansprechpartner hinzufügen</button>
+
+      <template id="kap-template">
+        <div class="grid grid-cols-3 gap-3 extra-kap-row">
+          <input type="text" name="kap_name" placeholder="Name"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+          <input type="tel" name="kap_telefon" inputmode="tel" placeholder="Telefon"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+          <div class="flex gap-2 items-center">
+            <input type="email" name="kap_email" placeholder="E-Mail"
+              class="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+            <button type="button" onclick="this.closest('.extra-kap-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Ansprechpartner entfernen">&times;</button>
+          </div>
+        </div>
+      </template>
+      <script>
+        function addKap(){
+          var t = document.getElementById('kap-template');
+          document.getElementById('extra-kap').appendChild(t.content.cloneNode(true));
+        }
+      </script>
+
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Straße</label>

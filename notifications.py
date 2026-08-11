@@ -24,6 +24,7 @@ NOTIF_TYPEN = [
     ("bericht",    "Eventbericht wurde eingereicht",        True,  False),
     ("anfrage_abgelaufen", "Anfrage-Frist abgelaufen – nachbesetzen", True, False),
     ("rechnung_ueberfaellig", "Rechnung überfällig (Zahlungsziel abgelaufen)", True, True),
+    ("frist_verlaengert", "Dienstleister hat Frist verlängert", False, True),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 
