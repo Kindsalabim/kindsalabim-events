@@ -7,7 +7,7 @@ import urllib.error
 from html import unescape, escape as _esc
 from datetime import datetime
 from config import get_config
-from choices import (anfrage_ort, de_date, de_euro, plz_ort, rechnung_anschrift, sparte_label,
+from choices import (anfrage_ort, de_date, de_euro, plz_ort, rechnung_anschrift, sparte_label, weitere_ap_liste,
                      regeln_abschnitte, zeit_bis_text)
 
 
@@ -860,10 +860,18 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     karten += _mail_card("Veranstaltungsadresse", ic("standort"),
         f'<p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{adr}</p>', color)
 
+    weitere_ap = weitere_ap_liste(event)
+    weitere_html = ""
+    if weitere_ap:
+        zeilen = "<br>".join(
+            _esc(w["name"]) + (f" · {_esc(w['telefon'])}" if w.get("telefon") else "")
+            for w in weitere_ap)
+        weitere_html = (f'<p style="margin:12px 0 0;font-size:14px;color:#111827;line-height:1.6;">'
+                        f'<span style="font-size:13px;color:#6b7280;">Weitere Ansprechpartner:</span><br>{zeilen}</p>')
     karten += _mail_card("Ansprechpartner Kunde", ic("nachricht"), f"""<table {T}>
             {_info_row('Name', ap_name)}
             {_info_row('Telefon', ap_tel)}
-          </table>
+          </table>{weitere_html}
           <p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">Kontakt zum Kunden läuft <strong>nur über die Teamleitung</strong>.</p>""", color)
 
     karten += _mail_card("Team", ic("team"), f'<table {T}>{team_rows}</table>', color)

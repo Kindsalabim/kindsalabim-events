@@ -13,7 +13,7 @@ from reportlab.lib.utils import simpleSplit, ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas as rl_canvas
 
-from choices import de_date, rechnung_anschrift, sparte_label, regeln_abschnitte
+from choices import de_date, rechnung_anschrift, sparte_label, regeln_abschnitte, weitere_ap_liste
 import ankunft as _ankunft
 
 _IMG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "img")
@@ -341,13 +341,19 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None
                or _clean(getattr(ev, "vor_ort_name", "")) or _clean(ev.kunde_kontakt))
     ap_tel = (_clean(getattr(ev, "cl_ansprechpartner_mobil", ""))
               or _clean(getattr(ev, "vor_ort_telefon", "")) or _clean(ev.kunde_telefon))
+    ap_zeilen = [
+        ("kv", "Name", ap_name, False),
+        ("kv", "Telefon", ap_tel, False),
+    ]
+    weitere_ap = weitere_ap_liste(ev)
+    if weitere_ap:
+        ap_zeilen.append(("text", "Weitere Ansprechpartner:\n" + "\n".join(
+            f"{w['name']} · {w['telefon']}" if w.get("telefon") else w["name"]
+            for w in weitere_ap)))
+    ap_zeilen.append(("text", "Kontakt zum Kunden läuft NUR über die Teamleitung."))
     ansprechpartner = {
         "titel": "Ansprechpartner Kunde", "icon": "nachricht",
-        "zeilen": [
-            ("kv", "Name", ap_name, False),
-            ("kv", "Telefon", ap_tel, False),
-            ("text", "Kontakt zum Kunden läuft NUR über die Teamleitung."),
-        ],
+        "zeilen": ap_zeilen,
     }
 
     team_zeilen = []
