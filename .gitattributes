@@ -1,0 +1,6 @@
+# Binärdateien nie durch Zeilenenden-Konvertierung anfassen
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.db   binary
