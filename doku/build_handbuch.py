@@ -139,7 +139,13 @@ for bez, betrag in [("Baker Ross Bastelsets (Bestellung 12.08.)", 123.45),
 s.add(Reservierung(datum=date.today() + timedelta(days=25), startzeit="14:00", endzeit="18:00",
                    art="Z", anlass="Firmenjubiläum", veranstaltungsort="50667 Köln",
                    kunde_firma="Beispiel & Söhne KG", kunde_kontakt="Hr. Beispiel",
-                   marke="Kindsalabim", frist=date.today() + timedelta(days=4)))
+                   marke="Kindsalabim", frist=date.today() + timedelta(days=4),
+                   serien_id="handbuch-serie"))
+s.add(Reservierung(datum=date.today() + timedelta(days=26), startzeit="10:00", endzeit="13:00",
+                   art="Z", anlass="Firmenjubiläum", veranstaltungsort="50667 Köln",
+                   kunde_firma="Beispiel & Söhne KG", kunde_kontakt="Hr. Beispiel",
+                   marke="Kindsalabim", frist=date.today() + timedelta(days=4),
+                   serien_id="handbuch-serie"))
 s.add(Reservierung(datum=date.today() + timedelta(days=40), art="WORKSHOP",
                    anlass="Ferienprogramm", veranstaltungsort="45127 Essen",
                    kunde_firma="Stadt Musterhausen", marke="Kindsalabim",
@@ -498,8 +504,14 @@ story = [
         "Im Google-Kalender: <b>anthraziter</b> Block; nach Fristablauf färbt er sich automatisch "
         "<b>flamingo</b> und die Reservierung wandert in der App ins Dropdown &bdquo;Abgelaufene "
         "Reservierungen&ldquo;.",
-        "<b>In Buchung umwandeln</b> macht mit einem Klick ein echtes Event daraus. Ist der reservierte "
+        "<b>Mehrtägige Reservierung:</b> Im Neu-Formular unter &bdquo;Weitere Termintage&ldquo; beliebig "
+        "viele Tage ergänzen (jeder mit eigener Uhrzeit, sonst gilt die des Haupttags). Jeder Tag bekommt "
+        "seinen eigenen Kalender-Block; die Karten tragen die Markierung &bdquo;Serie&ldquo;.",
+        "<b>In Buchung umwandeln</b> macht mit einem Klick ein echtes Event daraus – bei einer Serie werden "
+        "alle Tage zusammen zu einer Termin-Serie (nicht gebuchte Tage vorher löschen). Ist der reservierte "
         "Tag vorbei, löscht die App den Eintrag automatisch (der Kalender-Block bleibt).",
+        "<b>Kopieren</b> an der Karte befüllt das Neu-Formular mit allen Daten der Reservierung vor – "
+        "nur der Termin bleibt leer.",
     ]),
     *shots("reservierungen", 150, "Reservierungen: aktive Liste, Neu-Formular, abgelaufene im Dropdown."),
 

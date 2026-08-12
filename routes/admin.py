@@ -490,17 +490,27 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
 # ── Reservierungen (unverbindliche Holds vor der Buchung) ───────────────────────
 
 @router.get("/reservierungen", response_class=HTMLResponse)
-def reservierungen_list(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def reservierungen_list(request: Request, kopie: int = None,
+                        db: Session = Depends(get_db), _=Depends(get_admin_user)):
     res = db.query(Reservierung).order_by(Reservierung.datum, Reservierung.frist.is_(None), Reservierung.frist).all()
     heute = date.today()
     aktive = [r for r in res if not (r.frist and r.frist < heute)]
     # Abgelaufene eingeklappt darunter, zuletzt abgelaufene zuerst
     abgelaufene = sorted((r for r in res if r.frist and r.frist < heute),
                          key=lambda r: r.frist, reverse=True)
+    # Anzahl Termine je Serie (für die 🔗-Markierung an den Karten)
+    serien = {}
+    for r in res:
+        if r.serien_id:
+            serien[r.serien_id] = serien.get(r.serien_id, 0) + 1
+    # ?kopie=<id> → Neue-Reservierung-Formular mit den Daten dieser Reservierung
+    # vorbefüllen (Datum bleibt leer) – Pendant zum Event-„Kopieren".
+    kopie_r = db.query(Reservierung).filter(Reservierung.id == kopie).first() if kopie else None
     kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/reservierungen.html",
         tpl_context(request, aktive=aktive, abgelaufene=abgelaufene, today=heute,
-                    frist_default=heute + timedelta(days=5), kunden=kunden))
+                    frist_default=heute + timedelta(days=5), kunden=kunden,
+                    serien=serien, kopie=kopie_r))
 
 @router.post("/reservierungen/new")
 def reservierung_create(
@@ -511,10 +521,17 @@ def reservierung_create(
     anlass: str = Form(""), veranstaltungsort: str = Form(""),
     kunde_kontakt: str = Form(""), kunde_telefon: str = Form(""), kunde_email: str = Form(""),
     marke: str = Form("Kindsalabim"), frist: str = Form(""), notiz: str = Form(""),
+    extra_datum: list = Form([]), extra_startzeit: list = Form([]),
+    extra_endzeit: list = Form([]),
 ):
     try:
         datum_d = date.fromisoformat(datum)
     except ValueError:
+        return RedirectResponse("/admin/reservierungen?error=datum", status_code=303)
+    # Weitere Termintage (mehrtägige Reservierung) – gleiche Logik wie beim Event
+    extra_tage, extra_fehler = _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit,
+                                                 startzeit.strip(), endzeit.strip())
+    if extra_fehler:
         return RedirectResponse("/admin/reservierungen?error=datum", status_code=303)
     frist_d = None
     if frist.strip():
@@ -529,11 +546,27 @@ def reservierung_create(
         kunde_kontakt=kunde_kontakt.strip() or None, kunde_telefon=kunde_telefon.strip() or None,
         kunde_email=kunde_email.strip() or None, marke=marke,
         frist=frist_d, notiz=notiz.strip() or None,
+        serien_id=secrets.token_hex(8) if extra_tage else None,
         erstellt_am=datetime.now().isoformat(timespec="seconds"),
     )
-    db.add(r); db.commit(); db.refresh(r)
+    db.add(r)
+    geschwister = []
+    for (d, sz, ez) in extra_tage:
+        g = Reservierung(
+            datum=d, startzeit=sz or None, endzeit=ez or None,
+            kunde_firma=r.kunde_firma, anlass=r.anlass, art=r.art,
+            veranstaltungsort=r.veranstaltungsort,
+            kunde_kontakt=r.kunde_kontakt, kunde_telefon=r.kunde_telefon,
+            kunde_email=r.kunde_email, marke=r.marke,
+            frist=r.frist, notiz=r.notiz, serien_id=r.serien_id,
+            erstellt_am=r.erstellt_am,
+        )
+        db.add(g); geschwister.append(g)
+    db.commit(); db.refresh(r)
     import calendar_service
     background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
+    for g in geschwister:
+        background_tasks.add_task(calendar_service.sync_reservierung_async, g.id)
     return RedirectResponse("/admin/reservierungen", status_code=303)
 
 @router.get("/reservierungen/{res_id}/edit", response_class=HTMLResponse)
@@ -601,21 +634,35 @@ def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
     r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
     if not r:
         return RedirectResponse("/admin/reservierungen", status_code=303)
-    ev = Event(
-        anlass=r.anlass or "—", datum=r.datum,
-        startzeit=r.startzeit or "10:00", endzeit=r.endzeit or "16:00",
-        veranstaltungsort=r.veranstaltungsort or "—", kunde_firma=r.kunde_firma,
-        kunde_kontakt=r.kunde_kontakt, kunde_telefon=r.kunde_telefon, kunde_email=r.kunde_email,
-        marke=r.marke, status="Gebucht",
-    )
-    db.add(ev)
+    # Mehrtägige Reservierung: alle Termine der Serie werden gemeinsam zu einer
+    # Termin-Serie (verknüpfte Events). Tage, die der Kunde nicht bucht, vorher löschen.
+    gruppe = [r]
+    if r.serien_id:
+        gruppe = db.query(Reservierung).filter(Reservierung.serien_id == r.serien_id)\
+                   .order_by(Reservierung.datum).all()
+    ev_serien_id = secrets.token_hex(8) if len(gruppe) > 1 else None
     import calendar_service
-    if r.kalender_event_id:
-        background_tasks.add_task(calendar_service.delete_event_async, r.kalender_event_id, r.marke)
-    db.delete(r); db.commit(); db.refresh(ev)
-    background_tasks.add_task(calendar_service.sync_event_async, ev.id)
+    events, ziel_ev = [], None
+    for res in gruppe:
+        ev = Event(
+            anlass=res.anlass or "—", datum=res.datum,
+            startzeit=res.startzeit or "10:00", endzeit=res.endzeit or "16:00",
+            veranstaltungsort=res.veranstaltungsort or "—", kunde_firma=res.kunde_firma,
+            kunde_kontakt=res.kunde_kontakt, kunde_telefon=res.kunde_telefon, kunde_email=res.kunde_email,
+            marke=res.marke, status="Gebucht", serien_id=ev_serien_id,
+        )
+        db.add(ev); events.append(ev)
+        if res.id == r.id:
+            ziel_ev = ev
+        if res.kalender_event_id:
+            background_tasks.add_task(calendar_service.delete_event_async, res.kalender_event_id, res.marke)
+        db.delete(res)
+    db.commit()
+    for ev in events:
+        db.refresh(ev)
+        background_tasks.add_task(calendar_service.sync_event_async, ev.id)
     # Zum Bearbeiten öffnen – Uhrzeiten/Details vervollständigen
-    return RedirectResponse(f"/admin/events/{ev.id}/edit", status_code=303)
+    return RedirectResponse(f"/admin/events/{ziel_ev.id}/edit", status_code=303)
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────

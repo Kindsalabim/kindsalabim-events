@@ -177,6 +177,7 @@ class Reservierung(Base):
     notiz             = Column(Text)
     kalender_event_id = Column(String)                    # anthrazitfarbener Block im Google-Kalender
     kalender_abgelaufen_markiert = Column(Boolean, default=False)  # Kalender-Block nach Fristablauf auf Flamingo umgefärbt (Cron-Idempotenz)
+    serien_id         = Column(String)                    # verknüpft mehrtägige Reservierungen (wie Event.serien_id)
     erstellt_am       = Column(String)
 
 

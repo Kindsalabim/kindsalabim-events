@@ -16,9 +16,12 @@
 </div>
 
 <!-- Neue Reservierung -->
-<details class="card p-5 mb-6">
+<details class="card p-5 mb-6" {% if kopie %}open{% endif %}>
   <summary class="text-sm font-semibold cursor-pointer select-none" style="color: var(--brand-primary);">+ Neue Reservierung</summary>
   <form method="post" action="/admin/reservierungen/new" class="mt-4 pt-4 space-y-4" style="border-top:1px solid #f3f4f6;">
+    {% if kopie %}
+    <p class="text-xs font-medium px-3 py-2 rounded-lg" style="background:var(--c-amber-bg);color:var(--c-amber);">📋 Daten aus der Reservierung „{{ kopie.kunde_firma }}" ({{ kopie.datum | de_date }}) übernommen – nur noch Termin wählen.</p>
+    {% endif %}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Termin *</label>
@@ -31,31 +34,62 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Marke</label>
         <select name="marke" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
-          <option>Kindsalabim</option>
-          <option>Knallfrosch</option>
+          <option {% if kopie and kopie.marke == 'Kindsalabim' %}selected{% endif %}>Kindsalabim</option>
+          <option {% if kopie and kopie.marke == 'Knallfrosch' %}selected{% endif %}>Knallfrosch</option>
         </select>
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Beginn <span class="text-gray-500 font-normal">(für Kalender-Uhrzeit)</span></label>
-        {{ time_select('startzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+        {{ time_select('startzeit', kopie.startzeit or '' if kopie else '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Ende <span class="text-gray-500 font-normal">(sonst Beginn + 1 h)</span></label>
-        {{ time_select('endzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+        {{ time_select('endzeit', kopie.endzeit or '' if kopie else '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Art <span class="text-gray-500 font-normal">(Kalender-Kürzel)</span></label>
         <select name="art" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
-          {% for val, label in art_optionen %}<option value="{{ val }}" {% if val == 'Div.' %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          {% set art_vorwahl = kopie.art if kopie and kopie.art else 'Div.' %}
+          {% for val, label in art_optionen %}<option value="{{ val }}" {% if val == art_vorwahl %}selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
       </div>
     </div>
+
+    <!-- Weitere Termintage (mehrtägige Reservierung) -->
+    <div class="pt-2" style="border-top:1px dashed #e5e7eb;">
+      <label class="block text-sm font-medium text-gray-700 mb-1.5 mt-2">
+        Weitere Termintage <span class="text-gray-400 font-normal">(optional – eine Reservierung über mehrere Tage, auch mit unterschiedlichen Uhrzeiten)</span>
+      </label>
+      <div id="extra-termine" class="space-y-2"></div>
+      <button type="button" onclick="addTermin()" class="mt-2 text-sm font-medium" style="color:var(--brand-primary);">+ weiteren Termin hinzufügen</button>
+      <p class="text-xs text-gray-500 mt-1.5">Jeder Tag wird als eigener, verknüpfter Kalender-Block reserviert (gleiche Kundendaten &amp; Frist). Ohne eigene Uhrzeit gilt die oben gewählte. Beim Umwandeln wird die ganze Serie zu einer Buchung.</p>
+    </div>
+    <template id="termin-template">
+      <div class="grid grid-cols-3 gap-4 items-end extra-termin-row">
+        <div>
+          <input type="date" name="extra_datum" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+        <div>{{ time_select('extra_startzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
+        <div class="flex gap-2 items-center">
+          <div class="flex-1">{{ time_select('extra_endzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
+          <button type="button" onclick="this.closest('.extra-termin-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Termin entfernen">&times;</button>
+        </div>
+      </div>
+    </template>
+    <script>
+      function addTermin(){
+        var t = document.getElementById('termin-template');
+        document.getElementById('extra-termine').appendChild(t.content.cloneNode(true));
+      }
+    </script>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Kunde / Firma *</label>
         <input type="text" name="kunde_firma" required list="res-kunden-vorschlaege" autocomplete="off"
+               value="{{ kopie.kunde_firma if kopie else '' }}"
                class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         <datalist id="res-kunden-vorschlaege">
           {% for k in kunden|default([]) %}<option value="{{ k.firma }}">{% endfor %}
@@ -64,28 +98,28 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Ansprechpartner</label>
-        <input type="text" name="kunde_kontakt" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <input type="text" name="kunde_kontakt" value="{{ kopie.kunde_kontakt or '' if kopie else '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
-        <input type="text" name="kunde_telefon" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <input type="text" name="kunde_telefon" value="{{ kopie.kunde_telefon or '' if kopie else '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Mail</label>
-        <input type="email" name="kunde_email" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <input type="email" name="kunde_email" value="{{ kopie.kunde_email or '' if kopie else '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlass</label>
-        <input type="text" name="anlass" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <input type="text" name="anlass" value="{{ kopie.anlass or '' if kopie else '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Ort</label>
-        <input type="text" name="veranstaltungsort" placeholder="z. B. 50667 Köln" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <input type="text" name="veranstaltungsort" value="{{ kopie.veranstaltungsort or '' if kopie else '' }}" placeholder="z. B. 50667 Köln" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
     </div>
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1.5">Notiz</label>
-      <textarea name="notiz" rows="2" placeholder="z. B. Angebotssumme, Besonderheiten …" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none"></textarea>
+      <textarea name="notiz" rows="2" placeholder="z. B. Angebotssumme, Besonderheiten …" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring resize-none">{{ kopie.notiz or '' if kopie else '' }}</textarea>
     </div>
     <button type="submit" class="btn-primary px-5 py-2.5">Reservierung anlegen</button>
   </form>
@@ -155,6 +189,9 @@ document.addEventListener('DOMContentLoaded', function(){
         <span class="font-semibold" style="color:var(--ink-1);">{{ r.kunde_firma }}</span>
         {% if r.marke == 'Knallfrosch' %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
         {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
+        {% if r.serien_id and serien.get(r.serien_id, 0) > 1 %}
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--brand-primary-light);color:var(--brand-primary);" title="Mehrtägige Reservierung – die Termine gehören zusammen">🔗 Serie · {{ serien[r.serien_id] }} Termine</span>
+        {% endif %}
       </div>
       <p class="text-xs mt-1" style="color:var(--ink-3);">
         {{ r.datum | de_date }}{% if r.startzeit %} · {{ r.startzeit }}{% if r.endzeit %}–{{ r.endzeit }}{% endif %} Uhr{% endif %}{% if r.veranstaltungsort %} · {{ r.veranstaltungsort }}{% endif %}{% if r.anlass %} · {{ r.anlass }}{% endif %}
@@ -179,13 +216,16 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
 
     <!-- Aktionen -->
+    {% set in_serie = r.serien_id and serien.get(r.serien_id, 0) > 1 %}
     <div class="shrink-0 flex items-center gap-2">
-      <form method="post" action="/admin/reservierungen/{{ r.id }}/umwandeln">
-        <button class="btn-primary text-xs px-3 py-2" title="Erzeugt ein echtes Event aus dieser Reservierung">In Buchung umwandeln</button>
+      <form method="post" action="/admin/reservierungen/{{ r.id }}/umwandeln"
+            {% if in_serie %}onsubmit="return confirm('Alle {{ serien[r.serien_id] }} Termine der Serie werden zusammen in eine Buchung (Termin-Serie) umgewandelt.\n\nBucht der Kunde nicht alle Tage, die nicht gebuchten Termine vorher löschen.\n\nFortfahren?')"{% endif %}>
+        <button class="btn-primary text-xs px-3 py-2" title="{% if in_serie %}Erzeugt eine Termin-Serie aus allen {{ serien[r.serien_id] }} Terminen dieser Reservierung{% else %}Erzeugt ein echtes Event aus dieser Reservierung{% endif %}">In Buchung umwandeln</button>
       </form>
       <a href="/admin/reservierungen/{{ r.id }}/edit" class="text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-2">Bearbeiten</a>
+      <a href="/admin/reservierungen?kopie={{ r.id }}" class="text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-2" title="Neue Reservierung mit diesen Daten vorbefüllen">Kopieren</a>
       <form method="post" action="/admin/reservierungen/{{ r.id }}/freigeben"
-            onsubmit="return confirm('Reservierung „{{ r.kunde_firma }}“ wirklich löschen?')">
+            onsubmit="return confirm('Reservierung „{{ r.kunde_firma }}“ ({{ r.datum | de_date }}) wirklich löschen?{% if in_serie %}\n\nNur dieser Tag – die anderen Termine der Serie bleiben.{% endif %}')">
         <button class="text-xs text-gray-500 hover:text-red-600 transition-colors px-2 py-2">Löschen</button>
       </form>
     </div>
