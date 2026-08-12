@@ -91,6 +91,7 @@ def _apply_form(db, k: Kunde, f: dict):
     k.ansprechpartner = g("ansprechpartner") or None
     k.telefon = g("telefon") or None
     k.email = g("email") or None
+    k.rechnung_email = g("rechnung_email") or None
     k.strasse = g("strasse") or None
     k.plz = g("plz") or None
     k.ort = g("ort") or None

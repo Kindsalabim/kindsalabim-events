@@ -114,9 +114,15 @@
 
     <!-- Kundendaten (intern) -->
     <div class="card p-6 space-y-4">
-      <div class="flex items-center gap-2 pb-3" style="border-bottom: 1px solid #f3f4f6;">
+      <div class="flex items-center gap-2 pb-3 flex-wrap" style="border-bottom: 1px solid #f3f4f6;">
         <h2 class="text-sm font-semibold text-gray-700">Kundendaten</h2>
         <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:#f1f5f9;color:#475569;">🔒 intern</span>
+        <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer ml-auto"
+               title="Privatkunden zahlen per Vorkasse – die App erinnert 14 Tage vor dem Event daran, die Rechnung zu verschicken.">
+          <input type="checkbox" name="privatkunde" value="true" {% if event and event.privatkunde %}checked{% endif %}
+                 class="rounded" style="accent-color: var(--brand-primary);">
+          Privatkunde <span class="text-gray-400">(Vorkasse)</span>
+        </label>
       </div>
       <p class="text-xs text-gray-500 -mt-1">Wer hat gebucht – für uns, Rechnung &amp; CRM. Diese Angaben erscheinen <strong>nicht</strong> im Briefing der Dienstleister.</p>
       <div class="grid grid-cols-2 gap-4">

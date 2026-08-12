@@ -47,6 +47,7 @@ def checklist_submit(
     db: Session = Depends(get_db),
     ansprechpartner_name:  str = Form(""),
     ansprechpartner_mobil: str = Form(""),
+    rechnung_email:        str = Form(""),
     firma_name:            str = Form(""),
     strasse:               str = Form(""),
     plz_ort:               str = Form(""),
@@ -77,6 +78,11 @@ def checklist_submit(
 
     ev.cl_ansprechpartner_name  = ansprechpartner_name
     ev.cl_ansprechpartner_mobil = ansprechpartner_mobil
+    # Rechnungs-Mailadresse: am Event speichern UND in die Kundenkartei übernehmen
+    # (nur wenn angegeben; erscheint bewusst NICHT im Briefing).
+    ev.cl_rechnung_email = rechnung_email.strip() or None
+    if ev.cl_rechnung_email and ev.kunde_id and ev.kunde:
+        ev.kunde.rechnung_email = ev.cl_rechnung_email
     ev.cl_firma_name            = firma_name
     ev.cl_strasse               = strasse
     ev.cl_plz_ort               = plz_ort

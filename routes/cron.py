@@ -261,6 +261,68 @@ def _run_reservierung_farben(db: Session) -> int:
     return count
 
 
+def _run_rechnung_erinnerungen(db: Session) -> int:
+    """Zwei Rechnungs-Erinnerungen (Glocke + Mail via notify, je Event einmalig):
+    1. Vorkasse: Privatkunden-Events → 14 Tage vor dem Event die Rechnung verschicken.
+    2. Rechnungsadresse: nach dem Event, wenn das CRM-Profil eine separate
+       Rechnungs-Mailadresse hat und die Rechnung noch nicht gestellt ist."""
+    from notifications import notify
+    heute = _heute()
+    count = 0
+
+    # 1. Vorkasse (Fenster [heute, heute+14], Flag verhindert Doppelversand)
+    vorkasse = db.query(Event).filter(
+        Event.privatkunde == True,                 # noqa: E712
+        Event.vorkasse_erinnert == False,          # noqa: E712
+        Event.rechnung_gestellt == False,          # noqa: E712
+        Event.datum >= heute,
+        Event.datum <= heute + timedelta(days=14),
+        Event.status.notin_(["Abgesagt"]),
+    ).all()
+    for ev in vorkasse:
+        try:
+            notify(db, "rechnung_erinnerung",
+                   f"Vorkasse-Rechnung senden: {ev.kunde_firma or ev.anlass or 'Event'}",
+                   f"Privatkunde: Die Rechnung für {ev.anlass or 'das Event'} am "
+                   f"{ev.datum.strftime('%d.%m.%Y')} soll 14 Tage vorher verschickt werden "
+                   f"(Vorkasse). Empfänger: {ev.kunde_email or 'keine E-Mail hinterlegt'}.",
+                   f"/admin/events/{ev.id}")
+            ev.vorkasse_erinnert = True
+            db.commit()
+            count += 1
+        except Exception as e:
+            db.rollback()
+            print(f"Vorkasse-Erinnerung fehlgeschlagen (Event {ev.id}): {e}")
+
+    # 2. Separate Rechnungs-Mailadresse (nach dem Event): aus dem CRM-Profil oder –
+    #    falls dort keine hinterlegt ist – aus der Kunden-Checkliste des Events.
+    kandidaten = db.query(Event).filter(
+        Event.datum < heute,
+        Event.rechnung_mail_erinnert == False,     # noqa: E712
+        Event.rechnung_gestellt == False,          # noqa: E712
+        Event.status.notin_(["Abgesagt"]),
+    ).all()
+    for ev in kandidaten:
+        adresse = ((ev.kunde.rechnung_email if ev.kunde else None)
+                   or getattr(ev, "cl_rechnung_email", None) or "").strip()
+        if not adresse:
+            continue
+        try:
+            notify(db, "rechnung_erinnerung",
+                   f"Rechnung an spezielle Adresse: {ev.kunde_firma or ev.anlass or 'Event'}",
+                   f"Erinnerung: Die Rechnung von {ev.kunde_firma or 'diesem Kunden'} "
+                   f"({ev.anlass or 'Event'} am {ev.datum.strftime('%d.%m.%Y')}) soll an die "
+                   f"Mailadresse {adresse} versandt werden.",
+                   f"/admin/events/{ev.id}")
+            ev.rechnung_mail_erinnert = True
+            db.commit()
+            count += 1
+        except Exception as e:
+            db.rollback()
+            print(f"Rechnungsadress-Erinnerung fehlgeschlagen (Event {ev.id}): {e}")
+    return count
+
+
 def _run_reservierungen_aufraeumen(db: Session) -> int:
     """Löscht Reservierungen aus der App, deren reservierter Termin verstrichen ist
     (ab dem Folgetag). Der Google-Kalender-Block bleibt bewusst stehen – nur die
@@ -408,6 +470,10 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # Unbezahlte Rechnungen nach Zahlungsziel (14 Werktage) melden
     rechnungen_ueberfaellig = _run_ueberfaellige_rechnungen(db)
 
+    # Rechnungs-Erinnerungen: Vorkasse (Privatkunde, 14 Tage vorher) + spezielle
+    # Rechnungs-Mailadresse aus dem CRM-Profil (nach dem Event)
+    rechnung_erinnerungen = _run_rechnung_erinnerungen(db)
+
     # Reservierungen mit verstrichenem Termin aus der App löschen (Kalender bleibt),
     # danach abgelaufene Fristen im Google-Kalender umfärben (Anthrazit → Flamingo)
     reservierungen_geloescht = _run_reservierungen_aufraeumen(db)
@@ -430,6 +496,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "material_abhol_erinnerungen": material_abhol,
                          "abgelaufene_anfragen": abgelaufene_anfragen,
                          "rechnungen_ueberfaellig": rechnungen_ueberfaellig,
+                         "rechnung_erinnerungen": rechnung_erinnerungen,
                          "reservierungen_umgefaerbt": reservierung_farben,
                          "reservierungen_geloescht": reservierungen_geloescht,
                          "bakerross_katalog": katalog,

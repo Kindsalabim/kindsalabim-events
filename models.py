@@ -20,6 +20,9 @@ class Event(Base):
     # Briefing-Priorität: Checkliste (cl_ansprechpartner_*) → vor_ort_* → alter kunde_kontakt.
     vor_ort_name = Column(String)
     weitere_ansprechpartner = Column(Text)  # JSON [{"name","telefon"}] – zusätzliche Ansprechpartner (Formular + Briefing)
+    privatkunde = Column(Boolean, default=False)  # Vorkasse: Rechnung soll 14 Tage VOR dem Event raus (Cron-Erinnerung)
+    vorkasse_erinnert = Column(Boolean, default=False)       # Vorkasse-Erinnerung schon gesendet? (Idempotenz)
+    rechnung_mail_erinnert = Column(Boolean, default=False)  # Hinweis auf spezielle Rechnungs-Mail nach dem Event gesendet?
     vor_ort_telefon = Column(String)
     produkte = Column(Text)                      # kommagetrennt
     anzahl_teamer = Column(Integer, default=0)
@@ -65,6 +68,7 @@ class Event(Base):
     checklist_token = Column(String, unique=True, nullable=True)
     cl_ansprechpartner_name  = Column(String)
     cl_ansprechpartner_mobil = Column(String)
+    cl_rechnung_email = Column(String)  # aus der Kunden-Checkliste: Mailadresse für den Rechnungsversand (NICHT fürs Briefing)
     cl_firma_name            = Column(String)
     cl_strasse               = Column(String)
     cl_plz_ort               = Column(String)
@@ -378,6 +382,7 @@ class Kunde(Base):
     ansprechpartner = Column(String)
     telefon       = Column(String)
     email         = Column(String)
+    rechnung_email = Column(String)  # separate Rechnungs-Mailadresse (Erinnerung nach dem Event nutzt sie)
     strasse       = Column(String)
     plz           = Column(String)
     ort           = Column(String)

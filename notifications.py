@@ -25,6 +25,7 @@ NOTIF_TYPEN = [
     ("anfrage_abgelaufen", "Anfrage-Frist abgelaufen – nachbesetzen", True, False),
     ("rechnung_ueberfaellig", "Rechnung überfällig (Zahlungsziel abgelaufen)", True, True),
     ("frist_verlaengert", "Dienstleister hat Frist verlängert", False, True),
+    ("rechnung_erinnerung", "Rechnungs-Erinnerung (Vorkasse / Rechnungsadresse)", True, True),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 

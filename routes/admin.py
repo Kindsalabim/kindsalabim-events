@@ -217,6 +217,7 @@ def _neues_geschwister_event(base_ev, datum, startzeit, endzeit, serien_id, stat
         kunde_email=base_ev.kunde_email,
         vor_ort_name=base_ev.vor_ort_name, vor_ort_telefon=base_ev.vor_ort_telefon,
         weitere_ansprechpartner=base_ev.weitere_ansprechpartner,
+        privatkunde=base_ev.privatkunde,
         produkte=base_ev.produkte,
         anzahl_teamer=base_ev.anzahl_teamer, anzahl_kuenstler=base_ev.anzahl_kuenstler,
         hinweise=base_ev.hinweise, material_mitnahme=base_ev.material_mitnahme,
@@ -632,7 +633,8 @@ def event_kopieren(event_id: int, request: Request, db: Session = Depends(get_db
         ankunft_modus=ev.ankunft_modus or "auto", ankunft_text=ev.ankunft_text or "",
         treffpunkt=ev.treffpunkt or "", kunde_adresse=ev.kunde_adresse or "",
         vor_ort_name=ev.vor_ort_name or "", vor_ort_telefon=ev.vor_ort_telefon or "",
-        weitere_ansprechpartner=ev.weitere_ansprechpartner)
+        weitere_ansprechpartner=ev.weitere_ansprechpartner,
+        privatkunde=bool(ev.privatkunde))
     kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/event_form.html",
         tpl_context(request, event=kopie, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
@@ -646,7 +648,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
                      material_info="", transporter_angeboten=False,
                      ankunft_modus="auto", ankunft_text="", treffpunkt="",
                      kunde_adresse="", vor_ort_name="", vor_ort_telefon="",
-                     weitere_ansprechpartner=None):
+                     weitere_ansprechpartner=None, privatkunde=False):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -662,7 +664,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
         kunde_firma=kunde_firma, kunde_adresse=kunde_adresse, kunde_kontakt=kunde_kontakt,
         kunde_telefon=kunde_telefon, kunde_email=kunde_email,
         vor_ort_name=vor_ort_name, vor_ort_telefon=vor_ort_telefon,
-        weitere_ansprechpartner=weitere_ansprechpartner,
+        weitere_ansprechpartner=weitere_ansprechpartner, privatkunde=privatkunde,
         produkte=", ".join(produkte), anzahl_teamer=anzahl_teamer,
         anzahl_kuenstler=anzahl_kuenstler, hinweise=hinweise,
         material_mitnahme=material_mitnahme, marke=marke, status=status,
@@ -692,6 +694,7 @@ def event_create(
     transporter_angeboten: bool = Form(False),
     ankunft_modus: str = Form("auto"), ankunft_text: str = Form(""), treffpunkt: str = Form(""),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
+    privatkunde: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     extra_datum: list = Form([]), extra_startzeit: list = Form([]),
@@ -717,7 +720,7 @@ def event_create(
                                 ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
                                 kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
                                 vor_ort_telefon=vor_ort_telefon,
-                                weitere_ansprechpartner=wap_json)
+                                weitere_ansprechpartner=wap_json, privatkunde=privatkunde)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
@@ -728,7 +731,7 @@ def event_create(
         kunde_kontakt=kunde_kontakt, kunde_telefon=kunde_telefon,
         kunde_email=kunde_email,
         vor_ort_name=vor_ort_name.strip() or None, vor_ort_telefon=vor_ort_telefon.strip() or None,
-        weitere_ansprechpartner=wap_json,
+        weitere_ansprechpartner=wap_json, privatkunde=privatkunde,
         produkte=", ".join(produkte),
         anzahl_teamer=anzahl_teamer, anzahl_kuenstler=anzahl_kuenstler,
         hinweise=hinweise, material_mitnahme=material_mitnahme,
@@ -1047,6 +1050,7 @@ def event_update(
     transporter_angeboten: bool = Form(False),
     ankunft_modus: str = Form("auto"), ankunft_text: str = Form(""), treffpunkt: str = Form(""),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
+    privatkunde: bool = Form(False),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     entsperrt: bool = Form(False), serie_propagieren: bool = Form(False),
@@ -1075,7 +1079,7 @@ def event_update(
                                 ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
                                 kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
                                 vor_ort_telefon=vor_ort_telefon,
-                                weitere_ansprechpartner=wap_json)
+                                weitere_ansprechpartner=wap_json, privatkunde=privatkunde)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -1097,6 +1101,7 @@ def event_update(
     ev.treffpunkt = treffpunkt.strip() or None
     ev.checkliste_uebersprungen = checkliste_uebersprungen
     ev.zaubershow_event = zaubershow_event
+    ev.privatkunde = privatkunde
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
@@ -1125,6 +1130,7 @@ def event_update(
             # Zaubershow-Kennzeichen gilt für die ganze Buchung – mit übernehmen (sonst
             # müsste man es pro Termintag einzeln setzen). Der Status bleibt pro Tag.
             g.zaubershow_event = ev.zaubershow_event
+            g.privatkunde = ev.privatkunde   # Vorkasse gilt ebenfalls für die ganze Buchung
             geschwister_sync.append(g.id)
         db.commit()
     import calendar_service
