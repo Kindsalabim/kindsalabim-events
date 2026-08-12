@@ -50,7 +50,12 @@ def portal_login(request: Request, sent: str = ""):
 @router.post("/login")
 def portal_login_post(request: Request, db: Session = Depends(get_db),
                       email: str = Form(...)):
-    d = db.query(Dienstleister).filter(Dienstleister.email == email).first()
+    # Groß-/Kleinschreibung und versehentliche Leerzeichen (Handy-Autovervollständigung!)
+    # dürfen den Login nicht scheitern lassen – sonst kommt still kein Magic-Link an.
+    from sqlalchemy import func
+    email_norm = email.strip().lower()
+    d = db.query(Dienstleister).filter(
+        func.lower(Dienstleister.email) == email_norm).first()
     if d and d.aktiv:
         token = create_magic_token(d, db)
         base_url = str(request.base_url).rstrip("/")

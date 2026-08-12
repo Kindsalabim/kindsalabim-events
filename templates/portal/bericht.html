@@ -20,7 +20,7 @@
   <div class="max-w-2xl mx-auto px-4 -mt-4 space-y-4">
 
     <form id="berichtform" method="post" action="/portal/bericht/{{ ev.id }}" class="card p-5 space-y-6">
-      <p class="text-sm" style="color: var(--ink-3);">Schnell ausfüllen – einfach antippen. Erst danach gilt das Event als abgeschlossen.</p>
+      <p class="text-sm" style="color: var(--ink-3);">Schnell ausfüllen, einfach antippen. Erst danach gilt das Event als abgeschlossen.</p>
 
       <div>
         <label class="block text-sm font-semibold mb-2.5" style="color: var(--ink-2);">Anzahl Kinder (ca.)</label>
@@ -34,7 +34,7 @@
 
       <div>
         <label class="block text-sm font-semibold mb-1" style="color: var(--ink-2);">Wie ist das Event gelaufen?</label>
-        <p class="text-xs mb-2.5" style="color: var(--ink-4);">Mehrfachauswahl möglich – tippe alles an, was zutrifft.</p>
+        <p class="text-xs mb-2.5" style="color: var(--ink-4);">Mehrfachauswahl möglich: tippe alles an, was zutrifft.</p>
         <div class="flex flex-wrap gap-2">
           {% for opt in ['Alles reibungslos','Kleinere Herausforderungen gemeistert','Schwierige Bedingungen','Ziemlich chaotisch'] %}
           <label class="choice"><input type="checkbox" name="verlauf" value="{{ opt }}" {% if opt in verlauf_choices %}checked{% endif %}><span>{{ opt }}</span></label>
@@ -57,7 +57,7 @@
     <!-- Fotos (wichtig!) – bewusst direkt vor dem Absenden -->
     <div class="card p-5">
       <h2 class="text-sm font-semibold mb-1" style="color: var(--ink-2);">Fotos vom Event</h2>
-      <p class="text-xs mb-4" style="color: var(--ink-4);">Bitte lade ein paar Fotos hoch – sie sind für uns sehr wertvoll.</p>
+      <p class="text-xs mb-4" style="color: var(--ink-4);">Bitte lade ein paar Fotos hoch, sie sind für uns sehr wertvoll.</p>
 
       {% if foto_urls %}
       <div class="grid grid-cols-3 gap-2 mb-4">

@@ -67,7 +67,7 @@
     <p class="text-sm mt-3 text-left" style="color: var(--ink-2); line-height: 1.6;">
       Damit wir unsere Leistungen auf Ihrem Event am <strong>{{ ev.datum | de_date }}</strong>
       bestmöglich durchführen können, benötigen wir noch einige Informationen.
-      Bitte prüfen und vervollständigen Sie die Checkliste – <strong>Dauer: ca. 2 Minuten</strong>.
+      Bitte prüfen und vervollständigen Sie die Checkliste. <strong>Dauer: ca. 2 Minuten</strong>.
     </p>
     {% endif %}
   </div>
@@ -230,8 +230,7 @@
 
       <div>
         <p class="text-sm font-semibold mb-2" style="color: var(--ink-2);">
-          {% if ev.marke == 'Knallfrosch' %}Knallfrosch{% else %}Kindsalabim{% endif %}
-          – Teamkleidung gestattet?
+          {% if ev.marke == 'Knallfrosch' %}Knallfrosch{% else %}Kindsalabim{% endif %}-Teamkleidung gestattet?
         </p>
         <div class="radio-group">
           <label><input type="radio" name="teamkleidung" value="Ja" required {% if ev.cl_teamkleidung == 'Ja' %}checked{% endif %}><span>Ja</span></label>
@@ -330,7 +329,7 @@
         if (b) b.classList.toggle('cl-check-on', ok);
       });
       text.textContent = n + ' von ' + karten.length + ' Abschnitten ausgefüllt' +
-                         (n === karten.length ? ' – fertig!' : '');
+                         (n === karten.length ? ' ✓ fertig!' : '');
       bar.style.width = (100 * n / karten.length) + '%';
       bar.style.background = (n === karten.length) ? '#1f9d55' : 'var(--brand)';
     }

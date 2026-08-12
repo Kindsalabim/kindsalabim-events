@@ -330,7 +330,7 @@ def send_erinnerung(dienstleister, event):
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      Du hast noch eine offene Anfrage – die Frist läuft <strong>morgen ab</strong>.
+      Du hast noch eine offene Anfrage, die Frist läuft <strong>morgen ab</strong>.
     </p>
     <div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
       <table cellpadding="0" cellspacing="0" width="100%">
@@ -394,7 +394,7 @@ def send_bericht_erinnerung(dienstleister, event, magic_url: str):
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      du warst Teamleiter bei diesem Einsatz – wie ist es gelaufen? Bitte fülle kurz den
+      du warst Teamleiter bei diesem Einsatz. Wie ist es gelaufen? Bitte fülle kurz den
       <strong>Eventbericht</strong> aus. Erst danach gilt das Event als abgeschlossen.
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">

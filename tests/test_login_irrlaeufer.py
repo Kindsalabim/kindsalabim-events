@@ -33,6 +33,25 @@ def test_forgot_unbekannte_adresse_schickt_nichts(client, mails):
     assert mails == []
 
 
+def test_portal_login_ignoriert_gross_kleinschreibung_und_leerzeichen(client, mails):
+    # Profil: "Melissa.Breivogel@…" – getippt: klein + Leerzeichen (Handy-Autofill)
+    did = make_dienstleister(vorname="Melissa", nachname="Breivogel",
+                             email="Melissa.Breivogel@web.example")
+    r = client.post("/portal/login", data={"email": "  melissa.breivogel@web.example "},
+                    follow_redirects=False)
+    assert r.status_code == 303
+    assert reload(Dienstleister, did).magic_token          # Link wurde erzeugt
+    assert len(mails) == 1
+    assert mails[0][0] == "Melissa.Breivogel@web.example"  # geht an die hinterlegte Adresse
+
+
+def test_forgot_findet_dienstleister_trotz_anderer_schreibweise(client, mails):
+    make_dienstleister(vorname="Gross", nachname="Klein", email="Gross.Klein@web.example")
+    client.post("/admin/forgot", data={"email": "gross.klein@web.example"},
+                follow_redirects=False)
+    assert len(mails) == 1 and "Anmelde-Link" in mails[0][1]
+
+
 def test_dienstleister_formular_ohne_passwortfeld(admin):
     h = admin.get("/admin/dienstleister/new").text
     assert "portal_passwort" not in h

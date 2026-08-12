@@ -134,24 +134,24 @@
 
           <!-- Aktionen -->
           <form method="post" action="/portal/antwort/{{ a.id }}" class="mt-4">
-            <textarea name="notiz" rows="2" placeholder="Bemerkung (optional) – z.B. „Ich habe an dem Tag kein Auto“"
+            <textarea name="notiz" rows="2" placeholder="Bemerkung (optional), z.B. „Ich habe an dem Tag kein Auto“"
               class="w-full text-sm rounded-xl px-3.5 py-2.5 mb-2.5 resize-none transition"
               style="border:1px solid var(--line); background:#f8fafc; color:var(--ink-1);"></textarea>
             {% if a.als_logistiker %}
             <div class="mb-2.5 p-3 rounded-xl text-xs" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;">
               <p class="font-semibold mb-1">🚚 Du wirst auch als Logistiker angefragt</p>
               <p>Du würdest das Material für dieses Event mitnehmen.{% if a.event.material_info %} <strong>Material:</strong> {{ a.event.material_info }}{% endif %}</p>
-              {% if a.event.transporter_angeboten %}<p class="mt-1">✅ Unser Transporter steht für dich zur Verfügung.</p>{% else %}<p class="mt-1">ℹ️ Es steht kein Transporter zur Verfügung – nur mit eigenem Auto möglich.</p>{% endif %}
+              {% if a.event.transporter_angeboten %}<p class="mt-1">✅ Unser Transporter steht für dich zur Verfügung.</p>{% else %}<p class="mt-1">ℹ️ Es steht kein Transporter zur Verfügung, Transport nur mit eigenem Auto möglich.</p>{% endif %}
             </div>
             <div class="space-y-2">
               <button type="submit" name="antwort" value="ja_auto"
                 class="w-full text-sm font-semibold py-2.5 rounded-xl text-white transition" style="background:var(--kf);">
-                Ich bin dabei – Material nehme ich mit <u>meinem eigenen Auto</u> mit
+                Ich bin dabei, Material nehme ich mit <u>meinem eigenen Auto</u> mit
               </button>
               {% if a.event.transporter_angeboten %}
               <button type="submit" name="antwort" value="ja_transporter"
                 class="w-full text-sm font-semibold py-2.5 rounded-xl text-white transition" style="background:var(--kf);">
-                Ich bin dabei – Material nehme ich mit <u>eurem Transporter</u> mit
+                Ich bin dabei, Material nehme ich mit <u>eurem Transporter</u> mit
               </button>
               {% endif %}
               <button type="submit" name="antwort" value="ja_ohne"

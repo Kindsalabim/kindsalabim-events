@@ -241,7 +241,8 @@ def login_page(request: Request):
 @router.post("/login")
 def login(request: Request, email: str = Form(...), password: str = Form(...),
           db: Session = Depends(get_db)):
-    a = db.query(Admin).filter(Admin.email == email, Admin.aktiv == True).first()
+    a = db.query(Admin).filter(func.lower(Admin.email) == email.strip().lower(),
+                               Admin.aktiv == True).first()
     if not a or not verify_password(password, a.password_hash):
         return templates.TemplateResponse("admin/login.html",
             tpl_context(request, error="Ungültige Zugangsdaten"))
@@ -267,7 +268,9 @@ def forgot_page(request: Request, sent: str = ""):
 
 @router.post("/forgot")
 def forgot_post(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
-    a = db.query(Admin).filter(Admin.email == email, Admin.aktiv == True).first()
+    email = email.strip()
+    a = db.query(Admin).filter(func.lower(Admin.email) == email.lower(),
+                               Admin.aktiv == True).first()
     if a:
         token = secrets.token_urlsafe(32)
         a.reset_token = token
@@ -280,7 +283,8 @@ def forgot_post(request: Request, email: str = Form(...), db: Session = Depends(
         # „Passwort vergessen". Sie haben gar kein Passwort (Portal = Magic-Link) –
         # statt stiller Sackgasse bekommen sie direkt ihren Portal-Anmeldelink.
         d = db.query(Dienstleister).filter(
-            Dienstleister.email == email, Dienstleister.aktiv == True).first()  # noqa: E712
+            func.lower(Dienstleister.email) == email.lower(),
+            Dienstleister.aktiv == True).first()  # noqa: E712
         if d:
             try:
                 from auth import create_magic_token
