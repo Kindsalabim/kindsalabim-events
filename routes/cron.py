@@ -294,8 +294,9 @@ def _run_rechnung_erinnerungen(db: Session) -> int:
             db.rollback()
             print(f"Vorkasse-Erinnerung fehlgeschlagen (Event {ev.id}): {e}")
 
-    # 2. Separate Rechnungs-Mailadresse (nach dem Event): aus dem CRM-Profil oder –
-    #    falls dort keine hinterlegt ist – aus der Kunden-Checkliste des Events.
+    # 2. Abweichende Rechnungs-Angaben (nach dem Event): Mailadresse aus dem CRM-Profil
+    #    bzw. der Kunden-Checkliste – und/oder abweichende Firmierung/Adresse aus der
+    #    Checkliste („Für die Rechnung"). Beugt nachträglichen Adress-Korrekturen vor.
     kandidaten = db.query(Event).filter(
         Event.datum < heute,
         Event.rechnung_mail_erinnert == False,     # noqa: E712
@@ -303,16 +304,25 @@ def _run_rechnung_erinnerungen(db: Session) -> int:
         Event.status.notin_(["Abgesagt"]),
     ).all()
     for ev in kandidaten:
-        adresse = ((ev.kunde.rechnung_email if ev.kunde else None)
-                   or getattr(ev, "cl_rechnung_email", None) or "").strip()
-        if not adresse:
+        mail = ((ev.kunde.rechnung_email if ev.kunde else None)
+                or getattr(ev, "cl_rechnung_email", None) or "").strip()
+        anschrift = ", ".join(x for x in (
+            (ev.cl_rechnung_firma or "").strip(),
+            (ev.cl_rechnung_strasse or "").strip(),
+            (ev.cl_rechnung_plz_ort or "").strip()) if x)
+        if not mail and not anschrift:
             continue
+        teile = []
+        if anschrift:
+            teile.append(f"Rechnungsempfänger laut Kunde: {anschrift}.")
+        if mail:
+            teile.append(f"Versand an die Mailadresse {mail}.")
         try:
             notify(db, "rechnung_erinnerung",
-                   f"Rechnung an spezielle Adresse: {ev.kunde_firma or ev.anlass or 'Event'}",
-                   f"Erinnerung: Die Rechnung von {ev.kunde_firma or 'diesem Kunden'} "
-                   f"({ev.anlass or 'Event'} am {ev.datum.strftime('%d.%m.%Y')}) soll an die "
-                   f"Mailadresse {adresse} versandt werden.",
+                   f"Rechnung mit speziellen Angaben: {ev.kunde_firma or ev.anlass or 'Event'}",
+                   f"Erinnerung zur Rechnung von {ev.kunde_firma or 'diesem Kunden'} "
+                   f"({ev.anlass or 'Event'} am {ev.datum.strftime('%d.%m.%Y')}): "
+                   + " ".join(teile),
                    f"/admin/events/{ev.id}")
             ev.rechnung_mail_erinnert = True
             db.commit()

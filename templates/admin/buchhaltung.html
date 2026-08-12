@@ -84,6 +84,26 @@
 <div id="neu-form" class="card p-5 mb-6 hidden">
   <h2 class="text-sm font-semibold text-gray-700 mb-3">Neue Rechnung eintragen</h2>
   <form method="post" action="/admin/buchhaltung/neu">
+    {% if event_vorschlaege %}
+    <div class="mb-3">
+      <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Aus Event übernehmen <span class="font-normal">(optional – füllt Kunde &amp; Materialkosten aus den erfassten Bestellungen)</span></label>
+      <select onchange="bhEventVorlage(this)" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white">
+        <option value="">– Event wählen –</option>
+        {% for e in event_vorschlaege %}
+        <option data-kunde="{{ e.kunde_firma }}" data-material="{{ '%.2f'|format(e.summe)|replace('.', ',') }}">{{ e.datum | de_date }} · {{ e.kunde_firma }} · Material {{ e.summe | de_euro }} €</option>
+        {% endfor %}
+      </select>
+    </div>
+    <script>
+      function bhEventVorlage(s){
+        var o = s.selectedOptions[0];
+        if (!o || (!o.dataset.kunde && !o.dataset.material)) return;
+        var f = s.closest('form');
+        if (o.dataset.kunde && !f.kunde.value.trim()) f.kunde.value = o.dataset.kunde;
+        if (o.dataset.material) f.materialkosten.value = o.dataset.material;
+      }
+    </script>
+    {% endif %}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
       <div>
         <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Datum *</label>

@@ -69,6 +69,9 @@ class Event(Base):
     cl_ansprechpartner_name  = Column(String)
     cl_ansprechpartner_mobil = Column(String)
     cl_rechnung_email = Column(String)  # aus der Kunden-Checkliste: Mailadresse für den Rechnungsversand (NICHT fürs Briefing)
+    cl_rechnung_firma   = Column(String)  # abweichende Firmierung / Rechnungsempfänger (Checkliste, "Für die Rechnung")
+    cl_rechnung_strasse = Column(String)
+    cl_rechnung_plz_ort = Column(String)
     cl_firma_name            = Column(String)
     cl_strasse               = Column(String)
     cl_plz_ort               = Column(String)
@@ -92,6 +95,7 @@ class Event(Base):
     dateien  = relationship("EventDatei", back_populates="event", cascade="all, delete-orphan")
     bastelvorschlaege = relationship("Bastelvorschlag", cascade="all, delete-orphan")
     externe_teamer = relationship("ExternerTeamer", cascade="all, delete-orphan")
+    bestellungen   = relationship("EventBestellung", cascade="all, delete-orphan")
 
 
 class ExternerTeamer(Base):
@@ -205,6 +209,19 @@ class Verfuegbarkeitsanfrage(Base):
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")
+
+
+class EventBestellung(Base):
+    """Material-Bestellung zu einem Event (Bezeichnung + Betrag). Die Summe wird beim
+    Eintragen der Rechnung in der Buchhaltung als Materialkosten-Vorschlag angeboten –
+    erspart das Zusammensuchen der Bestell-Mails."""
+    __tablename__ = "event_bestellungen"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    event_id    = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    bezeichnung = Column(String, nullable=False)
+    betrag      = Column(Float, default=0.0)
+    erstellt_am = Column(String)
 
 
 class EventDatei(Base):

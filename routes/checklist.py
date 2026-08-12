@@ -48,6 +48,9 @@ def checklist_submit(
     ansprechpartner_name:  str = Form(""),
     ansprechpartner_mobil: str = Form(""),
     rechnung_email:        str = Form(""),
+    rechnung_firma:        str = Form(""),
+    rechnung_strasse:      str = Form(""),
+    rechnung_plz_ort:      str = Form(""),
     firma_name:            str = Form(""),
     strasse:               str = Form(""),
     plz_ort:               str = Form(""),
@@ -78,9 +81,13 @@ def checklist_submit(
 
     ev.cl_ansprechpartner_name  = ansprechpartner_name
     ev.cl_ansprechpartner_mobil = ansprechpartner_mobil
-    # Rechnungs-Mailadresse: am Event speichern UND in die Kundenkartei übernehmen
-    # (nur wenn angegeben; erscheint bewusst NICHT im Briefing).
-    ev.cl_rechnung_email = rechnung_email.strip() or None
+    # „Für die Rechnung": abweichende Firmierung/Adresse/Mail am Event speichern;
+    # die Mailadresse zusätzlich in die Kundenkartei übernehmen (nur wenn angegeben;
+    # erscheint bewusst NICHT im Briefing).
+    ev.cl_rechnung_email   = rechnung_email.strip() or None
+    ev.cl_rechnung_firma   = rechnung_firma.strip() or None
+    ev.cl_rechnung_strasse = rechnung_strasse.strip() or None
+    ev.cl_rechnung_plz_ort = rechnung_plz_ort.strip() or None
     if ev.cl_rechnung_email and ev.kunde_id and ev.kunde:
         ev.kunde.rechnung_email = ev.cl_rechnung_email
     ev.cl_firma_name            = firma_name

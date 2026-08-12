@@ -305,6 +305,57 @@
   </div>
 </div>
 
+<!-- Bestellungen / Materialkosten -->
+<div class="card p-5 mt-5 mb-5" id="bestellungen" style="scroll-margin-top:1rem;">
+  <div class="flex items-center gap-2 mb-1">
+    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    </div>
+    <h2 class="text-sm font-semibold text-gray-700">Bestellungen</h2>
+    <span class="ml-1 text-xs text-gray-500">Materialkosten – die Summe wird beim Eintragen der Rechnung in der Buchhaltung vorgeschlagen</span>
+  </div>
+
+  {% if ev.bestellungen %}
+  <ul class="mt-4 mb-2 space-y-1.5">
+    {% for b in ev.bestellungen %}
+    <li class="flex items-center gap-3 text-sm py-2 px-3 rounded-lg" style="background: #f9fafb;">
+      <span class="flex-1 min-w-0 text-gray-700">{{ b.bezeichnung }}</span>
+      <span class="shrink-0 font-medium text-gray-800">{{ (b.betrag or 0) | de_euro }} €</span>
+      {% if not gesperrt %}
+      <form method="post" action="/admin/events/{{ ev.id }}/bestellungen/{{ b.id }}/delete"
+            onsubmit="return confirm('Bestellung „{{ b.bezeichnung }}“ entfernen?')">
+        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="text-sm font-semibold text-right mb-3" style="color:var(--ink-1);">
+    Materialkosten gesamt: {{ ev.bestellungen | map(attribute='betrag') | select | sum | de_euro }} €
+  </p>
+  {% else %}
+  <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Bestellungen eingetragen – jede Bestellung hier kurz erfassen, dann entfällt später das Zusammensuchen der Belege.</p>
+  {% endif %}
+
+  {% if not gesperrt %}
+  <form method="post" action="/admin/events/{{ ev.id }}/bestellungen" class="flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-xs text-gray-500 mb-1">Bezeichnung</label>
+      <input type="text" name="bezeichnung" required placeholder="z. B. Baker Ross Bastelsets, Bestellung 12.08."
+             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Betrag (€)</label>
+      <input type="text" name="betrag" inputmode="decimal" placeholder="0,00"
+             class="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    </div>
+    <button class="btn-secondary text-xs px-4 py-2">+ Hinzufügen</button>
+  </form>
+  {% endif %}
+</div>
+
 <!-- Kunden-Angaben (Checkliste) -->
 <div id="wf-checkliste" style="scroll-margin-top:1rem;">
 {% if (ev.checkliste_uebersprungen or ev.zaubershow_event) and not ev.cl_eingereicht_am %}
@@ -351,6 +402,8 @@
     {{ cl_row('Teamkleidung', ev.cl_teamkleidung) }}
     {{ cl_row('Parkplatz', ev.cl_parkplatz) }}
     {{ cl_row('Weitere Details', ev.cl_weitere_details) }}
+    {{ cl_row('Rechnungsempfänger', ev.cl_rechnung_firma) }}
+    {{ cl_row('Rechnungsadresse', [ev.cl_rechnung_strasse, ev.cl_rechnung_plz_ort] | select | join(', ')) }}
     {{ cl_row('Rechnungs-E-Mail', ev.cl_rechnung_email) }}
   </div>
 </div>

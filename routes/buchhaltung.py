@@ -123,10 +123,27 @@ def buchhaltung_list(request: Request, jahr: int = 0,
 
     jahre = list(range(date.today().year, 2023, -1))
 
+    # Events mit erfassten Bestellungen (letzte 180 Tage) – fürs Vorbefüllen der
+    # Materialkosten im Neue-Rechnung-Formular ("aus Event übernehmen").
+    from models import Event, EventBestellung
+    from sqlalchemy import func as _f
+    from datetime import timedelta
+    grenze = date.today() - timedelta(days=180)
+    event_vorschlaege = (
+        db.query(Event, _f.sum(EventBestellung.betrag))
+        .join(EventBestellung, EventBestellung.event_id == Event.id)
+        .filter(Event.datum >= grenze)
+        .group_by(Event.id).order_by(Event.datum.desc()).limit(30).all())
+    event_vorschlaege = [
+        {"datum": e.datum, "kunde_firma": e.kunde_firma or e.anlass or "Event",
+         "summe": round(s or 0, 2)}
+        for e, s in event_vorschlaege]
+
     today_iso = date.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("admin/buchhaltung.html", tpl_context(
         request, monatsgruppen=monatsgruppen, anzahl=len(rechnungen),
         jahr=jahr, jahre=jahre, totals=totals, today=today_iso,
+        event_vorschlaege=event_vorschlaege,
     ))
 
 

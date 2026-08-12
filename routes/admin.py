@@ -1570,6 +1570,34 @@ def extern_teamer_delete(event_id: int, teamer_id: int,
     return RedirectResponse(f"/admin/events/{event_id}#wf-briefing", status_code=303)
 
 
+@router.post("/events/{event_id}/bestellungen")
+def bestellung_add(event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+                   bezeichnung: str = Form(""), betrag: str = Form("")):
+    """Material-Bestellung zum Event eintragen (Bezeichnung + Betrag). Die Summe wird
+    in der Buchhaltung als Materialkosten-Vorschlag angeboten."""
+    from models import EventBestellung
+    from routes.buchhaltung import parse_float
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    if bezeichnung.strip():
+        db.add(EventBestellung(event_id=event_id, bezeichnung=bezeichnung.strip(),
+                               betrag=parse_float(betrag),
+                               erstellt_am=datetime.now().isoformat(timespec="seconds")))
+        db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}#bestellungen", status_code=303)
+
+
+@router.post("/events/{event_id}/bestellungen/{best_id}/delete")
+def bestellung_delete(event_id: int, best_id: int,
+                      db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    from models import EventBestellung
+    b = db.query(EventBestellung).filter(
+        EventBestellung.id == best_id, EventBestellung.event_id == event_id).first()
+    if b:
+        db.delete(b); db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}#bestellungen", status_code=303)
+
+
 def _letztes_briefing_event(db: Session, ev: Event):
     """Jüngstes anderes Event desselben Kunden, das schon Briefing-Daten hat.
     Quelle für „Briefing übernehmen" bei Stammkunden (gleicher Ort/Ablauf wie immer).

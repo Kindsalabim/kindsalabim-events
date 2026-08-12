@@ -84,3 +84,34 @@ def test_checkliste_uebernimmt_rechnungsmail_in_kartei(client):
     assert r.status_code == 200
     assert reload(Event, eid).cl_rechnung_email == "billing@cl.example"
     assert reload(Kunde, kid).rechnung_email == "billing@cl.example"  # in Kartei übernommen
+
+
+def test_checkliste_speichert_abweichende_rechnungsadresse(client, db):
+    eid = make_event(datum=date.today() + timedelta(days=20),
+                     kunde_firma="Signatur GmbH", checklist_token="cl-re-test-2")
+    r = client.post("/checklist/cl-re-test-2", data={
+        "ansprechpartner_name": "Hr. Sig",
+        "rechnung_firma": "Signatur Holding GmbH & Co. KG",
+        "rechnung_strasse": "Rechnungsweg 1", "rechnung_plz_ort": "45127 Essen",
+    })
+    assert r.status_code == 200
+    ev = reload(Event, eid)
+    assert ev.cl_rechnung_firma == "Signatur Holding GmbH & Co. KG"
+    assert ev.cl_rechnung_strasse == "Rechnungsweg 1"
+    # Anzeige im Event unter Kunden-Angaben
+    from conftest import create_token  # admin-Client bauen wie in conftest
+    client.cookies.set("admin_token", create_token({"sub": "a@b.de", "role": "admin"}, expires_minutes=60))
+    h = client.get(f"/admin/events/{eid}").text
+    assert "Signatur Holding GmbH &amp; Co. KG" in h
+
+
+def test_erinnerung_auch_bei_abweichender_firmierung_ohne_mail(db):
+    eid = make_event(datum=date.today() - timedelta(days=1),
+                     kunde_firma="Nur Adresse GmbH",
+                     cl_rechnung_firma="Nur Adresse Holding SE",
+                     cl_rechnung_plz_ort="45127 Essen")
+    _run_rechnung_erinnerungen(db)
+    assert reload(Event, eid).rechnung_mail_erinnert is True
+    m = _meldungen("Nur Adresse GmbH")
+    assert len(m) == 1
+    assert "Nur Adresse Holding SE" in m[0].text and "45127 Essen" in m[0].text

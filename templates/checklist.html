@@ -88,10 +88,6 @@
           <label>Mobil-Nr.</label>
           <input type="tel" name="ansprechpartner_mobil" placeholder="+49 …">
         </div>
-        <div class="field">
-          <label>E-Mail-Adresse für den Rechnungsversand <span style="font-weight:400;color:#9ca3af;">(falls abweichend)</span></label>
-          <input type="email" name="rechnung_email" placeholder="rechnung@firma.de">
-        </div>
       </div>
     </div>
 
@@ -191,6 +187,30 @@
       <div class="field">
         <label>Gibt es noch etwas, das wir wissen sollten? (optional)</label>
         <textarea name="weitere_details" rows="3" placeholder="z.B. Treffpunkt, Ablauf, besondere Wünsche"></textarea>
+      </div>
+    </div>
+
+    <!-- Für die Rechnung (alles optional – beugt nachträglichen Adress-Korrekturen vor) -->
+    <div class="card p-6">
+      <p class="section-title">Für die Rechnung</p>
+      <p class="text-sm -mt-2 mb-4" style="color: var(--ink-3);">Nur ausfüllen, falls die Rechnung an eine <strong>andere Firmierung, Adresse oder E-Mail</strong> gehen soll als oben angegeben — so kommt sie gleich richtig an.</p>
+      <div class="space-y-4">
+        <div class="field">
+          <label>Firmierung / Rechnungsempfänger <span style="font-weight:400;color:#9ca3af;">(exakter Name)</span></label>
+          <input type="text" name="rechnung_firma" placeholder="z.B. Mustermann Holding GmbH & Co. KG">
+        </div>
+        <div class="field">
+          <label>Straße &amp; Hausnummer</label>
+          <input type="text" name="rechnung_strasse" placeholder="z.B. Rechnungsweg 1">
+        </div>
+        <div class="field">
+          <label>PLZ &amp; Ort</label>
+          <input type="text" name="rechnung_plz_ort" placeholder="z.B. 45127 Essen">
+        </div>
+        <div class="field">
+          <label>E-Mail-Adresse für den Rechnungsversand</label>
+          <input type="email" name="rechnung_email" placeholder="z.B. rechnung@firma.de">
+        </div>
       </div>
     </div>
 
