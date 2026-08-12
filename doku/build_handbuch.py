@@ -416,9 +416,19 @@ story = [
         "Im Event-Abschnitt &bdquo;Kunden-Angaben&ldquo;: <b>Checkliste senden</b> (blauer Knopf) – der Kunde "
         "bekommt einen persönlichen Link, ohne Login. &bdquo;Link ansehen&ldquo; zeigt denselben Link zum "
         "Selbst-Verschicken (z. B. WhatsApp).",
-        "Der Kunde füllt aus: Ansprechpartner vor Ort, Veranstaltungsanschrift, Auf-/Abbauzeiten, "
-        "Aufbauort, Verpflegung, Teamkleidung, Parkplatz – und zum Schluss <b>&bdquo;Für die Rechnung&ldquo;</b> "
-        "(abweichende Firmierung/Adresse/E-Mail – beugt nachträglichen Rechnungskorrekturen vor).",
+        "<b>Vorab ausfüllen erlaubt:</b> Was du über &bdquo;Briefing bearbeiten&ldquo; schon einträgst, sieht "
+        "der Kunde <b>vorbefüllt</b> und muss es nur prüfen/ergänzen. &bdquo;(Erneut) senden&ldquo; öffnet "
+        "eine bereits ausgefüllte Checkliste wieder, ohne dass Angaben verloren gehen. "
+        "Ausnahme: <b>&bdquo;Weitere Details&ldquo;</b> ist für interne Team-Notizen – die sieht der Kunde "
+        "NIE; seine eigene Eingabe wird darunter angehängt.",
+        "Der Kunde füllt aus: Ansprechpartner vor Ort, Veranstaltungsanschrift, Auf-/Abbauzeiten "
+        "(inkl. <b>Anlieferung am Vortag / Abholung am Folgetag</b> mit Zeitfenster und Bedingungs-"
+        "Freitext), Aufbauort, Verpflegung, Teamkleidung, Parkplatz – und zum Schluss "
+        "<b>&bdquo;Für die Rechnung&ldquo;</b> (abweichende Firmierung/Adresse/E-Mail – beugt nachträglichen "
+        "Rechnungskorrekturen vor).",
+        "Ein <b>Fortschrittsbalken</b> (&bdquo;X von 8 Abschnitten ausgefüllt&ldquo;, ca. 2 Minuten) und "
+        "Häkchen je Karte führen den Kunden durch – vorbefüllte Karten zählen erst, wenn er sie "
+        "beim Scrollen gesehen hat.",
         "Nach dem Absenden: Glocke + Status &bdquo;Checkliste eingegangen&ldquo;; die Angaben stehen im Event "
         "und fließen automatisch ins Briefing. Die Rechnungs-Mail wandert in die Kundenkartei.",
         "Für Stammkunden: Häkchen &bdquo;Keine Kunden-Checkliste nötig&ldquo; im Event-Formular überspringt "
@@ -500,7 +510,10 @@ story = [
         "Logistiker-/Führerschein-Häkchen, T-Shirt-Größen, DSGVO-Status. Name und Aktions-Knöpfe "
         "bleiben beim Scrollen sichtbar.",
         "<b>Aktiv</b>-Häkchen steuert, ob jemand anfragbar ist und sich einloggen kann. "
-        "<b>Wichtig:</b> Die E-Mail-Adresse muss exakt stimmen – damit loggen sich Dienstleister ein.",
+        "<b>Wichtig:</b> Der Portal-Login läuft NUR über Magic-Link (kein Passwort) – die hinterlegte "
+        "E-Mail-Adresse muss stimmen (Groß-/Kleinschreibung ist egal). Landet jemand versehentlich "
+        "auf der Admin-Login-Seite, zeigt ein Wegweiser zum Portal; &bdquo;Passwort vergessen&ldquo; "
+        "schickt Dienstleistern automatisch ihren Portal-Anmeldelink.",
         "Neue Dienstleister durchlaufen im Portal ein <b>Onboarding</b> (Profildaten selbst ausfüllen).",
         "Urlaub/Sperrzeiten pflegen Dienstleister selbst im Portal – gesperrte Personen rutschen in den "
         "Anfrage-Listen automatisch nach unten.",
