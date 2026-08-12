@@ -58,6 +58,13 @@ def checklist_submit(
     aufbau_bis:            str = Form(""),
     abbau_von:             str = Form(""),
     abbau_bis:             str = Form(""),
+    anlieferung_vortag:    str = Form(""),
+    anlieferung_von:       str = Form(""),
+    anlieferung_bis:       str = Form(""),
+    abholung_folgetag:     str = Form(""),
+    abholung_von:          str = Form(""),
+    abholung_bis:          str = Form(""),
+    aufbau_bedingungen:    str = Form(""),
     aufbauort:             list = Form([]),
     verpflegung:           str = Form("Nein"),
     teamkleidung:          str = Form("Nein"),
@@ -97,6 +104,13 @@ def checklist_submit(
     ev.cl_aufbau_bis            = aufbau_bis
     ev.cl_abbau_von             = abbau_von
     ev.cl_abbau_bis             = abbau_bis
+    ev.cl_anlieferung_vortag    = (anlieferung_vortag == "Ja")
+    ev.cl_anlieferung_von       = anlieferung_von.strip() or None
+    ev.cl_anlieferung_bis       = anlieferung_bis.strip() or None
+    ev.cl_abholung_folgetag     = (abholung_folgetag == "Ja")
+    ev.cl_abholung_von          = abholung_von.strip() or None
+    ev.cl_abholung_bis          = abholung_bis.strip() or None
+    ev.cl_aufbau_bedingungen    = aufbau_bedingungen.strip() or None
     ev.cl_aufbauort             = ", ".join(aufbauort)
     ev.cl_verpflegung           = verpflegung
     ev.cl_teamkleidung          = teamkleidung

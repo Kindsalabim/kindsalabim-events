@@ -982,7 +982,7 @@ def send_wiedervorlage_digest(to_email, wvs, heute):
         label = "überfällig" if ist_ueber else "heute fällig"
         label_color = "#b91c1c" if ist_ueber else "#b07d1a"
         dot = prio_dot.get(w.prioritaet, "#9ca3af")
-        firma = w.kunde.firma if w.kunde else "—"
+        firma = w.kunde.firma if w.kunde else "–"
         rows += f"""
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">

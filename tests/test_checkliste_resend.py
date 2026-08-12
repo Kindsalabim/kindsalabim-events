@@ -71,13 +71,33 @@ def test_checkliste_hat_einleitung_und_fortschritt(client):
     assert "bestmöglich durchführen" in h            # Einleitungssatz mit Datum
     assert "ca. 2 Minuten" in h
     assert 'id="cl-progress"' in h                    # Fortschrittsbalken
-    assert "Abschnitten geprüft" in h
+    assert "Abschnitten ausgefüllt" in h
+    assert "—" not in h                               # keine langen Gedankenstriche für Kunden
     # Nach dem Einreichen (Danke-Seite): kein Fortschritt/Einleitung mehr
     client.post("/checklist/tok-progress", data={
         "ansprechpartner_name": "X", "verpflegung": "Ja", "teamkleidung": "Ja"})
     h2 = client.get("/checklist/tok-progress").text
     assert 'id="cl-progress"' not in h2
     assert "Vielen Dank" in h2
+
+
+def test_aufbau_zusatzoptionen_gespeichert_und_angezeigt(admin, client):
+    # Anlieferung Vortag / Abholung Folgetag / Bedingungen aus der Checkliste
+    eid = make_event(datum=BALD, checklist_token="tok-anlieferung")
+    r = client.post("/checklist/tok-anlieferung", data={
+        "ansprechpartner_name": "X", "verpflegung": "Ja", "teamkleidung": "Ja",
+        "anlieferung_vortag": "Ja", "anlieferung_von": "14:00", "anlieferung_bis": "18:00",
+        "abholung_folgetag": "Ja", "abholung_von": "08:00", "abholung_bis": "12:00",
+        "aufbau_bedingungen": "Der Aufbau muss bereits am Vortag erfolgen"})
+    assert r.status_code == 200
+    ev = reload(Event, eid)
+    assert ev.cl_anlieferung_vortag is True and ev.cl_anlieferung_von == "14:00"
+    assert ev.cl_abholung_folgetag is True and ev.cl_abholung_bis == "12:00"
+    assert ev.cl_aufbau_bedingungen == "Der Aufbau muss bereits am Vortag erfolgen"
+    h = admin.get(f"/admin/events/{eid}").text
+    assert "Anlieferung am Vortag" in h and "14:00–18:00" in h
+    assert "Abholung Folgetag/Montag" in h
+    assert "Der Aufbau muss bereits am Vortag erfolgen" in h
 
 
 def test_kunde_ohne_ergaenzung_loescht_interne_notiz_nicht(admin, client):

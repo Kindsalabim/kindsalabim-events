@@ -397,6 +397,11 @@
     {{ cl_row('Aufbau bis', ev.cl_aufbau_bis) }}
     {{ cl_row('Abbau von', ev.cl_abbau_von) }}
     {{ cl_row('Abbau bis', ev.cl_abbau_bis) }}
+    {% set anl = 'möglich' %}{% if ev.cl_anlieferung_von %}{% set anl = anl ~ ' (' ~ ev.cl_anlieferung_von ~ '–' ~ (ev.cl_anlieferung_bis or '…') ~ ' Uhr)' %}{% endif %}
+    {{ cl_row('Anlieferung am Vortag', anl if ev.cl_anlieferung_vortag else '') }}
+    {% set abh = 'möglich' %}{% if ev.cl_abholung_von %}{% set abh = abh ~ ' (' ~ ev.cl_abholung_von ~ '–' ~ (ev.cl_abholung_bis or '…') ~ ' Uhr)' %}{% endif %}
+    {{ cl_row('Abholung Folgetag/Montag', abh if ev.cl_abholung_folgetag else '') }}
+    {{ cl_row('Auf-/Abbau-Bedingungen', ev.cl_aufbau_bedingungen) }}
     {{ cl_row('Aufbauort', ev.cl_aufbauort) }}
     {{ cl_row('Verpflegung', ev.cl_verpflegung) }}
     {{ cl_row('Teamkleidung', ev.cl_teamkleidung) }}

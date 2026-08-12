@@ -69,6 +69,13 @@ class Event(Base):
     cl_ansprechpartner_name  = Column(String)
     cl_ansprechpartner_mobil = Column(String)
     cl_rechnung_email = Column(String)  # aus der Kunden-Checkliste: Mailadresse für den Rechnungsversand (NICHT fürs Briefing)
+    cl_anlieferung_vortag = Column(Boolean, default=False)  # Anlieferung am Vortag möglich?
+    cl_anlieferung_von    = Column(String)                   # HH:MM
+    cl_anlieferung_bis    = Column(String)
+    cl_abholung_folgetag  = Column(Boolean, default=False)   # Abholung am Folgetag/Montag möglich?
+    cl_abholung_von       = Column(String)
+    cl_abholung_bis       = Column(String)
+    cl_aufbau_bedingungen = Column(Text)                     # z. B. "Aufbau muss am Vortag erfolgen"
     cl_rechnung_firma   = Column(String)  # abweichende Firmierung / Rechnungsempfänger (Checkliste, "Für die Rechnung")
     cl_rechnung_strasse = Column(String)
     cl_rechnung_plz_ort = Column(String)

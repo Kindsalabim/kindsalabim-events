@@ -88,7 +88,7 @@
        damit der Kunde alles einmal prüft. -->
   <div id="cl-progress" class="card px-4 py-2.5 mb-4" style="position: sticky; top: .5rem; z-index: 10;">
     <div class="flex items-center justify-between mb-1.5">
-      <span id="cl-progress-text" class="text-sm font-semibold" style="color: var(--ink-2);">0 von 8 Abschnitten geprüft</span>
+      <span id="cl-progress-text" class="text-sm font-semibold" style="color: var(--ink-2);">0 von 8 Abschnitten ausgefüllt</span>
       <span class="text-xs" style="color: var(--ink-3);">⏱ ca. 2 Minuten</span>
     </div>
     <div style="height: 6px; border-radius: 999px; background: var(--line); overflow: hidden;">
@@ -159,13 +159,56 @@
             {{ time_select('abbau_bis', ev.cl_abbau_bis) }}
           </div>
         </div>
+
+        <div class="pt-4 space-y-4" style="border-top: 1px dashed var(--line);">
+          <div>
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer" style="color: var(--ink-2); font-weight: 600;">
+              <input type="checkbox" name="anlieferung_vortag" value="Ja" style="accent-color: var(--brand);"
+                     onchange="document.getElementById('anl-zeiten').style.display = this.checked ? '' : 'none'"
+                     {% if ev.cl_anlieferung_vortag %}checked{% endif %}>
+              Anlieferung am Vortag möglich
+            </label>
+            <div id="anl-zeiten" class="grid grid-cols-2 gap-3 mt-3" {% if not ev.cl_anlieferung_vortag %}style="display:none;"{% endif %}>
+              <div class="field">
+                <label>von</label>
+                {{ time_select('anlieferung_von', ev.cl_anlieferung_von) }}
+              </div>
+              <div class="field">
+                <label>bis</label>
+                {{ time_select('anlieferung_bis', ev.cl_anlieferung_bis) }}
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="flex items-center gap-2.5 text-sm cursor-pointer" style="color: var(--ink-2); font-weight: 600;">
+              <input type="checkbox" name="abholung_folgetag" value="Ja" style="accent-color: var(--brand);"
+                     onchange="document.getElementById('abh-zeiten').style.display = this.checked ? '' : 'none'"
+                     {% if ev.cl_abholung_folgetag %}checked{% endif %}>
+              Abholung am Folgetag oder am Montag möglich
+            </label>
+            <div id="abh-zeiten" class="grid grid-cols-2 gap-3 mt-3" {% if not ev.cl_abholung_folgetag %}style="display:none;"{% endif %}>
+              <div class="field">
+                <label>von</label>
+                {{ time_select('abholung_von', ev.cl_abholung_von) }}
+              </div>
+              <div class="field">
+                <label>bis</label>
+                {{ time_select('abholung_bis', ev.cl_abholung_bis) }}
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Besondere Bedingungen zum Auf- oder Abbau (optional)</label>
+            <textarea name="aufbau_bedingungen" rows="2" placeholder="z.B. Der Aufbau muss bereits am Vortag erfolgen">{{ ev.cl_aufbau_bedingungen or '' }}</textarea>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Aufbauort -->
     <div class="card p-6">
       <p class="section-title">Aufbauort der Aktionen / Eventmodule</p>
-      <div class="checkbox-group">
+      <div class="checkbox-group" style="display: grid; grid-template-columns: 1fr 1fr;">
         <label><input type="checkbox" name="aufbauort" value="Indoor" {% if 'Indoor' in orte %}checked{% endif %}><span>Indoor</span></label>
         <label><input type="checkbox" name="aufbauort" value="Outdoor" {% if 'Outdoor' in orte %}checked{% endif %}><span>Outdoor</span></label>
         <label><input type="checkbox" name="aufbauort" value="Überdacht" {% if 'Überdacht' in orte %}checked{% endif %}><span>Überdacht</span></label>
@@ -220,7 +263,7 @@
     <!-- Für die Rechnung (alles optional – beugt nachträglichen Adress-Korrekturen vor) -->
     <div class="card p-6">
       <p class="section-title">Für die Rechnung</p>
-      <p class="text-sm -mt-2 mb-4" style="color: var(--ink-3);">Nur ausfüllen, falls die Rechnung an eine <strong>andere Firmierung, Adresse oder E-Mail</strong> gehen soll als oben angegeben — so kommt sie gleich richtig an.</p>
+      <p class="text-sm -mt-2 mb-4" style="color: var(--ink-3);">Nur ausfüllen, falls die Rechnung an eine <strong>andere Firmierung, Adresse oder E-Mail</strong> gehen soll als oben angegeben. So kommt sie gleich richtig an.</p>
       <div class="space-y-4">
         <div class="field">
           <label>Firmierung / Rechnungsempfänger <span style="font-weight:400;color:#9ca3af;">(exakter Name)</span></label>
@@ -286,7 +329,7 @@
         var b = k.querySelector('.cl-check');
         if (b) b.classList.toggle('cl-check-on', ok);
       });
-      text.textContent = n + ' von ' + karten.length + ' Abschnitten geprüft' +
+      text.textContent = n + ' von ' + karten.length + ' Abschnitten ausgefüllt' +
                          (n === karten.length ? ' – fertig!' : '');
       bar.style.width = (100 * n / karten.length) + '%';
       bar.style.background = (n === karten.length) ? '#1f9d55' : 'var(--brand)';
