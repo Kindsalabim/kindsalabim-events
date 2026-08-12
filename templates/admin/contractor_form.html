@@ -226,19 +226,18 @@
       </label>
     </div>
 
-    <!-- Portal-Zugang -->
+    <!-- Portal-Zugang: KEIN Passwort mehr – das Portal läuft ausschließlich über
+         Magic-Link (E-Mail eintippen auf /portal/login → Anmelde-Link kommt per Mail). -->
     <div class="card p-6">
       <h2 class="text-sm font-semibold text-gray-700 pb-3 mb-4" style="border-bottom: 1px solid #f3f4f6;">Portal-Zugang</h2>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">
-          {% if d and d.password_hash %}Neues Passwort <span class="text-gray-500 font-normal">(leer lassen = unverändert)</span>{% else %}Passwort setzen{% endif %}
-        </label>
-        <input type="password" name="portal_passwort" autocomplete="new-password" minlength="8"
-          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring max-w-sm">
-        <p class="text-xs text-gray-500 mt-2">
-          Login-E-Mail: <span class="text-gray-600">{{ d.email if d else 'wird nach Speichern gesetzt' }}</span>
-        </p>
-      </div>
+      <p class="text-sm text-gray-600">
+        Der Login läuft <strong>ohne Passwort</strong>: Die Person gibt auf der Portal-Seite ihre
+        E-Mail-Adresse ein und bekommt einen Anmelde-Link zugeschickt (Magic-Link).
+      </p>
+      <p class="text-xs text-gray-500 mt-2">
+        Login-E-Mail: <span class="text-gray-600">{{ d.email if d else 'wird nach Speichern gesetzt' }}</span>
+        – muss exakt stimmen, sonst kommt kein Link an.
+      </p>
     </div>
 
     <!-- Actions -->

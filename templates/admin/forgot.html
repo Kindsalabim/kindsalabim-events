@@ -15,14 +15,18 @@
           </div>
           <h2 class="font-semibold text-gray-900 mb-2">E-Mail unterwegs</h2>
           <p class="text-sm text-gray-500 leading-relaxed">
-            Falls die Adresse als Admin hinterlegt ist, bekommst du gleich einen Link zum Zurücksetzen (1 Stunde gültig).
+            Falls die Adresse bei uns hinterlegt ist, bekommst du gleich eine E-Mail:
+            Admins einen Link zum Zurücksetzen (1 Stunde gültig), Teamer:innen und
+            Künstler:innen direkt ihren Portal-Anmeldelink.
             Bitte auch den Spam-Ordner prüfen.
           </p>
           <a href="/admin/login" class="text-sm mt-4 inline-block" style="color: var(--brand-primary);">Zurück zum Login</a>
         </div>
       {% else %}
         <h2 class="font-semibold text-gray-900 mb-1">Passwort vergessen</h2>
-        <p class="text-sm text-gray-500 mb-5">Gib deine Admin-E-Mail ein – wir schicken dir einen Link.</p>
+        <p class="text-sm text-gray-500 mb-5">Gib deine E-Mail ein – wir schicken dir einen Link.
+          <span class="block mt-1">Teamer:innen und Künstler:innen brauchen kein Passwort –
+          ihr bekommt automatisch euren <strong>Portal-Anmeldelink</strong>.</span></p>
         <form method="post" action="/admin/forgot" class="space-y-4">
           <input type="email" name="email" required autocomplete="email" placeholder="deine@email.de"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring transition">

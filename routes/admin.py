@@ -275,6 +275,20 @@ def forgot_post(request: Request, email: str = Form(...), db: Session = Depends(
         db.commit()
         from email_service import send_admin_reset
         send_admin_reset(a, token, str(request.base_url).rstrip("/"))
+    else:
+        # Häufiger Irrläufer: Dienstleister landen auf der Admin-Seite und klicken
+        # „Passwort vergessen". Sie haben gar kein Passwort (Portal = Magic-Link) –
+        # statt stiller Sackgasse bekommen sie direkt ihren Portal-Anmeldelink.
+        d = db.query(Dienstleister).filter(
+            Dienstleister.email == email, Dienstleister.aktiv == True).first()  # noqa: E712
+        if d:
+            try:
+                from auth import create_magic_token
+                from email_service import send_magic_link
+                token = create_magic_token(d, db)
+                send_magic_link(d, token, str(request.base_url).rstrip("/"))
+            except Exception as e:
+                print(f"Portal-Link statt Passwort-Reset fehlgeschlagen ({email}): {e}")
     # Immer gleiche Antwort – keine Auskunft, ob die Adresse existiert
     return RedirectResponse("/admin/forgot?sent=1", status_code=303)
 
