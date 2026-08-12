@@ -44,7 +44,10 @@
     .radio-group label:has(input:checked) { border-color: var(--brand); background: var(--brand-light); font-weight: 700; color: var(--brand); }
     .radio-group input[type=radio] { accent-color: var(--brand); }
 
-    .section-title { font-family: 'Poppins', sans-serif; font-size: 1rem; font-weight: 600; color: var(--ink-1); margin-bottom: 1.1rem; }
+    .section-title { font-family: 'Poppins', sans-serif; font-size: 1rem; font-weight: 600; color: var(--ink-1); margin-bottom: 1.1rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+    /* Fortschritt: Häkchen je Abschnitt (grau = noch offen, grün = gesehen & ausgefüllt) */
+    .cl-check { width: 22px; height: 22px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: #edf0f4; color: #b6bec9; flex-shrink: 0; transition: background .2s, color .2s; }
+    .cl-check-on { background: #e3f5e9; color: #1f9d55; }
   </style>
 </head>
 <body class="min-h-screen py-8 px-4">
@@ -60,6 +63,13 @@
     {% endif %}
     <h1 class="text-xl font-bold" style="color: var(--ink-1);">Veranstaltungs-Checkliste</h1>
     <p class="text-sm mt-1" style="color: var(--ink-3);">{{ ev.anlass }} · {{ ev.datum | de_date }}</p>
+    {% if not already_submitted %}
+    <p class="text-sm mt-3 text-left" style="color: var(--ink-2); line-height: 1.6;">
+      Damit wir unsere Leistungen auf Ihrem Event am <strong>{{ ev.datum | de_date }}</strong>
+      bestmöglich durchführen können, benötigen wir noch einige Informationen.
+      Bitte prüfen und vervollständigen Sie die Checkliste – <strong>Dauer: ca. 2 Minuten</strong>.
+    </p>
+    {% endif %}
   </div>
 
   {% if already_submitted %}
@@ -73,6 +83,19 @@
   </div>
 
   {% else %}
+  <!-- Fortschritt: zählt nur Abschnitte, die der Kunde GESEHEN hat (beim Scrollen) und
+       deren Pflichtangaben gefüllt sind – vorbefüllte Karten starten bewusst als offen,
+       damit der Kunde alles einmal prüft. -->
+  <div id="cl-progress" class="card px-4 py-2.5 mb-4" style="position: sticky; top: .5rem; z-index: 10;">
+    <div class="flex items-center justify-between mb-1.5">
+      <span id="cl-progress-text" class="text-sm font-semibold" style="color: var(--ink-2);">0 von 8 Abschnitten geprüft</span>
+      <span class="text-xs" style="color: var(--ink-3);">⏱ ca. 2 Minuten</span>
+    </div>
+    <div style="height: 6px; border-radius: 999px; background: var(--line); overflow: hidden;">
+      <div id="cl-progress-bar" style="height: 100%; width: 0%; background: var(--brand); border-radius: 999px; transition: width .3s;"></div>
+    </div>
+  </div>
+
   <!-- Formular – vorhandene Angaben (z. B. vom Büro vorab eingetragen) sind vorbefüllt,
        der Kunde ergänzt/korrigiert nur noch. -->
   {% set orte = (ev.cl_aufbauort or '').split(', ') %}
@@ -224,6 +247,69 @@
       Ihre Angaben werden sicher übertragen und nur intern verwendet.
     </p>
   </form>
+
+  <script>
+  // Fortschritt: Abschnitt gilt als „geprüft", wenn er im Bild war (Scrollen) UND seine
+  // Pflichtangaben gefüllt sind. So sieht der Kunde auch vorbefüllte Angaben noch einmal.
+  document.addEventListener('DOMContentLoaded', function () {
+    var karten = Array.prototype.slice.call(document.querySelectorAll('form .card'));
+    var text = document.getElementById('cl-progress-text');
+    var bar = document.getElementById('cl-progress-bar');
+    if (!karten.length || !text || !bar) return;
+
+    karten.forEach(function (k) {
+      var t = k.querySelector('.section-title');
+      if (t) {
+        var b = document.createElement('span');
+        b.className = 'cl-check';
+        b.textContent = '✓';
+        t.appendChild(b);
+      }
+    });
+
+    function fertig(k) {
+      if (!k.dataset.seen) return false;
+      var name = k.querySelector('input[name=ansprechpartner_name]');
+      if (name) return name.value.trim() !== '';
+      if (k.querySelector('input[name=verpflegung]')) {
+        return !!(k.querySelector('input[name=verpflegung]:checked') &&
+                  k.querySelector('input[name=teamkleidung]:checked'));
+      }
+      return true;   // übrige Abschnitte: gesehen = geprüft (Felder dort sind optional)
+    }
+
+    function update() {
+      var n = 0;
+      karten.forEach(function (k) {
+        var ok = fertig(k);
+        if (ok) n++;
+        var b = k.querySelector('.cl-check');
+        if (b) b.classList.toggle('cl-check-on', ok);
+      });
+      text.textContent = n + ' von ' + karten.length + ' Abschnitten geprüft' +
+                         (n === karten.length ? ' – fertig!' : '');
+      bar.style.width = (100 * n / karten.length) + '%';
+      bar.style.background = (n === karten.length) ? '#1f9d55' : 'var(--brand)';
+    }
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (eintraege) {
+        eintraege.forEach(function (e) {
+          if (e.isIntersecting) { e.target.dataset.seen = '1'; update(); }
+        });
+      }, { threshold: 0.4 });
+      karten.forEach(function (k) { io.observe(k); });
+    } else {
+      karten.forEach(function (k) { k.dataset.seen = '1'; });   // alte Browser: nur Felder zählen
+    }
+
+    document.querySelectorAll('form input, form select, form textarea').forEach(function (el) {
+      el.addEventListener('input', update);
+      el.addEventListener('change', update);
+    });
+    update();
+  });
+  </script>
   {% endif %}
 
 </div>

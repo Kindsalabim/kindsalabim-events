@@ -65,6 +65,21 @@ def test_erneut_senden_oeffnet_checkliste_mit_vorbefuellung(admin, client):
     assert ev.cl_eingereicht_am and "selbst ausgefüllt" not in ev.cl_eingereicht_am
 
 
+def test_checkliste_hat_einleitung_und_fortschritt(client):
+    eid = make_event(datum=BALD, checklist_token="tok-progress")
+    h = client.get("/checklist/tok-progress").text
+    assert "bestmöglich durchführen" in h            # Einleitungssatz mit Datum
+    assert "ca. 2 Minuten" in h
+    assert 'id="cl-progress"' in h                    # Fortschrittsbalken
+    assert "Abschnitten geprüft" in h
+    # Nach dem Einreichen (Danke-Seite): kein Fortschritt/Einleitung mehr
+    client.post("/checklist/tok-progress", data={
+        "ansprechpartner_name": "X", "verpflegung": "Ja", "teamkleidung": "Ja"})
+    h2 = client.get("/checklist/tok-progress").text
+    assert 'id="cl-progress"' not in h2
+    assert "Vielen Dank" in h2
+
+
 def test_kunde_ohne_ergaenzung_loescht_interne_notiz_nicht(admin, client):
     eid = make_event(datum=BALD, kunde_email="k@example.com", checklist_token="tok-leer",
                      cl_weitere_details="INTERN: Notiz bleibt")
