@@ -101,7 +101,16 @@ def checklist_submit(
     ev.cl_verpflegung           = verpflegung
     ev.cl_teamkleidung          = teamkleidung
     ev.cl_parkplatz             = parkplatz
-    ev.cl_weitere_details       = weitere_details.strip() or None
+    # „Weitere Details" kann interne Vorab-Notizen des Büros enthalten (fürs Team-
+    # Briefing). Die werden dem Kunden nie angezeigt und dürfen durch seine Eingabe
+    # nicht verloren gehen → Kunden-Text wird ANGEHÄNGT statt überschrieben.
+    neu = weitere_details.strip()
+    alt = (ev.cl_weitere_details or "").strip()
+    if neu and alt and neu not in alt:
+        ev.cl_weitere_details = alt + "\n" + neu
+    elif neu and not alt:
+        ev.cl_weitere_details = neu
+    # neu leer → vorhandene (interne) Notiz bleibt unverändert
     ev.cl_eingereicht_am        = datetime.now().strftime("%d.%m.%Y %H:%M")
     db.commit()
     # Status automatisch aktualisieren

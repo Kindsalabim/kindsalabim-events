@@ -1455,6 +1455,10 @@ def send_checklist(
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_email", status_code=303)
     if not ev.checklist_token:
         ev.checklist_token = str(uuid.uuid4())
+    # (Erneut) senden öffnet die Checkliste wieder: Der Kunde soll ausfüllen bzw.
+    # abgleichen können. Vorhandene Angaben (z. B. vorab „selbst ausgefüllt") bleiben
+    # erhalten und stehen im Kundenformular vorbefüllt.
+    ev.cl_eingereicht_am = None
     db.commit()
     base_url = str(request.base_url).rstrip("/")
     from email_service import send_checklist_email

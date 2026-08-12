@@ -73,7 +73,9 @@
   </div>
 
   {% else %}
-  <!-- Formular -->
+  <!-- Formular – vorhandene Angaben (z. B. vom Büro vorab eingetragen) sind vorbefüllt,
+       der Kunde ergänzt/korrigiert nur noch. -->
+  {% set orte = (ev.cl_aufbauort or '').split(', ') %}
   <form method="post" class="space-y-5">
 
     <!-- Ansprechpartner -->
@@ -82,11 +84,11 @@
       <div class="space-y-4">
         <div class="field">
           <label>Name</label>
-          <input type="text" name="ansprechpartner_name" placeholder="Vor- und Nachname" required>
+          <input type="text" name="ansprechpartner_name" value="{{ ev.cl_ansprechpartner_name or '' }}" placeholder="Vor- und Nachname" required>
         </div>
         <div class="field">
           <label>Mobil-Nr.</label>
-          <input type="tel" name="ansprechpartner_mobil" placeholder="+49 …">
+          <input type="tel" name="ansprechpartner_mobil" value="{{ ev.cl_ansprechpartner_mobil or '' }}" placeholder="+49 …">
         </div>
       </div>
     </div>
@@ -97,15 +99,15 @@
       <div class="space-y-4">
         <div class="field">
           <label>Firma / Name</label>
-          <input type="text" name="firma_name" placeholder="z.B. Mustermann GmbH">
+          <input type="text" name="firma_name" value="{{ ev.cl_firma_name or '' }}" placeholder="z.B. Mustermann GmbH">
         </div>
         <div class="field">
           <label>Straße &amp; Hausnummer</label>
-          <input type="text" name="strasse" placeholder="z.B. Musterstraße 12">
+          <input type="text" name="strasse" value="{{ ev.cl_strasse or '' }}" placeholder="z.B. Musterstraße 12">
         </div>
         <div class="field">
           <label>PLZ &amp; Ort</label>
-          <input type="text" name="plz_ort" placeholder="z.B. 45289 Essen">
+          <input type="text" name="plz_ort" value="{{ ev.cl_plz_ort or '' }}" placeholder="z.B. 45289 Essen">
         </div>
       </div>
     </div>
@@ -141,10 +143,10 @@
     <div class="card p-6">
       <p class="section-title">Aufbauort der Aktionen / Eventmodule</p>
       <div class="checkbox-group">
-        <label><input type="checkbox" name="aufbauort" value="Indoor"><span>Indoor</span></label>
-        <label><input type="checkbox" name="aufbauort" value="Outdoor"><span>Outdoor</span></label>
-        <label><input type="checkbox" name="aufbauort" value="Überdacht"><span>Überdacht</span></label>
-        <label><input type="checkbox" name="aufbauort" value="Nicht überdacht"><span>Nicht überdacht</span></label>
+        <label><input type="checkbox" name="aufbauort" value="Indoor" {% if 'Indoor' in orte %}checked{% endif %}><span>Indoor</span></label>
+        <label><input type="checkbox" name="aufbauort" value="Outdoor" {% if 'Outdoor' in orte %}checked{% endif %}><span>Outdoor</span></label>
+        <label><input type="checkbox" name="aufbauort" value="Überdacht" {% if 'Überdacht' in orte %}checked{% endif %}><span>Überdacht</span></label>
+        <label><input type="checkbox" name="aufbauort" value="Nicht überdacht" {% if 'Nicht überdacht' in orte %}checked{% endif %}><span>Nicht überdacht</span></label>
       </div>
     </div>
 
@@ -155,8 +157,8 @@
       <div>
         <p class="text-sm font-semibold mb-2" style="color: var(--ink-2);">Verpflegung für Mitarbeiter gewährleistet?</p>
         <div class="radio-group">
-          <label><input type="radio" name="verpflegung" value="Ja" required><span>Ja</span></label>
-          <label><input type="radio" name="verpflegung" value="Nein"><span>Nein</span></label>
+          <label><input type="radio" name="verpflegung" value="Ja" required {% if ev.cl_verpflegung == 'Ja' %}checked{% endif %}><span>Ja</span></label>
+          <label><input type="radio" name="verpflegung" value="Nein" {% if ev.cl_verpflegung == 'Nein' %}checked{% endif %}><span>Nein</span></label>
         </div>
       </div>
 
@@ -166,8 +168,8 @@
           – Teamkleidung gestattet?
         </p>
         <div class="radio-group">
-          <label><input type="radio" name="teamkleidung" value="Ja" required><span>Ja</span></label>
-          <label><input type="radio" name="teamkleidung" value="Nein"><span>Nein</span></label>
+          <label><input type="radio" name="teamkleidung" value="Ja" required {% if ev.cl_teamkleidung == 'Ja' %}checked{% endif %}><span>Ja</span></label>
+          <label><input type="radio" name="teamkleidung" value="Nein" {% if ev.cl_teamkleidung == 'Nein' %}checked{% endif %}><span>Nein</span></label>
         </div>
       </div>
     </div>
@@ -177,7 +179,7 @@
       <p class="section-title">Parkplatzsituation</p>
       <div class="field">
         <label>Beschreibung</label>
-        <textarea name="parkplatz" rows="3" placeholder="z.B. Parkhaus direkt nebenan, kostenlos für Mitarbeiter"></textarea>
+        <textarea name="parkplatz" rows="3" placeholder="z.B. Parkhaus direkt nebenan, kostenlos für Mitarbeiter">{{ ev.cl_parkplatz or '' }}</textarea>
       </div>
     </div>
 
@@ -186,6 +188,8 @@
       <p class="section-title">Weitere Details</p>
       <div class="field">
         <label>Gibt es noch etwas, das wir wissen sollten? (optional)</label>
+        {# BEWUSST NICHT vorbefüllt: hier stehen oft interne Team-Notizen des Büros –
+           die darf der Kunde nie sehen. Seine Eingabe wird serverseitig ANGEHÄNGT. #}
         <textarea name="weitere_details" rows="3" placeholder="z.B. Treffpunkt, Ablauf, besondere Wünsche"></textarea>
       </div>
     </div>
@@ -197,19 +201,19 @@
       <div class="space-y-4">
         <div class="field">
           <label>Firmierung / Rechnungsempfänger <span style="font-weight:400;color:#9ca3af;">(exakter Name)</span></label>
-          <input type="text" name="rechnung_firma" placeholder="z.B. Mustermann Holding GmbH & Co. KG">
+          <input type="text" name="rechnung_firma" value="{{ ev.cl_rechnung_firma or '' }}" placeholder="z.B. Mustermann Holding GmbH & Co. KG">
         </div>
         <div class="field">
           <label>Straße &amp; Hausnummer</label>
-          <input type="text" name="rechnung_strasse" placeholder="z.B. Rechnungsweg 1">
+          <input type="text" name="rechnung_strasse" value="{{ ev.cl_rechnung_strasse or '' }}" placeholder="z.B. Rechnungsweg 1">
         </div>
         <div class="field">
           <label>PLZ &amp; Ort</label>
-          <input type="text" name="rechnung_plz_ort" placeholder="z.B. 45127 Essen">
+          <input type="text" name="rechnung_plz_ort" value="{{ ev.cl_rechnung_plz_ort or '' }}" placeholder="z.B. 45127 Essen">
         </div>
         <div class="field">
           <label>E-Mail-Adresse für den Rechnungsversand</label>
-          <input type="email" name="rechnung_email" placeholder="z.B. rechnung@firma.de">
+          <input type="email" name="rechnung_email" value="{{ ev.cl_rechnung_email or '' }}" placeholder="z.B. rechnung@firma.de">
         </div>
       </div>
     </div>
