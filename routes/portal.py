@@ -225,6 +225,10 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
         transport = {"ja_auto": "eigenes_auto", "ja_transporter": "transporter",
                      "ja_ohne": "ohne"}[antwort]
         antwort = "Ja"
+    # Zusage-Sperre: Ohne DSGVO-Einwilligung + Gewerbeschein (Upload oder „liegt vor")
+    # kann kein Job angenommen werden. Absagen bleibt jederzeit möglich.
+    if a and antwort == "Ja" and a.dienstleister and not a.dienstleister.unterlagen_ok:
+        return RedirectResponse("/portal?unterlagen_fehlen=1", status_code=303)
     if a and antwort in ("Ja", "Nein"):
         a.status = antwort
         a.notiz = notiz.strip() or None
@@ -444,7 +448,99 @@ def portal_onboarding_abschliessen(db: Session = Depends(get_db),
     if d:
         d.onboarding_abgeschlossen = True
         db.commit()
+        # Nach der Tour direkt zum Profil, solange Unterlagen fehlen (DSGVO/Gewerbeschein)
+        if not d.unterlagen_ok:
+            return RedirectResponse("/portal/profil?willkommen=1", status_code=303)
     return RedirectResponse("/portal", status_code=303)
+
+
+# ── Profil & Unterlagen (Selbstauskunft) ──────────────────────────────────────
+
+KLEIDERGROESSEN = ["XS", "S", "M", "L", "XL", "XXL"]
+
+
+@router.get("/profil", response_class=HTMLResponse)
+def portal_profil(request: Request, db: Session = Depends(get_db),
+                  user=Depends(get_portal_user)):
+    did = int(user["sub"])
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d:
+        return RedirectResponse("/portal/login", status_code=303)
+    return templates.TemplateResponse("portal/profil.html",
+        tpl_context(request, dienstleister=d, kleidergroessen=KLEIDERGROESSEN))
+
+
+@router.post("/profil")
+def portal_profil_save(
+    telefon: str = Form(""), strasse: str = Form(""), plz: str = Form(""),
+    stadt: str = Form(""), kleidergroesse: str = Form(""),
+    fuehrerschein: bool = Form(False), mobilitaet: str = Form("Auto"),
+    db: Session = Depends(get_db), user=Depends(get_portal_user),
+):
+    did = int(user["sub"])
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d:
+        return RedirectResponse("/portal/login", status_code=303)
+    # Server-Backstop zu den HTML5-Prüfungen im Formular (gleiche Regeln wie im Admin)
+    from validation import valid_phone, valid_plz
+    if not valid_phone(telefon):
+        return RedirectResponse("/portal/profil?fehler=telefon", status_code=303)
+    if not valid_plz(plz):
+        return RedirectResponse("/portal/profil?fehler=plz", status_code=303)
+    if kleidergroesse.strip() and kleidergroesse.strip() not in KLEIDERGROESSEN:
+        kleidergroesse = ""
+    if mobilitaet not in ("Auto", "ÖPNV", "Beides"):
+        mobilitaet = "Auto"
+    aenderungen = []
+    for attr, neu in [("telefon", telefon), ("strasse", strasse), ("plz", plz),
+                      ("stadt", stadt), ("kleidergroesse", kleidergroesse),
+                      ("mobilitaet", mobilitaet)]:
+        neu = neu.strip() or None
+        if getattr(d, attr) != neu:
+            setattr(d, attr, neu)
+            aenderungen.append(attr)
+    if bool(d.fuehrerschein) != bool(fuehrerschein):
+        d.fuehrerschein = bool(fuehrerschein)
+        aenderungen.append("fuehrerschein")
+    if aenderungen:
+        from notifications import notify
+        labels = {"telefon": "Telefon", "strasse": "Straße", "plz": "PLZ", "stadt": "Ort",
+                  "kleidergroesse": "Kleidergröße", "mobilitaet": "Mobilität",
+                  "fuehrerschein": "Führerschein"}
+        notify(db, "dl_unterlagen", f"Profil aktualisiert: {d.vorname} {d.nachname}",
+               f"{d.vorname} {d.nachname} hat im Portal folgende Angaben aktualisiert: "
+               + ", ".join(labels.get(a, a) for a in aenderungen) + ".",
+               f"/admin/dienstleister/{d.id}")
+        db.commit()
+    return RedirectResponse("/portal/profil?ok=1", status_code=303)
+
+
+@router.post("/profil/dsgvo")
+def portal_profil_dsgvo(
+    dsgvo_name: str = Form(...),
+    einwilligung_knallfrosch: bool = Form(False),
+    einwilligung_kindsalabim: bool = Form(False),
+    db: Session = Depends(get_db), user=Depends(get_portal_user),
+):
+    did = int(user["sub"])
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d:
+        return RedirectResponse("/portal/login", status_code=303)
+    # Beide Einwilligungen in einem Rutsch – ohne beide Häkchen keine Speicherung
+    if not (dsgvo_name.strip() and einwilligung_knallfrosch and einwilligung_kindsalabim):
+        return RedirectResponse("/portal/profil?dsgvo_fehler=1", status_code=303)
+    jetzt = datetime.now().isoformat(timespec="seconds")
+    d.dsgvo_name = dsgvo_name.strip()
+    d.dsgvo_knallfrosch_am = jetzt
+    d.dsgvo_kindsalabim_am = jetzt
+    d.dsgvo_unterzeichnet = True
+    from notifications import notify
+    notify(db, "dl_unterlagen", f"DSGVO-Einwilligung: {d.vorname} {d.nachname}",
+           f"{d.vorname} {d.nachname} hat die Datenschutz-Einwilligung für beide Firmen "
+           f"online bestätigt (Name: {d.dsgvo_name}).",
+           f"/admin/dienstleister/{d.id}")
+    db.commit()
+    return RedirectResponse("/portal/profil?dsgvo=1", status_code=303)
 
 
 # ── Sperrzeiten (Nicht-Verfügbarkeit) ─────────────────────────────────────────

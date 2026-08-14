@@ -387,6 +387,35 @@ def _run_ueberfaellige_rechnungen(db: Session) -> int:
     return count
 
 
+def _run_gewerbeschein_erinnerungen(db: Session) -> int:
+    """Erinnert Dienstleister wöchentlich per Mail an den fehlenden Gewerbeschein.
+    Die Uhr startet mit der Portal-Einladung (gewerbeschein_erinnert_am wird dort
+    gesetzt); hochgeladen oder vom Admin als „liegt vor" markiert = Schluss.
+    Bestandsdienstleister sind per Migrations-Backfill ausgenommen."""
+    from email_service import send_gewerbeschein_erinnerung
+    heute = _heute()
+    base_url = "https://kindsalabim-events.onrender.com"
+    kandidaten = db.query(Dienstleister).filter(
+        Dienstleister.aktiv == True,                        # noqa: E712
+        Dienstleister.gewerbeschein_vorliegt == False,      # noqa: E712
+        Dienstleister.gewerbeschein_r2_key == None,         # noqa: E711
+        Dienstleister.gewerbeschein_erinnert_am != None,    # noqa: E711
+    ).all()
+    count = 0
+    for d in kandidaten:
+        if heute < d.gewerbeschein_erinnert_am + timedelta(days=7):
+            continue
+        try:
+            send_gewerbeschein_erinnerung(d, base_url)
+            d.gewerbeschein_erinnert_am = heute
+            db.commit()   # pro Mail committen: kein Doppelversand bei Absturz
+            count += 1
+        except Exception as e:
+            db.rollback()
+            print(f"Gewerbeschein-Erinnerung fehlgeschlagen für {d.email}: {e}")
+    return count
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -489,6 +518,9 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     reservierungen_geloescht = _run_reservierungen_aufraeumen(db)
     reservierung_farben = _run_reservierung_farben(db)
 
+    # Wöchentliche Gewerbeschein-Erinnerung an neue Dienstleister
+    gewerbeschein_erinnerungen = _run_gewerbeschein_erinnerungen(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -509,6 +541,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "rechnung_erinnerungen": rechnung_erinnerungen,
                          "reservierungen_umgefaerbt": reservierung_farben,
                          "reservierungen_geloescht": reservierungen_geloescht,
+                         "gewerbeschein_erinnerungen": gewerbeschein_erinnerungen,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 

@@ -152,8 +152,32 @@ class Dienstleister(Base):
     website          = Column(String)
     notizen          = Column(Text)
 
+    # Portal-Selbstauskunft (Onboarding/Profil)
+    dsgvo_name           = Column(String)   # eingetippter Name bei der Online-Einwilligung
+    dsgvo_knallfrosch_am = Column(String)   # ISO-Datetime der Einwilligung (Malca & Akmanoglu GbR)
+    dsgvo_kindsalabim_am = Column(String)   # ISO-Datetime der Einwilligung (Aykut Malca | Kindsalabim)
+    gewerbeschein_r2_key         = Column(String)   # hochgeladener Gewerbeschein (R2)
+    gewerbeschein_filename       = Column(String)
+    gewerbeschein_hochgeladen_am = Column(String)   # ISO-Datetime
+    gewerbeschein_vorliegt       = Column(Boolean, default=False)  # Admin: liegt (auf Papier) vor
+    gewerbeschein_erinnert_am    = Column(Date)     # letzte 7-Tage-Erinnerung (Start = Einladung)
+
     anfragen = relationship("Verfuegbarkeitsanfrage", back_populates="dienstleister")
     sperrzeiten = relationship("DienstleisterSperrzeit", back_populates="dienstleister", cascade="all, delete-orphan")
+
+    @property
+    def gewerbeschein_ok(self):
+        return bool(self.gewerbeschein_vorliegt or self.gewerbeschein_r2_key)
+
+    @property
+    def dsgvo_ok(self):
+        return bool(self.dsgvo_unterzeichnet
+                    or (self.dsgvo_knallfrosch_am and self.dsgvo_kindsalabim_am))
+
+    @property
+    def unterlagen_ok(self):
+        """Alles da, um Jobs anzunehmen? (Zusage-Sperre im Portal)"""
+        return self.gewerbeschein_ok and self.dsgvo_ok
 
 
 class Reservierung(Base):

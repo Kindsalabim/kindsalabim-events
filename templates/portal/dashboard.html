@@ -10,6 +10,11 @@
       <div class="flex items-center justify-between mb-6">
         <span class="text-xs font-semibold uppercase tracking-wider" style="color: rgba(255,255,255,0.6);">Dienstleister-Portal</span>
         <div class="flex items-center gap-2">
+          <a href="/portal/profil" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1.5"
+             style="background: rgba(255,255,255,0.14); color: #fff;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Profil
+          </a>
           <a href="/portal/verfuegbarkeit" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1.5"
              style="background: rgba(255,255,255,0.14); color: #fff;">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
@@ -30,6 +35,23 @@
   </header>
 
   <div class="max-w-2xl mx-auto px-4 mt-5 space-y-7">
+
+    {% if request.query_params.get('unterlagen_fehlen') %}
+    <div class="card p-4" style="background: var(--c-danger-bg);">
+      <p class="text-sm font-semibold" style="color: var(--c-danger);">Zusage noch nicht möglich.</p>
+      <p class="text-sm mt-1" style="color: var(--c-danger);">Bevor du Jobs annehmen kannst, brauchen wir noch
+        {%- if not dienstleister.dsgvo_ok %} deine Datenschutz-Einwilligung{% endif %}
+        {%- if not dienstleister.dsgvo_ok and not dienstleister.gewerbeschein_ok %} und{% endif %}
+        {%- if not dienstleister.gewerbeschein_ok %} deinen Gewerbeschein{% endif %}.
+        <a href="/portal/profil" class="underline font-semibold">Jetzt im Profil erledigen →</a></p>
+    </div>
+    {% elif not dienstleister.unterlagen_ok %}
+    <div class="card p-4" style="background: var(--c-amber-bg);">
+      <p class="text-sm font-semibold" style="color: var(--c-amber);">Dein Profil ist noch nicht vollständig.</p>
+      <p class="text-sm mt-1" style="color: var(--c-amber);">Es {% if (not dienstleister.dsgvo_ok) and (not dienstleister.gewerbeschein_ok) %}fehlen die Datenschutz-Einwilligung und dein Gewerbeschein{% elif not dienstleister.dsgvo_ok %}fehlt die Datenschutz-Einwilligung{% else %}fehlt dein Gewerbeschein{% endif %} – ohne sie kannst du keine Jobs annehmen.
+        <a href="/portal/profil" class="underline font-semibold">Jetzt erledigen →</a></p>
+    </div>
+    {% endif %}
 
     {% if request.query_params.get('bericht') %}
     <div class="card p-4" style="background: var(--c-green-bg);">

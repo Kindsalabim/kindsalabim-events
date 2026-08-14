@@ -1768,6 +1768,11 @@ def dienstleister_einladung(request: Request, did: int,
     base_url = str(request.base_url).rstrip("/")
     from email_service import send_einladung
     send_einladung(d, base_url)
+    # Gewerbeschein-Erinnerung starten: erste Mail 7 Tage nach der Einladung,
+    # danach wöchentlich (Cron), bis der Schein hochgeladen/als vorliegend markiert ist.
+    if not d.gewerbeschein_ok and d.gewerbeschein_erinnert_am is None:
+        d.gewerbeschein_erinnert_am = date.today()
+        db.commit()
     return RedirectResponse(f"/admin/dienstleister?einladung_sent={d.id}", status_code=303)
 
 
@@ -1838,6 +1843,7 @@ def dienstleister_create(
     vertragstyp: str = Form(""), stundensatz_teamer: str = Form(""),
     stundensatz_kuenstler: str = Form(""),
     dsgvo_unterzeichnet: bool = Form(False),
+    gewerbeschein_vorliegt: bool = Form(False),
     website: str = Form(""), notizen: str = Form(""),
 ):
     existing = db.query(Dienstleister).filter(Dienstleister.email == email).first()
@@ -1873,6 +1879,7 @@ def dienstleister_create(
         stundensatz_teamer=_f(stundensatz_teamer),
         stundensatz_kuenstler=_f(stundensatz_kuenstler),
         dsgvo_unterzeichnet=dsgvo_unterzeichnet,
+        gewerbeschein_vorliegt=gewerbeschein_vorliegt,
         website=website.strip() or None, notizen=notizen.strip() or None,
     )
     db.add(d); db.commit()
@@ -1915,6 +1922,7 @@ def dienstleister_update(
     vertragstyp: str = Form(""), stundensatz_teamer: str = Form(""),
     stundensatz_kuenstler: str = Form(""),
     dsgvo_unterzeichnet: bool = Form(False),
+    gewerbeschein_vorliegt: bool = Form(False),
     website: str = Form(""), notizen: str = Form(""),
 ):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
@@ -1945,6 +1953,7 @@ def dienstleister_update(
     d.stundensatz_teamer = _f(stundensatz_teamer)
     d.stundensatz_kuenstler = _f(stundensatz_kuenstler)
     d.dsgvo_unterzeichnet = dsgvo_unterzeichnet
+    d.gewerbeschein_vorliegt = gewerbeschein_vorliegt
     d.website = website.strip() or None
     d.notizen = notizen.strip() or None
     if portal_passwort:

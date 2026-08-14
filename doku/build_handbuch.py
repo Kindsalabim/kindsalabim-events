@@ -212,6 +212,7 @@ SEITEN = [
     ("angebot",          f"http://127.0.0.1:{PORT}/admin/angebot",          1000, 1800),
     ("checkliste",       f"http://127.0.0.1:{PORT}/checklist/handbuch-checkliste-offen", 560, 3400),
     ("portal",           f"http://127.0.0.1:{PORT}/portal",                 520, 2200),
+    ("portal_profil",    f"http://127.0.0.1:{PORT}/portal/profil",          520, 2800),
 ]
 for name, url, w, h in SEITEN:
     out = os.path.join(SHOTS, f"{name}.png")
@@ -480,8 +481,16 @@ story = [
         "<b>Portal:</b> Dienstleister melden sich per Magic-Link an (E-Mail eintippen → Link kommt per Mail). "
         "Dort: offene Anfragen beantworten, Einsätze sehen, Briefing-PDF laden, Urlaub/Sperrzeiten "
         "eintragen, Profil &amp; Onboarding. Teamleiter reichen dort auch den <b>Eventbericht</b> ein.",
+        "<b>Mein Profil (Selbstauskunft):</b> Neue Dienstleister füllen dort selbst Adresse, Telefon, "
+        "Kleidergröße, Führerschein und Mobilität aus, bestätigen die <b>DSGVO-Einwilligung online</b> "
+        "(beide Firmen in einem Schritt, mit Zeitstempel) und laden ihren <b>Gewerbeschein</b> hoch. "
+        "Dazu gibt es dort Downloads: Rechnungsvorlage, Rechnungs-Erläuterung, Kleingewerbe-Infoblatt.",
+        "<b>Zusage-Sperre:</b> Ohne DSGVO-Einwilligung + Gewerbeschein kann ein Dienstleister keine "
+        "Jobs annehmen (Absagen geht immer). Das Portal zeigt ihm dauerhaft einen Hinweis; zusätzlich "
+        "erinnert ihn die App wöchentlich per Mail an den fehlenden Gewerbeschein.",
     ]),
     *shots("portal", 90, "Dienstleister-Portal (Handy): offene Anfragen und Einsätze."),
+    *shots("portal_profil", 90, "„Mein Profil“ im Portal: Selbstauskunft, DSGVO-Einwilligung, Gewerbeschein, Vorlagen."),
 
     PageBreak(),
     Paragraph("9. Nach dem Event", H2),
@@ -526,7 +535,14 @@ story = [
         "E-Mail-Adresse muss stimmen (Groß-/Kleinschreibung ist egal). Landet jemand versehentlich "
         "auf der Admin-Login-Seite, zeigt ein Wegweiser zum Portal; &bdquo;Passwort vergessen&ldquo; "
         "schickt Dienstleistern automatisch ihren Portal-Anmeldelink.",
-        "Neue Dienstleister durchlaufen im Portal ein <b>Onboarding</b> (Profildaten selbst ausfüllen).",
+        "<b>Neue Dienstleister anlegen ist jetzt minimal:</b> Name + E-Mail eintragen, &bdquo;Einladen&ldquo; "
+        "klicken – den Rest (Adresse, Kleidergröße, DSGVO, Gewerbeschein) erledigt die Person selbst im "
+        "Portal-Onboarding. Du bekommst eine Glocke, sobald etwas ausgefüllt/hochgeladen wurde, und "
+        "ergänzt nur noch EP, Qualität &amp; Co.",
+        "<b>Gewerbeschein-Status:</b> In der Detailansicht siehst du DSGVO- und Gewerbeschein-Status "
+        "(hochgeladene Scheine per Klick ansehen). Das Formular-Häkchen &bdquo;Gewerbeschein liegt vor&ldquo; "
+        "ist für Bestandsdienstleister mit Papier-Kopie im Büro – es hebt Sperre und Erinnerung auf. "
+        "Alle Bestandsdienstleister wurden beim Update automatisch so markiert.",
         "Urlaub/Sperrzeiten pflegen Dienstleister selbst im Portal – gesperrte Personen rutschen in den "
         "Anfrage-Listen automatisch nach unten.",
     ]),
@@ -583,6 +599,7 @@ story = [
         ["Tag nach dem Event", "Erinnerung bei spezieller Rechnungs-Mail/Firmierung des Kunden"],
         ["Zahlungsziel überschritten", "Rechnung-überfällig-Meldung, wöchentlich bis „bezahlt“"],
         ["Täglich", "Abgelaufene Reservierungen: Kalender → flamingo; vergangene werden aufgeräumt"],
+        ["Wöchentlich", "Gewerbeschein-Erinnerung an neue Dienstleister, bis der Schein hochgeladen ist"],
         ["Montags", "Baker-Ross-Katalog aktualisieren + CSV-Backup-Mail (Events, Dienstleister, Rechnungen, Kunden)"],
     ], breiten=[48*mm, None]),
     Spacer(1, 6),

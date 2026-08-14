@@ -302,10 +302,10 @@ def send_einladung(dienstleister, base_url: str):
     login_url = f"{base_url}/portal/login"
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
-    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
-      Herzlich willkommen bei {cfg['company_name']}! Du hast jetzt Zugang zu deinem persönlichen
-      Dienstleister-Portal. Dort siehst du alle deine Anfragen, kannst zu- oder absagen
-      und hast eine Übersicht über deine gebuchten Jobs.
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      schön, dass du im Team bist! Ab jetzt läuft alles über dein persönliches Portal:
+      Dort bekommst du deine Job-Anfragen, sagst zu oder ab und findest alle Infos zu
+      deinen Einsätzen.
     </p>
     <a href="{login_url}"
        style="display:inline-block;background:#003864;color:#ffffff;text-decoration:none;
@@ -317,10 +317,45 @@ def send_einladung(dienstleister, base_url: str):
       E-Mail-Adresse eingeben → du bekommst einen Link → klicken → fertig.<br>
       Kein Passwort nötig.
     </p>
+    <p style="margin:16px 0 0;font-size:14px;color:#374151;line-height:1.6;">
+      <strong>Für einen reibungslosen Start</strong> führt dich das Portal beim ersten
+      Login durch ein paar kurze Schritte: deine Daten (Adresse, Kleidergröße&nbsp;…),
+      die Datenschutz-Einwilligung und den Upload deines Gewerbescheins. Vorlagen und
+      Infos zu Rechnung &amp; Kleingewerbe findest du dort ebenfalls zum Download.
+    </p>
     <p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">
       Tipp: Füge das Portal auf deinem Homescreen hinzu, dann hast du es immer griffbereit.
+      Und schau ab und zu in deinen Spam-Ordner – falls unsere Mails dort landen, markiere
+      den Absender als vertrauenswürdig.
     </p>"""
     _send(dienstleister.email, f"Willkommen bei {cfg['company_name']} – Dein Portal-Zugang",
+          _wrap(content, "#003864", cfg))
+
+
+def send_gewerbeschein_erinnerung(dienstleister, base_url: str):
+    """Wöchentliche Erinnerung, solange kein Gewerbeschein hochgeladen/vermerkt ist."""
+    cfg = get_config()
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      kleine Erinnerung: Wir brauchen noch eine Kopie deines <strong>Gewerbescheins</strong>.
+      Ohne ihn kannst du im Portal keine Jobs annehmen.
+    </p>
+    <p style="margin:0 0 24px;font-size:14px;color:#374151;line-height:1.6;">
+      Ein Foto oder Scan reicht völlig – einfach im Portal unter „Mein Profil" hochladen.
+      Falls du dein Gewerbe noch nicht angemeldet hast: Das geht in der Regel auch bis zu
+      6 Monate rückwirkend, wichtig ist nur, dass wir den Schein vor deinem ersten Event haben.
+    </p>
+    <a href="{base_url}/portal/profil"
+       style="display:inline-block;background:#003864;color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Gewerbeschein hochladen →
+    </a>
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
+      Diese Erinnerung kommt wöchentlich, bis der Gewerbeschein da ist.
+      Bei Fragen melde dich einfach bei uns.
+    </p>"""
+    _send(dienstleister.email, "Erinnerung: Dein Gewerbeschein fehlt noch",
           _wrap(content, "#003864", cfg))
 
 

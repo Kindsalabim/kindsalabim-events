@@ -163,6 +163,30 @@ def run_migrations():
     add_column("reservierungen", "art", "VARCHAR DEFAULT 'Div.'")
     add_column("reservierungen", "kalender_abgelaufen_markiert", "BOOLEAN DEFAULT 0")
     add_column("reservierungen", "serien_id", "VARCHAR")
+
+    # Portal-Selbstauskunft (Onboarding/Profil): DSGVO-Online-Einwilligung + Gewerbeschein
+    add_column("dienstleister", "dsgvo_name", "VARCHAR")
+    add_column("dienstleister", "dsgvo_knallfrosch_am", "VARCHAR")
+    add_column("dienstleister", "dsgvo_kindsalabim_am", "VARCHAR")
+    add_column("dienstleister", "gewerbeschein_r2_key", "VARCHAR")
+    add_column("dienstleister", "gewerbeschein_filename", "VARCHAR")
+    add_column("dienstleister", "gewerbeschein_hochgeladen_am", "VARCHAR")
+    add_column("dienstleister", "gewerbeschein_erinnert_am", "DATE")
+    # gewerbeschein_vorliegt: Bestandsdienstleister gelten als „liegt vor" (Papier aus dem
+    # alten Prozess) – sonst würden alle Alt-Teamer gesperrt und wöchentlich erinnert.
+    # Backfill läuft nur einmal, direkt beim Anlegen der Spalte.
+    from sqlalchemy import inspect as _sa_inspect
+    _hatte_gs = "gewerbeschein_vorliegt" in {
+        c["name"] for c in _sa_inspect(engine).get_columns("dienstleister")}
+    add_column("dienstleister", "gewerbeschein_vorliegt", "BOOLEAN DEFAULT 0")
+    if not _hatte_gs:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("UPDATE dienstleister SET gewerbeschein_vorliegt = "
+                                  + ("true" if is_postgres else "1")))
+                conn.commit()
+            except Exception:
+                conn.rollback()
     add_column("admins", "notifications_gesehen_bis", "VARCHAR")
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")

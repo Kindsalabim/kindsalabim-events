@@ -66,7 +66,11 @@
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Vertragstyp</dt><dd class="text-gray-800 text-right">{{ d.vertragstyp or '–' }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Stundensatz Teamer</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_teamer %}{{ d.stundensatz_teamer | de_euro }} €/h{% else %}–{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Stundensatz Künstler</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_kuenstler %}{{ d.stundensatz_kuenstler | de_euro }} €/h{% else %}–{% endif %}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-500">DSGVO unterzeichnet</dt><dd class="text-right">{% if d.dsgvo_unterzeichnet %}<span style="color:var(--brand-primary);">✓ ja</span>{% else %}<span class="text-gray-500">nein</span>{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">DSGVO unterzeichnet</dt><dd class="text-right">{% if d.dsgvo_unterzeichnet %}<span style="color:var(--brand-primary);">✓ ja</span>{% if d.dsgvo_knallfrosch_am %} <span class="text-xs text-gray-500">(online {{ d.dsgvo_knallfrosch_am[:10] }}{% if d.dsgvo_name %}, {{ d.dsgvo_name }}{% endif %})</span>{% endif %}{% else %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">fehlt</span>{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Gewerbeschein</dt><dd class="text-right">
+        {% if d.gewerbeschein_r2_key %}<a href="/admin/dienstleister/{{ d.id }}/gewerbeschein/view" target="_blank" rel="noopener" class="underline" style="color:var(--brand-primary);">✓ hochgeladen{% if d.gewerbeschein_hochgeladen_am %} ({{ d.gewerbeschein_hochgeladen_am[:10] }}){% endif %} – ansehen</a>
+        {% elif d.gewerbeschein_vorliegt %}<span style="color:var(--brand-primary);">✓ liegt vor</span>
+        {% else %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">fehlt – Zusagen gesperrt</span>{% endif %}</dd></div>
     </dl>
   </div>
 

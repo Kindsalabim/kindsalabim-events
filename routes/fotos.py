@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from auth import get_admin_user, get_portal_user
 from config import get_config
 from database import get_db
-from models import Event, EventDatei
+from models import Dienstleister, Event, EventDatei
 
 router = APIRouter()
 
@@ -229,6 +229,80 @@ def delete_bericht_foto(
     # (für ihn unsichtbare) Auftragsbestätigung seines Events löschen.
     _delete(event_id, datei_id, db, nur_typ="bericht_foto")
     return RedirectResponse(f"/portal/bericht/{event_id}", status_code=303)
+
+
+# ── Dienstleister: Gewerbeschein (Portal-Upload, Admin-Ansicht) ────────────────
+
+def _r2_put(key: str, data: bytes, content_type: str) -> bool:
+    """Rohes Hochladen ohne EventDatei-Zeile (für Nicht-Event-Dateien wie den
+    Gewerbeschein). In Tests gemockt."""
+    cfg = get_config()
+    client = _r2_client()
+    if not client:
+        return False
+    client.put_object(Bucket=cfg["r2_bucket"], Key=key, Body=data,
+                      ContentType=content_type)
+    return True
+
+
+@router.post("/portal/profil/gewerbeschein")
+async def upload_gewerbeschein(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(get_portal_user),
+):
+    did = int(user["sub"])
+    d = db.get(Dienstleister, did)
+    if not d:
+        raise HTTPException(403)
+    if file.content_type not in ALLOWED_PLANUNG:
+        return RedirectResponse("/portal/profil?gewerbeschein_fehler=typ", status_code=303)
+    data = await file.read()
+    if not data or len(data) > MAX_SIZE_MB * 1024 * 1024:
+        return RedirectResponse("/portal/profil?gewerbeschein_fehler=groesse", status_code=303)
+    ext = (file.filename or "datei").rsplit(".", 1)[-1].lower()
+    key = f"dienstleister/{did}/gewerbeschein/{uuid.uuid4().hex}.{ext}"
+    if not _r2_put(key, data, file.content_type):
+        return RedirectResponse("/portal/profil?gewerbeschein_fehler=speicher", status_code=303)
+    # Alten Upload (falls neu hochgeladen wird) im R2 aufräumen – best effort
+    if d.gewerbeschein_r2_key:
+        try:
+            _r2_client().delete_object(Bucket=get_config()["r2_bucket"],
+                                       Key=d.gewerbeschein_r2_key)
+        except Exception:
+            pass
+    d.gewerbeschein_r2_key = key
+    d.gewerbeschein_filename = file.filename or key
+    d.gewerbeschein_hochgeladen_am = datetime.now(timezone.utc).isoformat()
+    from notifications import notify
+    notify(db, "dl_unterlagen", f"Gewerbeschein hochgeladen: {d.vorname} {d.nachname}",
+           f"{d.vorname} {d.nachname} hat den Gewerbeschein im Portal hochgeladen.",
+           f"/admin/dienstleister/{d.id}")
+    db.commit()
+    return RedirectResponse("/portal/profil?gewerbeschein=1", status_code=303)
+
+
+@router.get("/portal/profil/gewerbeschein/view")
+def view_gewerbeschein_portal(db: Session = Depends(get_db), user=Depends(get_portal_user)):
+    d = db.get(Dienstleister, int(user["sub"]))
+    if not d or not d.gewerbeschein_r2_key:
+        raise HTTPException(404)
+    url = generate_presigned_url(d.gewerbeschein_r2_key)
+    if not url:
+        raise HTTPException(500, "Datei-Speicher nicht konfiguriert.")
+    return RedirectResponse(url, status_code=307)
+
+
+@router.get("/admin/dienstleister/{did}/gewerbeschein/view")
+def view_gewerbeschein_admin(did: int, db: Session = Depends(get_db),
+                             _: str = Depends(get_admin_user)):
+    d = db.get(Dienstleister, did)
+    if not d or not d.gewerbeschein_r2_key:
+        raise HTTPException(404, "Kein Gewerbeschein hochgeladen.")
+    url = generate_presigned_url(d.gewerbeschein_r2_key)
+    if not url:
+        raise HTTPException(500, "Datei-Speicher nicht konfiguriert.")
+    return RedirectResponse(url, status_code=307)
 
 
 # ── Shared ─────────────────────────────────────────────────────────────────────

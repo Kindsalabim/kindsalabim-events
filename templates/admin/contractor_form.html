@@ -223,6 +223,15 @@
           {% if d and d.dsgvo_unterzeichnet %}checked{% endif %}
           class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
         DSGVO-Vereinbarung unterzeichnet
+        {% if d and d.dsgvo_knallfrosch_am %}<span class="text-xs text-gray-500 font-normal">(online bestätigt {{ d.dsgvo_knallfrosch_am[:10] }})</span>{% endif %}
+      </label>
+      <label class="flex items-center gap-2.5 text-sm cursor-pointer pt-1"
+             title="Für Bestandsdienstleister aus dem alten Prozess (Papier-Kopie liegt im Büro). Neue Dienstleister laden den Schein selbst im Portal hoch – ohne ihn können sie keine Jobs annehmen und werden wöchentlich erinnert.">
+        <input type="checkbox" name="gewerbeschein_vorliegt" value="true"
+          {% if d and d.gewerbeschein_vorliegt %}checked{% endif %}
+          class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+        Gewerbeschein liegt vor <span class="text-xs text-gray-500 font-normal">(z.&nbsp;B. Papier-Kopie im Büro)</span>
+        {% if d and d.gewerbeschein_r2_key %}<span class="text-xs font-normal" style="color:var(--brand-primary);">– im Portal hochgeladen ✓</span>{% endif %}
       </label>
     </div>
 

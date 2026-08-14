@@ -17,7 +17,12 @@ def make_dienstleister(**kw):
         d = Dienstleister(
             vorname=kw.pop("vorname", "Vor"), nachname=kw.pop("nachname", f"Nach{n}"),
             email=kw.pop("email", f"dl{n}@example.com"),
-            telefon=kw.pop("telefon", "0201 12345"), rolle=kw.pop("rolle", "Teamer"), **kw)
+            telefon=kw.pop("telefon", "0201 12345"), rolle=kw.pop("rolle", "Teamer"),
+            # Default wie Bestandsdienstleister in Produktion (Migrations-Backfill):
+            # Unterlagen liegen vor → Zusage-Sperre greift nicht. Neu-Zustand testet
+            # test_onboarding_unterlagen.py explizit mit False.
+            gewerbeschein_vorliegt=kw.pop("gewerbeschein_vorliegt", True),
+            dsgvo_unterzeichnet=kw.pop("dsgvo_unterzeichnet", True), **kw)
         s.add(d); s.commit()
         return d.id
     finally:
