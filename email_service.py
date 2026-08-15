@@ -108,12 +108,30 @@ def _logo_img(brand_color: str) -> str:
             f'style="width:{w}px;height:{h}px;display:inline-block;border:0;outline:none;text-decoration:none;">')
 
 
-def _wrap(content: str, brand_color: str, cfg: dict) -> str:
+def _logo_img_beide() -> str:
+    """Beide Logos nebeneinander (für markenübergreifende Mails wie die Einladung –
+    neue Dienstleister arbeiten für Kindsalabim UND Knallfrosch)."""
+    ks, kf = _logo_img("#003864"), _logo_img("#1a7a1a")
+    if not (ks and kf):
+        return ks or kf
+    return ('<table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>'
+            f'<td style="padding-right:18px;vertical-align:middle;">{ks}</td>'
+            f'<td style="border-left:1px solid #e5ebf4;padding-left:18px;vertical-align:middle;">{kf}</td>'
+            '</tr></table>')
+
+
+def _wrap(content: str, brand_color: str, cfg: dict, beide_logos: bool = False) -> str:
     """Hüllt E-Mail-Inhalt in ein sauberes HTML-Layout mit Logo.
-    Footer/Absender markenabhängig – auf Knallfrosch-Mails wird Kindsalabim nicht erwähnt."""
-    logo = _logo_img(brand_color)
+    Footer/Absender markenabhängig – auf Knallfrosch-Mails wird Kindsalabim nicht erwähnt.
+    beide_logos=True zeigt beide Marken (markenübergreifende Mails, z. B. Einladung)."""
+    logo = _logo_img_beide() if beide_logos else _logo_img(brand_color)
     is_kf = brand_color == "#1a7a1a"
-    if is_kf:
+    if beide_logos:
+        foot_title = "Kindsalabim & Knallfrosch Kinderevents"
+        foot_name  = "Kindsalabim Kinderevents &amp; Knallfrosch Kinderevents"
+        foot_addr  = cfg["company_address"]
+        foot_mail  = cfg["company_email"]
+    elif is_kf:
         foot_title = "Knallfrosch Kinderevents"
         foot_name  = "Malca &amp; Akmanoglu GbR · Knallfrosch Kinderevents"
         foot_addr  = "Charlottenweg 55, 45289 Essen"
@@ -329,7 +347,7 @@ def send_einladung(dienstleister, base_url: str):
       den Absender als vertrauenswürdig.
     </p>"""
     _send(dienstleister.email, f"Willkommen bei {cfg['company_name']} – Dein Portal-Zugang",
-          _wrap(content, "#003864", cfg))
+          _wrap(content, "#003864", cfg, beide_logos=True))
 
 
 def send_gewerbeschein_erinnerung(dienstleister, base_url: str):
@@ -356,7 +374,41 @@ def send_gewerbeschein_erinnerung(dienstleister, base_url: str):
       Bei Fragen melde dich einfach bei uns.
     </p>"""
     _send(dienstleister.email, "Erinnerung: Dein Gewerbeschein fehlt noch",
-          _wrap(content, "#003864", cfg))
+          _wrap(content, "#003864", cfg, beide_logos=True))
+
+
+def send_dsgvo_nachweis(dienstleister, pdf: bytes, zeitpunkt: str):
+    """Nachweis-PDF der Online-Einwilligung: ans Büro (Backup im Postfach) und als
+    Kopie an den Dienstleister (Transparenz nach Art. 7 DSGVO)."""
+    cfg = get_config()
+    d = dienstleister
+    name = f"{d.vorname} {d.nachname}"
+    dateiname = f"DSGVO-Einwilligung_{name.replace(' ', '_')}.pdf"
+    anhang = [(dateiname, pdf)]
+    # 1) Ans Büro – dauerhafter Nachweis unabhängig von der Datenbank
+    content_admin = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">DSGVO-Einwilligung bestätigt</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      <strong>{name}</strong> ({d.email}) hat die Datenschutz-Einwilligung für beide Firmen
+      im Portal bestätigt ({zeitpunkt}). Das Nachweis-PDF hängt an dieser Mail –
+      einfach aufbewahren, es ist zusätzlich jederzeit aus der Dienstleisterkarte abrufbar.
+    </p>"""
+    _deliver(cfg["admin_email"], f"DSGVO-Einwilligung: {name} (Nachweis-PDF)",
+             _wrap(content_admin, "#003864", cfg, beide_logos=True), anhang)
+    # 2) Kopie an den Dienstleister für die eigenen Unterlagen
+    content_dl = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {d.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      danke für deine Datenschutz-Einwilligung. Im Anhang findest du eine Kopie für
+      deine Unterlagen. Du kannst die Einwilligung jederzeit mit Wirkung für die
+      Zukunft widerrufen – die Kontaktdaten stehen im Dokument.
+    </p>"""
+    try:
+        _deliver(d.email, "Deine Datenschutz-Einwilligung (Kopie für deine Unterlagen)",
+                 _wrap(content_dl, "#003864", cfg, beide_logos=True), anhang)
+    except Exception as e:
+        # Kopie an den Dienstleister ist nice-to-have – der Büro-Nachweis zählt
+        print(f"DSGVO-Kopie an Dienstleister fehlgeschlagen ({d.email}): {e}")
 
 
 def send_erinnerung(dienstleister, event):

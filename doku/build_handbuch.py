@@ -482,9 +482,13 @@ story = [
         "Dort: offene Anfragen beantworten, Einsätze sehen, Briefing-PDF laden, Urlaub/Sperrzeiten "
         "eintragen, Profil &amp; Onboarding. Teamleiter reichen dort auch den <b>Eventbericht</b> ein.",
         "<b>Mein Profil (Selbstauskunft):</b> Neue Dienstleister füllen dort selbst Adresse, Telefon, "
-        "Kleidergröße, Führerschein und Mobilität aus, bestätigen die <b>DSGVO-Einwilligung online</b> "
+        "Kleidergröße, Führerschein, Mobilität sowie Lager-Mitnahme (Rüttenscheid) und "
+        "Kastenwagen-Zutrauen aus, bestätigen die <b>DSGVO-Einwilligung online</b> "
         "(beide Firmen in einem Schritt, mit Zeitstempel) und laden ihren <b>Gewerbeschein</b> hoch. "
         "Dazu gibt es dort Downloads: Rechnungsvorlage, Rechnungs-Erläuterung, Kleingewerbe-Infoblatt.",
+        "<b>DSGVO-Nachweis:</b> Bei jeder Online-Einwilligung geht automatisch ein <b>Nachweis-PDF</b> "
+        "(Text, Name, Zeitstempel, IP) per Mail ans Büro und als Kopie an den Dienstleister; "
+        "zusätzlich ist es jederzeit über die Dienstleisterkarte abrufbar.",
         "<b>Zusage-Sperre:</b> Ohne DSGVO-Einwilligung + Gewerbeschein kann ein Dienstleister keine "
         "Jobs annehmen (Absagen geht immer). Das Portal zeigt ihm dauerhaft einen Hinweis; zusätzlich "
         "erinnert ihn die App wöchentlich per Mail an den fehlenden Gewerbeschein.",

@@ -69,6 +69,25 @@ def test_profil_seite_zeigt_formulare_und_vorlagen(client):
     assert "/static/vorlagen/Infoblatt-Kleingewerbe.pdf" in h
 
 
+def test_profil_speichert_lager_und_kastenwagen(client):
+    did = _neuer_dl()
+    portal_login(client, did)
+    client.post("/portal/profil", data={
+        "lager_transport_bereit": "true", "kastenwagen_ok": "true"}, follow_redirects=False)
+    d = reload(Dienstleister, did)
+    assert d.lager_transport_bereit and d.kastenwagen_ok
+    # Formular zeigt die Häkchen mit den vereinbarten Texten
+    h = client.get("/portal/profil").text
+    assert "Essen-Rüttenscheid" in h and "Kastenwagen" in h
+
+
+def test_einladung_mail_zeigt_beide_logos(admin, mails):
+    did = _neuer_dl()
+    admin.post(f"/admin/dienstleister/{did}/einladung", follow_redirects=False)
+    html = next(m[2] for m in mails if "Willkommen" in m[1])
+    assert 'alt="KindSalabim"' in html and 'alt="Knallfrosch"' in html
+
+
 # ── DSGVO (beide Firmen in einem Rutsch) ──────────────────────────────────────
 
 def test_dsgvo_beide_firmen_in_einem_rutsch(client):
@@ -82,6 +101,41 @@ def test_dsgvo_beide_firmen_in_einem_rutsch(client):
     assert d.dsgvo_unterzeichnet and d.dsgvo_ok
     assert d.dsgvo_knallfrosch_am and d.dsgvo_kindsalabim_am
     assert d.dsgvo_name == "Ayse Nur Test"
+
+
+def test_dsgvo_nachweis_pdf_und_mails(client, mails):
+    did = _neuer_dl()
+    portal_login(client, did)
+    client.post("/portal/profil/dsgvo", data={
+        "dsgvo_name": "Nachweis Test", "einwilligung_knallfrosch": "true",
+        "einwilligung_kindsalabim": "true"}, follow_redirects=False)
+    d = reload(Dienstleister, did)
+    assert d.dsgvo_ip  # IP wurde festgehalten (TestClient meldet sich als testclient)
+    # Nachweis-Mail ans Büro + Kopie an den Dienstleister
+    betreffe = [m[1] for m in mails]
+    assert any("Nachweis-PDF" in b for b in betreffe)
+    assert any("Kopie für deine Unterlagen" in b for b in betreffe)
+    # Nachweis-PDF jederzeit aus der Karte abrufbar
+    from auth import create_token
+    client.cookies.set("admin_token", create_token({"sub": "a@b.de", "role": "admin"}, expires_minutes=60))
+    r = client.get(f"/admin/dienstleister/{did}/dsgvo.pdf")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
+    assert r.content.startswith(b"%PDF")
+
+
+def test_dsgvo_pdf_404_ohne_online_einwilligung(admin):
+    did = _neuer_dl()   # nichts unterschrieben
+    assert admin.get(f"/admin/dienstleister/{did}/dsgvo.pdf").status_code == 404
+
+
+def test_dsgvo_pdf_enthaelt_nachweisdaten():
+    from dsgvo_pdf import build_dsgvo_pdf
+    did = _neuer_dl(vorname="Pia", nachname="Prüfer",
+                    dsgvo_name="Pia Prüfer", dsgvo_ip="203.0.113.7",
+                    dsgvo_knallfrosch_am="2026-08-15T10:00:00",
+                    dsgvo_kindsalabim_am="2026-08-15T10:00:00")
+    pdf = build_dsgvo_pdf(reload(Dienstleister, did))
+    assert pdf.startswith(b"%PDF") and len(pdf) > 1500
 
 
 def test_dsgvo_ohne_beide_haken_wird_abgelehnt(client):

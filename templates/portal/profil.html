@@ -125,6 +125,16 @@
             class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
           Ich habe einen Führerschein
         </label>
+        <label class="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" name="lager_transport_bereit" value="true" {% if d.lager_transport_bereit %}checked{% endif %}
+            class="rounded border-gray-300 mt-0.5" style="accent-color: var(--brand-primary);">
+          <span>Ich könnte mir vorstellen, ggf. Bastel- und Spielmaterial vom Lager in Essen-Rüttenscheid zu einem Auftrag mitzunehmen.</span>
+        </label>
+        <label class="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" name="kastenwagen_ok" value="true" {% if d.kastenwagen_ok %}checked{% endif %}
+            class="rounded border-gray-300 mt-0.5" style="accent-color: var(--brand-primary);">
+          <span>Ich traue mir zu, einen Kastenwagen zu fahren.</span>
+        </label>
         <button type="submit" class="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition active:scale-95"
           style="background: var(--brand-primary);">
           Daten speichern

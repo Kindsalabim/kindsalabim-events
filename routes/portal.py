@@ -475,6 +475,7 @@ def portal_profil_save(
     telefon: str = Form(""), strasse: str = Form(""), plz: str = Form(""),
     stadt: str = Form(""), kleidergroesse: str = Form(""),
     fuehrerschein: bool = Form(False), mobilitaet: str = Form("Auto"),
+    lager_transport_bereit: bool = Form(False), kastenwagen_ok: bool = Form(False),
     db: Session = Depends(get_db), user=Depends(get_portal_user),
 ):
     did = int(user["sub"])
@@ -499,14 +500,19 @@ def portal_profil_save(
         if getattr(d, attr) != neu:
             setattr(d, attr, neu)
             aenderungen.append(attr)
-    if bool(d.fuehrerschein) != bool(fuehrerschein):
-        d.fuehrerschein = bool(fuehrerschein)
-        aenderungen.append("fuehrerschein")
+    for attr, neu in [("fuehrerschein", fuehrerschein),
+                      ("lager_transport_bereit", lager_transport_bereit),
+                      ("kastenwagen_ok", kastenwagen_ok)]:
+        if bool(getattr(d, attr)) != bool(neu):
+            setattr(d, attr, bool(neu))
+            aenderungen.append(attr)
     if aenderungen:
         from notifications import notify
         labels = {"telefon": "Telefon", "strasse": "Straße", "plz": "PLZ", "stadt": "Ort",
                   "kleidergroesse": "Kleidergröße", "mobilitaet": "Mobilität",
-                  "fuehrerschein": "Führerschein"}
+                  "fuehrerschein": "Führerschein",
+                  "lager_transport_bereit": "Lager-Mitnahme möglich",
+                  "kastenwagen_ok": "Kastenwagen zutrauen"}
         notify(db, "dl_unterlagen", f"Profil aktualisiert: {d.vorname} {d.nachname}",
                f"{d.vorname} {d.nachname} hat im Portal folgende Angaben aktualisiert: "
                + ", ".join(labels.get(a, a) for a in aenderungen) + ".",
@@ -517,6 +523,7 @@ def portal_profil_save(
 
 @router.post("/profil/dsgvo")
 def portal_profil_dsgvo(
+    request: Request,
     dsgvo_name: str = Form(...),
     einwilligung_knallfrosch: bool = Form(False),
     einwilligung_kindsalabim: bool = Form(False),
@@ -534,12 +541,23 @@ def portal_profil_dsgvo(
     d.dsgvo_knallfrosch_am = jetzt
     d.dsgvo_kindsalabim_am = jetzt
     d.dsgvo_unterzeichnet = True
+    # IP als zusätzlicher Nachweis (hinter dem Render-Proxy steht sie im Header)
+    d.dsgvo_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+                  or (request.client.host if request.client else None))
     from notifications import notify
     notify(db, "dl_unterlagen", f"DSGVO-Einwilligung: {d.vorname} {d.nachname}",
            f"{d.vorname} {d.nachname} hat die Datenschutz-Einwilligung für beide Firmen "
            f"online bestätigt (Name: {d.dsgvo_name}).",
            f"/admin/dienstleister/{d.id}")
     db.commit()
+    # Nachweis-PDF ans Büro (Backup im Postfach) + Kopie an den Dienstleister.
+    # Fehler dürfen die Einwilligung nie sprengen – sie ist bereits gespeichert.
+    try:
+        from dsgvo_pdf import build_dsgvo_pdf
+        from email_service import send_dsgvo_nachweis
+        send_dsgvo_nachweis(d, build_dsgvo_pdf(d), jetzt.replace("T", " "))
+    except Exception as e:
+        print(f"DSGVO-Nachweis-Mail fehlgeschlagen (DL {d.id}): {e}")
     return RedirectResponse("/portal/profil?dsgvo=1", status_code=303)
 
 

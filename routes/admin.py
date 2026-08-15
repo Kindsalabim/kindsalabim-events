@@ -1897,6 +1897,22 @@ def dienstleister_detail(request: Request, did: int, db: Session = Depends(get_d
     return templates.TemplateResponse("admin/contractor_detail.html",
         tpl_context(request, d=d, anfragen=anfragen))
 
+@router.get("/dienstleister/{did}/dsgvo.pdf")
+def dienstleister_dsgvo_pdf(did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Nachweis-PDF der Online-DSGVO-Einwilligung – jederzeit aus der Karte abrufbar
+    (wird aus den gespeicherten Einwilligungsdaten neu erzeugt)."""
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d or not (d.dsgvo_knallfrosch_am and d.dsgvo_kindsalabim_am):
+        raise HTTPException(404, "Keine Online-Einwilligung hinterlegt.")
+    import io
+    from fastapi.responses import StreamingResponse
+    from dsgvo_pdf import build_dsgvo_pdf
+    pdf = build_dsgvo_pdf(d)
+    fname = f"DSGVO-Einwilligung_{d.vorname}_{d.nachname}.pdf".replace(" ", "_")
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
 @router.get("/dienstleister/{did}/edit", response_class=HTMLResponse)
 def dienstleister_edit(request: Request, did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()

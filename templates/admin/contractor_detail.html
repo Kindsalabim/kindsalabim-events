@@ -71,6 +71,11 @@
         {% if d.gewerbeschein_r2_key %}<a href="/admin/dienstleister/{{ d.id }}/gewerbeschein/view" target="_blank" rel="noopener" class="underline" style="color:var(--brand-primary);">✓ hochgeladen{% if d.gewerbeschein_hochgeladen_am %} ({{ d.gewerbeschein_hochgeladen_am[:10] }}){% endif %} – ansehen</a>
         {% elif d.gewerbeschein_vorliegt %}<span style="color:var(--brand-primary);">✓ liegt vor</span>
         {% else %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">fehlt – Zusagen gesperrt</span>{% endif %}</dd></div>
+      {% if d.dsgvo_knallfrosch_am %}
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">DSGVO-Nachweis</dt><dd class="text-right"><a href="/admin/dienstleister/{{ d.id }}/dsgvo.pdf" class="underline" style="color:var(--brand-primary);">Nachweis-PDF herunterladen</a></dd></div>
+      {% endif %}
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Lager-Mitnahme (Rüttenscheid)</dt><dd class="text-gray-800 text-right">{% if d.lager_transport_bereit %}<span style="color:var(--brand-primary);">✓ kann sich das vorstellen</span>{% else %}–{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Kastenwagen</dt><dd class="text-gray-800 text-right">{% if d.kastenwagen_ok %}<span style="color:var(--brand-primary);">✓ traut es sich zu</span>{% else %}–{% endif %}</dd></div>
     </dl>
   </div>
 

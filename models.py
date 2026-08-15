@@ -156,6 +156,9 @@ class Dienstleister(Base):
     dsgvo_name           = Column(String)   # eingetippter Name bei der Online-Einwilligung
     dsgvo_knallfrosch_am = Column(String)   # ISO-Datetime der Einwilligung (Malca & Akmanoglu GbR)
     dsgvo_kindsalabim_am = Column(String)   # ISO-Datetime der Einwilligung (Aykut Malca | Kindsalabim)
+    dsgvo_ip             = Column(String)   # IP bei der Online-Einwilligung (Nachweis)
+    lager_transport_bereit = Column(Boolean, default=False)  # würde Material vom Lager (Essen-Rüttenscheid) mitnehmen
+    kastenwagen_ok         = Column(Boolean, default=False)  # traut sich zu, einen Kastenwagen zu fahren
     gewerbeschein_r2_key         = Column(String)   # hochgeladener Gewerbeschein (R2)
     gewerbeschein_filename       = Column(String)
     gewerbeschein_hochgeladen_am = Column(String)   # ISO-Datetime
