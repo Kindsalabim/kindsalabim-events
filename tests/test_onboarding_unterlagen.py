@@ -167,6 +167,13 @@ def test_einladung_startet_gewerbeschein_uhr(admin, mails):
     assert any("Willkommen" in m[1] for m in mails)
 
 
+def test_einladung_zeigt_erfolgsmeldung_in_der_liste(admin):
+    did = _neuer_dl(vorname="Banner", nachname="Test")
+    r = admin.post(f"/admin/dienstleister/{did}/einladung", follow_redirects=False)
+    h = admin.get(r.headers["location"]).text
+    assert "Einladung verschickt" in h and "Banner Test" in h
+
+
 def test_einladung_startet_keine_uhr_bei_bestand(admin):
     did = _neuer_dl(gewerbeschein_vorliegt=True)
     admin.post(f"/admin/dienstleister/{did}/einladung", follow_redirects=False)

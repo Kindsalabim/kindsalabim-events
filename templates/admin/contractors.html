@@ -18,6 +18,13 @@
   ✓ Dienstleister wurde gelöscht.
 </div>
 {% endif %}
+{% if request.query_params.get('einladung_sent') %}
+{% set sent = dienstleister | selectattr('id', 'equalto', request.query_params.get('einladung_sent') | int) | first %}
+<div class="mb-5 rounded-lg px-4 py-3 text-sm font-medium" style="background: var(--c-green-bg); color: var(--c-green);">
+  ✓ Einladung verschickt{% if sent %} an <strong>{{ sent.vorname }} {{ sent.nachname }}</strong> ({{ sent.email }}){% endif %}.
+  Falls die Mail nicht ankommt: E-Mail-Adresse im Profil prüfen und erneut auf „Einladen" klicken.
+</div>
+{% endif %}
 
 <div class="flex items-center justify-between mb-6">
   <div>
