@@ -18,6 +18,11 @@
   ✓ Dienstleister wurde gelöscht.
 </div>
 {% endif %}
+{% if request.query_params.get('agb_angefragt') %}
+<div class="mb-5 rounded-lg px-4 py-3 text-sm font-medium" style="background: var(--c-green-bg); color: var(--c-green);">
+  ✓ AGB-Anschreiben an {{ request.query_params.get('agb_angefragt') }} Dienstleister verschickt. Bestätigungen erscheinen als Glocke und in der jeweiligen Karte.
+</div>
+{% endif %}
 {% if request.query_params.get('einladung_sent') %}
 {% set sent = dienstleister | selectattr('id', 'equalto', request.query_params.get('einladung_sent') | int) | first %}
 <div class="mb-5 rounded-lg px-4 py-3 text-sm font-medium" style="background: var(--c-green-bg); color: var(--c-green);">
@@ -32,6 +37,11 @@
     <p class="text-sm text-gray-500 mt-0.5">{{ dienstleister | length }} Einträge</p>
   </div>
   <div class="flex items-center gap-3">
+    <form method="post" action="/admin/dienstleister/agb-anfrage"
+          onsubmit="return confirm('AGB-Anschreiben an ALLE aktiven Dienstleister senden, die die Einkaufsbedingungen noch nicht bestätigt haben?\n\nJeder bekommt eine E-Mail mit Link zum Portal (Lesen + Häkchen). Bereits Bestätigte werden nicht angeschrieben.')">
+      <button class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+              title="Bestands-Rollout: bittet alle aktiven Dienstleister ohne AGB-Bestätigung per Mail um die Online-Bestätigung im Portal">✉ AGB-Bestätigung anfordern</button>
+    </form>
     <a href="/admin/dienstleister/export.csv" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">↓ CSV-Export</a>
     <a href="/admin/import" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">↑ CSV-Import</a>
     <a href="/admin/dienstleister/new" class="btn-primary">

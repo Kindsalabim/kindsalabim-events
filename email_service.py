@@ -377,6 +377,34 @@ def send_gewerbeschein_erinnerung(dienstleister, base_url: str):
           _wrap(content, "#003864", cfg, beide_logos=True))
 
 
+def send_agb_anfrage(dienstleister, base_url: str):
+    """Bestands-Anschreiben: Bitte um Online-Bestätigung der Einkaufs-AGB im Portal."""
+    cfg = get_config()
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      wir haben die Rahmenbedingungen unserer Zusammenarbeit in aktualisierten
+      <strong>Einkaufsbedingungen (AGB, Stand 03.03.2025)</strong> festgehalten – sie regeln
+      z.&nbsp;B. Vergütung, Rechnungsstellung und Vertraulichkeit für unsere beiden Firmen
+      (Kindsalabim &amp; Knallfrosch). Es ändert sich nichts an unserer bisherigen Praxis –
+      die Bedingungen halten sie nur sauber fest.
+    </p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
+      Bitte lies sie einmal in Ruhe durch und bestätige sie kurz in deinem Profil.
+      Dauert keine Minute.
+    </p>
+    <a href="{base_url}/portal/profil"
+       style="display:inline-block;background:#003864;color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Bedingungen lesen &amp; bestätigen →
+    </a>
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
+      Login wie immer per Magic-Link (E-Mail eingeben, Link klicken). Bei Fragen melde dich einfach.
+    </p>"""
+    _send(dienstleister.email, "Bitte kurz bestätigen: unsere Zusammenarbeits-Bedingungen",
+          _wrap(content, "#003864", cfg, beide_logos=True))
+
+
 def send_dsgvo_nachweis(dienstleister, pdf: bytes, zeitpunkt: str):
     """Nachweis-PDF der Online-Einwilligung: ans Büro (Backup im Postfach) und als
     Kopie an den Dienstleister (Transparenz nach Art. 7 DSGVO)."""

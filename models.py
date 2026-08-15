@@ -159,6 +159,14 @@ class Dienstleister(Base):
     dsgvo_ip             = Column(String)   # IP bei der Online-Einwilligung (Nachweis)
     lager_transport_bereit = Column(Boolean, default=False)  # würde Material vom Lager (Essen-Rüttenscheid) mitnehmen
     kastenwagen_ok         = Column(Boolean, default=False)  # traut sich zu, einen Kastenwagen zu fahren
+
+    # Scheinselbstständigkeits-Vorsorge (Selbstauskunft + AGB + Anwalts-Scoring)
+    agb_akzeptiert_am    = Column(String)   # ISO-Datetime der Online-AGB-Bestätigung (beide Firmen)
+    agb_ip               = Column(String)   # IP bei der AGB-Bestätigung (Nachweis)
+    weitere_auftraggeber = Column(Boolean, default=False)  # Selbstauskunft: arbeitet auch für andere Auftraggeber
+    betriebshaftpflicht  = Column(Boolean, default=False)  # Selbstauskunft: eigene Betriebshaftpflicht vorhanden
+    scoring_json         = Column(Text)     # Anwalts-Scoring V7: {"kriterium_key": 0-3, ...}
+    scoring_datum        = Column(String)   # ISO-Datum der letzten Scoring-Bewertung
     gewerbeschein_r2_key         = Column(String)   # hochgeladener Gewerbeschein (R2)
     gewerbeschein_filename       = Column(String)
     gewerbeschein_hochgeladen_am = Column(String)   # ISO-Datetime

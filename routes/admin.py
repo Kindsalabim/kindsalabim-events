@@ -1894,8 +1894,80 @@ def dienstleister_detail(request: Request, did: int, db: Session = Depends(get_d
         Verfuegbarkeitsanfrage.dienstleister_id == did
     ).all()
     anfragen = sorted(anfragen, key=lambda a: a.event.datum or date.min, reverse=True)
+    import scoring
+    sc_werte = scoring.parse_werte(d.scoring_json)
+    sc_score = scoring.gesamt_score(sc_werte)
     return templates.TemplateResponse("admin/contractor_detail.html",
-        tpl_context(request, d=d, anfragen=anfragen))
+        tpl_context(request, d=d, anfragen=anfragen,
+                    sc_kriterien=scoring.KRITERIEN, sc_werte=sc_werte,
+                    sc_score=sc_score, sc_ampel=scoring.ampel(sc_score),
+                    sc_kritisch=scoring.KRITISCH, sc_warn=scoring.WARN,
+                    sc_auspraegungen=scoring.AUSPRAEGUNGEN))
+
+
+@router.post("/dienstleister/{did}/scoring")
+async def dienstleister_scoring_save(request: Request, did: int,
+                                     db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Speichert das Scheinselbstständigkeits-Scoring (Anwalts-System V7) aus der Karte."""
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d: raise HTTPException(404)
+    import json as _json
+    import scoring
+    form = await request.form()
+    werte = {}
+    for key, _, _gewicht in scoring.KRITERIEN:
+        try:
+            werte[key] = min(3, max(0, int(form.get(f"sc_{key}", "0"))))
+        except (ValueError, TypeError):
+            werte[key] = 0
+    d.scoring_json = _json.dumps(werte)
+    d.scoring_datum = date.today().isoformat()
+    db.commit()
+    return RedirectResponse(f"/admin/dienstleister/{did}?scoring=1#scoring", status_code=303)
+
+
+@router.get("/dienstleister/{did}/dossier.pdf")
+def dienstleister_dossier_pdf(did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Nachweis-Dossier: dokumentierte freie Auftragsannahme, Unterlagen-Status,
+    komplette Anfrage-Historie und Sperrzeiten – für den Prüfungs-/Streitfall."""
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d: raise HTTPException(404)
+    anfragen = db.query(Verfuegbarkeitsanfrage).options(
+        joinedload(Verfuegbarkeitsanfrage.event)).filter(
+        Verfuegbarkeitsanfrage.dienstleister_id == did).all()
+    sperrzeiten = db.query(DienstleisterSperrzeit).filter(
+        DienstleisterSperrzeit.dienstleister_id == did
+    ).order_by(DienstleisterSperrzeit.von_datum).all()
+    import io
+    from fastapi.responses import StreamingResponse
+    from dossier_pdf import build_dossier_pdf
+    pdf = build_dossier_pdf(d, anfragen, sperrzeiten)
+    fname = f"Dossier_{d.vorname}_{d.nachname}.pdf".replace(" ", "_")
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.post("/dienstleister/agb-anfrage")
+def dienstleister_agb_anfrage(request: Request, db: Session = Depends(get_db),
+                              _=Depends(get_admin_user)):
+    """Schickt allen aktiven Dienstleistern OHNE AGB-Bestätigung das Anschreiben
+    mit Link ins Portal (Bestands-Rollout, bewusst nur per Admin-Klick)."""
+    base_url = str(request.base_url).rstrip("/")
+    offene = db.query(Dienstleister).filter(
+        Dienstleister.aktiv == True,                 # noqa: E712
+        Dienstleister.agb_akzeptiert_am == None,     # noqa: E711
+    ).all()
+    from email_service import send_agb_anfrage
+    count = 0
+    for d in offene:
+        if not (d.email and "@" in d.email):
+            continue
+        try:
+            send_agb_anfrage(d, base_url)
+            count += 1
+        except Exception as e:
+            print(f"AGB-Anschreiben fehlgeschlagen für {d.email}: {e}")
+    return RedirectResponse(f"/admin/dienstleister?agb_angefragt={count}", status_code=303)
 
 @router.get("/dienstleister/{did}/dsgvo.pdf")
 def dienstleister_dsgvo_pdf(did: int, db: Session = Depends(get_db), _=Depends(get_admin_user)):

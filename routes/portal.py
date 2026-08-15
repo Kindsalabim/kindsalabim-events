@@ -476,6 +476,8 @@ def portal_profil_save(
     stadt: str = Form(""), kleidergroesse: str = Form(""),
     fuehrerschein: bool = Form(False), mobilitaet: str = Form("Auto"),
     lager_transport_bereit: bool = Form(False), kastenwagen_ok: bool = Form(False),
+    website: str = Form(""), weitere_auftraggeber: bool = Form(False),
+    betriebshaftpflicht: bool = Form(False),
     db: Session = Depends(get_db), user=Depends(get_portal_user),
 ):
     did = int(user["sub"])
@@ -495,14 +497,16 @@ def portal_profil_save(
     aenderungen = []
     for attr, neu in [("telefon", telefon), ("strasse", strasse), ("plz", plz),
                       ("stadt", stadt), ("kleidergroesse", kleidergroesse),
-                      ("mobilitaet", mobilitaet)]:
+                      ("mobilitaet", mobilitaet), ("website", website)]:
         neu = neu.strip() or None
         if getattr(d, attr) != neu:
             setattr(d, attr, neu)
             aenderungen.append(attr)
     for attr, neu in [("fuehrerschein", fuehrerschein),
                       ("lager_transport_bereit", lager_transport_bereit),
-                      ("kastenwagen_ok", kastenwagen_ok)]:
+                      ("kastenwagen_ok", kastenwagen_ok),
+                      ("weitere_auftraggeber", weitere_auftraggeber),
+                      ("betriebshaftpflicht", betriebshaftpflicht)]:
         if bool(getattr(d, attr)) != bool(neu):
             setattr(d, attr, bool(neu))
             aenderungen.append(attr)
@@ -512,7 +516,10 @@ def portal_profil_save(
                   "kleidergroesse": "Kleidergröße", "mobilitaet": "Mobilität",
                   "fuehrerschein": "Führerschein",
                   "lager_transport_bereit": "Lager-Mitnahme möglich",
-                  "kastenwagen_ok": "Kastenwagen zutrauen"}
+                  "kastenwagen_ok": "Kastenwagen zutrauen",
+                  "website": "Website/Profil-Link",
+                  "weitere_auftraggeber": "Weitere Auftraggeber",
+                  "betriebshaftpflicht": "Betriebshaftpflicht"}
         notify(db, "dl_unterlagen", f"Profil aktualisiert: {d.vorname} {d.nachname}",
                f"{d.vorname} {d.nachname} hat im Portal folgende Angaben aktualisiert: "
                + ", ".join(labels.get(a, a) for a in aenderungen) + ".",
@@ -559,6 +566,38 @@ def portal_profil_dsgvo(
     except Exception as e:
         print(f"DSGVO-Nachweis-Mail fehlgeschlagen (DL {d.id}): {e}")
     return RedirectResponse("/portal/profil?dsgvo=1", status_code=303)
+
+
+# ── AGB (Einkaufsbedingungen) ─────────────────────────────────────────────────
+
+@router.get("/agb", response_class=HTMLResponse)
+def portal_agb(request: Request, user=Depends(get_portal_user)):
+    """Einkaufs-AGB – jederzeit im Portal einsehbar (beide Firmen, Stand 03.03.2025)."""
+    return templates.TemplateResponse("portal/agb.html", tpl_context(request))
+
+
+@router.post("/profil/agb")
+def portal_profil_agb(
+    request: Request,
+    agb_akzeptiert: bool = Form(False),
+    db: Session = Depends(get_db), user=Depends(get_portal_user),
+):
+    did = int(user["sub"])
+    d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
+    if not d:
+        return RedirectResponse("/portal/login", status_code=303)
+    if not agb_akzeptiert:
+        return RedirectResponse("/portal/profil?agb_fehler=1", status_code=303)
+    d.agb_akzeptiert_am = datetime.now().isoformat(timespec="seconds")
+    d.agb_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+                or (request.client.host if request.client else None))
+    from notifications import notify
+    notify(db, "dl_unterlagen", f"AGB bestätigt: {d.vorname} {d.nachname}",
+           f"{d.vorname} {d.nachname} hat die Einkaufsbedingungen (Stand 03.03.2025) "
+           f"für beide Firmen im Portal bestätigt.",
+           f"/admin/dienstleister/{d.id}")
+    db.commit()
+    return RedirectResponse("/portal/profil?agb=1", status_code=303)
 
 
 # ── Sperrzeiten (Nicht-Verfügbarkeit) ─────────────────────────────────────────

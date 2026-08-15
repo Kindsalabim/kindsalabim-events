@@ -74,9 +74,47 @@
       {% if d.dsgvo_knallfrosch_am %}
       <div class="flex justify-between gap-4"><dt class="text-gray-500">DSGVO-Nachweis</dt><dd class="text-right"><a href="/admin/dienstleister/{{ d.id }}/dsgvo.pdf" class="underline" style="color:var(--brand-primary);">Nachweis-PDF herunterladen</a></dd></div>
       {% endif %}
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Einkaufs-AGB</dt><dd class="text-right">{% if d.agb_akzeptiert_am %}<span style="color:var(--brand-primary);">✓ bestätigt am {{ d.agb_akzeptiert_am[:10] }}</span>{% else %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);">noch nicht bestätigt</span>{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Lager-Mitnahme (Rüttenscheid)</dt><dd class="text-gray-800 text-right">{% if d.lager_transport_bereit %}<span style="color:var(--brand-primary);">✓ kann sich das vorstellen</span>{% else %}–{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Kastenwagen</dt><dd class="text-gray-800 text-right">{% if d.kastenwagen_ok %}<span style="color:var(--brand-primary);">✓ traut es sich zu</span>{% else %}–{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Weitere Auftraggeber</dt><dd class="text-gray-800 text-right">{% if d.weitere_auftraggeber %}<span style="color:var(--brand-primary);">✓ lt. Selbstauskunft ja</span>{% else %}keine Angabe{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Betriebshaftpflicht</dt><dd class="text-gray-800 text-right">{% if d.betriebshaftpflicht %}<span style="color:var(--brand-primary);">✓ lt. Selbstauskunft ja</span>{% else %}keine Angabe{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Nachweis-Dossier</dt><dd class="text-right"><a href="/admin/dienstleister/{{ d.id }}/dossier.pdf" class="underline" style="color:var(--brand-primary);" title="Komplette dokumentierte Zusammenarbeit (freie Zu-/Absagen, Unterlagen, Sperrzeiten) als PDF – für den Prüfungsfall">Dossier-PDF herunterladen</a></dd></div>
     </dl>
+  </div>
+
+  <!-- Scheinselbstständigkeits-Scoring (Anwalts-System V7, nur intern) -->
+  <div class="card p-6" id="scoring">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Status-Scoring (intern)</h2>
+      {% if sc_werte %}
+      <span class="text-xs font-bold px-2.5 py-1 rounded-full"
+        style="{% if sc_ampel == 'rot' %}background:var(--c-danger-bg);color:var(--c-danger);{% elif sc_ampel == 'gelb' %}background:var(--c-amber-bg);color:var(--c-amber);{% else %}background:var(--c-green-bg);color:var(--c-green);{% endif %}">
+        {% if sc_ampel == 'rot' %}🔴{% elif sc_ampel == 'gelb' %}🟡{% else %}🟢{% endif %} {{ sc_score }} Punkte
+      </span>
+      {% endif %}
+    </div>
+    <p class="text-xs text-gray-500 mb-1">Scheinselbstständigkeits-Scoring nach dem System von Dr. Grunewald (V7): Ausprägung 0–3 je Kriterium, Score = Gewicht × Ausprägung. <strong>Ab {{ sc_kritisch }} Punkten kritisch</strong> (ab {{ sc_warn }} Warnzone). Nur intern sichtbar.</p>
+    {% if d.scoring_datum %}<p class="text-xs text-gray-500 mb-2">Zuletzt bewertet: {{ d.scoring_datum }}</p>{% endif %}
+    {% if request.query_params.get('scoring') %}
+    <p class="text-xs font-medium mb-2 px-3 py-2 rounded-lg" style="background:var(--c-green-bg);color:var(--c-green);">✓ Scoring gespeichert.</p>
+    {% endif %}
+    <details {% if not sc_werte %}{% else %}open{% endif %}>
+      <summary class="text-sm font-medium cursor-pointer" style="color:var(--brand-primary);">{% if sc_werte %}Bewertung anzeigen/ändern{% else %}Jetzt bewerten (ca. 2 Minuten){% endif %}</summary>
+      <form method="post" action="/admin/dienstleister/{{ d.id }}/scoring" class="mt-3 space-y-1.5">
+        {% for key, label, gewicht in sc_kriterien %}
+        <div class="flex items-center justify-between gap-3 py-1" style="border-bottom:1px solid #f3f4f6;">
+          <label class="text-xs text-gray-700 flex-1">{{ label }} <span class="text-gray-500">(×{{ gewicht }})</span></label>
+          <select name="sc_{{ key }}" class="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white focus-ring">
+            {% for i in range(4) %}
+            <option value="{{ i }}" {% if sc_werte.get(key, 0) == i %}selected{% endif %}>{{ sc_auspraegungen[i] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+        <button class="btn-primary text-xs px-4 py-2 mt-2">Scoring speichern</button>
+      </form>
+    </details>
   </div>
 
   <!-- Notizen -->

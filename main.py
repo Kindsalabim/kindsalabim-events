@@ -171,6 +171,13 @@ def run_migrations():
     add_column("dienstleister", "dsgvo_ip", "VARCHAR")
     add_column("dienstleister", "lager_transport_bereit", "BOOLEAN DEFAULT 0")
     add_column("dienstleister", "kastenwagen_ok", "BOOLEAN DEFAULT 0")
+    # Scheinselbstständigkeits-Vorsorge
+    add_column("dienstleister", "agb_akzeptiert_am", "VARCHAR")
+    add_column("dienstleister", "agb_ip", "VARCHAR")
+    add_column("dienstleister", "weitere_auftraggeber", "BOOLEAN DEFAULT 0")
+    add_column("dienstleister", "betriebshaftpflicht", "BOOLEAN DEFAULT 0")
+    add_column("dienstleister", "scoring_json", "TEXT")
+    add_column("dienstleister", "scoring_datum", "VARCHAR")
     add_column("dienstleister", "gewerbeschein_r2_key", "VARCHAR")
     add_column("dienstleister", "gewerbeschein_filename", "VARCHAR")
     add_column("dienstleister", "gewerbeschein_hochgeladen_am", "VARCHAR")

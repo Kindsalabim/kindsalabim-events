@@ -489,6 +489,10 @@ story = [
         "<b>DSGVO-Nachweis:</b> Bei jeder Online-Einwilligung geht automatisch ein <b>Nachweis-PDF</b> "
         "(Text, Name, Zeitstempel, IP) per Mail ans Büro und als Kopie an den Dienstleister; "
         "zusätzlich ist es jederzeit über die Dienstleisterkarte abrufbar.",
+        "<b>Einkaufs-AGB:</b> Die Vertragsbedingungen (Stand 03.03.2025, beide Firmen) sind unter "
+        "Portal → AGB jederzeit einsehbar und werden im Profil per Häkchen bestätigt (Zeitstempel + "
+        "IP als Nachweis). Bestandsdienstleister erreicht der Knopf „AGB-Bestätigung anfordern“ "
+        "in der Dienstleister-Liste.",
         "<b>Zusage-Sperre:</b> Ohne DSGVO-Einwilligung + Gewerbeschein kann ein Dienstleister keine "
         "Jobs annehmen (Absagen geht immer). Das Portal zeigt ihm dauerhaft einen Hinweis; zusätzlich "
         "erinnert ihn die App wöchentlich per Mail an den fehlenden Gewerbeschein.",
@@ -549,6 +553,11 @@ story = [
         "Alle Bestandsdienstleister wurden beim Update automatisch so markiert.",
         "Urlaub/Sperrzeiten pflegen Dienstleister selbst im Portal – gesperrte Personen rutschen in den "
         "Anfrage-Listen automatisch nach unten.",
+        "<b>Scheinselbstständigkeits-Vorsorge in der Karte:</b> Das interne <b>Status-Scoring</b> "
+        "(Anwalts-System, Ampel 🟢/🟡/🔴, ab 130 Punkten kritisch) bewertet jeden Dienstleister in "
+        "ca. 2 Minuten. Das <b>Nachweis-Dossier</b> (PDF-Knopf in der Karte) dokumentiert für den "
+        "Prüfungsfall die freie Auftragsannahme: alle angebotenen, angenommenen und abgelehnten "
+        "Anfragen, Fristverlängerungen, Sperrzeiten und Unterlagen-Status.",
     ]),
     *shots("dienstleister", 160, "Dienstleister-Liste (volle Breite, Name und Knöpfe bleiben fixiert)."),
 
