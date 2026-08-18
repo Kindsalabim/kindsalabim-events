@@ -79,24 +79,12 @@ def _stadt(ort: str) -> str:
     return ort.split(",")[-1].strip()
 
 
-def _event_art(ev) -> str:
-    """Leitet das Kalender-Kürzel aus den gebuchten Aktionen (`ev.produkte` +
-    `produkte_freitext`) ab.
-    (WORKSHOP) sobald irgendein Workshop gebucht ist – Großbuchstaben, damit es
-    Aykut Tage vorher ins Auge springt (er muss dann selbst anwesend sein; ein
-    „(div.)" würde fälschlich nach „diverse Aktionen ohne mich" aussehen) ·
-    (Z) nur Zaubershow · (ZB) Zaubershow+Ballonmodellage · (B) nur Ballonmodellage ·
-    (Kischmi.) nur Kinderschminken · (div.) alles andere/Gemischte."""
-    roh = ", ".join(filter(None, [getattr(ev, "produkte", None) or "",
-                                  getattr(ev, "produkte_freitext", None) or ""]))
-    produkte = [p.strip().lower() for p in roh.split(",") if p.strip()]
-    aktiv = [p for p in produkte if p != "kein material"]   # Marker, keine Aktivität
-    if any("workshop" in p for p in aktiv):
-        return "WORKSHOP"
+def _kurz_von(aktiv) -> str:
+    """Einzel-Kürzel für eine Aktionsliste (ohne Workshop-Logik)."""
     zauber  = any("zaubershow" in p for p in aktiv)
     ballon  = any("ballonmod" in p for p in aktiv)
     schmink = any("schmink" in p for p in aktiv)
-    # Aktivität ohne eigenes Einzel-Kürzel (Bastel, Hüpfburg, Zauberworkshop, …)
+    # Aktivität ohne eigenes Einzel-Kürzel (Bastel, Hüpfburg, …)
     andere  = any(not ("zaubershow" in p or "ballonmod" in p or "schmink" in p) for p in aktiv)
     if not andere:
         if zauber and ballon and not schmink:   return "ZB"
@@ -104,6 +92,29 @@ def _event_art(ev) -> str:
         if ballon and not zauber and not schmink: return "B"
         if schmink and not zauber and not ballon: return "Kischmi."
     return "div."
+
+
+def _event_art(ev) -> str:
+    """Leitet das Kalender-Kürzel aus den gebuchten Aktionen (`ev.produkte` +
+    `produkte_freitext`) ab.
+    WORKSHOP dominiert in Großbuchstaben, damit es Aykut Tage vorher ins Auge
+    springt (er muss dann selbst anwesend sein; ein „(div.)" würde fälschlich
+    nach „diverse Aktionen ohne mich" aussehen). Kombinationen zeigen beides:
+    (WORKSHOP+Z) / (WORKSHOP+B) / (WORKSHOP+ZB) / (WORKSHOP+Kischmi.);
+    Workshop + gemischte Sonstiges bleibt schlicht (WORKSHOP).
+    Ohne Workshop: (Z) · (ZB) · (B) · (Kischmi.) · (div.) wie bisher."""
+    roh = ", ".join(filter(None, [getattr(ev, "produkte", None) or "",
+                                  getattr(ev, "produkte_freitext", None) or ""]))
+    produkte = [p.strip().lower() for p in roh.split(",") if p.strip()]
+    aktiv = [p for p in produkte if p != "kein material"]   # Marker, keine Aktivität
+    workshops = [p for p in aktiv if "workshop" in p]
+    rest = [p for p in aktiv if "workshop" not in p]
+    if workshops:
+        if not rest:
+            return "WORKSHOP"
+        rk = _kurz_von(rest)
+        return "WORKSHOP" if rk == "div." else f"WORKSHOP+{rk}"
+    return _kurz_von(aktiv)
 
 
 def _title(ev) -> str:
