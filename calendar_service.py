@@ -80,11 +80,19 @@ def _stadt(ort: str) -> str:
 
 
 def _event_art(ev) -> str:
-    """Leitet das Kalender-Kürzel aus den gebuchten Aktionen (`ev.produkte`) ab.
+    """Leitet das Kalender-Kürzel aus den gebuchten Aktionen (`ev.produkte` +
+    `produkte_freitext`) ab.
+    (WORKSHOP) sobald irgendein Workshop gebucht ist – Großbuchstaben, damit es
+    Aykut Tage vorher ins Auge springt (er muss dann selbst anwesend sein; ein
+    „(div.)" würde fälschlich nach „diverse Aktionen ohne mich" aussehen) ·
     (Z) nur Zaubershow · (ZB) Zaubershow+Ballonmodellage · (B) nur Ballonmodellage ·
     (Kischmi.) nur Kinderschminken · (div.) alles andere/Gemischte."""
-    produkte = [p.strip().lower() for p in (getattr(ev, "produkte", None) or "").split(",") if p.strip()]
+    roh = ", ".join(filter(None, [getattr(ev, "produkte", None) or "",
+                                  getattr(ev, "produkte_freitext", None) or ""]))
+    produkte = [p.strip().lower() for p in roh.split(",") if p.strip()]
     aktiv = [p for p in produkte if p != "kein material"]   # Marker, keine Aktivität
+    if any("workshop" in p for p in aktiv):
+        return "WORKSHOP"
     zauber  = any("zaubershow" in p for p in aktiv)
     ballon  = any("ballonmod" in p for p in aktiv)
     schmink = any("schmink" in p for p in aktiv)

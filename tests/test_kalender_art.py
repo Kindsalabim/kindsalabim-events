@@ -45,8 +45,22 @@ def test_art_zaubershow_mit_anderer_aktion_ist_div():
     assert _event_art(_ev("Zaubershow, Glitzertattoos")) == "div."
 
 
-def test_art_zauberworkshop_ist_div():
-    assert _event_art(_ev("Zauberworkshop")) == "div."
+def test_art_workshop_dominiert_immer():
+    # WORKSHOP in Großbuchstaben, damit es Tage vorher ins Auge springt (Aykut
+    # muss selbst anwesend sein) – schlägt jedes andere Kürzel, auch Kombis.
+    assert _event_art(_ev("Zauberworkshop")) == "WORKSHOP"
+    assert _event_art(_ev("Zaubershow, Zauberworkshop")) == "WORKSHOP"
+    assert _event_art(_ev("Bunter Bastelspaß, Zauberworkshop, Kinderschminken")) == "WORKSHOP"
+
+
+def test_art_workshop_auch_aus_freitext_aktion():
+    ev = _ev("Zaubershow")
+    ev.produkte_freitext = "Workshop Luftballontiere"
+    assert _event_art(ev) == "WORKSHOP"
+
+
+def test_title_workshop_grossgeschrieben():
+    assert _title(_ev("Zauberworkshop")).startswith("(WORKSHOP) ")
 
 
 def test_art_leer_ist_div():
