@@ -127,6 +127,10 @@ def portal_briefing_pdf(event_id: int, db: Session = Depends(get_db),
         Verfuegbarkeitsanfrage.status == "Ja").first()
     if not zugesagt and ev.teamleiter_id != did:
         raise HTTPException(403)
+    # Erst nach dem Briefing-Versand: Vorher wäre die PDF unvollständig
+    # (Checkliste/Team fehlen noch) und sorgt für Rückfragen.
+    if not ev.briefing_verfuegbar:
+        return RedirectResponse("/portal?briefing_offen=1", status_code=303)
     # Gleiche Team-/Regel-Zusammenstellung wie in der Admin-PDF-Route.
     confirmed = db.query(Verfuegbarkeitsanfrage).filter(
         Verfuegbarkeitsanfrage.event_id == event_id,

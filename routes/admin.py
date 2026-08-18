@@ -1588,6 +1588,7 @@ def send_briefing_route(
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     base_url = str(request.base_url).rstrip("/")
     ev.status = "Briefing gesendet"
+    ev.briefing_gesendet_am = datetime.now().isoformat(timespec="seconds")  # schaltet den Portal-Download frei
     db.commit()
     # Versand (R2-Download + Mails) im Hintergrund – die Seite kehrt sofort zurück.
     background_tasks.add_task(_briefing_versenden_async, event_id, base_url)

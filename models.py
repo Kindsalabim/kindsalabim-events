@@ -55,6 +55,14 @@ class Event(Base):
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
     teamleiter_mail_gesendet = Column(Boolean, default=False)  # Info-Mail an Kunden (1 Woche vorher) versendet?
     bericht_erinnerung_am = Column(String)  # ISO-Datetime der letzten Bericht-Erinnerung an den Teamleiter (None = nie)
+    briefing_gesendet_am = Column(String)   # ISO-Datetime des (letzten) Briefing-Versands – schaltet den Portal-Download frei
+
+    @property
+    def briefing_verfuegbar(self):
+        """Portal-Download erst nach dem Briefing-Versand (vorher wäre die PDF
+        unvollständig und sorgt für Rückfragen). Status-Fallback deckt Events ab,
+        deren Briefing vor Einführung des Zeitstempels verschickt wurde."""
+        return bool(self.briefing_gesendet_am) or self.status in ("Briefing gesendet", "Abgeschlossen")
 
     # Eventbericht (vom Teamleiter nach dem Event im Portal ausgefüllt)
     bericht_eingereicht_am = Column(String)

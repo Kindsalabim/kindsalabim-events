@@ -53,6 +53,11 @@
     </div>
     {% endif %}
 
+    {% if request.query_params.get('briefing_offen') %}
+    <div class="card p-4" style="background: var(--c-amber-bg);">
+      <p class="text-sm font-medium" style="color: var(--c-amber);">Dein Briefing ist noch nicht fertig. Du bekommst es rechtzeitig vor dem Event per E-Mail – danach steht es auch hier zum Download bereit.</p>
+    </div>
+    {% endif %}
     {% if request.query_params.get('bericht') %}
     <div class="card p-4" style="background: var(--c-green-bg);">
       <p class="text-sm font-medium" style="color: var(--c-green);">✓ Danke! Dein Eventbericht wurde gespeichert.</p>
@@ -269,11 +274,17 @@
             </span>
           </div>
 
+          {% if a.event.briefing_verfuegbar %}
           <a href="/portal/events/{{ a.event.id }}/briefing.pdf"
              class="mt-3 flex items-center justify-center gap-2 w-full text-xs font-semibold py-2.5 rounded-xl transition"
              style="background: {% if is_kf %}var(--kf-bg){% else %}var(--brand-primary-light){% endif %}; color: {% if is_kf %}var(--kf){% else %}var(--brand-primary){% endif %};">
             {{ ic('download', 14) }} Briefing als PDF speichern
           </a>
+          {% else %}
+          <p class="mt-3 px-3.5 py-2.5 rounded-xl text-xs" style="background:#f3f4f6; color: var(--ink-3);">
+            📋 Dein Briefing mit allen Details (Treffpunkt, Ablauf, Team) bekommst du rechtzeitig vor dem Event – per E-Mail und dann auch hier zum Download.
+          </p>
+          {% endif %}
 
           {% if a.id in absage_gesperrt %}
           <div class="mt-3 px-3.5 py-2.5 rounded-xl text-xs" style="background: var(--c-danger-bg); color: var(--c-danger);">
