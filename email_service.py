@@ -377,6 +377,38 @@ def send_gewerbeschein_erinnerung(dienstleister, base_url: str):
           _wrap(content, "#003864", cfg, beide_logos=True))
 
 
+def send_bestellung(dienstleister, event, pdf: bytes, dateiname: str):
+    """Automatische Bestellung (Anwaltsvorlage) direkt nach der Zusage – markenrein."""
+    cfg = get_config()
+    is_kf = event.marke == "Knallfrosch"
+    color = "#1a7a1a" if is_kf else "#003864"
+    datum = event.datum.strftime("%d.%m.%Y")
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      danke für deine Zusage zu <strong>{event.anlass or 'unserem Event'}</strong> am
+      <strong>{datum}</strong>! Im Anhang findest du unsere <strong>Bestellung</strong> für
+      diesen Auftrag – mit den Eckdaten und der voraussichtlichen Vergütung.
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+      Abgerechnet wird wie immer deine tatsächlich erbrachte Leistung über deine Rechnung –
+      die Bestellung dient der Übersicht und muss nicht unterschrieben werden.
+    </p>
+    <p style="margin:0 0 16px;padding:12px 14px;background:#f3f6fa;border-radius:8px;
+              font-size:14px;color:#374151;line-height:1.6;">
+      <strong>Wichtig:</strong> Die genannte Summe ist eine Kalkulationsgrundlage.
+      Dauert der Einsatz länger, sollst du früher da sein oder kommt vor Ort etwas hinzu,
+      schreibst du den tatsächlichen Aufwand einfach auf deine Rechnung – Auf- und Abbauzeit,
+      Fahrzeit und Nebenkosten wie Parkgebühren inklusive. Eine Rückfrage vorab brauchst du dafür nicht.
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+      Alle Details zu Ablauf und Treffpunkt bekommst du wie gewohnt rechtzeitig mit dem Briefing.
+    </p>"""
+    _deliver(dienstleister.email,
+             f"Bestellung: {event.anlass or 'Event'} am {datum}",
+             _wrap(content, color, cfg), [(dateiname, pdf)])
+
+
 def send_agb_anfrage(dienstleister, base_url: str):
     """Bestands-Anschreiben: Bitte um Online-Bestätigung der Einkaufs-AGB im Portal."""
     cfg = get_config()
@@ -509,7 +541,7 @@ def send_bericht_erinnerung(dienstleister, event, magic_url: str):
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      du warst Teamleiter bei diesem Einsatz. Wie ist es gelaufen? Bitte fülle kurz den
+      du warst Teamleitung bei diesem Einsatz. Wie ist es gelaufen? Bitte fülle kurz den
       <strong>Eventbericht</strong> aus. Erst danach gilt das Event als abgeschlossen.
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
@@ -553,7 +585,7 @@ def send_teamleiter_info(event):
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <table cellpadding="0" cellspacing="0" width="100%">
-        {_info_row('Teamleitung', tl_name)}
+        {_info_row('Ansprechpartner', tl_name)}
         {tel_row}
       </table>
     </div>
@@ -987,7 +1019,7 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             {_info_row('Name', ap_name)}
             {_info_row('Telefon', ap_tel)}
           </table>{weitere_html}
-          <p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">Kontakt zum Kunden läuft <strong>nur über die Teamleitung</strong>.</p>""", color)
+          <p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">Rückfragen des Kunden bündeln wir bei der <strong>Teamleitung</strong>.</p>""", color)
 
     karten += _mail_card("Team", ic("team"), f'<table {T}>{team_rows}</table>', color)
 

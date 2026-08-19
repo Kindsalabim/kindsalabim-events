@@ -62,13 +62,14 @@ def get_coords_for_dienstleister(d):
 
 
 # --- Empfehlungs-Scoring -----------------------------------------------------
-# Score 0–100, höher = zuerst anfragen. Gewichtung mit Aykut abgestimmt (13.06.2026):
-#   Entfernung 40 · Qualität 30 · Logistik 20 (nur wenn Event Material braucht) · Erfahrung 10
+# Score 0–100, höher = zuerst anfragen. Gewichtung mit Aykut abgestimmt (13.06.2026),
+# seit 16.08.2026 ersetzt die Lieferantenbewertung (1–10) die frühere Kombination aus
+# 5-Sterne-Qualität (30 Pkt.) + Erfahrungspunkten (10 Pkt.) mit gleichem Gesamtgewicht:
+#   Entfernung 40 · Lieferantenbewertung 40 · Logistik 20 (voll nur bei Materialbedarf)
 # Dazu seit 31.07.2026: +15 Stammkunden-Bonus (schon bei diesem Kunden im Einsatz gewesen),
 # vergeben in rank_contractors.
 _MAX_KM = 80          # ab dieser Entfernung 0 Entfernungspunkte
-_XP_VOLL = 50         # ab so vielen Erfahrungspunkten die vollen 10 Punkte
-_QUALITAET_UNBEWERTET = 3   # noch nicht bewertet → neutral behandeln (nicht abstrafen)
+_BEWERTUNG_UNBEWERTET = 6   # noch nicht bewertet → neutral behandeln (nicht abstrafen)
 
 
 def compute_score(d, event_coords, needs_material: bool):
@@ -84,20 +85,16 @@ def compute_score(d, event_coords, needs_material: bool):
     else:
         dist_pts = 40 * max(0.0, 1 - min(distanz_km, _MAX_KM) / _MAX_KM)
 
-    # Qualität (1–5 ⭐ → 0–30). Unbewertet = neutral (3 ⭐).
-    sterne = d.qualitaet if getattr(d, "qualitaet", None) else _QUALITAET_UNBEWERTET
-    quali_pts = sterne * 6
+    # Interne Lieferantenbewertung (1–10 → 0–40). Unbewertet = neutral (6/10).
+    bewertung = getattr(d, "lieferantenbewertung", None) or _BEWERTUNG_UNBEWERTET
+    bewertung_pts = bewertung * 4
 
     # Logistik: voller Boost nur wenn das Event Materialtransport braucht, sonst kleiner Allgemein-Bonus.
     log_pts = 0
     if d.logistiker:
         log_pts = 20 if needs_material else 5
 
-    # Erfahrung (0–10)
-    xp = d.erfahrungspunkte or 0
-    exp_pts = 10 * min(xp, _XP_VOLL) / _XP_VOLL
-
-    return round(dist_pts + quali_pts + log_pts + exp_pts), distanz_km
+    return round(dist_pts + bewertung_pts + log_pts), distanz_km
 
 
 def rank_contractors(contractors, event_address: str, needs_material: bool = False,

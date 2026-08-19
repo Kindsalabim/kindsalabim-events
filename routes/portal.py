@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
@@ -215,8 +215,8 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
 # ── Antwort ────────────────────────────────────────────────────────────────────
 
 @router.post("/antwort/{anfrage_id}")
-def portal_antwort(anfrage_id: int, antwort: str = Form(...),
-                   notiz: str = Form(""),
+def portal_antwort(anfrage_id: int, background_tasks: BackgroundTasks,
+                   antwort: str = Form(...), notiz: str = Form(""),
                    db: Session = Depends(get_db), user=Depends(get_portal_user)):
     did = int(user["sub"])
     a = db.query(Verfuegbarkeitsanfrage).filter(
@@ -273,6 +273,11 @@ def portal_antwort(anfrage_id: int, antwort: str = Form(...),
                    f"{name} hat die Anfrage für {ev.anlass} am {datum} abgelehnt.{vorschlag}",
                    f"/admin/events/{ev.id}")
         db.commit()
+        # Auto-Bestellung bei Zusage (Scheinselbstständigkeits-Vorsorge) – im Hintergrund,
+        # idempotent, mit Datenpflege-Sicherung (siehe bestellung.py)
+        if antwort == "Ja":
+            from bestellung import bestellung_erzeugen_async
+            background_tasks.add_task(bestellung_erzeugen_async, a.id)
     return RedirectResponse("/portal", status_code=303)
 
 
@@ -383,7 +388,7 @@ def portal_bericht_save(event_id: int,
     ev.status = auto_status(ev, db)
     # Glocke: Eventbericht eingereicht
     tl = ev.teamleiter
-    name = f"{tl.vorname} {tl.nachname}" if tl else "Der Teamleiter"
+    name = f"{tl.vorname} {tl.nachname}" if tl else "Die Teamleitung"
     from notifications import notify
     notify(db, "bericht", f"Eventbericht: {ev.anlass}",
            f"{name} hat den Bericht für {ev.anlass} am {ev.datum.strftime('%d.%m.%Y')} eingereicht.",

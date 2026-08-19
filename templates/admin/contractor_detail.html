@@ -51,7 +51,8 @@
     <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Einsatz-Profil</h2>
     <dl class="space-y-3 text-sm">
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Rolle</dt><dd class="text-gray-800 text-right">{{ d.rolle }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-500">Erfahrungspunkte</dt><dd class="text-gray-800 text-right font-medium">{{ d.erfahrungspunkte or 0 }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Interne Lieferantenbewertung</dt><dd class="text-gray-800 text-right font-medium">{% if d.lieferantenbewertung %}★ {{ d.lieferantenbewertung }}/10{% else %}<span class="text-gray-400 font-normal">nicht bewertet</span>{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Bisherige Aufträge (Zusagen)</dt><dd class="text-gray-800 text-right font-medium">{{ anfragen | selectattr('status', 'equalto', 'Ja') | list | length }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Mobilität</dt><dd class="text-gray-800 text-right">{{ d.mobilitaet or '–' }}{% if d.fuehrerschein %} · Führerschein{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Gebiet</dt><dd class="text-gray-800 text-right">{{ d.gebiet or '–' }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Verfügbarkeit</dt><dd class="text-gray-800 text-right">{{ d.verfuegbarkeit or '–' }}</dd></div>

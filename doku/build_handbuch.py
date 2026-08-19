@@ -67,14 +67,14 @@ def dl(vorname, nachname, rolle, **kw):
     s.add(d); s.flush()
     return d
 
-lisa = dl("Lisa", "Klein", "Teamer", stadt="Essen", qualitaet=5, erfahrungspunkte=40)
-tom  = dl("Tom", "Wagner", "Teamer", stadt="Bochum", qualitaet=4,
-          logistiker=True, fuehrerschein=True, erfahrungspunkte=25)
-mia  = dl("Mia", "Farben", "Künstler", stadt="Essen", qualitaet=5,
-          kuenstler_sparte="Kinderschminke", erfahrungspunkte=55)
-ziad = dl("Ziad", "Zauber", "Künstler", stadt="Dortmund", qualitaet=4,
-          kuenstler_sparte="Showact", erfahrungspunkte=30)
-nina = dl("Nina", "Neu", "Teamer", stadt="Gelsenkirchen", qualitaet=None, erfahrungspunkte=0)
+lisa = dl("Lisa", "Klein", "Teamer", stadt="Essen", lieferantenbewertung=10)
+tom  = dl("Tom", "Wagner", "Teamer", stadt="Bochum", lieferantenbewertung=8,
+          logistiker=True, fuehrerschein=True)
+mia  = dl("Mia", "Farben", "Künstler", stadt="Essen", lieferantenbewertung=10,
+          kuenstler_sparte="Kinderschminke")
+ziad = dl("Ziad", "Zauber", "Künstler", stadt="Dortmund", lieferantenbewertung=7,
+          kuenstler_sparte="Showact")
+nina = dl("Nina", "Neu", "Teamer", stadt="Gelsenkirchen", lieferantenbewertung=None)
 
 kunde = Kunde(firma="Rheintal Werke GmbH", ansprechpartner="Lisa Muster",
               telefon="0201 123456", email="lisa@rheintal.example",
@@ -535,9 +535,12 @@ story = [
     PageBreak(),
     Paragraph("11. Dienstleister verwalten", H2),
     bullets([
-        "Liste aller Teamer/Künstler mit Rolle, Sparte, Bewertung (⭐ 1–5), Erfahrungspunkten, "
+        "Liste aller Teamer/Künstler mit Rolle, Sparte, <b>interner Lieferantenbewertung (★ 1–10)</b>, "
         "Logistiker-/Führerschein-Häkchen, T-Shirt-Größen, DSGVO-Status. Name und Aktions-Knöpfe "
-        "bleiben beim Scrollen sichtbar.",
+        "bleiben beim Scrollen sichtbar. Die Bewertung ersetzt die früheren Erfahrungspunkte + "
+        "5-Sterne-Qualität (alte Sterne wurden ×2 übernommen), fließt ins Empfehlungs-Ranking ein "
+        "und ist für Dienstleister nie sichtbar; die Zahl bisheriger Aufträge zeigt die Karte "
+        "automatisch aus der Anfrage-Historie.",
         "<b>Aktiv</b>-Häkchen steuert, ob jemand anfragbar ist und sich einloggen kann. "
         "<b>Wichtig:</b> Der Portal-Login läuft NUR über Magic-Link (kein Passwort) – die hinterlegte "
         "E-Mail-Adresse muss stimmen (Groß-/Kleinschreibung ist egal). Landet jemand versehentlich "
@@ -613,6 +616,8 @@ story = [
         ["Zahlungsziel überschritten", "Rechnung-überfällig-Meldung, wöchentlich bis „bezahlt“"],
         ["Täglich", "Abgelaufene Reservierungen: Kalender → flamingo; vergangene werden aufgeräumt"],
         ["Wöchentlich", "Gewerbeschein-Erinnerung an neue Dienstleister, bis der Schein hochgeladen ist"],
+        ["Bei jeder Zusage", "Automatische „Bestellung“ (PDF nach Anwaltsvorlage) an den Dienstleister – nur wenn Stundensatz/Budget hinterlegt, sonst Hinweis-Glocke"],
+        ["Jährlich", "Erinnerung, das Scheinselbstständigkeits-Scoring der Dienstleister zu aktualisieren"],
         ["Montags", "Baker-Ross-Katalog aktualisieren + CSV-Backup-Mail (Events, Dienstleister, Rechnungen, Kunden)"],
     ], breiten=[48*mm, None]),
     Spacer(1, 6),

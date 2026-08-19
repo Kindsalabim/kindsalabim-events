@@ -460,7 +460,7 @@
     {% if fehlt %}
     <div class="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
       {% if v %}
-      <span style="color: var(--ink-2);"><strong>Vorschlag {{ rolle }}:</strong> {{ v.vorname }} {{ v.nachname }}<span style="color: var(--ink-4);">{% if v.stadt %} · {{ v.stadt }}{% endif %}{% if v.rang_distanz_km is not none %} · {{ v.rang_distanz_km|round(0)|int }} km{% endif %}{% if v.qualitaet %} · {{ '⭐' * v.qualitaet }}{% endif %}</span></span>
+      <span style="color: var(--ink-2);"><strong>Vorschlag {{ rolle }}:</strong> {{ v.vorname }} {{ v.nachname }}<span style="color: var(--ink-4);">{% if v.stadt %} · {{ v.stadt }}{% endif %}{% if v.rang_distanz_km is not none %} · {{ v.rang_distanz_km|round(0)|int }} km{% endif %}{% if v.lieferantenbewertung %} · ★ {{ v.lieferantenbewertung }}/10{% endif %}</span></span>
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen" class="inline">
         <input type="hidden" name="rolle" value="{{ rolle }}">
         <input type="hidden" name="dienstleister_ids" value="{{ v.id }}">
@@ -497,6 +497,7 @@
           {% if a.dienstleister_id == ev.teamleiter_id %}<span class="inline-flex items-center gap-1 ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">★ Teamleiter</span>{% endif %}
           {% if a.notiz %}<span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span>{% endif %}
           {% if a.budget %}<span class="block text-xs font-medium mt-0.5" style="color: var(--brand-primary);">💶 Budget: {{ a.budget | de_euro }} € pauschal</span>{% endif %}
+          {% if a.bestellung_am %}<span class="block text-xs mt-0.5" style="color: var(--ink-4);">📄 Bestellung {{ a.bestellung_am[:10] }}{% if a.bestellung_r2_key %} · <a href="/admin/anfragen/{{ a.id }}/bestellung" target="_blank" rel="noopener" class="underline" style="color: var(--brand-primary);">ansehen</a>{% endif %}</span>{% endif %}
         </td>
         <td class="py-3 text-gray-500">{{ a.rolle_anfrage }}</td>
         <td class="py-3">
@@ -717,7 +718,7 @@
             <span class="min-w-0">
               <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.kuenstler_sparte %} {{ sparte_icons.get(d.kuenstler_sparte, '') }}{% endif %}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
               <span class="block text-xs text-gray-500 mt-0.5">
-                {{ d.stadt or '–' }}{% if d.rang_distanz_km is not none %} · {{ d.rang_distanz_km|round(0)|int }} km{% endif %}{% if d.qualitaet %} · {{ '⭐' * d.qualitaet }}{% else %} · <span class="italic">nicht bewertet</span>{% endif %}
+                {{ d.stadt or '–' }}{% if d.rang_distanz_km is not none %} · {{ d.rang_distanz_km|round(0)|int }} km{% endif %}{% if d.lieferantenbewertung %} · ★ {{ d.lieferantenbewertung }}/10{% else %} · <span class="italic">nicht bewertet</span>{% endif %}
               </span>
               {% if d.rang_kunde_einsaetze %}<span class="block text-xs font-medium mt-0.5" style="color:var(--c-success);">🤝 {{ d.rang_kunde_einsaetze }}× bei diesem Kunden im Einsatz</span>{% endif %}
               {% if d.id in lange_her_ids and not gebucht and not sperrzeit %}<span class="block text-xs mt-0.5" style="color:#6b7280;">🕒 länger nicht angefragt</span>{% endif %}

@@ -136,8 +136,9 @@ class Dienstleister(Base):
     stadt = Column(String)
     rolle = Column(String, default="Teamer")     # Teamer, Künstler, Beides
     kuenstler_sparte = Column(String)            # Kinderschminke, Ballonkünstler, Schminke + Ballon, Showact, Walkact, Sonstiges (None = reiner Teamer)
-    erfahrungspunkte = Column(Integer, default=0)
-    qualitaet = Column(Integer)                   # Bewertung 1–5 ⭐ (None = noch nicht bewertet)
+    erfahrungspunkte = Column(Integer, default=0)  # LEGACY (seit 08/2026 ohne Funktion, Daten bleiben erhalten)
+    qualitaet = Column(Integer)                   # LEGACY 1–5 ⭐ (ersetzt durch lieferantenbewertung, Migration ×2)
+    lieferantenbewertung = Column(Integer)        # Interne Lieferantenbewertung 1–10 (None = noch nicht bewertet)
     mobilitaet = Column(String, default="Auto")  # Auto, ÖPNV, Beides
     kleidergroesse = Column(String)
     aktiv = Column(Boolean, default=True)
@@ -175,6 +176,7 @@ class Dienstleister(Base):
     betriebshaftpflicht  = Column(Boolean, default=False)  # Selbstauskunft: eigene Betriebshaftpflicht vorhanden
     scoring_json         = Column(Text)     # Anwalts-Scoring V7: {"kriterium_key": 0-3, ...}
     scoring_datum        = Column(String)   # ISO-Datum der letzten Scoring-Bewertung
+    scoring_erinnert_am  = Column(Date)     # letzte Jahres-Erinnerung zur Scoring-Aktualisierung
     gewerbeschein_r2_key         = Column(String)   # hochgeladener Gewerbeschein (R2)
     gewerbeschein_filename       = Column(String)
     gewerbeschein_hochgeladen_am = Column(String)   # ISO-Datetime
@@ -257,6 +259,8 @@ class Verfuegbarkeitsanfrage(Base):
     als_logistiker = Column(Boolean, default=False)  # auch als Logistiker (Materialtransport) angefragt
     logistik_transport = Column(String)  # Antwort des Logistikers: eigenes_auto | transporter | ohne (None = offen)
     budget = Column(Float)  # Künstler-Budget (pauschal, netto, inkl. Fahrtkosten) – None = keine Angabe
+    bestellung_am = Column(String)      # ISO-Datetime der Auto-Bestellung bei Zusage (None = keine)
+    bestellung_r2_key = Column(String)  # archivierte Bestellungs-PDF im R2 (Nachweis)
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")

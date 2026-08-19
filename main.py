@@ -179,6 +179,23 @@ def run_migrations():
     add_column("dienstleister", "betriebshaftpflicht", "BOOLEAN DEFAULT 0")
     add_column("dienstleister", "scoring_json", "TEXT")
     add_column("dienstleister", "scoring_datum", "VARCHAR")
+    add_column("dienstleister", "scoring_erinnert_am", "DATE")
+    add_column("verfuegbarkeitsanfragen", "bestellung_am", "VARCHAR")
+    add_column("verfuegbarkeitsanfragen", "bestellung_r2_key", "VARCHAR")
+    # Lieferantenbewertung (1–10) ersetzt Erfahrungspunkte + 5-Sterne-Qualität.
+    # Einmaliger Backfill beim Anlegen der Spalte: alte Sterne × 2 (3★ → 6/10).
+    from sqlalchemy import inspect as _sa_inspect
+    _hatte_lb = "lieferantenbewertung" in {
+        c["name"] for c in _sa_inspect(engine).get_columns("dienstleister")}
+    add_column("dienstleister", "lieferantenbewertung", "INTEGER")
+    if not _hatte_lb:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("UPDATE dienstleister SET lieferantenbewertung = qualitaet * 2 "
+                                  "WHERE qualitaet IS NOT NULL"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
     add_column("dienstleister", "gewerbeschein_r2_key", "VARCHAR")
     add_column("dienstleister", "gewerbeschein_filename", "VARCHAR")
     add_column("dienstleister", "gewerbeschein_hochgeladen_am", "VARCHAR")

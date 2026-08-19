@@ -82,7 +82,7 @@
   <select id="dl-sort" onchange="sortTable()"
     class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring">
     <option value="name">Sortieren: Name</option>
-    <option value="exp">Erfahrungspunkte (absteigend)</option>
+    <option value="exp">Bewertung (absteigend)</option>
     <option value="ort">Wohnort</option>
   </select>
   <button onclick="clearFilter()" class="text-xs text-gray-500 hover:text-gray-600 transition-colors px-2">zurücksetzen</button>
@@ -112,7 +112,7 @@
           data-rolle="{{ d.rolle | lower }}"
           data-sparte="{{ (d.kuenstler_sparte or '') | lower }}"
           data-dsgvo="{{ 'ja' if d.dsgvo_unterzeichnet else 'nein' }}"
-          data-exp="{{ d.erfahrungspunkte or 0 }}"
+          data-exp="{{ d.lieferantenbewertung or 0 }}"
           data-stadt="{{ (d.stadt or '') | lower }}">
         <td class="dl-name px-5 py-3.5 font-medium text-gray-800">
           <div class="flex items-center gap-1.5">

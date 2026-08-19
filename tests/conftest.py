@@ -37,6 +37,11 @@ _MAILS = []
 email_service._deliver = lambda to, subject, html, anhaenge=None: _MAILS.append((to, subject, html))
 _UPLOADS = []
 fotos_routes._upload = lambda data, event_id, filename, content_type, typ, db: _UPLOADS.append(filename)
+# _r2_put (Gewerbeschein, Bestellungs-Archiv) ebenfalls hart mocken – die lokale
+# config.yaml enthält echte R2-Zugangsdaten, Tests dürfen NIE live hochladen.
+_R2_PUTS = []
+fotos_routes._r2_put = lambda key, data, content_type: (_R2_PUTS.append(key), True)[1]
+fotos_routes._r2_client = lambda: None
 
 # Schema einmalig anlegen (Tests nutzen auch direkte DB-Sessions)
 Base.metadata.create_all(bind=engine)

@@ -1795,7 +1795,7 @@ def dienstleister_export(db: Session = Depends(get_db), _=Depends(get_admin_user
     w = csv.writer(out, delimiter=";")
     w.writerow([
         "Vorname", "Nachname", "E-Mail", "Telefon", "Straße", "PLZ", "Stadt",
-        "Rolle", "Künstler-Sparte", "Erfahrungspunkte", "Mobilität", "Kleidergröße", "Gebiet",
+        "Rolle", "Künstler-Sparte", "Lieferantenbewertung (1-10)", "Mobilität", "Kleidergröße", "Gebiet",
         "Verfügbarkeit", "Vertragstyp", "Stundensatz Teamer", "Stundensatz Künstler",
         "DSGVO", "Logistiker", "Führerschein", "Website", "Aktiv", "Notizen",
     ])
@@ -1806,7 +1806,7 @@ def dienstleister_export(db: Session = Depends(get_db), _=Depends(get_admin_user
             d.vorname or "", d.nachname or "", d.email or "", d.telefon or "",
             d.strasse or "", d.plz or "", d.stadt or "", d.rolle or "",
             d.kuenstler_sparte or "",
-            d.erfahrungspunkte or 0, d.mobilitaet or "", d.kleidergroesse or "",
+            d.lieferantenbewertung or "", d.mobilitaet or "", d.kleidergroesse or "",
             d.gebiet or "", d.verfuegbarkeit or "", d.vertragstyp or "",
             euro(d.stundensatz_teamer), euro(d.stundensatz_kuenstler),
             "ja" if d.dsgvo_unterzeichnet else "nein",
@@ -1833,8 +1833,7 @@ def dienstleister_create(
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
     rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
-    erfahrungspunkte: int = Form(0),
-    qualitaet: str = Form(""),
+    lieferantenbewertung: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False),
@@ -1862,14 +1861,14 @@ def dienstleister_create(
         try: return float(s.replace(",", ".")) if s.strip() else None
         except: return None
 
-    def _qual(s):
-        return int(s) if s.strip() in ("1", "2", "3", "4", "5") else None
+    def _bew(s):
+        return int(s) if s.strip() in [str(i) for i in range(1, 11)] else None
 
     d = Dienstleister(
         vorname=vorname, nachname=nachname, email=email, telefon=telefon,
         strasse=strasse, plz=plz, stadt=stadt, rolle=rolle,
         kuenstler_sparte=kuenstler_sparte.strip() or None,
-        erfahrungspunkte=erfahrungspunkte, qualitaet=_qual(qualitaet),
+        lieferantenbewertung=_bew(lieferantenbewertung),
         mobilitaet=mobilitaet,
         kleidergroesse=kleidergroesse, aktiv=aktiv, logistiker=logistiker,
         fuehrerschein=fuehrerschein,
@@ -1948,6 +1947,21 @@ def dienstleister_dossier_pdf(did: int, db: Session = Depends(get_db), _=Depends
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
+@router.get("/anfragen/{anfrage_id}/bestellung")
+def anfrage_bestellung_view(anfrage_id: int, db: Session = Depends(get_db),
+                            _=Depends(get_admin_user)):
+    """Archivierte Auto-Bestellung (PDF) einer Zusage ansehen (Nachweis)."""
+    a = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.id == anfrage_id).first()
+    if not a or not a.bestellung_r2_key:
+        raise HTTPException(404, "Keine Bestellung archiviert.")
+    from routes.fotos import generate_presigned_url
+    url = generate_presigned_url(a.bestellung_r2_key)
+    if not url:
+        raise HTTPException(500, "Datei-Speicher nicht konfiguriert.")
+    return RedirectResponse(url, status_code=307)
+
+
 @router.post("/dienstleister/agb-anfrage")
 def dienstleister_agb_anfrage(request: Request, db: Session = Depends(get_db),
                               _=Depends(get_admin_user)):
@@ -2000,8 +2014,7 @@ def dienstleister_update(
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
     rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
-    erfahrungspunkte: int = Form(0),
-    qualitaet: str = Form(""),
+    lieferantenbewertung: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False),
@@ -2030,8 +2043,8 @@ def dienstleister_update(
     d.vorname = vorname; d.nachname = nachname; d.email = email
     d.telefon = telefon; d.strasse = strasse; d.plz = plz; d.stadt = stadt
     d.rolle = rolle; d.kuenstler_sparte = kuenstler_sparte.strip() or None
-    d.erfahrungspunkte = erfahrungspunkte
-    d.qualitaet = int(qualitaet) if qualitaet.strip() in ("1", "2", "3", "4", "5") else None
+    d.lieferantenbewertung = (int(lieferantenbewertung)
+                              if lieferantenbewertung.strip() in [str(i) for i in range(1, 11)] else None)
     d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse
     d.aktiv = aktiv; d.logistiker = logistiker; d.fuehrerschein = fuehrerschein
     d.teamshirt_kindsalabim = teamshirt_kindsalabim

@@ -416,6 +416,43 @@ def _run_gewerbeschein_erinnerungen(db: Session) -> int:
     return count
 
 
+def _run_scoring_erinnerungen(db: Session) -> int:
+    """Jahres-Erinnerung: Scheinselbstständigkeits-Scoring aktualisieren.
+    Eine Sammel-Glocke für alle aktiven Dienstleister, deren Bewertung älter als
+    ein Jahr ist; wiederholt sich frühestens nach 30 Tagen (scoring_erinnert_am)."""
+    from notifications import notify
+    heute = _heute()
+    kandidaten = db.query(Dienstleister).filter(
+        Dienstleister.aktiv == True,                 # noqa: E712
+        Dienstleister.scoring_datum != None,         # noqa: E711
+    ).all()
+    faellig = []
+    for d in kandidaten:
+        try:
+            alter = (heute - date.fromisoformat(d.scoring_datum)).days
+        except (ValueError, TypeError):
+            alter = 9999   # kaputter Wert → lieber erinnern
+        if alter < 365:
+            continue
+        if d.scoring_erinnert_am and heute < d.scoring_erinnert_am + timedelta(days=30):
+            continue
+        faellig.append(d)
+    if not faellig:
+        return 0
+    namen = ", ".join(f"{d.vorname} {d.nachname}" for d in faellig[:10])
+    if len(faellig) > 10:
+        namen += f" und {len(faellig) - 10} weitere"
+    notify(db, "dl_unterlagen",
+           f"Status-Scoring aktualisieren ({len(faellig)})",
+           f"Das Scheinselbstständigkeits-Scoring ist älter als ein Jahr bei: {namen}. "
+           f"Bitte in der jeweiligen Dienstleisterkarte kurz neu bewerten (~2 Min.).",
+           "/admin/dienstleister")
+    for d in faellig:
+        d.scoring_erinnert_am = heute
+    db.commit()
+    return len(faellig)
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -521,6 +558,9 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # Wöchentliche Gewerbeschein-Erinnerung an neue Dienstleister
     gewerbeschein_erinnerungen = _run_gewerbeschein_erinnerungen(db)
 
+    # Jahres-Erinnerung: Scheinselbstständigkeits-Scoring aktualisieren
+    scoring_erinnerungen = _run_scoring_erinnerungen(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -542,6 +582,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "reservierungen_umgefaerbt": reservierung_farben,
                          "reservierungen_geloescht": reservierungen_geloescht,
                          "gewerbeschein_erinnerungen": gewerbeschein_erinnerungen,
+                         "scoring_erinnerungen": scoring_erinnerungen,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 

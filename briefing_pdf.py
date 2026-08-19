@@ -350,7 +350,7 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None
         ap_zeilen.append(("text", "Weitere Ansprechpartner:\n" + "\n".join(
             f"{w['name']} · {w['telefon']}" if w.get("telefon") else w["name"]
             for w in weitere_ap)))
-    ap_zeilen.append(("text", "Kontakt zum Kunden läuft NUR über die Teamleitung."))
+    ap_zeilen.append(("text", "Rückfragen des Kunden bündeln wir bei der Teamleitung."))
     ansprechpartner = {
         "titel": "Ansprechpartner Kunde", "icon": "nachricht",
         "zeilen": ap_zeilen,

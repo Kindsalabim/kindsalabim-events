@@ -107,7 +107,7 @@ def kuenstler_passt(dienstleister, benoetigt) -> bool:
 # unter /admin/einstellungen; "## " beginnt eine neue Box, {MARKE} wird durch den
 # Markennamen ersetzt.
 BRIEFING_REGELN_DEFAULT = """## Grundlegende Regelungen
-Bitte nicht einzeln zum Ansprechpartner gehen/anrufen. Nur die Teamleitung kontaktiert den Kunden.
+Rückfragen des Kunden bündeln wir bei der Teamleitung – bitte nicht einzeln zum Ansprechpartner gehen/anrufen.
 Rauchverbot im Aktionsbereich und in unmittelbarer Nähe!
 Zum Abschluss der Aktion bitte beim Ansprechpartner verabschieden. (Teamleitung)
 Bitte kurzes Feedback per WhatsApp nach Abschluss der Aktion. (Teamleitung)
@@ -117,7 +117,7 @@ Für die Versteuerung des Einkommens sind Auftragnehmer selbst verantwortlich.
 Der Auftragnehmer verpflichtet sich, keinem Dritten Auskunft über das Honorar zu geben.
 Als selbstständiger Dienstleister solltest du über eine gewerbliche Haftpflichtversicherung oder eine entsprechend erweiterte Haftpflicht verfügen.
 ## Instaff / Externe Agentur
-Stundenzettel unterschreibt die Teamleitung.
+Stundenzettel für die Agentur unterschreibt die Teamleitung.
 Wir treten vor dem Kunden als „{MARKE}“ auf. In Anwesenheit des Kunden bitte keine Drittagentur erwähnen.
 ## Künstler (Kinderschminken, Ballonmodellage o.ä.)
 Eigenwerbung ist nicht gestattet! Bei Rückfragen bitte auf {MARKE} verweisen.

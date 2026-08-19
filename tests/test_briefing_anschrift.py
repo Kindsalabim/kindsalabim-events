@@ -52,7 +52,7 @@ def test_mail_veranstaltungsanschrift_aus_checkliste(mails):
 def test_mail_teamleiter_hinweis(mails):
     html = _html(briefing_event_ns(), mails)
     # Kontakt-Regel steht jetzt in der Ansprechpartner-Karte
-    assert "nur über die Teamleitung" in html and "font-weight:700" in html
+    assert "bündeln wir bei der <strong>Teamleitung</strong>" in html and "font-weight:700" in html
 
 
 def test_mail_anschrift_fallback_auf_veranstaltungsort(mails):
@@ -76,4 +76,5 @@ def test_pdf_anschrift_und_ansprechpartner_und_hinweis():
     assert "Veranstaltungsadresse" in txt and "Kita Sonne" in txt and "Hauptstr. 5" in txt
     assert "Ansprechpartner Kunde" in txt and "Frau Klar" in txt
     # (kann im schmalen Karten-Layout umbrechen → Teile einzeln prüfen)
-    assert "NUR über die" in txt and "Teamleitung" in txt
+    # Hinweis bricht im PDF um → zweiteilig prüfen
+    assert "bündeln wir bei der" in txt and "Teamleitung" in txt
