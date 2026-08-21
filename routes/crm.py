@@ -84,6 +84,36 @@ def _apply_tags(db: Session, kunde: Kunde, tag_str: str):
     kunde.tags = tags
 
 
+def _kunde_form_echo(raw, bestehend=None):
+    """Formular-Echo nach einem Validierungsfehler: spiegelt die EINGEGEBENEN Werte
+    zurück ins Template, damit nichts Getipptes verloren geht. `bestehend` = DB-Objekt
+    beim Bearbeiten (liefert die id, die „Neu" von „Bearbeiten" unterscheidet)."""
+    from types import SimpleNamespace
+
+    def g(key, default=""):
+        return (raw.get(key) or default).strip()
+
+    status = raw.get("pipeline_status")
+    return SimpleNamespace(
+        id=getattr(bestehend, "id", None),
+        firma=g("firma"), ansprechpartner=g("ansprechpartner"), branche=g("branche"),
+        telefon=g("telefon"), email=g("email"), rechnung_email=g("rechnung_email"),
+        strasse=g("strasse"), plz=g("plz"), ort=g("ort"), website=g("website"),
+        pipeline_status=status if status in KUNDE_STATUS else "lead",
+        marke=raw.get("marke") or "Kindsalabim",
+        # Tags als Objekte mit .name – das Template rendert sie per map(attribute='name')
+        tags=[SimpleNamespace(name=t.strip())
+              for t in (raw.get("tags") or "").replace(";", ",").split(",") if t.strip()],
+        notizen=g("notizen"), kommunikationsstil=g("kommunikationsstil"),
+        besonderheiten=g("besonderheiten"),
+        bevorzugte_eventarten=g("bevorzugte_eventarten"),
+        typische_budgets=g("typische_budgets"),
+        weitere_ansprechpartner=weitere_ap_json(raw.getlist("kap_name"),
+                                                raw.getlist("kap_telefon"),
+                                                raw.getlist("kap_email")),
+    )
+
+
 def _apply_form(db, k: Kunde, f: dict):
     def g(key):
         return (f.get(key) or "").strip()
@@ -227,7 +257,8 @@ async def kunde_create(request: Request, db: Session = Depends(get_db), _=Depend
     form = dict(raw)
     if not form.get("firma", "").strip():
         return templates.TemplateResponse("admin/crm_kunde_form.html",
-            tpl(request, active="crm", kunde=None, error="Firma / Name ist erforderlich."))
+            tpl(request, active="crm", kunde=_kunde_form_echo(raw),
+                error="Firma / Name ist erforderlich."))
     k = Kunde(erstellt_am=_now())
     k.weitere_ansprechpartner = weitere_ap_json(
         raw.getlist("kap_name"), raw.getlist("kap_telefon"), raw.getlist("kap_email"))
@@ -268,7 +299,8 @@ async def kunde_update(request: Request, kid: int, db: Session = Depends(get_db)
     form = dict(raw)
     if not form.get("firma", "").strip():
         return templates.TemplateResponse("admin/crm_kunde_form.html",
-            tpl(request, active="crm", kunde=k, error="Firma / Name ist erforderlich."))
+            tpl(request, active="crm", kunde=_kunde_form_echo(raw, k),
+                error="Firma / Name ist erforderlich."))
     k.weitere_ansprechpartner = weitere_ap_json(
         raw.getlist("kap_name"), raw.getlist("kap_telefon"), raw.getlist("kap_email"))
     _apply_form(db, k, form)

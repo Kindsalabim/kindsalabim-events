@@ -163,6 +163,32 @@ def test_gewerbeschein_upload_setzt_status(client, monkeypatch):
     assert d.gewerbeschein_filename == "schein.jpg"
 
 
+def test_gewerbeschein_haekchen_erlaubt_trotzdem_upload(client):
+    """Bestandsdienstleister („liegt vor" per Migration/Häkchen) sollen ihren Schein
+    trotzdem hochladen können – sonst geht das Angebot ins Leere."""
+    did = _neuer_dl(gewerbeschein_vorliegt=True)
+    portal_login(client, did)
+    h = client.get("/portal/profil").text
+    assert "Nach unseren Unterlagen liegt uns dein Gewerbeschein vor" in h
+    assert "Trotzdem hochladen" in h
+    assert 'action="/portal/profil/gewerbeschein"' in h
+
+
+def test_admin_karte_unterscheidet_haekchen_von_datei(admin, monkeypatch):
+    import routes.fotos as fr
+    monkeypatch.setattr(fr, "_r2_put", lambda key, data, ct: True)
+    nur_haekchen = _neuer_dl(gewerbeschein_vorliegt=True)
+    h = admin.get(f"/admin/dienstleister/{nur_haekchen}").text
+    assert "nur Häkchen – keine Datei in der App" in h
+    assert "gewerbeschein/view" not in h
+    # mit hochgeladener Datei: Ansehen-Link statt Häkchen-Hinweis
+    mit_datei = _neuer_dl(gewerbeschein_r2_key="dienstleister/x/gewerbeschein/y.jpg",
+                          gewerbeschein_hochgeladen_am="2026-08-20T09:00:00")
+    h2 = admin.get(f"/admin/dienstleister/{mit_datei}").text
+    assert f"/admin/dienstleister/{mit_datei}/gewerbeschein/view" in h2
+    assert "hochgeladen (2026-08-20)" in h2
+
+
 def test_gewerbeschein_upload_falscher_typ(client):
     did = _neuer_dl()
     portal_login(client, did)

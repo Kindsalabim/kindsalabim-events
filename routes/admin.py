@@ -1779,6 +1779,50 @@ def dienstleister_einladung(request: Request, did: int,
 
 # ── Dienstleister ──────────────────────────────────────────────────────────────
 
+def _dl_form_echo(form, bestehend=None):
+    """Formular-Echo nach einem Validierungsfehler: gibt die EINGEGEBENEN Werte
+    ans Template zurück, damit nichts verloren geht (vorher wurde das Formular
+    leer neu gerendert). `bestehend` = DB-Objekt beim Bearbeiten – liefert die id
+    (steuert Formular-Ziel und Löschen-Knopf) und die reinen Anzeige-Felder."""
+    from types import SimpleNamespace
+
+    def txt(name, default=""):
+        return (form.get(name) or default).strip()
+
+    def an(name):
+        return form.get(name) is not None      # Checkbox angehakt?
+
+    def zahl(name):
+        roh = txt(name).replace(",", ".")
+        try:
+            return float(roh) if roh else None
+        except ValueError:
+            return None                        # ungültig → Feld bleibt leer
+
+    bewertung = txt("lieferantenbewertung")
+    return SimpleNamespace(
+        id=getattr(bestehend, "id", None),
+        vorname=txt("vorname"), nachname=txt("nachname"), email=txt("email"),
+        telefon=txt("telefon"), strasse=txt("strasse"), plz=txt("plz"), stadt=txt("stadt"),
+        rolle=txt("rolle", "Teamer"), kuenstler_sparte=txt("kuenstler_sparte") or None,
+        lieferantenbewertung=int(bewertung) if bewertung.isdigit() else None,
+        mobilitaet=txt("mobilitaet", "Auto"), kleidergroesse=txt("kleidergroesse"),
+        aktiv=an("aktiv"), logistiker=an("logistiker"), fuehrerschein=an("fuehrerschein"),
+        teamshirt_kindsalabim=an("teamshirt_kindsalabim"),
+        teamshirt_knallfrosch=an("teamshirt_knallfrosch"),
+        gebiet=txt("gebiet"), verfuegbarkeit=txt("verfuegbarkeit"),
+        vertragstyp=txt("vertragstyp"),
+        stundensatz_teamer=zahl("stundensatz_teamer"),
+        stundensatz_kuenstler=zahl("stundensatz_kuenstler"),
+        dsgvo_unterzeichnet=an("dsgvo_unterzeichnet"),
+        gewerbeschein_vorliegt=an("gewerbeschein_vorliegt"),
+        website=txt("website"), notizen=txt("notizen"),
+        # reine Anzeige-Felder (nicht im Formular) – nur beim Bearbeiten vorhanden
+        dsgvo_knallfrosch_am=getattr(bestehend, "dsgvo_knallfrosch_am", None),
+        gewerbeschein_r2_key=getattr(bestehend, "gewerbeschein_r2_key", None),
+    )
+
+
 @router.get("/dienstleister", response_class=HTMLResponse)
 def dienstleister_list(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     all_d = db.query(Dienstleister).order_by(Dienstleister.nachname).all()
@@ -1827,7 +1871,7 @@ def dienstleister_new(request: Request, _=Depends(get_admin_user)):
         tpl_context(request, d=None, error=None))
 
 @router.post("/dienstleister/new")
-def dienstleister_create(
+async def dienstleister_create(
     request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user),
     vorname: str = Form(...), nachname: str = Form(...),
     email: str = Form(...), telefon: str = Form(""),
@@ -1847,14 +1891,16 @@ def dienstleister_create(
     website: str = Form(""), notizen: str = Form(""),
 ):
     existing = db.query(Dienstleister).filter(Dienstleister.email == email).first()
+    fehler = None
     if existing:
-        return templates.TemplateResponse("admin/contractor_form.html",
-            tpl_context(request, d=None, error="E-Mail bereits vorhanden"))
-    fehler = validate_dienstleister_form(telefon, plz, stundensatz_teamer,
-                                         stundensatz_kuenstler, portal_passwort)
+        fehler = "E-Mail bereits vorhanden"
+    else:
+        fehler = validate_dienstleister_form(telefon, plz, stundensatz_teamer,
+                                             stundensatz_kuenstler, portal_passwort)
     if fehler:
+        # Eingaben zurück ins Formular spiegeln – sonst wäre alles Getippte weg
         return templates.TemplateResponse("admin/contractor_form.html",
-            tpl_context(request, d=None, error=fehler))
+            tpl_context(request, d=_dl_form_echo(await request.form()), error=fehler))
     pw_hash = hash_password(portal_passwort) if portal_passwort else None
 
     def _f(s):
@@ -2008,7 +2054,7 @@ def dienstleister_edit(request: Request, did: int, db: Session = Depends(get_db)
         tpl_context(request, d=d, error=None))
 
 @router.post("/dienstleister/{did}/edit")
-def dienstleister_update(
+async def dienstleister_update(
     request: Request, did: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
     vorname: str = Form(...), nachname: str = Form(...),
     email: str = Form(...), telefon: str = Form(""),
@@ -2033,8 +2079,9 @@ def dienstleister_update(
     fehler = validate_dienstleister_form(telefon, plz, stundensatz_teamer,
                                          stundensatz_kuenstler, portal_passwort)
     if fehler:
+        # Eingaben zurück ins Formular spiegeln (nicht den alten DB-Stand zeigen)
         return templates.TemplateResponse("admin/contractor_form.html",
-            tpl_context(request, d=d, error=fehler))
+            tpl_context(request, d=_dl_form_echo(await request.form(), d), error=fehler))
 
     def _f(s):
         try: return float(s.replace(",", ".")) if s.strip() else None

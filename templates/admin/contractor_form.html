@@ -1,6 +1,8 @@
 {% extends "admin_base.html" %}
 {% set active = 'dienstleister' %}
-{% block title %}{% if d %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %} – {{ cfg.app_name }}{% endblock %}
+{# d.id unterscheidet „Bearbeiten" von „Neu": Nach einem Validierungsfehler kommt
+   beim Anlegen ein Echo-Objekt OHNE id zurück (Eingaben bleiben erhalten). #}
+{% block title %}{% if d and d.id %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %} – {{ cfg.app_name }}{% endblock %}
 {% block content %}
 <div class="max-w-2xl">
 
@@ -9,14 +11,14 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       Dienstleister
     </a>
-    <h1 class="text-2xl font-bold text-gray-900">{% if d %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %}</h1>
+    <h1 class="text-2xl font-bold text-gray-900">{% if d and d.id %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %}</h1>
   </div>
 
   {% if error %}
   <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--brand-accent-light); color: var(--brand-accent);">{{ error }}</div>
   {% endif %}
 
-  <form method="post" action="{% if d %}/admin/dienstleister/{{ d.id }}/edit{% else %}/admin/dienstleister/new{% endif %}" class="space-y-4">
+  <form method="post" action="{% if d and d.id %}/admin/dienstleister/{{ d.id }}/edit{% else %}/admin/dienstleister/new{% endif %}" class="space-y-4">
 
     <!-- Persönliche Daten -->
     <div class="card p-6 space-y-4">
@@ -241,7 +243,7 @@
         E-Mail-Adresse ein und bekommt einen Anmelde-Link zugeschickt (Magic-Link).
       </p>
       <p class="text-xs text-gray-500 mt-2">
-        Login-E-Mail: <span class="text-gray-600">{{ d.email if d else 'wird nach Speichern gesetzt' }}</span>
+        Login-E-Mail: <span class="text-gray-600">{{ d.email if d and d.email else 'wird nach Speichern gesetzt' }}</span>
         – muss exakt stimmen, sonst kommt kein Link an.
       </p>
     </div>
@@ -250,13 +252,13 @@
     <div class="flex items-center gap-3 pt-1">
       <button type="submit" class="btn-primary px-6 py-2.5">Speichern</button>
       <a href="/admin/dienstleister" class="text-sm text-gray-500 hover:text-gray-600 px-3 py-2 transition-colors">Abbrechen</a>
-      {% if d %}
+      {% if d and d.id %}
       <button type="submit" form="dl_delete_form"
               class="ml-auto text-sm text-red-600 hover:text-red-600 transition-colors">Löschen</button>
       {% endif %}
     </div>
   </form>
-  {% if d %}
+  {% if d and d.id %}
   <!-- Eigene Lösch-Form außerhalb der Bearbeiten-Form (verschachtelte <form> sind ungültig) -->
   <form id="dl_delete_form" method="post" action="/admin/dienstleister/{{ d.id }}/delete"
         onsubmit="return confirm('Dienstleister wirklich löschen?')"></form>
