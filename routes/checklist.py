@@ -136,7 +136,7 @@ def checklist_submit(
     from notifications import notify, mail_enabled
     notify(db, "checkliste", f"Checkliste zurück: {ev.kunde_firma}",
            f"{ev.kunde_firma} hat die Checkliste für {ev.anlass} am {de_date(ev.datum)} ausgefüllt.",
-           f"/admin/events/{ev.id}")
+           f"/admin/events/{ev.id}", marke=ev.marke)
     db.commit()
     if mail_enabled(db, "checkliste"):
         from email_service import send_checklist_notification

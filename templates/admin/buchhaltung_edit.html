@@ -33,6 +33,16 @@
       </div>
 
       <div>
+        <label class="block text-sm font-semibold mb-1.5" style="color:var(--ink-2);">Marke</label>
+        <select name="marke" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm bg-white"
+                title="Steuert, wer diese Rechnung sieht (persönliche Marken-Ansicht)">
+          {% for m in ['Kindsalabim', 'Knallfrosch'] %}
+          <option value="{{ m }}" {% if (r.marke or 'Kindsalabim') == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
         <label class="block text-sm font-semibold mb-1.5" style="color:var(--ink-2);">Brutto (€)</label>
         <input type="text" name="brutto" value="{{ '%.2f'|format(r.brutto or 0)|replace('.', ',') }}"
                class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">

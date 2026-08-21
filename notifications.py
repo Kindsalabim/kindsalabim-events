@@ -67,17 +67,20 @@ def set_setting(db: Session, key: str, value: str):
     row.value = value
 
 
-def _active_admin_emails(db: Session):
-    admins = db.query(Admin).filter(Admin.aktiv == True).all()  # noqa: E712
-    return [a.email for a in admins if a.email and "@" in a.email]
+def _active_admin_emails(db: Session, marke=None):
+    """Empfänger-Mails aktiver Admins – gefiltert nach ihrer persönlichen Marken-Ansicht."""
+    from marken import admins_fuer_marke
+    return [a.email for a in admins_fuer_marke(db, marke) if a.email and "@" in a.email]
 
 
-def notify(db: Session, typ: str, titel: str, text: str = "", link: str = ""):
+def notify(db: Session, typ: str, titel: str, text: str = "", link: str = "", marke=None):
     """Schreibt eine Glocken-Benachrichtigung (committet NICHT – der Aufrufer committet).
     Verschickt bei den „neuen" Typen zusätzlich eine generische Admin-Mail, wenn aktiviert.
+    `marke` (Kindsalabim/Knallfrosch) blendet die Meldung bei Admins aus, die diese Marke
+    abgewählt haben – ohne Angabe gilt sie als markenneutral und ist immer sichtbar.
     Robust: Mailfehler werden geschluckt (kein 500 im Portal/Checklist)."""
     b = Benachrichtigung(
-        typ=typ, titel=titel, text=text or None, link=link or None,
+        typ=typ, titel=titel, text=text or None, link=link or None, marke=marke or None,
         erstellt_am=datetime.now().isoformat(timespec="seconds"),
     )
     db.add(b)
@@ -87,7 +90,7 @@ def notify(db: Session, typ: str, titel: str, text: str = "", link: str = ""):
     if sendet_generische_mail and mail_enabled(db, typ):
         try:
             from email_service import send_admin_notification
-            for email in _active_admin_emails(db):
+            for email in _active_admin_emails(db, marke):
                 send_admin_notification(email, titel, text, link)
         except Exception as e:  # Mail darf den Vorgang nie sprengen
             print(f"Admin-Notify-Mail fehlgeschlagen ({typ}): {e}")
@@ -95,11 +98,15 @@ def notify(db: Session, typ: str, titel: str, text: str = "", link: str = ""):
 
 
 def unread_count(db: Session, admin_email: str) -> int:
+    from marken import normalisieren, query_filter
     ad = db.query(Admin).filter(Admin.email == admin_email).first()
     seen = ad.notifications_gesehen_bis if ad else None
     q = db.query(Benachrichtigung)
     if seen:
         q = q.filter(Benachrichtigung.erstellt_am > seen)
+    # nur Meldungen der Marken, die dieser Admin sehen will
+    q = query_filter(q, Benachrichtigung.marke,
+                     normalisieren(ad.marken_filter if ad else None))
     return q.count()
 
 

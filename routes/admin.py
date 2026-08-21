@@ -370,10 +370,14 @@ def test_email(user=Depends(get_admin_user)):
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user),
+def dashboard(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user),
               month: str = "", day: str = ""):
     today = date.today()
-    events = db.query(Event).all()
+    # Persönliche Marken-Ansicht: filtert Eventliste, Kalender, Zahlen und Reservierungen
+    from marken import admin_marke, query_filter
+    mfilter = admin_marke(db, user)
+    events = query_filter(db.query(Event), Event.marke, mfilter,
+                          neutral_sichtbar=False).all()
 
     # Termin-Serien: Anzahl Tage je serien_id (für die "Serie"-Markierung in der Liste)
     serien_count = {}
@@ -437,7 +441,8 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
     ueberfaellig_data = [d for d in upcoming_data if d["days_until"] < 0]
     upcoming_data     = [d for d in upcoming_data if d["days_until"] >= 0]
 
-    reservierungen_count = db.query(Reservierung).count()
+    reservierungen_count = query_filter(db.query(Reservierung), Reservierung.marke,
+                                        mfilter, neutral_sichtbar=False).count()
     dringend_count = sum(1 for d in upcoming_data if d["urgent"])
 
     # Angezeigter Kalendermonat (Navigation per ?month=JJJJ-MM)
@@ -484,15 +489,35 @@ def dashboard(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
                     reservierungen_count=reservierungen_count,
                     offene_rueckmeldungen=offene_rueckmeldungen,
                     offene_checklisten=offene_checklisten,
-                    dringend_count=dringend_count, serien_count=serien_count))
+                    dringend_count=dringend_count, serien_count=serien_count,
+                    marken_filter=mfilter))
+
+
+@router.post("/marken-ansicht")
+def marken_ansicht_setzen(request: Request, wert: str = Form("beide"),
+                          weiter: str = Form("/admin/dashboard"),
+                          db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    """Persönliche Marken-Ansicht umschalten (Dashboard-Chips / Einstellungen).
+    Gilt für Dashboard, Reservierungen, Buchhaltung, Glocke und den Mailversand."""
+    from marken import normalisieren
+    email = (user.get("sub") or user.get("email") or "").strip().lower()
+    a = db.query(Admin).filter(func.lower(Admin.email) == email).first()
+    if a:
+        a.marken_filter = normalisieren(wert)
+        db.commit()
+    ziel = weiter if weiter.startswith("/admin/") and "//" not in weiter[1:] else "/admin/dashboard"
+    return RedirectResponse(ziel, status_code=303)
 
 
 # ── Reservierungen (unverbindliche Holds vor der Buchung) ───────────────────────
 
 @router.get("/reservierungen", response_class=HTMLResponse)
 def reservierungen_list(request: Request, kopie: int = None,
-                        db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    res = db.query(Reservierung).order_by(Reservierung.datum, Reservierung.frist.is_(None), Reservierung.frist).all()
+                        db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    from marken import admin_marke, query_filter
+    res = query_filter(db.query(Reservierung), Reservierung.marke, admin_marke(db, user),
+                       neutral_sichtbar=False).order_by(
+        Reservierung.datum, Reservierung.frist.is_(None), Reservierung.frist).all()
     heute = date.today()
     aktive = [r for r in res if not (r.frist and r.frist < heute)]
     # Abgelaufene eingeklappt darunter, zuletzt abgelaufene zuerst

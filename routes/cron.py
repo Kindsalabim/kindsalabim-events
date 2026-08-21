@@ -232,7 +232,7 @@ def _run_abgelaufene_anfragen(db: Session) -> int:
                f"{n} {wort} abgelaufen: {anlass}",
                f"{n} Verfügbarkeitsanfrage(n) für {anlass} am {datum} sind ohne Antwort "
                f"abgelaufen – bitte nachbesetzen.{vorschlag}",
-               f"/admin/events/{eid}")
+               f"/admin/events/{eid}", marke=(ev.marke if ev else None))
     db.commit()
     return len(abgelaufen)
 
@@ -286,7 +286,7 @@ def _run_rechnung_erinnerungen(db: Session) -> int:
                    f"Privatkunde: Die Rechnung für {ev.anlass or 'das Event'} am "
                    f"{ev.datum.strftime('%d.%m.%Y')} soll 14 Tage vorher verschickt werden "
                    f"(Vorkasse). Empfänger: {ev.kunde_email or 'keine E-Mail hinterlegt'}.",
-                   f"/admin/events/{ev.id}")
+                   f"/admin/events/{ev.id}", marke=ev.marke)
             ev.vorkasse_erinnert = True
             db.commit()
             count += 1
@@ -323,7 +323,7 @@ def _run_rechnung_erinnerungen(db: Session) -> int:
                    f"Erinnerung zur Rechnung von {ev.kunde_firma or 'diesem Kunden'} "
                    f"({ev.anlass or 'Event'} am {ev.datum.strftime('%d.%m.%Y')}): "
                    + " ".join(teile),
-                   f"/admin/events/{ev.id}")
+                   f"/admin/events/{ev.id}", marke=ev.marke)
             ev.rechnung_mail_erinnert = True
             db.commit()
             count += 1
@@ -377,7 +377,7 @@ def _run_ueberfaellige_rechnungen(db: Session) -> int:
                    f"({ZAHLUNGSZIEL_WERKTAGE} Werktage) und ist noch nicht als bezahlt markiert. "
                    f"Diese Erinnerung wiederholt sich wöchentlich, bis die Rechnung in der "
                    f"Buchhaltung als bezahlt markiert ist.",
-                   "/admin/buchhaltung")
+                   "/admin/buchhaltung", marke=r.marke)
             r.ueberfaellig_erinnert_am = heute.isoformat()
             db.commit()   # pro Rechnung committen: kein Doppelversand bei Absturz
             count += 1
@@ -518,11 +518,19 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     ).order_by(KundeWiedervorlage.faellig).all()
     wv_mails = 0
     if faellige_wv:
+        # Jeder Admin bekommt nur die Wiedervorlagen der Marken, die er sehen will
+        # (Kunden-Marke entscheidet; ohne Kundenprofil gilt sie als markenneutral).
         from email_service import send_wiedervorlage_digest
-        admins = db.query(Admin).filter(Admin.aktiv == True).all()
+        from marken import normalisieren, passt
+        admins = db.query(Admin).filter(Admin.aktiv == True).all()   # noqa: E712
         for ad in admins:
+            f = normalisieren(ad.marken_filter)
+            eigene = [w for w in faellige_wv
+                      if passt(w.kunde.marke if w.kunde else None, f)]
+            if not eigene:
+                continue
             try:
-                send_wiedervorlage_digest(ad.email, faellige_wv, today)
+                send_wiedervorlage_digest(ad.email, eigene, today)
                 wv_mails += 1
             except Exception as e:
                 print(f"Wiedervorlage-Digest fehlgeschlagen für {ad.email}: {e}")

@@ -31,12 +31,31 @@
 {% endmacro %}
 
 <!-- Header -->
-<div class="flex items-center justify-between gap-3 mb-8">
+<div class="flex items-center justify-between gap-3 mb-4">
   <h1 class="text-2xl font-bold" style="color:var(--ink-1);">Events</h1>
   <a href="/admin/events/new" class="btn-primary shrink-0">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Neues Event
   </a>
+</div>
+
+{# Persönliche Marken-Ansicht – wirkt auf Events, Kalender, Zahlen, Reservierungen,
+   Buchhaltung, Glocke und Benachrichtigungs-Mails. #}
+<div class="flex items-center gap-2 mb-7 flex-wrap">
+  <span class="text-xs" style="color:var(--ink-4);">Ansicht:</span>
+  {% for wert, label in [('beide', 'Beide Marken'), ('Kindsalabim', 'Kindsalabim'), ('Knallfrosch', 'Knallfrosch')] %}
+  <form method="post" action="/admin/marken-ansicht">
+    <input type="hidden" name="wert" value="{{ wert }}">
+    <input type="hidden" name="weiter" value="/admin/dashboard">
+    <button class="text-xs font-semibold px-3 py-1.5 rounded-full transition"
+      style="{% if marken_filter == wert %}background:var(--brand-primary);color:#fff;{% else %}background:#fff;color:var(--ink-3);border:1px solid var(--line);{% endif %}">
+      {{ label }}
+    </button>
+  </form>
+  {% endfor %}
+  {% if marken_filter != 'beide' %}
+  <span class="text-xs" style="color:var(--ink-4);">Nur {{ marken_filter }} – gilt auch für Buchhaltung, Meldungen und E-Mails.</span>
+  {% endif %}
 </div>
 
 <!-- Aktions-Karten (klickbar = Filter; Reservierungen = eigener Bereich) -->

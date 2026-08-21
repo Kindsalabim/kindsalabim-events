@@ -70,12 +70,14 @@ def buchhaltung_list(request: Request, jahr: int = 0,
     if not jahr:
         jahr = date.today().year
 
-    rechnungen = (
-        db.query(Rechnung)
-        .filter(Rechnung.datum >= date(jahr, 1, 1),
-                Rechnung.datum <= date(jahr, 12, 31))
-        .all()
-    )
+    # Persönliche Marken-Ansicht: wer Kindsalabim abgewählt hat, sieht diese
+    # Rechnungen (und ihre Summen) hier gar nicht erst.
+    from marken import admin_marke, query_filter
+    mfilter = admin_marke(db, user)
+    rechnungen = query_filter(
+        db.query(Rechnung).filter(Rechnung.datum >= date(jahr, 1, 1),
+                                  Rechnung.datum <= date(jahr, 12, 31)),
+        Rechnung.marke, mfilter, neutral_sichtbar=False).all()
 
     # Nach Monat gruppieren (neuester Monat zuerst), innerhalb nach Rechnungsnummer
     # absteigend (zuletzt gestellte oben). Je Monat: Anzahl offener Rechnungen + Summe.
@@ -129,28 +131,32 @@ def buchhaltung_list(request: Request, jahr: int = 0,
     from sqlalchemy import func as _f
     from datetime import timedelta
     grenze = date.today() - timedelta(days=180)
-    event_vorschlaege = (
+    event_vorschlaege = query_filter(
         db.query(Event, _f.sum(EventBestellung.betrag))
         .join(EventBestellung, EventBestellung.event_id == Event.id)
-        .filter(Event.datum >= grenze)
-        .group_by(Event.id).order_by(Event.datum.desc()).limit(30).all())
+        .filter(Event.datum >= grenze),
+        Event.marke, mfilter, neutral_sichtbar=False
+    ).group_by(Event.id).order_by(Event.datum.desc()).limit(30).all()
     event_vorschlaege = [
         {"datum": e.datum, "kunde_firma": e.kunde_firma or e.anlass or "Event",
-         "summe": round(s or 0, 2)}
+         "summe": round(s or 0, 2), "marke": e.marke}
         for e, s in event_vorschlaege]
 
     today_iso = date.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("admin/buchhaltung.html", tpl_context(
         request, monatsgruppen=monatsgruppen, anzahl=len(rechnungen),
         jahr=jahr, jahre=jahre, totals=totals, today=today_iso,
-        event_vorschlaege=event_vorschlaege,
+        event_vorschlaege=event_vorschlaege, marken_filter=mfilter,
     ))
 
 
 # ── Neue Rechnung ──────────────────────────────────────────────────────────────
 
 def _apply_form(r: Rechnung, datum: str, kunde: str, rgnr: str,
-                brutto: str, personalkosten: str, materialkosten: str, notiz: str):
+                brutto: str, personalkosten: str, materialkosten: str, notiz: str,
+                marke: str = None):
+    if marke in ("Kindsalabim", "Knallfrosch"):
+        r.marke = marke
     try:
         r.datum = datetime.strptime(datum, "%Y-%m-%d").date()
     except Exception:
@@ -172,11 +178,16 @@ def buchhaltung_neu(
     personalkosten: str = Form("0"),
     materialkosten: str = Form("0"),
     notiz: str = Form(""),
+    marke: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(get_admin_user),
 ):
+    from marken import admin_marke, BEIDE
     r = Rechnung(bezahlt=False)
-    _apply_form(r, datum, kunde, rgnr, brutto, personalkosten, materialkosten, notiz)
+    # Ohne Auswahl: eigene Marken-Ansicht übernehmen (bei „beide" bleibt Kindsalabim)
+    eigene = admin_marke(db, user)
+    r.marke = "Kindsalabim" if eigene == BEIDE else eigene
+    _apply_form(r, datum, kunde, rgnr, brutto, personalkosten, materialkosten, notiz, marke)
     db.add(r)
     db.commit()
     return RedirectResponse(f"/admin/buchhaltung?jahr={r.datum.year}", status_code=303)
@@ -205,13 +216,14 @@ def buchhaltung_edit_save(
     personalkosten: str = Form("0"),
     materialkosten: str = Form("0"),
     notiz: str = Form(""),
+    marke: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(get_admin_user),
 ):
     r = db.query(Rechnung).filter(Rechnung.id == rid).first()
     if not r:
         return RedirectResponse("/admin/buchhaltung", status_code=303)
-    _apply_form(r, datum, kunde, rgnr, brutto, personalkosten, materialkosten, notiz)
+    _apply_form(r, datum, kunde, rgnr, brutto, personalkosten, materialkosten, notiz, marke)
     db.commit()
     return RedirectResponse(f"/admin/buchhaltung?jahr={r.datum.year}", status_code=303)
 
@@ -281,13 +293,14 @@ def buchhaltung_export(jahr: int = 0, db: Session = Depends(get_db),
     if not jahr:
         jahr = date.today().year
 
-    rechnungen = (
-        db.query(Rechnung)
-        .filter(Rechnung.datum >= date(jahr, 1, 1),
-                Rechnung.datum <= date(jahr, 12, 31))
-        .order_by(Rechnung.datum)
-        .all()
-    )
+    # Export folgt derselben Marken-Ansicht wie die Liste (sonst wären ausgeblendete
+    # Rechnungen über den Export doch wieder sichtbar).
+    from marken import admin_marke, query_filter
+    rechnungen = query_filter(
+        db.query(Rechnung).filter(Rechnung.datum >= date(jahr, 1, 1),
+                                  Rechnung.datum <= date(jahr, 12, 31)),
+        Rechnung.marke, admin_marke(db, user), neutral_sichtbar=False
+    ).order_by(Rechnung.datum).all()
 
     out = io.StringIO()
     out.write("sep=;\n")  # Excel-Hint: Semikolon als Trennzeichen

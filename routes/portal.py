@@ -264,14 +264,14 @@ def portal_antwort(anfrage_id: int, background_tasks: BackgroundTasks,
         if antwort == "Ja":
             notify(db, "dl_zusage", f"Zusage: {name}",
                    f"{name} hat für {ev.anlass} am {datum} zugesagt.{transport_text}",
-                   f"/admin/events/{ev.id}")
+                   f"/admin/events/{ev.id}", marke=ev.marke)
         else:
             from routes.admin import vorschlag_ersatz, ersatz_label
             v = vorschlag_ersatz(ev, db, a.rolle_anfrage)
             vorschlag = f" Vorschlag: {ersatz_label(v)}." if v else ""
             notify(db, "dl_absage", f"Absage auf Anfrage: {name}",
                    f"{name} hat die Anfrage für {ev.anlass} am {datum} abgelehnt.{vorschlag}",
-                   f"/admin/events/{ev.id}")
+                   f"/admin/events/{ev.id}", marke=ev.marke)
         db.commit()
         # Auto-Bestellung bei Zusage (Scheinselbstständigkeits-Vorsorge) – im Hintergrund,
         # idempotent, mit Datenpflege-Sicherung (siehe bestellung.py)
@@ -314,7 +314,7 @@ def portal_absage(request: Request, anfrage_id: int, grund: str = Form(""),
         vorschlag = f" Vorschlag zum Nachbesetzen: {ersatz_label(v)}." if v else ""
         notify(db, "dl_absage", f"Nachträgliche Absage: {name}",
                f"{name} hat den bestätigten Einsatz {ev.anlass} am {datum} abgesagt.{zusatz}{vorschlag}",
-               f"/admin/events/{ev.id}")
+               f"/admin/events/{ev.id}", marke=ev.marke)
         db.commit()
         # Absage-Mail ans Büro: < 7 Tage vor dem Event IMMER (Schalter wird ignoriert –
         # eine kurzfristige Absage darf nie still untergehen), sonst nach Einstellung.
@@ -392,7 +392,7 @@ def portal_bericht_save(event_id: int,
     from notifications import notify
     notify(db, "bericht", f"Eventbericht: {ev.anlass}",
            f"{name} hat den Bericht für {ev.anlass} am {ev.datum.strftime('%d.%m.%Y')} eingereicht.",
-           f"/admin/events/{ev.id}")
+           f"/admin/events/{ev.id}", marke=ev.marke)
     db.commit()
     return RedirectResponse("/portal?bericht=1", status_code=303)
 
@@ -424,7 +424,7 @@ def portal_verlaengern(anfrage_id: int, db: Session = Depends(get_db),
                f"{d.vorname} {d.nachname} hat für {ev.anlass or 'das Event'} am "
                f"{ev.datum.strftime('%d.%m.%Y')} eine Fristverlängerung angefordert. "
                f"Neue Frist: {a.frist_datum.strftime('%d.%m.%Y')}.",
-               f"/admin/events/{ev.id}")
+               f"/admin/events/{ev.id}", marke=ev.marke)
         db.commit()
         if mail_enabled(db, "frist_verlaengert"):
             try:

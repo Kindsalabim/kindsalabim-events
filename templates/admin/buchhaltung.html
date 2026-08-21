@@ -121,6 +121,15 @@
                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
       </div>
       <div>
+        <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Marke</label>
+        <select name="marke" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white"
+                title="Steuert, wer die Rechnung sieht (persönliche Marken-Ansicht)">
+          {% for m in ['Kindsalabim', 'Knallfrosch'] %}
+          <option value="{{ m }}" {% if marken_filter == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
         <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Brutto (€)</label>
         <input type="text" name="brutto" placeholder="0,00"
                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
@@ -185,6 +194,9 @@
         {% set r = row.r %}
         <tr class="border-b border-gray-50 hover:bg-gray-50 transition {% if r.bezahlt %}opacity-60{% endif %}">
           <td class="kunde px-3 py-2.5 font-medium whitespace-nowrap" style="color:var(--ink-1);" title="{{ r.kunde or '' }}">{{ r.kunde or "–" }}
+            {% if marken_filter == 'beide' and r.marke == 'Knallfrosch' %}
+            <span class="brand-tag-knallfrosch" title="Knallfrosch-Rechnung">KF</span>
+            {% endif %}
             {% if rechnung_ueberfaellig(r) %}
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style="background:#fee2e2;color:#b91c1c;"
                   title="Fällig seit {{ rechnung_faellig_am(r) | de_date }} (14 Werktage) – noch nicht bezahlt">überfällig</span>

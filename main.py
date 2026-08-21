@@ -216,6 +216,26 @@ def run_migrations():
             except Exception:
                 conn.rollback()
     add_column("admins", "notifications_gesehen_bis", "VARCHAR")
+    add_column("admins", "marken_filter", "VARCHAR DEFAULT 'beide'")
+    add_column("benachrichtigungen", "marke", "VARCHAR")
+    # Rechnungs-Marke: steuert, wer welche Rechnungen sieht. Backfill nur einmal beim
+    # Anlegen der Spalte – über die Events desselben Kunden (jüngstes gewinnt), sonst
+    # über das CRM-Profil; alles Übrige bleibt bei Kindsalabim (Haupt-Marke).
+    _hatte_rg_marke = "marke" in {
+        c["name"] for c in _sa_inspect(engine).get_columns("rechnungen")}
+    add_column("rechnungen", "marke", "VARCHAR DEFAULT 'Kindsalabim'")
+    if not _hatte_rg_marke:
+        with engine.connect() as conn:
+            for quelle in ("events", "kunden"):
+                spalte = "kunde_firma" if quelle == "events" else "firma"
+                try:
+                    conn.execute(text(
+                        f"UPDATE rechnungen SET marke = 'Knallfrosch' WHERE kunde IS NOT NULL "
+                        f"AND lower(trim(kunde)) IN (SELECT lower(trim({spalte})) FROM {quelle} "
+                        f"WHERE marke = 'Knallfrosch' AND {spalte} IS NOT NULL)"))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")
     add_column("rechnungen", "ueberfaellig_erinnert", "BOOLEAN DEFAULT 0")

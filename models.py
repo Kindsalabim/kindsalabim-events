@@ -367,6 +367,10 @@ class Admin(Base):
     aktiv               = Column(Boolean, default=True)
     erstellt_am         = Column(String)
     notifications_gesehen_bis = Column(String)  # ISO-Datetime: bis hierhin Benachrichtigungen gesehen (None = nie)
+    # Persönliche Marken-Ansicht: "beide" | "Kindsalabim" | "Knallfrosch".
+    # Wirkt auf Dashboard, Reservierungen, Buchhaltung, Glocke UND den Mailversand –
+    # jeder Admin stellt sie für sich selbst ein (keine Rechtevergabe, nur Ansicht).
+    marken_filter       = Column(String, default="beide")
 
 
 class Benachrichtigung(Base):
@@ -380,6 +384,7 @@ class Benachrichtigung(Base):
     text        = Column(Text)
     link        = Column(String)                    # interner Pfad zum Deep-Link, z. B. /admin/events/12
     erstellt_am = Column(String, nullable=False, index=True)  # ISO-Datetime (sortierbar)
+    marke       = Column(String)   # Kindsalabim | Knallfrosch | None = markenneutral (immer sichtbar)
 
 
 class AppEinstellung(Base):
@@ -416,6 +421,7 @@ class Rechnung(Base):
     id             = Column(Integer, primary_key=True, index=True)
     datum          = Column(Date, nullable=False)
     kunde          = Column(String)
+    marke          = Column(String, default="Kindsalabim")  # steuert die Sichtbarkeit je Admin
     rgnr           = Column(String)       # Rechnungsnummer, z. B. RE-2026-001
     brutto         = Column(Float, default=0.0)
     bezahlt          = Column(Boolean, default=False)

@@ -208,7 +208,7 @@ def bestellung_erzeugen_async(anfrage_id: int):
                    f"{name} hat für {ev.anlass or 'das Event'} am {datum} zugesagt, aber es ist "
                    f"kein {feld} hinterlegt. Bitte im Dienstleister-Profil pflegen – "
                    f"die Bestellung wird sonst nicht erzeugt.",
-                   f"/admin/dienstleister/{d.id}/edit")
+                   f"/admin/dienstleister/{d.id}/edit", marke=ev.marke)
             db.commit()
             return
         pdf = build_bestellung_pdf(a, ev, d, verguetung, zusatz)
@@ -227,7 +227,7 @@ def bestellung_erzeugen_async(anfrage_id: int):
         notify(db, "bestellung", f"Bestellung verschickt: {name}",
                f"Automatische Bestellung für {ev.anlass or 'das Event'} am {datum} an {name} "
                f"verschickt. Vergütung: {verguetung}",
-               f"/admin/events/{ev.id}")
+               f"/admin/events/{ev.id}", marke=ev.marke)
         db.commit()
     except Exception as e:
         db.rollback()

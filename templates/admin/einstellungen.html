@@ -12,6 +12,28 @@
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Einstellungen gespeichert.</div>
 {% endif %}
 
+{# Persönliche Marken-Ansicht – gilt nur für den eingeloggten Admin #}
+<div class="card p-5 mb-6">
+  <h2 class="text-sm font-semibold text-gray-800 mb-1">Meine Marken-Ansicht</h2>
+  <p class="text-xs text-gray-500 mb-3">
+    Gilt nur für dich: Events, Kalender, Reservierungen, <strong>Buchhaltung</strong>, Meldungen
+    in der Glocke und alle Benachrichtigungs-E-Mails zeigen dann nur die gewählte Marke.
+    Allgemeine Meldungen (z. B. Urlaub eines Teamers) kommen weiterhin.
+  </p>
+  <div class="flex items-center gap-2 flex-wrap">
+    {% for wert, label in [('beide', 'Beide Marken'), ('Kindsalabim', 'Nur Kindsalabim'), ('Knallfrosch', 'Nur Knallfrosch')] %}
+    <form method="post" action="/admin/marken-ansicht">
+      <input type="hidden" name="wert" value="{{ wert }}">
+      <input type="hidden" name="weiter" value="/admin/einstellungen?ok=1">
+      <button class="text-sm font-semibold px-4 py-2 rounded-lg transition"
+        style="{% if marken_filter == wert %}background:var(--brand-primary);color:#fff;{% else %}background:#fff;color:var(--ink-3);border:1px solid var(--line);{% endif %}">
+        {{ label }}
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="mb-4 px-4 py-3 rounded-xl text-sm" style="background:#f0f7ff;color:#1e40af;">
   Die <strong>Glocke</strong> sammelt alle Ereignisse immer. Hier wählst du nur, wofür du
   <strong>zusätzlich eine E-Mail</strong> bekommen möchtest.

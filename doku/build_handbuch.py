@@ -576,6 +576,21 @@ story = [
     *shots("crm", 150, "Kundenprofil: Kontakt (mit Rechnungs-Kachel), Wiedervorlagen, Aktivitäten, Eventhistorie."),
 
     PageBreak(),
+    Paragraph("Marken-Ansicht (persönlich je Admin)", H2),
+    bullets([
+        "Über den Umschalter oben im Dashboard (oder unter Einstellungen) wählt <b>jeder Admin "
+        "für sich</b>: beide Marken, nur Kindsalabim oder nur Knallfrosch.",
+        "Die Auswahl wirkt auf <b>Events, Kalender, Kennzahlen, Reservierungen, Buchhaltung "
+        "(inkl. Summen und CSV-Export), Glocke und alle Benachrichtigungs-E-Mails</b>. "
+        "Allgemeine Meldungen ohne Marke (z. B. Urlaub eines Teamers) kommen weiterhin bei allen an.",
+        "Hintergrund: Knallfrosch ist eine GbR mit Geschäftspartner, Kindsalabim ein "
+        "Einzelunternehmen – so muss niemand Meldungen und Zahlen der jeweils anderen Firma sehen. "
+        "Es ist eine Ansichts-Einstellung, keine Sperre: Jeder kann sie jederzeit selbst ändern.",
+        "Jede <b>Rechnung hat eine Marke</b> (Auswahl im Formular). Beim Update wurden bestehende "
+        "Rechnungen automatisch zugeordnet (über die Events/Kunden desselben Namens), der Rest "
+        "läuft auf Kindsalabim – bitte einmal prüfen und ggf. beim Bearbeiten korrigieren.",
+    ]),
+
     Paragraph("13. Buchhaltung", H2),
     bullets([
         "Alle Rechnungen nach Monaten gruppiert, mit Jahres-Summen (Brutto, offen, Personal-/Material"

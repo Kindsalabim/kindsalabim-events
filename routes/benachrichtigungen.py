@@ -24,10 +24,14 @@ def tpl_context(request: Request, **kw):
 
 @router.get("/benachrichtigungen", response_class=HTMLResponse)
 def benachrichtigungen(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    from marken import normalisieren, query_filter
     email = user.get("sub") or user.get("email")
     ad = db.query(Admin).filter(Admin.email == email).first()
     cutoff = ad.notifications_gesehen_bis if ad else None  # vor dem Markieren merken (für „neu")
-    eintraege = db.query(Benachrichtigung).order_by(Benachrichtigung.id.desc()).limit(200).all()
+    # Nur Meldungen der Marken, die dieser Admin sehen will (ohne Marke = allgemein)
+    eintraege = query_filter(db.query(Benachrichtigung), Benachrichtigung.marke,
+                             normalisieren(ad.marken_filter if ad else None)
+                             ).order_by(Benachrichtigung.id.desc()).limit(200).all()
     # Als gesehen markieren -> Badge dieses Admins auf 0
     if ad:
         ad.notifications_gesehen_bis = datetime.now().isoformat(timespec="seconds")
@@ -38,12 +42,14 @@ def benachrichtigungen(request: Request, db: Session = Depends(get_db), user=Dep
 
 
 @router.get("/einstellungen", response_class=HTMLResponse)
-def einstellungen(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+def einstellungen(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user)):
     from choices import BRIEFING_REGELN_DEFAULT
+    from marken import admin_marke
     schalter = [{"typ": t[0], "label": t[1], "on": mail_enabled(db, t[0])} for t in NOTIF_TYPEN]
     return templates.TemplateResponse("admin/einstellungen.html",
         tpl_context(request, schalter=schalter, active="einstellungen",
                     briefing_regeln=get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT),
+                    marken_filter=admin_marke(db, user),
                     gespeichert=request.query_params.get("ok")))
 
 
