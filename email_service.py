@@ -471,6 +471,38 @@ def send_dsgvo_nachweis(dienstleister, pdf: bytes, zeitpunkt: str):
         print(f"DSGVO-Kopie an Dienstleister fehlgeschlagen ({d.email}): {e}")
 
 
+def send_warteliste_nachrueckung(dienstleister, event, neue_frist):
+    """Ein Platz ist frei geworden – die verspätete Zusage wird wieder zur Anfrage."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      gute Nachricht: Für diesen Einsatz ist doch noch ein <strong>Platz frei geworden</strong>.
+      Deine Zusage kam nach Ablauf der Frist, deshalb hatten wir sie zunächst zurückgestellt –
+      jetzt kannst du wieder zusagen.
+    </p>
+    <div style="background:#f0fdf4;border-left:3px solid #16a34a;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', event.anlass)}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Ort', event.veranstaltungsort)}
+        {_info_row('Bitte antworten bis', de_date(neue_frist))}
+      </table>
+    </div>
+    <a href="https://kindsalabim-events.onrender.com/portal"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Jetzt zusagen →
+    </a>
+    <p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">
+      Wer zuerst antwortet, bekommt den Platz – diesmal bitte innerhalb der Frist.
+    </p>"""
+    _send(dienstleister.email,
+          f"✅ Doch noch ein Platz frei – {event.anlass}",
+          _wrap(content, color, cfg))
+
+
 def send_erinnerung(dienstleister, event):
     cfg = get_config()
     color = _brand_color(event.marke)

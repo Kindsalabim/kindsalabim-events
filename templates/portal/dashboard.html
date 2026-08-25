@@ -53,6 +53,29 @@
     </div>
     {% endif %}
 
+    {% if request.query_params.get('glueck') %}
+    <div class="card p-4" style="background: var(--c-green-bg);">
+      <p class="text-sm font-semibold" style="color: var(--c-green);">Du hast Glück!</p>
+      <p class="text-sm mt-1" style="color: var(--c-green);">Deine Zusage kam nach Ablauf der Frist – es war aber noch ein Platz im Team frei. Du bist dabei. Bitte antworte beim nächsten Mal innerhalb der Frist, sonst ist der Einsatz meist schon vergeben.</p>
+    </div>
+    {% endif %}
+    {% if request.query_params.get('besetzt') %}
+    <div class="card p-4" style="background: var(--c-danger-bg);">
+      {% if request.query_params.get('besetzt') == 'zu_spaet' %}
+      <p class="text-sm font-semibold" style="color: var(--c-danger);">Leider zu spät.</p>
+      <p class="text-sm mt-1" style="color: var(--c-danger);">Deine Antwortfrist ist abgelaufen und der Einsatz ist inzwischen vergeben. Melde dich beim nächsten Mal gern früher – oder sag rechtzeitig ab, dann können wir schneller planen.</p>
+      {% else %}
+      <p class="text-sm font-semibold" style="color: var(--c-danger);">Dieser Einsatz ist bereits vollständig besetzt.</p>
+      <p class="text-sm mt-1" style="color: var(--c-danger);">Alle Plätze sind vergeben. Die Anfrage kannst du ignorieren – bei der nächsten bist du wieder dabei.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if request.query_params.get('warteliste') %}
+    <div class="card p-4" style="background: var(--c-amber-bg);">
+      <p class="text-sm font-semibold" style="color: var(--c-amber);">Du stehst auf der Warteliste.</p>
+      <p class="text-sm mt-1" style="color: var(--c-amber);">Deine Zusage kam nach Ablauf der Frist – die Stelle wird gerade jemandem angeboten, der noch in der Frist ist. Sagt diese Person ab oder lässt die Frist verstreichen, bekommst du die Anfrage <strong>automatisch erneut</strong> per E-Mail. Du musst nichts weiter tun.</p>
+    </div>
+    {% endif %}
     {% if request.query_params.get('briefing_offen') %}
     <div class="card p-4" style="background: var(--c-amber-bg);">
       <p class="text-sm font-medium" style="color: var(--c-amber);">Dein Briefing ist noch nicht fertig. Du bekommst es rechtzeitig vor dem Event per E-Mail – danach steht es auch hier zum Download bereit.</p>
@@ -156,6 +179,16 @@
               <span class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:#f3f4f6;color:var(--ink-3);">Noch {{ dl }} Tage Zeit</span>
             {% endif %}
             {% if a.frist_verlaengert %}<span class="text-xs italic ml-1" style="color: var(--ink-4);">· verlängert</span>{% endif %}
+          </div>
+          {% endif %}
+
+          {% if dl is not none and dl < 0 %}
+          <div class="mt-2.5 px-3.5 py-2.5 rounded-xl text-xs" style="background:#f3f4f6; color: var(--ink-3);">
+            {% if a.warteliste_seit %}
+            ⏳ <strong>Du stehst auf der Warteliste.</strong> Die Stelle wird gerade jemandem angeboten, der noch in der Frist ist. Wird der Platz frei, bekommst du automatisch eine neue Anfrage.
+            {% else %}
+            Die Frist ist abgelaufen. Du kannst noch zusagen – <strong>nur solange ein Platz frei ist</strong> und niemand anderes die Stelle gerade fristgerecht prüft.
+            {% endif %}
           </div>
           {% endif %}
 

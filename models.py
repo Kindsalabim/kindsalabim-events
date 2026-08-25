@@ -261,6 +261,10 @@ class Verfuegbarkeitsanfrage(Base):
     budget = Column(Float)  # Künstler-Budget (pauschal, netto, inkl. Fahrtkosten) – None = keine Angabe
     bestellung_am = Column(String)      # ISO-Datetime der Auto-Bestellung bei Zusage (None = keine)
     bestellung_r2_key = Column(String)  # archivierte Bestellungs-PDF im R2 (Nachweis)
+    # Warteliste: verspätete Zusage, während die Stelle noch fristgerecht bei jemand
+    # anderem läuft. Wird ein Platz frei (Absage/Fristablauf), rückt der Älteste
+    # automatisch nach und bekommt die Anfrage erneut.
+    warteliste_seit = Column(String)    # ISO-Datetime (None = nicht auf der Warteliste)
 
     event = relationship("Event", back_populates="anfragen")
     dienstleister = relationship("Dienstleister", back_populates="anfragen")

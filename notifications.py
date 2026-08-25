@@ -28,6 +28,7 @@ NOTIF_TYPEN = [
     ("rechnung_erinnerung", "Rechnungs-Erinnerung (Vorkasse / Rechnungsadresse)", True, True),
     ("dl_unterlagen", "Dienstleister-Unterlagen (Profil, DSGVO, Gewerbeschein)", True, False),
     ("bestellung", "Automatische Bestellung bei Zusage", True, False),
+    ("warteliste", "Warteliste: Dienstleister rückt automatisch nach", True, False),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 

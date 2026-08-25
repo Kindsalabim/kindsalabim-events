@@ -512,9 +512,15 @@
               Abgesagt
             </span>
           {% elif a.status == 'Abgelaufen' %}
+            {% if a.warteliste_seit %}
+            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-sky-bg);color:var(--c-sky);" title="Hat nach Fristablauf zugesagt – rückt automatisch nach, sobald ein Platz frei wird">
+              ⏳ Warteliste
+            </span>
+            {% else %}
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);" title="Frist ohne Antwort verstrichen – ggf. nachbesetzen">
               ⏳ Abgelaufen
             </span>
+            {% endif %}
           {% else %}
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-entwurf">Ausstehend</span>
           {% endif %}

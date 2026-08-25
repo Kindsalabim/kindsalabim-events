@@ -234,6 +234,19 @@ def _run_abgelaufene_anfragen(db: Session) -> int:
                f"abgelaufen – bitte nachbesetzen.{vorschlag}",
                f"/admin/events/{eid}", marke=(ev.marke if ev else None))
     db.commit()
+
+    # Abgelaufene Fristen geben Plätze frei → Wartende (verspätete Zusagen) nachrücken
+    from besetzung import warteliste_nachruecken
+    for eid in pro_event:
+        ev = db.get(Event, eid)
+        if not ev:
+            continue
+        for rolle in ("Teamer", "Künstler"):
+            try:
+                warteliste_nachruecken(db, ev, rolle)
+            except Exception as e:
+                db.rollback()
+                print(f"Warteliste-Nachrücken fehlgeschlagen (Event {eid}/{rolle}): {e}")
     return len(abgelaufen)
 
 

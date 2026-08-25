@@ -460,6 +460,17 @@ story = [
         "beim Briefing für Agentur-Personal.",
         "Zugesagte erscheinen mit Häkchen; dort <b>Teamleitung</b> und (bei Material) <b>Logistiker</b> "
         "zuweisen. Bei Lücken macht die App einen <b>1-Klick-Nachbesetzungs-Vorschlag</b>.",
+        "<b>Platzvergabe läuft automatisch</b> – niemand muss prüfen, ob eine Zusage noch passt: "
+        "Ist das Team für die Rolle bereits voll, lehnt die App die Zusage selbst ab. Nach "
+        "Fristablauf gilt zusätzlich der Vorrang der Pünktlichen – läuft für dieselbe Rolle noch "
+        "eine fristgerechte Anfrage, kommt die verspätete Zusage auf die <b>Warteliste</b> "
+        "(Kennzeichen in der Rückmeldungstabelle) statt den Platz wegzuschnappen. Ist zufällig noch "
+        "ein Platz frei und niemand anderes dran, geht die verspätete Zusage durch – der "
+        "Dienstleister bekommt dabei den Hinweis, dass das Glück und kein Normalfall war.",
+        "<b>Automatisches Nachrücken:</b> Wird ein Platz frei (Absage oder abgelaufene Frist), "
+        "reaktiviert die App die älteste Wartelisten-Anfrage, setzt eine neue Frist (2 Tage) und "
+        "verschickt die Anfrage erneut. Nur wenn für die Rolle gar kein Bedarf hinterlegt ist "
+        "(z. B. reines Zaubershow-Event), greifen diese Regeln nicht.",
     ]),
 
     Paragraph("7. Bestellungen &amp; Material", H2),
@@ -620,7 +631,7 @@ story = [
     Paragraph("Läuft täglich im Hintergrund – niemand muss daran denken:", P),
     tabelle(["Wann", "Was passiert"], [
         ["24 h vor Anfrage-Frist", "Erinnerung an Dienstleister, die noch nicht geantwortet haben"],
-        ["Frist abgelaufen", "Anfrage wird als „Abgelaufen“ markiert + Glocke mit Nachbesetzungs-Vorschlag"],
+        ["Frist abgelaufen", "Anfrage wird als „Abgelaufen“ markiert + Glocke mit Nachbesetzungs-Vorschlag; Wartende rücken automatisch nach"],
         ["3 Wochen vor Event", "Material-Bestell-Erinnerung (wenn Material nötig, noch nicht bestellt)"],
         ["14 Tage vor Event", "Vorkasse-Rechnung senden (nur Privatkunden)"],
         ["1 Woche vor Event", "Info-Mail an den Kunden mit der Teamleitung als Ansprechpartner"],

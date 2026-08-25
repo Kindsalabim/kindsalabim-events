@@ -233,6 +233,17 @@ def portal_antwort(anfrage_id: int, background_tasks: BackgroundTasks,
     # kann kein Job angenommen werden. Absagen bleibt jederzeit möglich.
     if a and antwort == "Ja" and a.dienstleister and not a.dienstleister.unterlagen_ok:
         return RedirectResponse("/portal?unterlagen_fehlen=1", status_code=303)
+    # Platzvergabe-Regeln (besetzung.py): volles Team, verspätete Zusage, Warteliste
+    glueck = False
+    if a and antwort == "Ja":
+        from besetzung import zusage_pruefen, auf_warteliste
+        urteil = zusage_pruefen(db, a)
+        if urteil in ("voll", "zu_spaet"):
+            return RedirectResponse(f"/portal?besetzt={urteil}", status_code=303)
+        if urteil == "warteliste":
+            auf_warteliste(db, a)
+            return RedirectResponse("/portal?warteliste=1", status_code=303)
+        glueck = (urteil == "glueck")
     if a and antwort in ("Ja", "Nein"):
         a.status = antwort
         a.notiz = notiz.strip() or None
@@ -278,13 +289,36 @@ def portal_antwort(anfrage_id: int, background_tasks: BackgroundTasks,
         if antwort == "Ja":
             from bestellung import bestellung_erzeugen_async
             background_tasks.add_task(bestellung_erzeugen_async, a.id)
+        else:
+            # Platz wieder frei → Wartende (verspätete Zusagen) automatisch nachrücken
+            from besetzung import warteliste_nachruecken
+            background_tasks.add_task(_nachruecken_async, ev.id, a.rolle_anfrage)
+    if glueck:
+        return RedirectResponse("/portal?glueck=1", status_code=303)
     return RedirectResponse("/portal", status_code=303)
+
+
+def _nachruecken_async(event_id: int, rolle: str):
+    """Hintergrund-Task: Warteliste für Event+Rolle abarbeiten (eigene DB-Session)."""
+    from database import SessionLocal
+    from besetzung import warteliste_nachruecken
+    db = SessionLocal()
+    try:
+        ev = db.query(Event).filter(Event.id == event_id).first()
+        if ev:
+            warteliste_nachruecken(db, ev, rolle)
+    except Exception as e:
+        db.rollback()
+        print(f"Warteliste-Nachrücken fehlgeschlagen (Event {event_id}): {e}")
+    finally:
+        db.close()
 
 
 # ── Nachträgliche Absage (bestätigte Einsätze) ────────────────────────────────
 
 @router.post("/absage/{anfrage_id}")
-def portal_absage(request: Request, anfrage_id: int, grund: str = Form(""),
+def portal_absage(request: Request, anfrage_id: int, background_tasks: BackgroundTasks,
+                  grund: str = Form(""),
                   db: Session = Depends(get_db), user=Depends(get_portal_user)):
     did = int(user["sub"])
     a = db.query(Verfuegbarkeitsanfrage).filter(
@@ -323,6 +357,8 @@ def portal_absage(request: Request, anfrage_id: int, grund: str = Form(""),
             from email_service import send_absage_admin
             base_url = str(request.base_url).rstrip("/")
             send_absage_admin(a.dienstleister, a.event, grund, base_url)
+        # Frei gewordener Platz → Warteliste nachrücken lassen
+        background_tasks.add_task(_nachruecken_async, ev.id, a.rolle_anfrage)
     return RedirectResponse("/portal?absage=1", status_code=303)
 
 

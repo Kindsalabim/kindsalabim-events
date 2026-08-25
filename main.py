@@ -182,6 +182,7 @@ def run_migrations():
     add_column("dienstleister", "scoring_erinnert_am", "DATE")
     add_column("verfuegbarkeitsanfragen", "bestellung_am", "VARCHAR")
     add_column("verfuegbarkeitsanfragen", "bestellung_r2_key", "VARCHAR")
+    add_column("verfuegbarkeitsanfragen", "warteliste_seit", "VARCHAR")
     # Lieferantenbewertung (1–10) ersetzt Erfahrungspunkte + 5-Sterne-Qualität.
     # Einmaliger Backfill beim Anlegen der Spalte: alte Sterne × 2 (3★ → 6/10).
     from sqlalchemy import inspect as _sa_inspect
