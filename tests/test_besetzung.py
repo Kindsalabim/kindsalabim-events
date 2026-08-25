@@ -45,6 +45,32 @@ def test_plaetze_frei_zaehlt_zusagen_und_externe(db):
     assert plaetze_frei(db, ev, "Künstler") is None
 
 
+def test_warteliste_nur_bei_echter_konkurrenz(db):
+    """Mehr freie Plätze als laufende Anfragen → verspätete Zusage nimmt niemandem
+    etwas weg und geht durch (Aykuts 8-Teamer-Fall)."""
+    from besetzung import zusage_pruefen, plaetze_frei
+    eid = _event(teamer=8)
+    ev = reload(Event, eid)
+    for _ in range(4):                                   # 4 haben zugesagt
+        make_anfrage(eid, _dl(), status="Ja", rolle="Teamer")
+    s = SessionLocal()
+    try:                                                 # 2 kommen über die Agentur
+        s.add(ExternerTeamer(event_id=eid, name="Agentur 1"))
+        s.add(ExternerTeamer(event_id=eid, name="Agentur 2"))
+        s.commit()
+    finally:
+        s.close()
+    assert plaetze_frei(db, ev, "Teamer") == 2           # 8 − 4 − 2
+    make_anfrage(eid, _dl(), status="Ausstehend", frist_datum=MORGEN)   # 1 läuft noch
+    spaet = make_anfrage(eid, _dl(), status="Abgelaufen", frist_datum=GESTERN)
+    # 2 Plätze frei, nur 1 laufende Anfrage → verspätete Zusage ist unproblematisch
+    assert zusage_pruefen(db, db.get(Verfuegbarkeitsanfrage, spaet)) == "glueck"
+
+    # Kippt, sobald die laufenden Anfragen alle freien Plätze abdecken
+    make_anfrage(eid, _dl(), status="Ausstehend", frist_datum=MORGEN)   # jetzt 2 offen
+    assert zusage_pruefen(db, db.get(Verfuegbarkeitsanfrage, spaet)) == "warteliste"
+
+
 def test_ohne_bedarf_bleibt_zusage_moeglich(db, client):
     """Reines Zaubershow-Event o. Ä.: anzahl_teamer = 0, trotzdem jemand angefragt."""
     from besetzung import zusage_pruefen

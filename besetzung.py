@@ -66,8 +66,14 @@ def zusage_pruefen(db, a, heute=None):
     frei = plaetze_frei(db, ev, a.rolle_anfrage)
     if frei is not None and frei <= 0:
         return "zu_spaet" if verspaetet else "voll"
-    if verspaetet and offene_konkurrenz(db, ev, a.rolle_anfrage, a.id, heute) > 0:
-        return "warteliste"
+    # Vorrang der Pünktlichen nur bei echter Konkurrenz: Warteliste erst, wenn die noch
+    # laufenden fristgerechten Anfragen alle freien Plätze abdecken. Sind mehr Plätze
+    # offen als Anfragen laufen (z. B. 2 Lücken, 1 laufende Anfrage), nimmt die
+    # verspätete Zusage niemandem etwas weg und darf durchgehen.
+    if verspaetet and frei is not None:
+        konkurrenz = offene_konkurrenz(db, ev, a.rolle_anfrage, a.id, heute)
+        if konkurrenz >= frei:
+            return "warteliste"
     return "glueck" if verspaetet else "ok"
 
 
