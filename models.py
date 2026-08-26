@@ -225,6 +225,11 @@ class Reservierung(Base):
     serien_id         = Column(String)                    # verknüpft mehrtägige Reservierungen (wie Event.serien_id)
     erstellt_am       = Column(String)
 
+    # Bastelset-Vorschläge schon vor der Buchung (fürs Angebot) – wandern beim
+    # Umwandeln in eine Buchung mit ans neue Event.
+    bastelvorschlaege = relationship(
+        "Bastelvorschlag", foreign_keys="Bastelvorschlag.reservierung_id", viewonly=True)
+
 
 class DienstleisterSperrzeit(Base):
     __tablename__ = "dienstleister_sperrzeiten"
@@ -521,11 +526,14 @@ class BastelProdukt(Base):
 
 
 class Bastelvorschlag(Base):
-    """An ein Event angedockter, kuratierter Bastelset-Vorschlag (Snapshot)."""
+    """Kuratierter Bastelset-Vorschlag (Snapshot), angedockt an ein Event ODER eine
+    Reservierung – Recherche passiert oft schon vor der Buchung fürs Angebot.
+    Beim Umwandeln der Reservierung wandern die Vorschläge ans neue Event."""
     __tablename__ = "bastel_vorschlaege"
 
     id          = Column(Integer, primary_key=True, index=True)
-    event_id    = Column(Integer, ForeignKey("events.id"), nullable=False)
+    event_id    = Column(Integer, ForeignKey("events.id"), nullable=True)
+    reservierung_id = Column(Integer, ForeignKey("reservierungen.id"), nullable=True)
     name        = Column(String, nullable=False)
     url         = Column(String)
     bild_url    = Column(String)

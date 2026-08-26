@@ -207,6 +207,15 @@ def de_month(d) -> str:
     return _MONATE_KURZ[d.month - 1] if d else ""
 
 
+_MONATE_LANG = ["Januar", "Februar", "März", "April", "Mai", "Juni",
+                "Juli", "August", "September", "Oktober", "November", "Dezember"]
+
+
+def de_month_long(d) -> str:
+    """Ausgeschriebener Monatsname (z. B. Mai) – für Monatsüberschriften."""
+    return _MONATE_LANG[d.month - 1] if d else ""
+
+
 # ── Rechnungs-Fälligkeit ────────────────────────────────────────────────────────
 # Zahlungsziel laut AB: 14 Tage nach Rechnungseingang; Aykut rechnet in Werktagen
 # (Mo–Fr, ohne Feiertage – bewusst einfach gehalten).

@@ -239,6 +239,16 @@ def run_migrations():
                     conn.rollback()
     add_column("bastel_produkte", "stueckzahl", "INTEGER")
     add_column("bastel_vorschlaege", "stueckzahl", "INTEGER")
+    # Bastelsets dürfen auch an einer Reservierung hängen (Recherche vor der Buchung)
+    add_column("bastel_vorschlaege", "reservierung_id", "INTEGER")
+    if is_postgres:   # SQLite kennt kein DROP NOT NULL – dort greift create_all
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE bastel_vorschlaege "
+                                  "ALTER COLUMN event_id DROP NOT NULL"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
     add_column("rechnungen", "ueberfaellig_erinnert", "BOOLEAN DEFAULT 0")
     add_column("rechnungen", "ueberfaellig_erinnert_am", "VARCHAR")
 

@@ -20,8 +20,9 @@ from auth import (get_admin_user, verify_password, hash_password, create_token,
 from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
 from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie_anfrage, ANFRAGE_FRIST_TAGE
-from choices import (ZEITEN, de_date, de_month, de_euro, benoetigte_sparten,
-                     kuenstler_passt, weitere_ap_liste, weitere_ap_json)
+from choices import (ZEITEN, de_date, de_month, de_month_long, de_euro,
+                     benoetigte_sparten, kuenstler_passt, weitere_ap_liste,
+                     weitere_ap_json)
 from validation import validate_event_form, validate_dienstleister_form
 
 router = APIRouter(prefix="/admin")
@@ -33,6 +34,7 @@ templates = Jinja2Templates(directory="templates")
 _AB_BUDGET_CACHE: dict = {}
 templates.env.filters["de_date"] = de_date
 templates.env.filters["de_month"] = de_month
+templates.env.filters["de_month_long"] = de_month_long
 templates.env.filters["de_euro"] = de_euro
 templates.env.globals["zeiten"] = ZEITEN
 import ankunft as _ankunft
@@ -679,6 +681,13 @@ def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
         db.add(ev); events.append(ev)
         if res.id == r.id:
             ziel_ev = ev
+            db.flush()      # ev.id für die Bastelsets unten
+            # Recherchierte Bastelsets der Reservierung wandern ans neue Event
+            from models import Bastelvorschlag
+            for v in db.query(Bastelvorschlag).filter(
+                    Bastelvorschlag.reservierung_id == res.id).all():
+                v.event_id = ev.id
+                v.reservierung_id = None
         if res.kalender_event_id:
             background_tasks.add_task(calendar_service.delete_event_async, res.kalender_event_id, res.marke)
         db.delete(res)

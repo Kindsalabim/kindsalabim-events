@@ -621,8 +621,16 @@ story = [
         "individuelle Seiten mit Titel + Fotos ergänzen, fertig ist das mailbare PDF (wird automatisch "
         "verkleinert). Aus einem Event heraus geöffnet, sind angedockte Bastelsets schon vorbefüllt.",
         "<b>Bastel-Recherche:</b> Motto eingeben (z. B. &bdquo;Herbst&ldquo;) → passende Baker-Ross-Bastelsets "
-        "mit BR-Preis und kalkuliertem Kundenpreis (Aufschlag einstellbar). Sets lassen sich an ein "
-        "Event andocken und ins Angebot übernehmen. Katalog aktualisiert sich montags automatisch.",
+        "mit BR-Preis und kalkuliertem Kundenpreis (Aufschlag einstellbar). Katalog aktualisiert "
+        "sich montags automatisch.",
+        "Sets lassen sich an ein <b>gebuchtes Event ODER eine Reservierung</b> andocken – Angebote "
+        "entstehen ja meist vor der Buchung. Wird die Reservierung später in eine Buchung "
+        "umgewandelt, wandern die Sets automatisch ans neue Event.",
+        "Das <b>Ergebnis bleibt gespeichert</b>: Nach einem Ausflug ins Dashboard steht die letzte "
+        "Recherche noch da (mit Datum und Knopf &bdquo;Ergebnis verwerfen&ldquo;) – kein erneutes Suchen nötig.",
+        "Aus dem Event bzw. der Reservierung heraus <b>&bdquo;Angebot bauen&ldquo;</b> anklicken: Die angedockten "
+        "Sets stehen dann samt Bild automatisch als individuelle Seiten im Angebots-Generator "
+        "(Bilder werden direkt von Baker Ross geladen, kein manueller Download nötig).",
     ]),
     *shots("angebot", 150, "Angebots-Generator: Marke, Aktionen, individuelle Seiten."),
 

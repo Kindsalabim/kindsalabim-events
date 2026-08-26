@@ -202,6 +202,13 @@ document.addEventListener('DOMContentLoaded', function(){
         {% if r.kunde_email %}<span>{{ r.kunde_email }}</span>{% endif %}
       </div>
       {% if r.notiz %}<p class="text-xs mt-1 italic" style="color:var(--ink-4);">„{{ r.notiz }}"</p>{% endif %}
+      {% if r.bastelvorschlaege %}
+      <p class="text-xs mt-1.5" style="color:var(--ink-3);">
+        🎨 {{ r.bastelvorschlaege|length }} Bastelset{{ 's' if r.bastelvorschlaege|length != 1 }} recherchiert ·
+        <a href="/admin/angebot?reservierung_id={{ r.id }}" class="underline" style="color:var(--brand-primary);">Angebot bauen</a> ·
+        <a href="/admin/bakerross?reservierung_id={{ r.id }}" class="underline" style="color:var(--brand-primary);">Recherche</a>
+      </p>
+      {% endif %}
     </div>
 
     <!-- Frist -->

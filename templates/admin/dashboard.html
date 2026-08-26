@@ -138,12 +138,22 @@
 
     {% if upcoming_data %}
     <div class="space-y-3" id="event-list">
+      {% set ns = namespace(monat=None) %}
       {% for item in upcoming_data %}
       {% set ev    = item.ev %}
       {% set ft    = item.fehlende_teamer %}
       {% set fk    = item.fehlende_kuenstler %}
       {% set urgent = item.urgent %}
       {% set is_kf  = ev.marke == 'Knallfrosch' %}
+
+      {# Dezente Monatstrennung – zeigt auf einen Blick, wo ein neuer Monat beginnt.
+         Die Zeile wird beim Filtern per JS mit ausgeblendet (siehe filterTable). #}
+      {% if ev.datum and (ev.datum.year, ev.datum.month) != ns.monat %}
+      {% set ns.monat = (ev.datum.year, ev.datum.month) %}
+      <div class="month-divider" data-month="{{ ev.datum.strftime('%Y-%m') }}">
+        <span>{{ ev.datum | de_month_long }} {{ ev.datum.year }}</span>
+      </div>
+      {% endif %}
 
       <a href="/admin/events/{{ ev.id }}"
          class="event-card event-row {% if urgent and (ft > 0 or fk > 0) %}border-red-200{% endif %}"
@@ -322,6 +332,12 @@
     display:inline-flex;align-items:center;justify-content:center;}
   details.overdue-box[open] .overdue-summary{border-bottom:1px solid #fde68a;border-radius:0.9rem 0.9rem 0 0;}
   .overdue-box > div{padding:0 0.75rem 0.75rem;}
+  /* Dezente Monatstrennung in der Eventliste */
+  .month-divider{display:flex;align-items:center;gap:0.75rem;padding:0.35rem 0.25rem 0;}
+  .month-divider span{font-size:0.6875rem;font-weight:700;letter-spacing:0.08em;
+    text-transform:uppercase;color:var(--ink-4);white-space:nowrap;}
+  .month-divider::after{content:"";flex:1;height:1px;background:var(--line);}
+  .month-divider:first-child{padding-top:0;}
 </style>
 <script>
 (function(){
@@ -338,6 +354,7 @@
       row.style.display = match ? '' : 'none';
       if (match) shown++;
     });
+    monatstrenner();
     var cnt = document.getElementById('event-count'); if (cnt) cnt.textContent = shown;
     var rst = document.getElementById('filter-reset'); if (rst) rst.classList.remove('hidden');
   };
@@ -346,9 +363,22 @@
     document.querySelectorAll('.filter-card').forEach(function(c){ c.classList.remove('filter-active'); });
     var rows = document.querySelectorAll('.event-row');
     rows.forEach(function(row){ row.style.display = ''; });
+    monatstrenner();
     var cnt = document.getElementById('event-count'); if (cnt) cnt.textContent = rows.length;
     var rst = document.getElementById('filter-reset'); if (rst) rst.classList.add('hidden');
   };
+
+  // Monats-Überschrift nur zeigen, wenn im Monat noch mindestens ein Event sichtbar ist
+  function monatstrenner(){
+    document.querySelectorAll('.month-divider').forEach(function(div){
+      var sichtbar = false;
+      for (var el = div.nextElementSibling; el; el = el.nextElementSibling){
+        if (el.classList.contains('month-divider')) break;
+        if (el.classList.contains('event-row') && el.style.display !== 'none'){ sichtbar = true; break; }
+      }
+      div.style.display = sichtbar ? '' : 'none';
+    });
+  }
 })();
 </script>
 

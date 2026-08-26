@@ -257,18 +257,23 @@ def _compress_pdf(pdf_bytes: bytes) -> bytes:
 # ── Routes ──────────────────────────────────────────────────────────────────────
 
 @router.get("/angebot", response_class=HTMLResponse)
-def angebot_form(request: Request, event_id: int = None,
+def angebot_form(request: Request, event_id: int = None, reservierung_id: int = None,
                  db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    # Bei Aufruf aus einem Event: Custom-Seiten aus den angedockten Bastelsets vorbefüllen.
+    # Aus einem Event ODER einer Reservierung heraus: Custom-Seiten aus den angedockten
+    # Bastelsets vorbefüllen (Angebote entstehen meist vor der Buchung).
     prefill_pages, prefill_kundenname, prefill_marke = [], "", "Kindsalabim"
+    quelle = None
     if event_id:
-        ev = db.query(Event).filter(Event.id == event_id).first()
-        if ev:
-            prefill_kundenname = ev.kunde_firma or ""
-            prefill_marke = ev.marke or "Kindsalabim"
-            for v in ev.bastelvorschlaege:
-                if v.bild_url:
-                    prefill_pages.append({"titel": v.name, "bild_url": v.bild_url})
+        quelle = db.query(Event).filter(Event.id == event_id).first()
+    elif reservierung_id:
+        from models import Reservierung
+        quelle = db.query(Reservierung).filter(Reservierung.id == reservierung_id).first()
+    if quelle:
+        prefill_kundenname = quelle.kunde_firma or ""
+        prefill_marke = quelle.marke or "Kindsalabim"
+        for v in quelle.bastelvorschlaege:
+            if v.bild_url:
+                prefill_pages.append({"titel": v.name, "bild_url": v.bild_url})
     return templates.TemplateResponse("admin/angebot.html", {
         "request": request,
         "aktionen": AKTIONEN,

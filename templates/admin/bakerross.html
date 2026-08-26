@@ -111,17 +111,40 @@
 {% endif %}
 
 {% if treffer is not none %}
-  <!-- ── Andock-Ziel (Event) ── -->
+  {% if gemerkt_seit %}
+  <div class="card p-3 mb-4 flex items-center gap-3 flex-wrap" style="background:#f0f7ff;">
+    <span class="text-sm" style="color:#1e40af;">
+      📌 Deine letzte Recherche zu „<strong>{{ query }}</strong>" (vom {{ gemerkt_seit[8:10] }}.{{ gemerkt_seit[5:7] }}., {{ gemerkt_seit[11:16] }} Uhr) – bleibt erhalten, bis du eine neue startest.
+    </span>
+    <form method="post" action="/admin/bakerross/verwerfen" class="ml-auto">
+      <button class="text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">✕ Ergebnis verwerfen</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- ── Andock-Ziel: gebuchtes Event ODER Reservierung (Recherche vor der Buchung) ── -->
   <div class="card p-4 mb-4 flex items-center gap-3 flex-wrap">
-    <label class="text-sm font-medium text-gray-700">Vorschläge andocken an Event:</label>
-    <select id="ziel-event" class="rounded-xl border border-gray-200 px-3 py-2 text-sm flex-1 min-w-[200px]">
-      <option value="">– kein Event –</option>
-      {% for e in events %}
-      <option value="{{ e.id }}" {% if event_id and e.id == event_id %}selected{% endif %}>
-        {{ e.datum|de_date }} · {{ e.anlass }} · {{ e.kunde_firma }}
-      </option>
-      {% endfor %}
+    <label class="text-sm font-medium text-gray-700">Vorschläge andocken an:</label>
+    <select id="ziel-event" class="rounded-xl border border-gray-200 px-3 py-2 text-sm flex-1 min-w-[220px]">
+      <option value="">– nichts ausgewählt –</option>
+      {% if reservierungen %}
+      <optgroup label="Reservierungen (noch nicht gebucht)">
+        {% for r in reservierungen %}
+        <option value="r{{ r.id }}" {% if reservierung_id and r.id == reservierung_id %}selected{% endif %}>
+          {{ r.datum|de_date }} · {{ r.kunde_firma }}{% if r.anlass %} · {{ r.anlass }}{% endif %}
+        </option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+      <optgroup label="Gebuchte Events">
+        {% for e in events %}
+        <option value="e{{ e.id }}" {% if event_id and e.id == event_id %}selected{% endif %}>
+          {{ e.datum|de_date }} · {{ e.anlass }} · {{ e.kunde_firma }}
+        </option>
+        {% endfor %}
+      </optgroup>
     </select>
+    <span class="text-xs text-gray-500 w-full">Bei einer Reservierung wandern die Sets automatisch mit, sobald daraus eine Buchung wird.</span>
   </div>
 
   {% if treffer|length == 0 %}
@@ -175,7 +198,7 @@
           </div>
 
           <div class="mt-1 flex items-center gap-2">
-            <button type="submit" class="btn-secondary text-xs px-3 py-1.5 flex-1">+ An Event hängen</button>
+            <button type="submit" class="btn-secondary text-xs px-3 py-1.5 flex-1">+ Andocken</button>
             {% if p.bild_url %}
             <a href="/admin/bakerross/bild?url={{ p.bild_url|urlencode }}"
                class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5" title="Bild herunterladen">⬇ Bild</a>
@@ -193,7 +216,7 @@
   <script>
     function setZiel(f){
       var s = document.getElementById('ziel-event');
-      if(!s.value){ alert('Bitte oben ein Event auswählen, an das der Vorschlag angehängt werden soll.'); return false; }
+      if(!s.value){ alert('Bitte oben auswählen, an welches Event oder welche Reservierung der Vorschlag angehängt werden soll.'); return false; }
       f.event_id.value = s.value;
       return true;
     }

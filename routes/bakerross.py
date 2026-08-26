@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import BastelProdukt, Bastelvorschlag, Event
+from models import BastelProdukt, Bastelvorschlag, Event, Reservierung
 from auth import get_admin_user
 from config import get_config
 from choices import de_date
@@ -48,10 +48,76 @@ def _events_liste(db: Session):
     return db.query(Event).order_by(Event.datum.desc()).limit(150).all()
 
 
+def _reservierungen_liste(db: Session):
+    """Offene Reservierungen als Andock-Ziel – Recherche läuft oft schon vor der Buchung."""
+    return db.query(Reservierung).filter(
+        Reservierung.datum >= date.today()).order_by(Reservierung.datum).limit(50).all()
+
+
 def _ziel_event(db: Session, event_id):
     if not event_id:
         return None
     return db.query(Event).filter(Event.id == event_id).first()
+
+
+def _ziel_reservierung(db: Session, reservierung_id):
+    if not reservierung_id:
+        return None
+    return db.query(Reservierung).filter(Reservierung.id == reservierung_id).first()
+
+
+def _suche_key(user) -> str:
+    """Speicher-Schlüssel je Admin – jeder hat seine eigene letzte Recherche."""
+    email = ((user or {}).get("sub") or (user or {}).get("email") or "").strip().lower()
+    return f"bakerross_suche:{email}"
+
+
+def _suche_speichern(db, user, query, faktor, max_results, event_id, treffer,
+                     reservierung_id=None):
+    """Merkt sich die letzte Recherche, damit sie nach einem Seitenwechsel noch da ist.
+    Gespeichert werden nur IDs + Preis-Snapshot – kein erneuter KI-Aufruf beim Laden."""
+    from notifications import set_setting
+    import json
+    daten = {
+        "query": query, "faktor": faktor, "max_results": max_results,
+        "event_id": event_id, "reservierung_id": reservierung_id,
+        "zeit": datetime.now().isoformat(timespec="seconds"),
+        "treffer": [{"id": t["produkt"].id, "grund": t.get("grund") or "",
+                     "br_preis": t.get("br_preis"), "stueckzahl": t.get("stueckzahl"),
+                     "kundenpreis": t.get("kundenpreis")} for t in treffer],
+    }
+    try:
+        set_setting(db, _suche_key(user), json.dumps(daten))
+        db.commit()
+    except Exception as e:      # Merken ist Komfort – darf die Suche nie sprengen
+        db.rollback()
+        print(f"Bastel-Recherche konnte nicht gemerkt werden: {e}")
+
+
+def _suche_laden(db, user):
+    """Letzte Recherche wiederherstellen → (daten, treffer) oder (None, None)."""
+    from notifications import get_setting
+    import json
+    roh = get_setting(db, _suche_key(user), "")
+    if not roh:
+        return None, None
+    try:
+        daten = json.loads(roh)
+    except (ValueError, TypeError):
+        return None, None
+    ids = [t.get("id") for t in daten.get("treffer", []) if t.get("id")]
+    if not ids:
+        return None, None
+    produkte = {p.id: p for p in db.query(BastelProdukt).filter(BastelProdukt.id.in_(ids)).all()}
+    treffer = []
+    for t in daten["treffer"]:
+        p = produkte.get(t.get("id"))
+        if not p:
+            continue        # Produkt inzwischen aus dem Katalog geflogen
+        treffer.append({"produkt": p, "br_preis": t.get("br_preis"),
+                        "stueckzahl": t.get("stueckzahl"),
+                        "kundenpreis": t.get("kundenpreis"), "grund": t.get("grund") or ""})
+    return (daten, treffer) if treffer else (None, None)
 
 
 def tpl(request, **kw):
@@ -63,47 +129,95 @@ def tpl(request, **kw):
 
 
 @router.get("", response_class=HTMLResponse)
-def index(request: Request, event_id: int = None, db: Session = Depends(get_db),
-          _=Depends(get_admin_user)):
+def index(request: Request, event_id: int = None, reservierung_id: int = None,
+          db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    # Letzte Recherche wiederherstellen – sonst wäre sie nach einem Ausflug ins
+    # Dashboard weg und müsste komplett neu gemacht werden.
+    daten, treffer = _suche_laden(db, user)
+    query = (daten or {}).get("query", "")
+    faktor = (daten or {}).get("faktor") or _faktor_default()
+    if event_id is None and reservierung_id is None and daten:
+        event_id = daten.get("event_id")
+        reservierung_id = daten.get("reservierung_id")
     return templates.TemplateResponse("admin/bakerross.html", tpl(
         request, status=_katalog_status(db), events=_events_liste(db),
+        reservierungen=_reservierungen_liste(db),
         event_id=event_id, ziel_event=_ziel_event(db, event_id),
-        treffer=None, query=""))
+        reservierung_id=reservierung_id,
+        ziel_reservierung=_ziel_reservierung(db, reservierung_id),
+        treffer=treffer, query=query, faktor=faktor,
+        gemerkt_seit=(daten or {}).get("zeit")))
 
 
 @router.post("/suche", response_class=HTMLResponse)
 def suche(request: Request, query: str = Form(...), faktor: float = Form(None),
           max_results: int = Form(12), event_id: int = Form(None),
-          db: Session = Depends(get_db), _=Depends(get_admin_user)):
+          reservierung_id: int = Form(None),
+          db: Session = Depends(get_db), user=Depends(get_admin_user)):
     faktor = faktor or _faktor_default()
     max_results = max(1, min(max_results, 24))
     treffer = br.kurate(db, query.strip(), max_results=max_results, faktor=faktor)
+    _suche_speichern(db, user, query.strip(), faktor, max_results, event_id, treffer,
+                     reservierung_id)
     return templates.TemplateResponse("admin/bakerross.html", tpl(
         request, status=_katalog_status(db), events=_events_liste(db),
+        reservierungen=_reservierungen_liste(db),
         event_id=event_id, ziel_event=_ziel_event(db, event_id),
+        reservierung_id=reservierung_id,
+        ziel_reservierung=_ziel_reservierung(db, reservierung_id),
         treffer=treffer, query=query, faktor=faktor))
 
 
+@router.post("/verwerfen")
+def suche_verwerfen(db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    """Gemerkte Recherche löschen (Knopf „Ergebnis verwerfen")."""
+    from notifications import set_setting
+    set_setting(db, _suche_key(user), "")
+    db.commit()
+    return RedirectResponse("/admin/bakerross", status_code=303)
+
+
 @router.post("/an-event")
-def an_event(event_id: int = Form(...), name: str = Form(...), url: str = Form(""),
+def an_event(event_id: str = Form(...), name: str = Form(...), url: str = Form(""),
              bild_url: str = Form(""), br_preis: float = Form(None),
              stueckzahl: int = Form(None), faktor: float = Form(None),
              grund: str = Form(""), db: Session = Depends(get_db),
              _=Depends(get_admin_user)):
-    ev = db.query(Event).filter(Event.id == event_id).first()
-    if not ev:
-        raise HTTPException(404)
+    """Bastelset an ein Event ODER eine Reservierung andocken.
+    Das Auswahlfeld liefert „e<id>" (Event) bzw. „r<id>" (Reservierung); eine reine
+    Zahl bleibt aus Kompatibilität ein Event."""
+    ziel = (event_id or "").strip()
+    ist_reservierung = ziel.startswith("r")
+    try:
+        ziel_id = int(ziel[1:] if ziel[:1] in ("e", "r") else ziel)
+    except ValueError:
+        raise HTTPException(400, "Ungültiges Ziel")
+
+    if ist_reservierung:
+        res = db.query(Reservierung).filter(Reservierung.id == ziel_id).first()
+        if not res:
+            raise HTTPException(404)
+        ziel_param = f"reservierung_id={res.id}"
+        felder = {"reservierung_id": res.id}
+    else:
+        ev = db.query(Event).filter(Event.id == ziel_id).first()
+        if not ev:
+            raise HTTPException(404)
+        ziel_param = f"event_id={ev.id}"
+        felder = {"event_id": ev.id}
+
     faktor = faktor or _faktor_default()
     db.add(Bastelvorschlag(
-        event_id=ev.id, name=name.strip(), url=url.strip() or None,
+        name=name.strip(), url=url.strip() or None,
         bild_url=bild_url.strip() or None,
         br_preis=br_preis, stueckzahl=stueckzahl,
         kundenpreis=br.compute_kundenpreis(br_preis, faktor, stueckzahl),
         begruendung=(grund or "").strip() or None,
         erstellt_am=datetime.now().isoformat(timespec="seconds"),
+        **felder,
     ))
     db.commit()
-    return RedirectResponse(f"/admin/bakerross?event_id={ev.id}&msg=Bastelset+angedockt",
+    return RedirectResponse(f"/admin/bakerross?{ziel_param}&msg=Bastelset+angedockt",
                             status_code=303)
 
 
