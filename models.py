@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Boolean, Float, Table, UniqueConstraint
 from sqlalchemy.orm import relationship, backref
 from database import Base
@@ -141,6 +143,8 @@ class Dienstleister(Base):
     lieferantenbewertung = Column(Integer)        # Interne Lieferantenbewertung 1–10 (None = noch nicht bewertet)
     mobilitaet = Column(String, default="Auto")  # Auto, ÖPNV, Beides
     kleidergroesse = Column(String)
+    geburtsdatum = Column(Date)                  # freiwillige Angabe (Portal/Admin)
+    geburtstag_erinnert_am = Column(Date)        # letzte Geburtstags-Glocke (verhindert Doppelmeldung)
     aktiv = Column(Boolean, default=True)
     logistiker = Column(Boolean, default=False)  # Kann Material transportieren
     fuehrerschein = Column(Boolean, default=False)
@@ -199,6 +203,15 @@ class Dienstleister(Base):
     def unterlagen_ok(self):
         """Alles da, um Jobs anzunehmen? (Zusage-Sperre im Portal)"""
         return self.gewerbeschein_ok and self.dsgvo_ok
+
+    @property
+    def alter(self):
+        """Alter in Jahren (None, wenn kein Geburtsdatum hinterlegt ist)."""
+        if not self.geburtsdatum:
+            return None
+        heute = date.today()
+        return (heute.year - self.geburtsdatum.year
+                - ((heute.month, heute.day) < (self.geburtsdatum.month, self.geburtsdatum.day)))
 
 
 class Reservierung(Base):
@@ -380,6 +393,9 @@ class Admin(Base):
     # Wirkt auf Dashboard, Reservierungen, Buchhaltung, Glocke UND den Mailversand –
     # jeder Admin stellt sie für sich selbst ein (keine Rechtevergabe, nur Ansicht).
     marken_filter       = Column(String, default="beide")
+    # Rolle: "inhaber" = Vollzugriff · "buero" = Disposition ohne Geld & Verwaltung
+    # (keine Buchhaltung, keine Stundensätze, kein Löschen, keine Zugangsverwaltung)
+    rolle               = Column(String, default="inhaber")
 
 
 class Benachrichtigung(Base):

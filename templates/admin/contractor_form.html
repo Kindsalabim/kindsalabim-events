@@ -4,6 +4,7 @@
    beim Anlegen ein Echo-Objekt OHNE id zurück (Eingaben bleiben erhalten). #}
 {% block title %}{% if d and d.id %}{{ d.vorname }} {{ d.nachname }}{% else %}Neuer Dienstleister{% endif %} – {{ cfg.app_name }}{% endblock %}
 {% block content %}
+{% set nur_buero = ist_buero_user(request) %}
 <div class="max-w-2xl">
 
   <div class="mb-6">
@@ -66,6 +67,12 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Kleidergröße</label>
           <input type="text" name="kleidergroesse" value="{{ (d.kleidergroesse or '') if d else '' }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Geburtstag</label>
+          <input type="date" name="geburtsdatum" max="{{ heute_iso }}"
+            value="{{ (d.geburtsdatum.isoformat() if d.geburtsdatum else '') if d else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
@@ -190,6 +197,7 @@
           </select>
         </div>
       </div>
+      {% if not nur_buero %}
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Stundensatz Teamer (€)</label>
@@ -206,6 +214,7 @@
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>
+      {% endif %}
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Website</label>
         <input type="url" name="website" placeholder="https://"
@@ -252,13 +261,13 @@
     <div class="flex items-center gap-3 pt-1">
       <button type="submit" class="btn-primary px-6 py-2.5">Speichern</button>
       <a href="/admin/dienstleister" class="text-sm text-gray-500 hover:text-gray-600 px-3 py-2 transition-colors">Abbrechen</a>
-      {% if d and d.id %}
+      {% if d and d.id and not nur_buero %}
       <button type="submit" form="dl_delete_form"
               class="ml-auto text-sm text-red-600 hover:text-red-600 transition-colors">Löschen</button>
       {% endif %}
     </div>
   </form>
-  {% if d and d.id %}
+  {% if d and d.id and not nur_buero %}
   <!-- Eigene Lösch-Form außerhalb der Bearbeiten-Form (verschachtelte <form> sind ungültig) -->
   <form id="dl_delete_form" method="post" action="/admin/dienstleister/{{ d.id }}/delete"
         onsubmit="return confirm('Dienstleister wirklich löschen?')"></form>

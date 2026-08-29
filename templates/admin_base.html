@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block body %}
 {% set notif_n = notif_unread(request) if notif_unread is defined else 0 %}
+{# Für Büro-Zugänge gesperrte Bereiche werden gar nicht erst angezeigt #}
+{% set nur_buero = ist_buero_user(request) %}
 
 <!-- Mobile top bar (beide Marken-Logos – Navigation via Bottom-Nav) -->
 <div id="mobile-topbar" class="fixed top-0 left-0 right-0 z-30 flex items-center gap-3 px-4 h-14 bg-white border-b border-gray-100 shadow-sm md:hidden">
@@ -88,6 +90,7 @@
         </svg>
         Kunden
       </a>
+      {% if not nur_buero %}
       <a href="/admin/buchhaltung" class="sidebar-link {% if active=='buchhaltung' %}active{% endif %}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -95,6 +98,7 @@
         </svg>
         Buchhaltung
       </a>
+      {% endif %}
       <a href="/admin/angebot" class="sidebar-link {% if active=='angebot' %}active{% endif %}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -124,6 +128,7 @@
         </svg>
         Tickets
       </a>
+      {% if not nur_buero %}
       <a href="/admin/admins" class="sidebar-link {% if active=='admins' %}active{% endif %}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -131,6 +136,7 @@
         </svg>
         Admin-Zugänge
       </a>
+      {% endif %}
       <a href="/admin/einstellungen" class="sidebar-link {% if active=='einstellungen' %}active{% endif %}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/>
@@ -138,6 +144,7 @@
         </svg>
         Einstellungen
       </a>
+      {% if not nur_buero %}
       <a href="/admin/papierkorb" class="sidebar-link {% if active=='papierkorb' %}active{% endif %}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <polyline points="3 6 5 6 21 6"/>
@@ -145,6 +152,7 @@
         </svg>
         Papierkorb
       </a>
+      {% endif %}
     </nav>
 
     <!-- Logout -->
@@ -211,6 +219,7 @@
     </svg>
     Kunden
   </a>
+  {% if not nur_buero %}
   <a href="/admin/buchhaltung" class="mehr-item {% if active=='buchhaltung' %}active{% endif %}">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -218,6 +227,7 @@
     </svg>
     Buchhaltung
   </a>
+  {% endif %}
   <a href="/admin/angebot" class="mehr-item {% if active=='angebot' %}active{% endif %}">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -247,6 +257,7 @@
     </svg>
     Tickets
   </a>
+  {% if not nur_buero %}
   <a href="/admin/admins" class="mehr-item {% if active=='admins' %}active{% endif %}">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -254,6 +265,7 @@
     </svg>
     Admin-Zugänge
   </a>
+  {% endif %}
   <a href="/admin/benachrichtigungen" class="mehr-item {% if active=='benachrichtigungen' %}active{% endif %}">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -268,6 +280,7 @@
     </svg>
     Einstellungen
   </a>
+  {% if not nur_buero %}
   <a href="/admin/papierkorb" class="mehr-item {% if active=='papierkorb' %}active{% endif %}">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <polyline points="3 6 5 6 21 6"/>
@@ -275,6 +288,7 @@
     </svg>
     Papierkorb
   </a>
+  {% endif %}
   <a href="/admin/logout" class="mehr-item">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

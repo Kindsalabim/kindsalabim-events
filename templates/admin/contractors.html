@@ -178,10 +178,12 @@
               <button class="text-xs text-gray-500 hover:text-gray-600 transition-colors">Einladung</button>
             </form>
             <a href="/admin/dienstleister/{{ d.id }}/edit" class="text-sm font-medium hover:underline" style="color: var(--brand-primary);">Bearbeiten</a>
+            {% if not ist_buero_user(request) %}
             <form method="post" action="/admin/dienstleister/{{ d.id }}/delete"
                   onsubmit="return confirm('{{ d.vorname }} {{ d.nachname }} wirklich löschen?')">
               <button class="text-xs text-red-600 hover:text-red-600 transition-colors">Löschen</button>
             </form>
+            {% endif %}
           </div>
         </td>
       </tr>

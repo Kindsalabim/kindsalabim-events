@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from database import engine, Base, SessionLocal
@@ -218,6 +218,12 @@ def run_migrations():
                 conn.rollback()
     add_column("admins", "notifications_gesehen_bis", "VARCHAR")
     add_column("admins", "marken_filter", "VARCHAR DEFAULT 'beide'")
+    # Bestehende Zugänge bleiben Inhaber – eingeschränkt wird nur, wer bewusst
+    # auf „buero" gesetzt wird.
+    add_column("admins", "rolle", "VARCHAR DEFAULT 'inhaber'")
+    # Geburtstag: freiwillige Angabe im Profil, Glocke am Tag selbst
+    add_column("dienstleister", "geburtsdatum", "DATE")
+    add_column("dienstleister", "geburtstag_erinnert_am", "DATE")
     add_column("benachrichtigungen", "marke", "VARCHAR")
     # Rechnungs-Marke: steuert, wer welche Rechnungen sieht. Backfill nur einmal beim
     # Anlegen der Spalte – über die Events desselben Kunden (jüngstes gewinnt), sonst
@@ -498,7 +504,10 @@ app.include_router(admin_router)
 app.include_router(portal_router)
 app.include_router(checklist_router)
 app.include_router(cron_router)
-app.include_router(buchhaltung_router)
+# Buchhaltung, Papierkorb und Zugangsverwaltung sind für Büro-Zugänge gesperrt
+# (Rolle „buero"); zentral hier statt in jeder einzelnen Route.
+from rechte import nur_inhaber
+app.include_router(buchhaltung_router, dependencies=[Depends(nur_inhaber)])
 app.include_router(import_router)
 app.include_router(fotos_router)
 app.include_router(angebot_router)
@@ -507,7 +516,7 @@ app.include_router(wissen_portal_router)
 app.include_router(tickets_router)
 app.include_router(crm_router)
 app.include_router(bakerross_router)
-app.include_router(papierkorb_router)
+app.include_router(papierkorb_router, dependencies=[Depends(nur_inhaber)])
 app.include_router(benachrichtigungen_router)
 
 # Glocken-Badge (notif_unread) auf allen Admin-Seiten verfügbar machen –
@@ -515,13 +524,57 @@ app.include_router(benachrichtigungen_router)
 from notifications import admin_notif_unread
 import routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets
 import routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross, routes.benachrichtigungen
+
+
+def _ist_buero_user(request) -> bool:
+    """Jinja-Global: Ist der eingeloggte Admin ein Büro-Zugang? Fehler nie nach oben
+    durchreichen – im Zweifel Vollzugriff anzeigen (Sperre greift serverseitig)."""
+    try:
+        from auth import decode_token
+        from database import SessionLocal
+        from rechte import ist_buero
+        token = request.cookies.get("admin_token")
+        payload = decode_token(token) if token else None
+        if not payload or payload.get("role") != "admin":
+            return False
+        db = SessionLocal()
+        try:
+            return ist_buero(db, payload)
+        finally:
+            db.close()
+    except Exception:
+        return False
+
+
 for _mod in (routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets,
              routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross,
              routes.benachrichtigungen):
     try:
         _mod.templates.env.globals["notif_unread"] = admin_notif_unread
+        # Rolle des eingeloggten Admins für die Oberfläche (Menü, Knöpfe, Konditionen)
+        _mod.templates.env.globals["ist_buero_user"] = _ist_buero_user
     except Exception:
         pass
+
+
+@app.exception_handler(403)
+async def kein_zugriff(request, exc):
+    """Freundliche Seite statt roher Fehlermeldung, wenn ein Büro-Zugang einen
+    gesperrten Bereich öffnet (Buchhaltung, Papierkorb, Zugänge, Löschen)."""
+    from fastapi.responses import HTMLResponse, JSONResponse
+    detail = getattr(exc, "detail", "Kein Zugriff")
+    if "application/json" in (request.headers.get("accept") or ""):
+        return JSONResponse({"detail": detail}, status_code=403)
+    return HTMLResponse(
+        "<div style='font-family:system-ui,sans-serif;max-width:34rem;margin:15vh auto;"
+        "padding:2rem;text-align:center;color:#1f2937;'>"
+        "<div style='font-size:2.5rem;margin-bottom:.5rem;'>🔒</div>"
+        "<h1 style='font-size:1.25rem;margin:0 0 .75rem;'>Kein Zugriff</h1>"
+        f"<p style='color:#6b7280;line-height:1.6;'>{detail}</p>"
+        "<p style='margin-top:1.5rem;'><a href='/admin/dashboard' "
+        "style='color:#003864;font-weight:600;'>← Zurück zum Dashboard</a></p></div>",
+        status_code=403)
+
 
 @app.get("/")
 def root():

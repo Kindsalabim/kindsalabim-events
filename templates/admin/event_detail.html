@@ -45,6 +45,7 @@
       </div>
       {# Checkliste- & Briefing-Versand bewusst NICHT mehr hier – sie haben eigene Bereiche (wf-checkliste / wf-briefing). #}
       {# Löschen bewusst dezent in zweiter Zeile, mittig unter dem Kopieren-Button #}
+      {% if not ist_buero_user(request) %}
       <form method="post" action="/admin/events/{{ ev.id }}/delete" class="md:mr-3"
             onsubmit="return confirm('Event „{{ ev.kunde_firma }}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
         <button class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-600 transition-colors px-2 py-1" title="Event löschen">
@@ -52,6 +53,7 @@
           Löschen
         </button>
       </form>
+      {% endif %}
     </div>
   </div>
 </div>

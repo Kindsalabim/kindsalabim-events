@@ -2,6 +2,7 @@
 {% set active = 'dienstleister' %}
 {% block title %}{{ d.vorname }} {{ d.nachname }} – {{ cfg.app_name }}{% endblock %}
 {% block content %}
+{% set nur_buero = ist_buero_user(request) %}
 
 <!-- Back + Header -->
 <div class="mb-6">
@@ -57,6 +58,7 @@
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Gebiet</dt><dd class="text-gray-800 text-right">{{ d.gebiet or '–' }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Verfügbarkeit</dt><dd class="text-gray-800 text-right">{{ d.verfuegbarkeit or '–' }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Kleidergröße</dt><dd class="text-gray-800 text-right">{{ d.kleidergroesse or '–' }}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Geburtstag</dt><dd class="text-gray-800 text-right">{% if d.geburtsdatum %}{{ d.geburtsdatum | de_date }} <span class="text-gray-500">({{ d.alter }})</span>{% else %}–{% endif %}</dd></div>
     </dl>
   </div>
 
@@ -65,14 +67,16 @@
     <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Konditionen & DSGVO</h2>
     <dl class="space-y-3 text-sm">
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Vertragstyp</dt><dd class="text-gray-800 text-right">{{ d.vertragstyp or '–' }}</dd></div>
+      {% if not nur_buero %}
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Stundensatz Teamer</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_teamer %}{{ d.stundensatz_teamer | de_euro }} €/h{% else %}–{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Stundensatz Künstler</dt><dd class="text-gray-800 text-right">{% if d.stundensatz_kuenstler %}{{ d.stundensatz_kuenstler | de_euro }} €/h{% else %}–{% endif %}</dd></div>
+      {% endif %}
       <div class="flex justify-between gap-4"><dt class="text-gray-500">DSGVO unterzeichnet</dt><dd class="text-right">{% if d.dsgvo_unterzeichnet %}<span style="color:var(--brand-primary);">✓ ja</span>{% if d.dsgvo_knallfrosch_am %} <span class="text-xs text-gray-500">(online {{ d.dsgvo_knallfrosch_am[:10] }}{% if d.dsgvo_name %}, {{ d.dsgvo_name }}{% endif %})</span>{% endif %}{% else %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">fehlt</span>{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Gewerbeschein</dt><dd class="text-right">
         {% if d.gewerbeschein_r2_key %}<a href="/admin/dienstleister/{{ d.id }}/gewerbeschein/view" target="_blank" rel="noopener" class="underline" style="color:var(--brand-primary);">✓ hochgeladen{% if d.gewerbeschein_hochgeladen_am %} ({{ d.gewerbeschein_hochgeladen_am[:10] }}){% endif %} – ansehen</a>
         {% elif d.gewerbeschein_vorliegt %}<span style="color:var(--brand-primary);">✓ liegt vor</span> <span class="text-xs text-gray-500">(nur Häkchen – keine Datei in der App)</span>
         {% else %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-danger-bg);color:var(--c-danger);">fehlt – Zusagen gesperrt</span>{% endif %}</dd></div>
-      {% if d.dsgvo_knallfrosch_am %}
+      {% if d.dsgvo_knallfrosch_am and not nur_buero %}
       <div class="flex justify-between gap-4"><dt class="text-gray-500">DSGVO-Nachweis</dt><dd class="text-right"><a href="/admin/dienstleister/{{ d.id }}/dsgvo.pdf" class="underline" style="color:var(--brand-primary);">Nachweis-PDF herunterladen</a></dd></div>
       {% endif %}
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Einkaufs-AGB</dt><dd class="text-right">{% if d.agb_akzeptiert_am %}<span style="color:var(--brand-primary);">✓ bestätigt am {{ d.agb_akzeptiert_am[:10] }}</span>{% else %}<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);">noch nicht bestätigt</span>{% endif %}</dd></div>
@@ -80,11 +84,14 @@
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Kastenwagen</dt><dd class="text-gray-800 text-right">{% if d.kastenwagen_ok %}<span style="color:var(--brand-primary);">✓ traut es sich zu</span>{% else %}–{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Weitere Auftraggeber</dt><dd class="text-gray-800 text-right">{% if d.weitere_auftraggeber %}<span style="color:var(--brand-primary);">✓ lt. Selbstauskunft ja</span>{% else %}keine Angabe{% endif %}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Betriebshaftpflicht</dt><dd class="text-gray-800 text-right">{% if d.betriebshaftpflicht %}<span style="color:var(--brand-primary);">✓ lt. Selbstauskunft ja</span>{% else %}keine Angabe{% endif %}</dd></div>
+      {% if not nur_buero %}
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Nachweis-Dossier</dt><dd class="text-right"><a href="/admin/dienstleister/{{ d.id }}/dossier.pdf" class="underline" style="color:var(--brand-primary);" title="Komplette dokumentierte Zusammenarbeit (freie Zu-/Absagen, Unterlagen, Sperrzeiten) als PDF – für den Prüfungsfall">Dossier-PDF herunterladen</a></dd></div>
+      {% endif %}
     </dl>
   </div>
 
   <!-- Scheinselbstständigkeits-Scoring (Anwalts-System V7, nur intern) -->
+  {% if not nur_buero %}
   <div class="card p-6" id="scoring">
     <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
       <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Status-Scoring (intern)</h2>
@@ -117,6 +124,7 @@
       </form>
     </details>
   </div>
+  {% endif %}
 
   <!-- Notizen -->
   <div class="card p-6">

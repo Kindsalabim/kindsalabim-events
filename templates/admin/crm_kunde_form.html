@@ -183,7 +183,7 @@
     <div class="flex items-center gap-3">
       <button type="submit" class="btn-primary">{% if kunde and kunde.id %}Änderungen speichern{% else %}Kunde anlegen{% endif %}</button>
       <a href="{% if kunde and kunde.id %}/admin/crm/{{ kunde.id }}{% else %}/admin/crm{% endif %}" class="btn-secondary">Abbrechen</a>
-      {% if kunde and kunde.id %}
+      {% if kunde and kunde.id and not ist_buero_user(request) %}
       <button type="submit" formaction="/admin/crm/{{ kunde.id }}/delete" formnovalidate
         onclick="return confirm('Diesen Kunden löschen? Die verknüpften Events bleiben erhalten.');"
         class="ml-auto text-sm font-semibold text-gray-500 hover:text-red-600 transition-colors">Löschen</button>

@@ -23,7 +23,8 @@ from email_service import send_verfuegbarkeitsanfrage, send_briefing, send_serie
 from choices import (ZEITEN, de_date, de_month, de_month_long, de_euro,
                      benoetigte_sparten, kuenstler_passt, weitere_ap_liste,
                      weitere_ap_json)
-from validation import validate_event_form, validate_dienstleister_form
+from validation import validate_event_form, validate_dienstleister_form, parse_geburtsdatum
+from rechte import nur_inhaber, ist_buero
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
@@ -75,7 +76,9 @@ ANLASS_LIST = [
 
 def tpl_context(request: Request, **kwargs):
     cfg = get_config()
-    return {"request": request, "cfg": cfg, **kwargs}
+    # heute_iso: Obergrenze für Datumsfelder, die nicht in der Zukunft liegen dürfen
+    # (eigener Name – „heute" ist in CRM-Templates ein date-Objekt)
+    return {"request": request, "cfg": cfg, "heute_iso": date.today().isoformat(), **kwargs}
 
 
 # Endzustände: gegen versehentliche Änderungen gesperrt (Bug 7); per ?entsperrt=1 temporär aufhebbar
@@ -327,27 +330,44 @@ def reset_post(request: Request, token: str, password: str = Form(...),
 # ── Admin-Zugänge verwalten ──────────────────────────────────────────────────
 
 @router.get("/admins", response_class=HTMLResponse)
-def admins_list(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user)):
+def admins_list(request: Request, db: Session = Depends(get_db),
+                user=Depends(nur_inhaber)):
+    from rechte import ROLLEN
     admins = db.query(Admin).order_by(Admin.email).all()
     return templates.TemplateResponse("admin/admins.html",
-        tpl_context(request, admins=admins, me=user.get("sub")))
+        tpl_context(request, admins=admins, me=user.get("sub"), rollen=ROLLEN))
+
+@router.post("/admins/{aid}/rolle")
+def admins_rolle(aid: int, rolle: str = Form("inhaber"), db: Session = Depends(get_db),
+                 user=Depends(nur_inhaber)):
+    """Zugriffsrolle eines Zugangs ändern – nur Inhaber, und nie die eigene
+    (sonst sperrt man sich selbst aus der Zugangsverwaltung aus)."""
+    from rechte import normalisieren
+    a = db.query(Admin).filter(Admin.id == aid).first()
+    if a and a.email != user.get("sub"):
+        a.rolle = normalisieren(rolle)
+        db.commit()
+    return RedirectResponse("/admin/admins", status_code=303)
 
 @router.post("/admins/new")
-def admins_create(request: Request, db: Session = Depends(get_db), user=Depends(get_admin_user),
-                  email: str = Form(...), name: str = Form(""), password: str = Form(...)):
+def admins_create(request: Request, db: Session = Depends(get_db), user=Depends(nur_inhaber),
+                  email: str = Form(...), name: str = Form(""), password: str = Form(...),
+                  rolle: str = Form("inhaber")):
     email = email.strip().lower()
     if len(password) < 8:
         return RedirectResponse("/admin/admins?fehler=pw_kurz", status_code=303)
     if db.query(Admin).filter(Admin.email == email).first():
         return RedirectResponse("/admin/admins?fehler=vorhanden", status_code=303)
+    from rechte import normalisieren
     db.add(Admin(email=email, name=name.strip() or None,
                  password_hash=hash_password(password), aktiv=True,
+                 rolle=normalisieren(rolle),
                  erstellt_am=datetime.now().isoformat(timespec="seconds")))
     db.commit()
     return RedirectResponse("/admin/admins?ok=angelegt", status_code=303)
 
 @router.post("/admins/{aid}/delete")
-def admins_delete(aid: int, db: Session = Depends(get_db), user=Depends(get_admin_user)):
+def admins_delete(aid: int, db: Session = Depends(get_db), user=Depends(nur_inhaber)):
     a = db.query(Admin).filter(Admin.id == aid).first()
     if not a:
         return RedirectResponse("/admin/admins", status_code=303)
@@ -1240,7 +1260,7 @@ def event_update(
 
 @router.post("/events/{event_id}/delete")
 def event_delete(event_id: int, background_tasks: BackgroundTasks,
-                 db: Session = Depends(get_db), user=Depends(get_admin_user)):
+                 db: Session = Depends(get_db), user=Depends(nur_inhaber)):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if ev:
         import calendar_service
@@ -1841,6 +1861,7 @@ def _dl_form_echo(form, bestehend=None):
         rolle=txt("rolle", "Teamer"), kuenstler_sparte=txt("kuenstler_sparte") or None,
         lieferantenbewertung=int(bewertung) if bewertung.isdigit() else None,
         mobilitaet=txt("mobilitaet", "Auto"), kleidergroesse=txt("kleidergroesse"),
+        geburtsdatum=parse_geburtsdatum(txt("geburtsdatum"))[1],
         aktiv=an("aktiv"), logistiker=an("logistiker"), fuehrerschein=an("fuehrerschein"),
         teamshirt_kindsalabim=an("teamshirt_kindsalabim"),
         teamshirt_knallfrosch=an("teamshirt_knallfrosch"),
@@ -1913,6 +1934,7 @@ async def dienstleister_create(
     rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
     lieferantenbewertung: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
+    geburtsdatum: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False),
     teamshirt_kindsalabim: bool = Form(False), teamshirt_knallfrosch: bool = Form(False),
@@ -1930,7 +1952,8 @@ async def dienstleister_create(
         fehler = "E-Mail bereits vorhanden"
     else:
         fehler = validate_dienstleister_form(telefon, plz, stundensatz_teamer,
-                                             stundensatz_kuenstler, portal_passwort)
+                                             stundensatz_kuenstler, portal_passwort,
+                                             geburtsdatum)
     if fehler:
         # Eingaben zurück ins Formular spiegeln – sonst wäre alles Getippte weg
         return templates.TemplateResponse("admin/contractor_form.html",
@@ -1950,7 +1973,9 @@ async def dienstleister_create(
         kuenstler_sparte=kuenstler_sparte.strip() or None,
         lieferantenbewertung=_bew(lieferantenbewertung),
         mobilitaet=mobilitaet,
-        kleidergroesse=kleidergroesse, aktiv=aktiv, logistiker=logistiker,
+        kleidergroesse=kleidergroesse,
+        geburtsdatum=parse_geburtsdatum(geburtsdatum)[1],
+        aktiv=aktiv, logistiker=logistiker,
         fuehrerschein=fuehrerschein,
         teamshirt_kindsalabim=teamshirt_kindsalabim, teamshirt_knallfrosch=teamshirt_knallfrosch,
         password_hash=pw_hash,
@@ -2089,13 +2114,14 @@ def dienstleister_edit(request: Request, did: int, db: Session = Depends(get_db)
 
 @router.post("/dienstleister/{did}/edit")
 async def dienstleister_update(
-    request: Request, did: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    request: Request, did: int, db: Session = Depends(get_db), user=Depends(get_admin_user),
     vorname: str = Form(...), nachname: str = Form(...),
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
     rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
     lieferantenbewertung: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
+    geburtsdatum: str = Form(""),
     aktiv: bool = Form(False), logistiker: bool = Form(False),
     fuehrerschein: bool = Form(False),
     teamshirt_kindsalabim: bool = Form(False), teamshirt_knallfrosch: bool = Form(False),
@@ -2111,7 +2137,8 @@ async def dienstleister_update(
     if not d: raise HTTPException(404)
 
     fehler = validate_dienstleister_form(telefon, plz, stundensatz_teamer,
-                                         stundensatz_kuenstler, portal_passwort)
+                                         stundensatz_kuenstler, portal_passwort,
+                                         geburtsdatum)
     if fehler:
         # Eingaben zurück ins Formular spiegeln (nicht den alten DB-Stand zeigen)
         return templates.TemplateResponse("admin/contractor_form.html",
@@ -2127,14 +2154,18 @@ async def dienstleister_update(
     d.lieferantenbewertung = (int(lieferantenbewertung)
                               if lieferantenbewertung.strip() in [str(i) for i in range(1, 11)] else None)
     d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse
+    d.geburtsdatum = parse_geburtsdatum(geburtsdatum)[1]
     d.aktiv = aktiv; d.logistiker = logistiker; d.fuehrerschein = fuehrerschein
     d.teamshirt_kindsalabim = teamshirt_kindsalabim
     d.teamshirt_knallfrosch = teamshirt_knallfrosch
     d.gebiet = gebiet.strip() or None
     d.verfuegbarkeit = verfuegbarkeit.strip() or None
     d.vertragstyp = vertragstyp.strip() or None
-    d.stundensatz_teamer = _f(stundensatz_teamer)
-    d.stundensatz_kuenstler = _f(stundensatz_kuenstler)
+    # Büro-Zugänge sehen die Stundensätze gar nicht – dann bleiben sie unangetastet,
+    # statt beim Speichern geleert zu werden.
+    if not ist_buero(db, user):
+        d.stundensatz_teamer = _f(stundensatz_teamer)
+        d.stundensatz_kuenstler = _f(stundensatz_kuenstler)
     d.dsgvo_unterzeichnet = dsgvo_unterzeichnet
     d.gewerbeschein_vorliegt = gewerbeschein_vorliegt
     d.website = website.strip() or None
@@ -2145,7 +2176,7 @@ async def dienstleister_update(
     return RedirectResponse("/admin/dienstleister", status_code=303)
 
 @router.post("/dienstleister/{did}/delete")
-def dienstleister_delete(did: int, db: Session = Depends(get_db), user=Depends(get_admin_user)):
+def dienstleister_delete(did: int, db: Session = Depends(get_db), user=Depends(nur_inhaber)):
     d = db.query(Dienstleister).filter(Dienstleister.id == did).first()
     if d:
         from papierkorb import archive_dienstleister

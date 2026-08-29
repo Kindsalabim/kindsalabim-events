@@ -15,6 +15,7 @@ from database import get_db
 from models import (Kunde, KundeTag, Event, KUNDE_STATUS,
                     KundeAktivitaet, KundeWiedervorlage)
 from auth import get_admin_user
+from rechte import nur_inhaber
 from config import get_config
 from choices import de_date, weitere_ap_liste, weitere_ap_json
 
@@ -309,7 +310,7 @@ async def kunde_update(request: Request, kid: int, db: Session = Depends(get_db)
 
 
 @router.post("/{kid}/delete")
-def kunde_delete(kid: int, db: Session = Depends(get_db), user=Depends(get_admin_user)):
+def kunde_delete(kid: int, db: Session = Depends(get_db), user=Depends(nur_inhaber)):
     k = db.query(Kunde).filter(Kunde.id == kid).first()
     if k:
         from papierkorb import archive_kunde
