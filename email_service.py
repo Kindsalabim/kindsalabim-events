@@ -8,7 +8,7 @@ from html import unescape, escape as _esc
 from datetime import datetime
 from config import get_config
 from choices import (anfrage_ort, de_date, de_euro, plz_ort, rechnung_anschrift, sparte_label, weitere_ap_liste,
-                     regeln_abschnitte, zeit_bis_text)
+                     regeln_abschnitte, rollen_label, zeit_bis_text)
 
 
 def _html_to_text(html: str) -> str:
@@ -565,15 +565,17 @@ def send_einsatz_erinnerung(dienstleister, event):
           _wrap(content, color, cfg))
 
 
-def send_bericht_erinnerung(dienstleister, event, magic_url: str):
-    """Erinnert den Teamleiter nach dem Event, den Eventbericht auszufüllen.
-    magic_url führt nach dem Login direkt zum Bericht-Formular."""
+def send_bericht_erinnerung(dienstleister, event, magic_url: str, team_groesse: int = 2):
+    """Erinnert die verantwortliche Person nach dem Event an den Eventbericht.
+    magic_url führt nach dem Login direkt zum Bericht-Formular. team_groesse steuert
+    die Anrede: allein im Einsatz → „Ansprechpartner vor Ort" statt „Teamleitung"."""
     cfg = get_config()
     color = _brand_color(event.marke)
+    rolle = rollen_label(team_groesse)
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      du warst Teamleitung bei diesem Einsatz. Wie ist es gelaufen? Bitte fülle kurz den
+      du warst {rolle} bei diesem Einsatz. Wie ist es gelaufen? Bitte fülle kurz den
       <strong>Eventbericht</strong> aus. Erst danach gilt das Event als abgeschlossen.
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
@@ -984,7 +986,10 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     def ic(name):
         return _icon_b64(name, is_kf)
 
-    # ── Team (Teamleitung zuerst, Künstler mit Sparte) ──
+    # ── Team (verantwortliche Person zuerst, Künstler mit Sparte) ──
+    # Bei einem Ein-Personen-Einsatz heißt die Rolle „Ansprechpartner vor Ort" –
+    # „Teamleitung" ohne Team wäre schlicht falsch.
+    rolle_wort = rollen_label(len(dienstleister_list) + len(externe or []))
     tl_tint = "#ecf6ec" if is_kf else "#eef3fb"
     team_rows = ""
     sortiert = sorted(dienstleister_list,
@@ -998,7 +1003,7 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         if sparte:
             voll_name += f' <span style="color:#6b7280;font-weight:400;">{_esc(sparte)}</span>'
         if is_tl:
-            name = (f'<strong style="color:{_ROT};">Teamleitung:</strong> '
+            name = (f'<strong style="color:{_ROT};">{rolle_wort}:</strong> '
                     f'<strong style="color:#111827;">{voll_name}</strong>')
         else:
             name = voll_name
@@ -1050,8 +1055,10 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     karten += _mail_card("Ansprechpartner Kunde", ic("nachricht"), f"""<table {T}>
             {_info_row('Name', ap_name)}
             {_info_row('Telefon', ap_tel)}
-          </table>{weitere_html}
-          <p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">Rückfragen des Kunden bündeln wir bei der <strong>Teamleitung</strong>.</p>""", color)
+          </table>{weitere_html}{
+          '<p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">'
+          'Rückfragen des Kunden bündeln wir bei der <strong>Teamleitung</strong>.</p>'
+          if rolle_wort == "Teamleitung" else ""}""", color)
 
     karten += _mail_card("Team", ic("team"), f'<table {T}>{team_rows}</table>', color)
 
@@ -1120,11 +1127,11 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
     if infoblatt:
         infoblatt_zeile = (
             '<p style="margin:10px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">'
-            '&#128206; An dieser Mail hängt außerdem dein <strong>Teamleiter-Infoblatt (PDF)</strong> '
+            '&#128206; An dieser Mail hängt außerdem dein <strong>Infoblatt (PDF)</strong> '
             'mit allen wichtigen Infos zu deiner Rolle.</p>')
     tl_karte = _mail_card("Nach dem Event: Eventbericht ausfüllen", ic("checkliste"),
         f'<p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">'
-        f'Denk bitte daran: Als <strong>Teamleitung</strong> bekommst du kurz nach dem Event '
+        f'Denk bitte daran: Als <strong>{rolle_wort}</strong> bekommst du kurz nach dem Event '
         f'automatisch eine E-Mail mit dem Link zum <strong>Eventbericht</strong>. '
         f'Bitte fülle ihn zeitnah aus – <strong>inklusive 2–3 Fotos</strong> von der Aktion.</p>'
         f'{infoblatt_zeile}', color)

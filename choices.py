@@ -216,6 +216,13 @@ def de_month_long(d) -> str:
     return _MONATE_LANG[d.month - 1] if d else ""
 
 
+def rollen_label(team_groesse: int) -> str:
+    """Bezeichnung der verantwortlichen Person in Mails/PDFs an die Dienstleister.
+    Bei einem Ein-Personen-Einsatz gibt es kein Team zu leiten – dann heißt die
+    Rolle „Ansprechpartner vor Ort" statt „Teamleitung"."""
+    return "Teamleitung" if (team_groesse or 0) > 1 else "Ansprechpartner vor Ort"
+
+
 # ── Rechnungs-Fälligkeit ────────────────────────────────────────────────────────
 # Zahlungsziel laut AB: 14 Tage nach Rechnungseingang; Aykut rechnet in Werktagen
 # (Mo–Fr, ohne Feiertage – bewusst einfach gehalten).

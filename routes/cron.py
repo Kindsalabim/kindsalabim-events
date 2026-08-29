@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from database import get_db
 from models import (Verfuegbarkeitsanfrage, Event, Dienstleister, KundeWiedervorlage,
-                    Admin, Rechnung, Kunde)
+                    Admin, Rechnung, Kunde, ExternerTeamer)
 from config import get_config
 
 router = APIRouter(prefix="/cron")
@@ -147,7 +147,12 @@ def _run_bericht_erinnerungen(db: Session) -> int:
             if tl.id not in token_cache:
                 token_cache[tl.id] = create_magic_token(tl, db)
             magic_url = f"{_APP_BASE}/portal/auth/{token_cache[tl.id]}?next=/portal/bericht/{ev.id}"
-            send_bericht_erinnerung(tl, ev, magic_url)
+            # Teamgröße bestimmt die Anrede (allein = „Ansprechpartner vor Ort")
+            team_groesse = db.query(Verfuegbarkeitsanfrage).filter(
+                Verfuegbarkeitsanfrage.event_id == ev.id,
+                Verfuegbarkeitsanfrage.status == "Ja").count() + db.query(
+                ExternerTeamer).filter(ExternerTeamer.event_id == ev.id).count()
+            send_bericht_erinnerung(tl, ev, magic_url, team_groesse)
             ev.bericht_erinnerung_am = now.isoformat(timespec="seconds")
             db.commit()   # pro Event committen: schließt das Doppelversand-Fenster
                           # zwischen 2h-Ping und Tages-Cron (Review M7)

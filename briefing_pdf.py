@@ -82,7 +82,12 @@ def _wrap(text, font, size, width):
     return simpleSplit(_clean(text).strip() or "–", font, size, width) or ["–"]
 
 
-def _team_zusatz_passt(zeile, inhalt_w) -> bool:
+def _label_breite(label: str) -> float:
+    """Platz für das Rollen-Label („Teamleitung:" / „Ansprechpartner vor Ort:")."""
+    return stringWidth(f"{label}:", "Helvetica-Bold", 10) + 3 * mm
+
+
+def _team_zusatz_passt(zeile, inhalt_w, label="Teamleitung") -> bool:
     """True, wenn der graue Zusatz („(Kinderschminken)"/„(extern)") noch zwischen
     Name und rechtsbündige Telefonnummer passt – sonst bekommt er eine eigene Zeile
     (statt in die Nummer zu laufen, z. B. Teamleitung mit Künstler-Sparte)."""
@@ -91,7 +96,7 @@ def _team_zusatz_passt(zeile, inhalt_w) -> bool:
         return True
     tel_txt = _clean(tel).strip() or "–"
     fnt = "Helvetica-Bold" if is_tl else "Helvetica"
-    links = ((26 * mm + stringWidth(name, "Helvetica-Bold", 10)) if is_tl
+    links = ((_label_breite(label) + stringWidth(name, "Helvetica-Bold", 10)) if is_tl
              else stringWidth(name, "Helvetica", 9.5)) + 2.5 * mm
     frei = inhalt_w - stringWidth(tel_txt, fnt, 9.5) - 2.5 * mm - links
     return stringWidth(str(zusatz), "Helvetica", 8) <= frei
@@ -140,6 +145,8 @@ class _Seite:
         self.fuss_h = 24 * mm
         self.col_y = [0.0, 0.0]
         self.titel = "Briefing"
+        # „Teamleitung" nur, wenn es wirklich ein Team gibt (siehe build_briefing_pdf)
+        self.rolle_label = "Teamleitung"
 
     # Kopf / Fuß / Wasserzeichen ---------------------------------------------------
 
@@ -225,12 +232,14 @@ class _Seite:
         if typ == "team":
             _, name, tel, is_tl, zusatz = zeile
             if is_tl:
+                label = getattr(self, "rolle_label", "Teamleitung")
+                lb = _label_breite(label)
                 c.setFont("Helvetica-Bold", 10)
                 c.setFillColorRGB(*ROT)
-                c.drawString(x, y, "Teamleitung:")
+                c.drawString(x, y, f"{label}:")
                 c.setFillColorRGB(*INK)
-                c.drawString(x + 26 * mm, y, name)
-                cursor = x + 26 * mm + c.stringWidth(name, "Helvetica-Bold", 10) + 2.5 * mm
+                c.drawString(x + lb, y, name)
+                cursor = x + lb + c.stringWidth(name, "Helvetica-Bold", 10) + 2.5 * mm
             else:
                 c.setFont("Helvetica", 9.5)
                 c.setFillColorRGB(*INK)
@@ -238,7 +247,8 @@ class _Seite:
                 cursor = x + c.stringWidth(name, "Helvetica", 9.5) + 2.5 * mm
             tel_txt = _clean(tel).strip() or "–"
             fnt = "Helvetica-Bold" if is_tl else "Helvetica"
-            passt = _team_zusatz_passt(zeile, inhalt_w)
+            passt = _team_zusatz_passt(zeile, inhalt_w,
+                                       getattr(self, "rolle_label", "Teamleitung"))
             if zusatz and passt:
                 c.setFont("Helvetica", 8)
                 c.setFillColorRGB(*GRAU)
@@ -323,6 +333,9 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
     seite = _Seite(c, ev)
+    # Ein-Personen-Einsatz: „Ansprechpartner vor Ort" statt „Teamleitung"
+    from choices import rollen_label
+    seite.rolle_label = rollen_label(len(dienstleister or []) + len(externe or []))
     seite.neue_seite("Briefing")
 
     # ── Karten links ────────────────────────────────────────────────────────────
@@ -350,7 +363,9 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None
         ap_zeilen.append(("text", "Weitere Ansprechpartner:\n" + "\n".join(
             f"{w['name']} · {w['telefon']}" if w.get("telefon") else w["name"]
             for w in weitere_ap)))
-    ap_zeilen.append(("text", "Rückfragen des Kunden bündeln wir bei der Teamleitung."))
+    # Bei einem Ein-Personen-Einsatz gibt es nichts zu bündeln – Hinweis entfällt
+    if seite.rolle_label == "Teamleitung":
+        ap_zeilen.append(("text", "Rückfragen des Kunden bündeln wir bei der Teamleitung."))
     ansprechpartner = {
         "titel": "Ansprechpartner Kunde", "icon": "nachricht",
         "zeilen": ap_zeilen,

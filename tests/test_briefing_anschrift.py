@@ -50,9 +50,18 @@ def test_mail_veranstaltungsanschrift_aus_checkliste(mails):
 
 
 def test_mail_teamleiter_hinweis(mails):
-    html = _html(briefing_event_ns(), mails)
-    # Kontakt-Regel steht jetzt in der Ansprechpartner-Karte
+    # Kontakt-Regel steht in der Ansprechpartner-Karte – aber nur, wenn es ein Team gibt
+    import email_service
+    team = [briefing_dl_ns(id=1, email="a@x.de"), briefing_dl_ns(id=2, email="b@x.de")]
+    email_service.send_briefing(team, briefing_event_ns(teamleiter_id=1), "https://x")
+    html = mails[-1][2]
     assert "bündeln wir bei der <strong>Teamleitung</strong>" in html and "font-weight:700" in html
+
+
+def test_mail_ohne_team_kein_teamleitungs_hinweis(mails):
+    """Ein-Personen-Einsatz: „bei der Teamleitung" wäre sinnlos."""
+    html = _html(briefing_event_ns(), mails)
+    assert "bündeln wir bei der" not in html
 
 
 def test_mail_anschrift_fallback_auf_veranstaltungsort(mails):
@@ -61,16 +70,17 @@ def test_mail_anschrift_fallback_auf_veranstaltungsort(mails):
     assert "Eventstr. 9, 50667 Köln" in html
 
 
-def _pdf_text(ev):
+def _pdf_text(ev, team=None):
     import pypdf
-    pdf = build_briefing_pdf(ev, [], [])
+    pdf = build_briefing_pdf(ev, team if team is not None else [], [])
     return "\n".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf)).pages)
 
 
 def test_pdf_anschrift_und_ansprechpartner_und_hinweis():
     ev = briefing_event_ns(cl_ansprechpartner_name="Frau Klar", cl_ansprechpartner_mobil="0177",
                            cl_firma_name="Kita Sonne", cl_strasse="Hauptstr. 5", cl_plz_ort="45127 Essen")
-    txt = _pdf_text(ev)
+    # Mit echtem Team, damit der Teamleitungs-Hinweis erscheint
+    txt = _pdf_text(ev, [briefing_dl_ns(id=1), briefing_dl_ns(id=2, vorname="Zoe")])
     # Karten-Layout (Vorlage „Briefing 2.0"): Boxen heißen jetzt „Veranstaltungsadresse"
     # und „Ansprechpartner Kunde"; der Teamleiter-Hinweis steht in der Ansprechpartner-Box.
     assert "Veranstaltungsadresse" in txt and "Kita Sonne" in txt and "Hauptstr. 5" in txt
