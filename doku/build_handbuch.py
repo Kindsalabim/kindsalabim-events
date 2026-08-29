@@ -493,7 +493,7 @@ story = [
         "Dort: offene Anfragen beantworten, Einsätze sehen, Briefing-PDF laden, Urlaub/Sperrzeiten "
         "eintragen, Profil &amp; Onboarding. Teamleiter reichen dort auch den <b>Eventbericht</b> ein.",
         "<b>Mein Profil (Selbstauskunft):</b> Neue Dienstleister füllen dort selbst Adresse, Telefon, "
-        "Kleidergröße, Führerschein, Mobilität sowie Lager-Mitnahme (Rüttenscheid) und "
+        "Kleidergröße, Geburtstag, Führerschein, Mobilität sowie Lager-Mitnahme (Rüttenscheid) und "
         "Kastenwagen-Zutrauen aus, bestätigen die <b>DSGVO-Einwilligung online</b> "
         "(beide Firmen in einem Schritt, mit Zeitstempel) und laden ihren <b>Gewerbeschein</b> hoch. "
         "Dazu gibt es dort Downloads: Rechnungsvorlage, Rechnungs-Erläuterung, Kleingewerbe-Infoblatt.",
@@ -561,6 +561,9 @@ story = [
         "klicken – den Rest (Adresse, Kleidergröße, DSGVO, Gewerbeschein) erledigt die Person selbst im "
         "Portal-Onboarding. Du bekommst eine Glocke, sobald etwas ausgefüllt/hochgeladen wurde, und "
         "ergänzt nur noch EP, Qualität &amp; Co.",
+        "<b>Geburtstag:</b> freiwillige Angabe (im Portal-Profil oder im Admin-Formular). Die Karte "
+        "zeigt Datum und Alter; am Geburtstag selbst kommt automatisch eine Glocke – gedacht als "
+        "Anstoß, kurz zu gratulieren.",
         "<b>Gewerbeschein-Status:</b> In der Detailansicht siehst du DSGVO- und Gewerbeschein-Status "
         "(hochgeladene Scheine per Klick ansehen). Das Formular-Häkchen &bdquo;Gewerbeschein liegt vor&ldquo; "
         "ist für Bestandsdienstleister mit Papier-Kopie im Büro – es hebt Sperre und Erinnerung auf. "
@@ -652,6 +655,7 @@ story = [
         ["Wöchentlich", "Gewerbeschein-Erinnerung an neue Dienstleister, bis der Schein hochgeladen ist"],
         ["Bei jeder Zusage", "Automatische „Bestellung“ (PDF nach Anwaltsvorlage) an den Dienstleister – nur wenn Stundensatz/Budget hinterlegt, sonst Hinweis-Glocke"],
         ["Jährlich", "Erinnerung, das Scheinselbstständigkeits-Scoring der Dienstleister zu aktualisieren"],
+        ["Am Geburtstag", "Glocke, wenn ein aktiver Dienstleister Geburtstag hat (nur wenn er sein Geburtsdatum angegeben hat)"],
         ["Montags", "Baker-Ross-Katalog aktualisieren + CSV-Backup-Mail (Events, Dienstleister, Rechnungen, Kunden)"],
     ], breiten=[48*mm, None]),
     Spacer(1, 6),
@@ -674,7 +678,15 @@ story = [
         "Preise, Abläufe, B2B-Wissen. Auch fürs Portal freigebbare Seiten.",
         "<b>Tickets:</b> internes Aufgaben-Board (Zu erledigen / In Bearbeitung / Erledigt) mit "
         "Wichtigkeit – für alles, was kein Event ist.",
-        "<b>Admin-Zugänge:</b> weitere Admins anlegen/deaktivieren; Passwort-Reset per Mail.",
+        "<b>Admin-Zugänge:</b> weitere Admins anlegen/deaktivieren; Passwort-Reset per Mail. "
+        "Je Zugang wird der <b>Zugriff</b> gewählt: <b>Inhaber</b> (Vollzugriff) oder "
+        "<b>Büro / Disposition</b>.",
+        "<b>Büro / Disposition</b> darf alles Operative: Events und Reservierungen anlegen und "
+        "bearbeiten, Dienstleister anfragen, Briefings und Checklisten verschicken, Kunden pflegen, "
+        "Angebote und Bastel-Recherche. Nicht sichtbar sind Buchhaltung, Stundensätze der "
+        "Dienstleister, Status-Scoring und Nachweis-PDFs, Papierkorb und die Zugangsverwaltung; "
+        "Events, Kunden und Dienstleister löschen geht ebenfalls nicht. Gesperrte Bereiche stehen "
+        "gar nicht erst im Menü. Die eigene Rolle kann niemand ändern.",
         "<b>Papierkorb:</b> Gelöschte Events/Kunden landen erst hier – wiederherstellen oder als JSON "
         "sichern. Nichts ist sofort weg.",
         "<b>Backup:</b> jeden Montag kommt automatisch eine CSV-Sicherung der wichtigsten Tabellen per "

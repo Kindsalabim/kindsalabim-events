@@ -512,13 +512,14 @@ def portal_profil(request: Request, db: Session = Depends(get_db),
     if not d:
         return RedirectResponse("/portal/login", status_code=303)
     return templates.TemplateResponse("portal/profil.html",
-        tpl_context(request, dienstleister=d, kleidergroessen=KLEIDERGROESSEN))
+        tpl_context(request, dienstleister=d, kleidergroessen=KLEIDERGROESSEN,
+                    heute_iso=date.today().isoformat()))
 
 
 @router.post("/profil")
 def portal_profil_save(
     telefon: str = Form(""), strasse: str = Form(""), plz: str = Form(""),
-    stadt: str = Form(""), kleidergroesse: str = Form(""),
+    stadt: str = Form(""), kleidergroesse: str = Form(""), geburtsdatum: str = Form(""),
     fuehrerschein: bool = Form(False), mobilitaet: str = Form("Auto"),
     lager_transport_bereit: bool = Form(False), kastenwagen_ok: bool = Form(False),
     website: str = Form(""), weitere_auftraggeber: bool = Form(False),
@@ -530,11 +531,14 @@ def portal_profil_save(
     if not d:
         return RedirectResponse("/portal/login", status_code=303)
     # Server-Backstop zu den HTML5-Prüfungen im Formular (gleiche Regeln wie im Admin)
-    from validation import valid_phone, valid_plz
+    from validation import valid_phone, valid_plz, parse_geburtsdatum
     if not valid_phone(telefon):
         return RedirectResponse("/portal/profil?fehler=telefon", status_code=303)
     if not valid_plz(plz):
         return RedirectResponse("/portal/profil?fehler=plz", status_code=303)
+    gb_ok, gb = parse_geburtsdatum(geburtsdatum)
+    if not gb_ok:
+        return RedirectResponse("/portal/profil?fehler=geburtsdatum", status_code=303)
     if kleidergroesse.strip() and kleidergroesse.strip() not in KLEIDERGROESSEN:
         kleidergroesse = ""
     if mobilitaet not in ("Auto", "ÖPNV", "Beides"):
@@ -547,6 +551,9 @@ def portal_profil_save(
         if getattr(d, attr) != neu:
             setattr(d, attr, neu)
             aenderungen.append(attr)
+    if d.geburtsdatum != gb:
+        d.geburtsdatum = gb
+        aenderungen.append("geburtsdatum")
     for attr, neu in [("fuehrerschein", fuehrerschein),
                       ("lager_transport_bereit", lager_transport_bereit),
                       ("kastenwagen_ok", kastenwagen_ok),
@@ -558,7 +565,8 @@ def portal_profil_save(
     if aenderungen:
         from notifications import notify
         labels = {"telefon": "Telefon", "strasse": "Straße", "plz": "PLZ", "stadt": "Ort",
-                  "kleidergroesse": "Kleidergröße", "mobilitaet": "Mobilität",
+                  "kleidergroesse": "Kleidergröße", "geburtsdatum": "Geburtstag",
+                  "mobilitaet": "Mobilität",
                   "fuehrerschein": "Führerschein",
                   "lager_transport_bereit": "Lager-Mitnahme möglich",
                   "kastenwagen_ok": "Kastenwagen zutrauen",

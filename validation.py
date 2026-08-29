@@ -40,6 +40,22 @@ def parse_decimal(s: str):
         return False, None
 
 
+def parse_geburtsdatum(s: str):
+    """Geburtsdatum (ISO aus <input type="date">) → date. Gibt (ok, wert) zurück;
+    wert=None bei leer. Unplausibel = in der Zukunft oder älter als 100 Jahre."""
+    s = (s or "").strip()
+    if not s:
+        return True, None
+    try:
+        d = date.fromisoformat(s)
+    except ValueError:
+        return False, None
+    heute = date.today()
+    if d > heute or d.year < heute.year - 100:
+        return False, None
+    return True, d
+
+
 def validate_event_form(datum: str, startzeit: str, endzeit: str,
                         telefon: str, ort: str, produkte=None, zaubershow=False,
                         abgesagt=False):
@@ -63,12 +79,14 @@ def validate_event_form(datum: str, startzeit: str, endzeit: str,
 
 def validate_dienstleister_form(telefon: str, plz: str,
                                 stundensatz_teamer: str, stundensatz_kuenstler: str,
-                                portal_passwort: str = ""):
+                                portal_passwort: str = "", geburtsdatum: str = ""):
     """Prüft das Dienstleister-Formular. Gibt fehler|None zurück."""
     if not valid_phone(telefon):
         return "Bitte eine gültige Telefonnummer eingeben (nur Ziffern und + ( ) / -)."
     if not valid_plz(plz):
         return "Die PLZ muss aus genau 5 Ziffern bestehen."
+    if not parse_geburtsdatum(geburtsdatum)[0]:
+        return "Bitte ein gültiges Geburtsdatum wählen (nicht in der Zukunft)."
     ok_t, _ = parse_decimal(stundensatz_teamer)
     ok_k, _ = parse_decimal(stundensatz_kuenstler)
     if not (ok_t and ok_k):

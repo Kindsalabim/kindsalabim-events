@@ -29,6 +29,7 @@ NOTIF_TYPEN = [
     ("dl_unterlagen", "Dienstleister-Unterlagen (Profil, DSGVO, Gewerbeschein)", True, False),
     ("bestellung", "Automatische Bestellung bei Zusage", True, False),
     ("warteliste", "Warteliste: Dienstleister rückt automatisch nach", True, False),
+    ("geburtstag", "Geburtstag eines Dienstleisters", True, False),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 

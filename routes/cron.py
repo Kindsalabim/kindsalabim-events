@@ -471,6 +471,32 @@ def _run_scoring_erinnerungen(db: Session) -> int:
     return len(faellig)
 
 
+def _run_geburtstage(db: Session) -> int:
+    """Glocke am Geburtstag aktiver Dienstleister – eine Sammelmeldung pro Tag.
+    geburtstag_erinnert_am verhindert eine zweite Meldung, wenn der Cron am selben
+    Tag mehrfach läuft; im nächsten Jahr liegt das Datum wieder in der Vergangenheit."""
+    from notifications import notify
+    heute = _heute()
+    kinder = [d for d in db.query(Dienstleister).filter(
+                  Dienstleister.aktiv == True,          # noqa: E712
+                  Dienstleister.geburtsdatum != None,   # noqa: E711
+              ).all()
+              if (d.geburtsdatum.month, d.geburtsdatum.day) == (heute.month, heute.day)
+              and d.geburtstag_erinnert_am != heute]
+    if not kinder:
+        return 0
+    namen = ", ".join(f"{d.vorname} {d.nachname} ({d.alter})" for d in kinder)
+    notify(db, "geburtstag",
+           f"🎂 Geburtstag heute: {kinder[0].vorname} {kinder[0].nachname}"
+           + (f" +{len(kinder) - 1}" if len(kinder) > 1 else ""),
+           f"Heute hat Geburtstag: {namen}. Vielleicht kurz gratulieren?",
+           f"/admin/dienstleister/{kinder[0].id}")
+    for d in kinder:
+        d.geburtstag_erinnert_am = heute
+    db.commit()
+    return len(kinder)
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -587,6 +613,9 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # Jahres-Erinnerung: Scheinselbstständigkeits-Scoring aktualisieren
     scoring_erinnerungen = _run_scoring_erinnerungen(db)
 
+    # Geburtstage des Tages
+    geburtstage = _run_geburtstage(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -609,6 +638,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "reservierungen_geloescht": reservierungen_geloescht,
                          "gewerbeschein_erinnerungen": gewerbeschein_erinnerungen,
                          "scoring_erinnerungen": scoring_erinnerungen,
+                         "geburtstage": geburtstage,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 
