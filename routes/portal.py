@@ -565,7 +565,7 @@ def portal_profil_save(
     if aenderungen:
         from notifications import notify
         labels = {"telefon": "Telefon", "strasse": "Straße", "plz": "PLZ", "stadt": "Ort",
-                  "kleidergroesse": "Kleidergröße", "geburtsdatum": "Geburtstag",
+                  "kleidergroesse": "Kleidergröße", "geburtsdatum": "Geburtsdatum",
                   "mobilitaet": "Mobilität",
                   "fuehrerschein": "Führerschein",
                   "lager_transport_bereit": "Lager-Mitnahme möglich",

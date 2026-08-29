@@ -493,7 +493,7 @@ story = [
         "Dort: offene Anfragen beantworten, Einsätze sehen, Briefing-PDF laden, Urlaub/Sperrzeiten "
         "eintragen, Profil &amp; Onboarding. Teamleiter reichen dort auch den <b>Eventbericht</b> ein.",
         "<b>Mein Profil (Selbstauskunft):</b> Neue Dienstleister füllen dort selbst Adresse, Telefon, "
-        "Kleidergröße, Geburtstag, Führerschein, Mobilität sowie Lager-Mitnahme (Rüttenscheid) und "
+        "Kleidergröße, Geburtsdatum, Führerschein, Mobilität sowie Lager-Mitnahme (Rüttenscheid) und "
         "Kastenwagen-Zutrauen aus, bestätigen die <b>DSGVO-Einwilligung online</b> "
         "(beide Firmen in einem Schritt, mit Zeitstempel) und laden ihren <b>Gewerbeschein</b> hoch. "
         "Dazu gibt es dort Downloads: Rechnungsvorlage, Rechnungs-Erläuterung, Kleingewerbe-Infoblatt.",
@@ -561,7 +561,7 @@ story = [
         "klicken – den Rest (Adresse, Kleidergröße, DSGVO, Gewerbeschein) erledigt die Person selbst im "
         "Portal-Onboarding. Du bekommst eine Glocke, sobald etwas ausgefüllt/hochgeladen wurde, und "
         "ergänzt nur noch EP, Qualität &amp; Co.",
-        "<b>Geburtstag:</b> freiwillige Angabe (im Portal-Profil oder im Admin-Formular). Die Karte "
+        "<b>Geburtsdatum:</b> freiwillige Angabe (im Portal-Profil oder im Admin-Formular). Die Karte "
         "zeigt Datum und Alter; am Geburtstag selbst kommt automatisch eine Glocke – gedacht als "
         "Anstoß, kurz zu gratulieren.",
         "<b>Gewerbeschein-Status:</b> In der Detailansicht siehst du DSGVO- und Gewerbeschein-Status "

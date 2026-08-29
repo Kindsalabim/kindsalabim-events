@@ -43,6 +43,7 @@
       <div class="flex justify-between gap-4"><dt class="text-gray-500">E-Mail</dt><dd class="text-gray-800 text-right"><a href="mailto:{{ d.email }}" class="hover:underline">{{ d.email }}</a></dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Telefon</dt><dd class="text-gray-800 text-right">{{ d.telefon or '–' }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Adresse</dt><dd class="text-gray-800 text-right">{% if d.strasse %}{{ d.strasse }}<br>{% endif %}{{ d.plz or '' }} {{ d.stadt or '' }}{% if not d.strasse and not d.stadt %}–{% endif %}</dd></div>
+      <div class="flex justify-between gap-4"><dt class="text-gray-500">Geburtsdatum</dt><dd class="text-gray-800 text-right">{% if d.geburtsdatum %}{{ d.geburtsdatum | de_date }} <span class="text-gray-500">({{ d.alter }})</span>{% else %}–{% endif %}</dd></div>
       {% if d.website %}<div class="flex justify-between gap-4"><dt class="text-gray-500">Website</dt><dd class="text-right"><a href="{{ d.website }}" target="_blank" class="hover:underline" style="color:var(--brand-primary);">{{ d.website }}</a></dd></div>{% endif %}
     </dl>
   </div>
@@ -58,7 +59,6 @@
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Gebiet</dt><dd class="text-gray-800 text-right">{{ d.gebiet or '–' }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Verfügbarkeit</dt><dd class="text-gray-800 text-right">{{ d.verfuegbarkeit or '–' }}</dd></div>
       <div class="flex justify-between gap-4"><dt class="text-gray-500">Kleidergröße</dt><dd class="text-gray-800 text-right">{{ d.kleidergroesse or '–' }}</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-gray-500">Geburtstag</dt><dd class="text-gray-800 text-right">{% if d.geburtsdatum %}{{ d.geburtsdatum | de_date }} <span class="text-gray-500">({{ d.alter }})</span>{% else %}–{% endif %}</dd></div>
     </dl>
   </div>
 

@@ -46,6 +46,12 @@
             inputmode="tel" pattern="[0-9 /().+\-]{6,}" title="Nur Ziffern und + ( ) / - (mind. 6 Zeichen)"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Geburtsdatum</label>
+          <input type="date" name="geburtsdatum" max="{{ heute_iso }}"
+            value="{{ (d.geburtsdatum.isoformat() if d.geburtsdatum else '') if d else '' }}"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
       </div>
       <div class="grid grid-cols-3 gap-4">
         <div class="col-span-2">
@@ -67,12 +73,6 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Kleidergröße</label>
           <input type="text" name="kleidergroesse" value="{{ (d.kleidergroesse or '') if d else '' }}"
-            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Geburtstag</label>
-          <input type="date" name="geburtsdatum" max="{{ heute_iso }}"
-            value="{{ (d.geburtsdatum.isoformat() if d.geburtsdatum else '') if d else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
       </div>

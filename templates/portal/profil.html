@@ -112,6 +112,12 @@
               class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm text-gray-800 focus:outline-none">
           </div>
         </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">Geburtsdatum</label>
+          <input type="date" name="geburtsdatum" max="{{ heute_iso }}"
+            value="{{ d.geburtsdatum.isoformat() if d.geburtsdatum else '' }}"
+            class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm text-gray-800 bg-white focus:outline-none">
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1.5">Kleidergröße <span class="font-normal">(für dein Team-Shirt)</span></label>
@@ -121,12 +127,6 @@
               <option value="{{ g }}" {% if d.kleidergroesse == g %}selected{% endif %}>{{ g }}</option>
               {% endfor %}
             </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Geburtstag <span class="font-normal">(damit wir gratulieren können)</span></label>
-            <input type="date" name="geburtsdatum" max="{{ heute_iso }}"
-              value="{{ d.geburtsdatum.isoformat() if d.geburtsdatum else '' }}"
-              class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-sm text-gray-800 bg-white focus:outline-none">
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1.5">Wie bist du unterwegs?</label>
