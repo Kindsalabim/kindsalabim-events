@@ -81,7 +81,9 @@ def _checklist_daten(name):
 
 
 def test_checkliste_zweite_einreichung_ueberschreibt_nicht(client):
-    eid = make_event(checklist_token="tok-sec-lock", kunde_email="k@example.com")
+    # Datum relativ zu heute – der Link läuft 30 Tage nach dem Event ab (s. u.)
+    eid = make_event(checklist_token="tok-sec-lock", kunde_email="k@example.com",
+                     datum=date.today())
     r1 = client.post("/checklist/tok-sec-lock", data=_checklist_daten("Erste Angabe"))
     assert r1.status_code == 200
     r2 = client.post("/checklist/tok-sec-lock", data=_checklist_daten("Überschreiber"))

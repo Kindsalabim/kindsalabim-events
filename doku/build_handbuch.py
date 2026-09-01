@@ -489,6 +489,12 @@ story = [
         "Treffpunkt, Team-Liste mit Telefonnummern, Ansprechpartner, Adresse, Regeln) + <b>PDF-Anhang</b> "
         "fürs Handy. &bdquo;Als PDF&ldquo; lädt es zum Weitergeben, &bdquo;Briefing bearbeiten&ldquo; für Korrekturen.",
         "Die Briefing-Regeln (Seite &bdquo;Allgemeines&ldquo;) pflegst du unter Einstellungen.",
+        "<b>Kontakt-Rangfolge:</b> Ist eine Teamleitung gesetzt, heißt die Kontaktkarte "
+        "&bdquo;Wen du anrufst&ldquo; und nennt die Teamleitung zuerst (&bdquo;Erste Anlaufstelle "
+        "für alle Fragen vor Ort&ldquo;), den Kunden darunter mit dem Zusatz, dass er nur "
+        "angerufen wird, wenn die Teamleitung nicht erreichbar ist. So ruft niemand aus Reflex "
+        "beim Kunden an – die Nummer bleibt aber für den Notfall im Briefing. Ohne Teamleitung "
+        "(Ein-Personen-Einsatz) steht dort wie bisher schlicht &bdquo;Ansprechpartner Kunde&ldquo;.",
         "<b>Portal:</b> Dienstleister melden sich per Magic-Link an (E-Mail eintippen → Link kommt per Mail). "
         "Dort: offene Anfragen beantworten, Einsätze sehen, Briefing-PDF laden, Urlaub/Sperrzeiten "
         "eintragen, Profil &amp; Onboarding. Teamleiter reichen dort auch den <b>Eventbericht</b> ein.",

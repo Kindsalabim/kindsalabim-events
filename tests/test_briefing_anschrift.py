@@ -49,19 +49,29 @@ def test_mail_veranstaltungsanschrift_aus_checkliste(mails):
     assert "Kita Sonne" in html and "Hauptstr. 5" in html and "45127 Essen" in html
 
 
-def test_mail_teamleiter_hinweis(mails):
-    # Kontakt-Regel steht in der Ansprechpartner-Karte – aber nur, wenn es ein Team gibt
+def test_mail_teamleitung_steht_vor_dem_kunden(mails):
+    """Die Kontaktkarte muss die Teamleitung ZUERST nennen – sonst ruft das Team
+    instinktiv die Nummer an, die unter „Ansprechpartner" ganz oben steht."""
     import email_service
-    team = [briefing_dl_ns(id=1, email="a@x.de"), briefing_dl_ns(id=2, email="b@x.de")]
-    email_service.send_briefing(team, briefing_event_ns(teamleiter_id=1), "https://x")
+    team = [briefing_dl_ns(id=1, vorname="Kevin", nachname="Leiter", telefon="0170 111",
+                           email="a@x.de"),
+            briefing_dl_ns(id=2, email="b@x.de")]
+    ev = briefing_event_ns(teamleiter_id=1, cl_ansprechpartner_name="Frau Klar",
+                           cl_ansprechpartner_mobil="0177 999")
+    email_service.send_briefing(team, ev, "https://x")
     html = mails[-1][2]
-    assert "bündeln wir bei der <strong>Teamleitung</strong>" in html and "font-weight:700" in html
+    assert "Wen du anrufst" in html
+    assert "Erste Anlaufstelle" in html
+    # Reihenfolge: Teamleitung vor Kunde
+    assert html.index("0170 111") < html.index("0177 999")
+    # Die Kundennummer bleibt erreichbar, nur erkennbar als zweite Wahl
+    assert "0177 999" in html and "nicht erreichbar" in html
 
 
-def test_mail_ohne_team_kein_teamleitungs_hinweis(mails):
-    """Ein-Personen-Einsatz: „bei der Teamleitung" wäre sinnlos."""
+def test_mail_ohne_team_bleibt_die_alte_karte(mails):
+    """Ein-Personen-Einsatz: Es gibt keine Teamleitung, also auch keine Rangfolge."""
     html = _html(briefing_event_ns(), mails)
-    assert "bündeln wir bei der" not in html
+    assert "Ansprechpartner Kunde" in html and "Wen du anrufst" not in html
 
 
 def test_mail_anschrift_fallback_auf_veranstaltungsort(mails):
@@ -76,15 +86,23 @@ def _pdf_text(ev, team=None):
     return "\n".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf)).pages)
 
 
-def test_pdf_anschrift_und_ansprechpartner_und_hinweis():
-    ev = briefing_event_ns(cl_ansprechpartner_name="Frau Klar", cl_ansprechpartner_mobil="0177",
+def test_pdf_anschrift_und_kontakt_rangfolge():
+    ev = briefing_event_ns(teamleiter_id=1,
+                           cl_ansprechpartner_name="Frau Klar", cl_ansprechpartner_mobil="0177",
                            cl_firma_name="Kita Sonne", cl_strasse="Hauptstr. 5", cl_plz_ort="45127 Essen")
-    # Mit echtem Team, damit der Teamleitungs-Hinweis erscheint
-    txt = _pdf_text(ev, [briefing_dl_ns(id=1), briefing_dl_ns(id=2, vorname="Zoe")])
-    # Karten-Layout (Vorlage „Briefing 2.0"): Boxen heißen jetzt „Veranstaltungsadresse"
-    # und „Ansprechpartner Kunde"; der Teamleiter-Hinweis steht in der Ansprechpartner-Box.
+    txt = _pdf_text(ev, [briefing_dl_ns(id=1, nachname="Leiter", telefon="0170 111"),
+                         briefing_dl_ns(id=2, vorname="Zoe")])
     assert "Veranstaltungsadresse" in txt and "Kita Sonne" in txt and "Hauptstr. 5" in txt
+    # Kontaktkarte nennt die Teamleitung zuerst, den Kunden erkennbar danach
+    assert "Wen du anrufst" in txt
+    assert txt.index("0170 111") < txt.index("Frau Klar")
+    # Hinweiszeilen brechen im schmalen Karten-Layout um → in Teilen prüfen
+    assert "Erste Anlaufstelle" in txt
+    assert "Bitte nur über die Teamleitung" in txt and "erreichbar ist" in txt
+
+
+def test_pdf_ohne_teamleitung_bleibt_die_alte_karte():
+    """Ohne gesetzte Teamleitung gibt es keine Rangfolge – Karte wie bisher."""
+    txt = _pdf_text(briefing_event_ns(cl_ansprechpartner_name="Frau Klar"), [briefing_dl_ns()])
     assert "Ansprechpartner Kunde" in txt and "Frau Klar" in txt
-    # (kann im schmalen Karten-Layout umbrechen → Teile einzeln prüfen)
-    # Hinweis bricht im PDF um → zweiteilig prüfen
-    assert "bündeln wir bei der" in txt and "Teamleitung" in txt
+    assert "Wen du anrufst" not in txt

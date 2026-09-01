@@ -11,7 +11,9 @@ from database import SessionLocal
 
 
 def test_checkliste_speichert_weitere_details(client):
-    eid = make_event()
+    # Datum relativ zu heute: Der Checklisten-Link läuft 30 Tage nach dem Event ab –
+    # ein fest verdrahtetes Datum lässt den Test irgendwann von selbst umkippen.
+    eid = make_event(datum=date.today())
     s = SessionLocal()
     ev = s.get(Event, eid)
     ev.checklist_token = "tok-wd-1"

@@ -204,6 +204,24 @@ def _info_row_rot(label: str, value: str) -> str:
     </tr>"""
 
 
+def _kontakt_row(label: str, name: str, telefon: str, hinweis: str,
+                 betont: bool = False) -> str:
+    """Kontakt mit Rangfolge: Label, Name · Telefon, darunter die kleine Erklärzeile.
+    Pendant zum „kontakt"-Typ im Briefing-PDF."""
+    teile = [t for t in (_no_none(name).strip(), _no_none(telefon).strip()) if t]
+    wert = " · ".join(_esc(t) for t in teile) or "–"
+    lab_col, gewicht = (_ROT, 700) if betont else ("#6b7280", 400)
+    return f"""
+    <tr>
+      <td style="padding:8px 16px 0 0;font-size:14px;font-weight:{gewicht};color:{lab_col};white-space:nowrap;vertical-align:top;">{label}</td>
+      <td style="padding:8px 0 0;font-size:{15 if betont else 14}px;color:#111827;font-weight:{700 if betont else 500};">{wert}</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td style="padding:2px 0 4px;font-size:12px;color:#6b7280;line-height:1.5;">{_esc(hinweis)}</td>
+    </tr>"""
+
+
 # App-Linien-Icons als base64-PNG einbetten (Outlook-fest; für Knallfrosch grün umgefärbt).
 _ICON_DIR_MAIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "img", "icons")
 _KF_ICON_UMFAERBUNG = {"#1D4E89": "#1a7a1a", "#7FB3D9": "#8FCB8F"}
@@ -1052,13 +1070,22 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
             for w in weitere_ap)
         weitere_html = (f'<p style="margin:12px 0 0;font-size:14px;color:#111827;line-height:1.6;">'
                         f'<span style="font-size:13px;color:#6b7280;">Weitere Ansprechpartner:</span><br>{zeilen}</p>')
-    karten += _mail_card("Ansprechpartner Kunde", ic("nachricht"), f"""<table {T}>
-            {_info_row('Name', ap_name)}
-            {_info_row('Telefon', ap_tel)}
-          </table>{weitere_html}{
-          '<p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.5;">'
-          'Rückfragen des Kunden bündeln wir bei der <strong>Teamleitung</strong>.</p>'
-          if rolle_wort == "Teamleitung" else ""}""", color)
+    # Reihenfolge statt Bitte: Wer im Briefing unter „Ansprechpartner" ganz oben steht,
+    # wird auch angerufen. Mit Teamleitung steht die zuerst, der Kunde erkennbar danach.
+    tl = next((m for m in dienstleister_list
+               if event.teamleiter_id and m.id == event.teamleiter_id), None)
+    if tl and rolle_wort == "Teamleitung":
+        ap_titel = "Wen du anrufst"
+        ap_rows = (_kontakt_row("Teamleitung", f"{tl.vorname} {tl.nachname}", tl.telefon,
+                                "Erste Anlaufstelle für alle Fragen vor Ort.", betont=True)
+                   + _kontakt_row("Kunde vor Ort", ap_name, ap_tel,
+                                  "Bitte nur über die Teamleitung – direkt nur, "
+                                  "wenn sie nicht erreichbar ist."))
+    else:
+        ap_titel = "Ansprechpartner Kunde"
+        ap_rows = _info_row("Name", ap_name) + _info_row("Telefon", ap_tel)
+    karten += _mail_card(ap_titel, ic("nachricht"),
+                         f'<table {T}>{ap_rows}</table>{weitere_html}', color)
 
     karten += _mail_card("Team", ic("team"), f'<table {T}>{team_rows}</table>', color)
 

@@ -76,10 +76,17 @@ def _clean(x) -> str:
 _KV_LABEL_W = 30 * mm
 _LH = 4.9 * mm          # Zeilenhöhe Inhalt
 _PUNKT_EINZUG = 6 * mm
+_HINWEIS_EINZUG = 4 * mm   # Einzug der kleinen Erklärzeile unter einem Kontakt
 
 
 def _wrap(text, font, size, width):
     return simpleSplit(_clean(text).strip() or "–", font, size, width) or ["–"]
+
+
+def _kontakt_wert(name: str, tel: str) -> str:
+    """„Name · Telefon" – fehlt eins von beidem, bleibt nur das andere stehen."""
+    teile = [t for t in (_clean(name).strip(), _clean(tel).strip()) if t]
+    return " · ".join(teile) or "–"
 
 
 def _label_breite(label: str) -> float:
@@ -113,6 +120,14 @@ def _zeilen_hoehe(zeile, inhalt_w):
         for absatz in str(zeile[1]).split("\n"):
             n += len(simpleSplit(absatz, "Helvetica", 9.5, inhalt_w) or [""])
         return n * _LH + 1.2 * mm
+    if typ == "kontakt":
+        _, label, wert, hinweis, betont = zeile
+        lb = _label_breite(label)
+        n = len(_wrap(wert, "Helvetica-Bold" if betont else "Helvetica", 9.5, inhalt_w - lb))
+        if hinweis:
+            n += len(simpleSplit(str(hinweis), "Helvetica", 8,
+                                 inhalt_w - _HINWEIS_EINZUG) or [""])
+        return n * _LH + 1.6 * mm
     if typ == "team":
         n = 1 if _team_zusatz_passt(zeile, inhalt_w) else 2
         return n * _LH + 1.6 * mm
@@ -229,6 +244,29 @@ class _Seite:
                     c.drawString(x, y, ln)
                     y -= _LH
             return y - 1.2 * mm
+        if typ == "kontakt":
+            # Kontakt mit Rangfolge: „Label: Name · Telefon" plus kleine Erklärzeile,
+            # damit im Briefing steht, WEN man anruft – und wen erst danach.
+            _, label, wert, hinweis, betont = zeile
+            lb = _label_breite(label)
+            c.setFont("Helvetica-Bold", 10 if betont else 9.5)
+            c.setFillColorRGB(*(ROT if betont else GRAU))
+            c.drawString(x, y, f"{label}:")
+            c.setFillColorRGB(*INK)
+            fnt = "Helvetica-Bold" if betont else "Helvetica"
+            c.setFont(fnt, 9.5)
+            for ln in _wrap(wert, fnt, 9.5, inhalt_w - lb):
+                c.drawString(x + lb, y, ln)
+                y -= _LH
+            if hinweis:
+                c.setFont("Helvetica", 8)
+                c.setFillColorRGB(*GRAU)
+                for ln in simpleSplit(str(hinweis), "Helvetica", 8,
+                                      inhalt_w - _HINWEIS_EINZUG) or [""]:
+                    c.drawString(x + _HINWEIS_EINZUG, y, ln)
+                    y -= _LH
+                c.setFillColorRGB(*INK)
+            return y - 1.6 * mm
         if typ == "team":
             _, name, tel, is_tl, zusatz = zeile
             if is_tl:
@@ -354,20 +392,34 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None
                or _clean(getattr(ev, "vor_ort_name", "")) or _clean(ev.kunde_kontakt))
     ap_tel = (_clean(getattr(ev, "cl_ansprechpartner_mobil", ""))
               or _clean(getattr(ev, "vor_ort_telefon", "")) or _clean(ev.kunde_telefon))
-    ap_zeilen = [
-        ("kv", "Name", ap_name, False),
-        ("kv", "Telefon", ap_tel, False),
-    ]
+    # Reihenfolge sagt mehr als eine Bitte: Steht die Kundennummer unter der Überschrift
+    # „Ansprechpartner", ruft dort auch jemand an. Gibt es eine Teamleitung, steht sie
+    # zuerst – die Kundennummer bleibt sichtbar, aber erkennbar als zweite Wahl.
+    tl = next((m for m in dienstleister
+               if ev.teamleiter_id and m.id == ev.teamleiter_id), None)
+    mit_teamleitung = bool(tl) and seite.rolle_label == "Teamleitung"
+    if mit_teamleitung:
+        ap_titel = "Wen du anrufst"
+        ap_zeilen = [
+            ("kontakt", "Teamleitung", _kontakt_wert(f"{tl.vorname} {tl.nachname}", tl.telefon),
+             "Erste Anlaufstelle für alle Fragen vor Ort.", True),
+            ("kontakt", "Kunde vor Ort", _kontakt_wert(ap_name, ap_tel),
+             "Bitte nur über die Teamleitung – direkt nur, wenn sie nicht erreichbar ist.",
+             False),
+        ]
+    else:
+        ap_titel = "Ansprechpartner Kunde"
+        ap_zeilen = [
+            ("kv", "Name", ap_name, False),
+            ("kv", "Telefon", ap_tel, False),
+        ]
     weitere_ap = weitere_ap_liste(ev)
     if weitere_ap:
         ap_zeilen.append(("text", "Weitere Ansprechpartner:\n" + "\n".join(
             f"{w['name']} · {w['telefon']}" if w.get("telefon") else w["name"]
             for w in weitere_ap)))
-    # Bei einem Ein-Personen-Einsatz gibt es nichts zu bündeln – Hinweis entfällt
-    if seite.rolle_label == "Teamleitung":
-        ap_zeilen.append(("text", "Rückfragen des Kunden bündeln wir bei der Teamleitung."))
     ansprechpartner = {
-        "titel": "Ansprechpartner Kunde", "icon": "nachricht",
+        "titel": ap_titel, "icon": "nachricht",
         "zeilen": ap_zeilen,
     }
 
