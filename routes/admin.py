@@ -1395,16 +1395,20 @@ def send_anfragen(
             continue
         # Direkt-Eintrag ohne Mail: als bereits zugesagt anlegen (Personal aus dem alten System).
         if direkt:
+            from honorare import honorar_anlegen
             for ze in offene_tage:
-                db.add(Verfuegbarkeitsanfrage(
+                neu_a = Verfuegbarkeitsanfrage(
                     event_id=ze.id, dienstleister_id=did,
                     rolle_anfrage=rolle, status="Ja", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     notiz="Manuell als zugesagt eingetragen (ohne Mail)",
                     budget=budget_val,
-                ))
+                )
+                db.add(neu_a)
                 if did in logi_ids:
                     ze.logistiker_id = did  # direkt eingetragener Logistiker
+                db.flush()                  # ids für die Honorarzeile
+                honorar_anlegen(db, neu_a)
             db.commit()
             gesendet += 1
             continue
@@ -1504,6 +1508,9 @@ def anfrage_entfernen(
         ev.teamleiter_id = None
     if ev and ev.logistiker_id == did:
         ev.logistiker_id = None
+    # Erwartetes Honorar mit entfernen – außer es liegt schon eine Rechnung vor
+    from honorare import honorar_entfernen
+    honorar_entfernen(db, a)
     db.delete(a)
     db.commit()
     if ev:

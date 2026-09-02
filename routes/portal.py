@@ -289,7 +289,15 @@ def portal_antwort(anfrage_id: int, background_tasks: BackgroundTasks,
         if antwort == "Ja":
             from bestellung import bestellung_erzeugen_async
             background_tasks.add_task(bestellung_erzeugen_async, a.id)
+            # Erwartetes Honorar als offener Posten – die Rechnung des Dienstleisters
+            # kommt später, die Buchhaltung soll trotzdem sofort eine Zahl haben.
+            from honorare import honorar_anlegen
+            honorar_anlegen(db, a)
+            db.commit()
         else:
+            from honorare import honorar_entfernen
+            honorar_entfernen(db, a)
+            db.commit()
             # Platz wieder frei → Wartende (verspätete Zusagen) automatisch nachrücken
             from besetzung import warteliste_nachruecken
             background_tasks.add_task(_nachruecken_async, ev.id, a.rolle_anfrage)

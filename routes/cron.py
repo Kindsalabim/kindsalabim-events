@@ -471,6 +471,46 @@ def _run_scoring_erinnerungen(db: Session) -> int:
     return len(faellig)
 
 
+def _run_honorar_erinnerungen(db: Session) -> int:
+    """Einmalig 30 Tage nach dem Event: Welche Dienstleister-Rechnungen fehlen noch?
+
+    Eine Sammel-Glocke pro Event statt einer je Person – bei zwölf Teamern wären
+    zwölf Meldungen unbrauchbar. Bewusst nur EINMAL: Die Rechnung zu schreiben ist
+    Sache des Dienstleisters, nicht unsere Daueraufgabe. `erinnert_am` sperrt die
+    Wiederholung, der Knopf in der Buchhaltung bleibt für Einzelfälle."""
+    from models import Event, EventHonorar
+    from notifications import notify
+    heute = _heute()
+    grenze = heute - timedelta(days=30)
+    offen = db.query(EventHonorar).join(Event, Event.id == EventHonorar.event_id).filter(
+        EventHonorar.tatsaechlich == None,      # noqa: E711
+        EventHonorar.erinnert_am == None,       # noqa: E711
+        Event.datum <= grenze,
+    ).all()
+    if not offen:
+        return 0
+    nach_event = {}
+    for h in offen:
+        nach_event.setdefault(h.event_id, []).append(h)
+    for eid, zeilen in nach_event.items():
+        ev = zeilen[0].event
+        if not ev:
+            continue
+        namen = ", ".join(f"{h.dienstleister.vorname} {h.dienstleister.nachname}"
+                          for h in zeilen if h.dienstleister)
+        notify(db, "honorar_offen",
+               f"{len(zeilen)} Dienstleister-Rechnung{'en' if len(zeilen) > 1 else ''} "
+               f"fehlen seit 30 Tagen",
+               f"Zu {ev.anlass or 'dem Event'} am {ev.datum.strftime('%d.%m.%Y')} "
+               f"({ev.kunde_firma or 'Kunde'}) fehlen noch Rechnungen von: {namen}. "
+               f"In der Buchhaltung lässt sich pro Person eine Erinnerung schicken.",
+               "/admin/buchhaltung", marke=ev.marke)
+        for h in zeilen:
+            h.erinnert_am = heute
+    db.commit()
+    return len(offen)
+
+
 def _run_geburtstage(db: Session) -> int:
     """Glocke am Geburtstag aktiver Dienstleister – eine Sammelmeldung pro Tag.
     geburtstag_erinnert_am verhindert eine zweite Meldung, wenn der Cron am selben
@@ -616,6 +656,9 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # Geburtstage des Tages
     geburtstage = _run_geburtstage(db)
 
+    # Ausstehende Dienstleister-Rechnungen (einmalig 30 Tage nach dem Event)
+    honorar_erinnerungen = _run_honorar_erinnerungen(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -639,6 +682,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "gewerbeschein_erinnerungen": gewerbeschein_erinnerungen,
                          "scoring_erinnerungen": scoring_erinnerungen,
                          "geburtstage": geburtstage,
+                         "honorar_erinnerungen": honorar_erinnerungen,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 

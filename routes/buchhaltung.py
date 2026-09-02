@@ -47,7 +47,7 @@ def parse_float(s: str) -> float:
 
 def compute(r: Rechnung) -> dict:
     brutto = r.brutto or 0.0
-    pk = r.personalkosten or 0.0
+    pk = r.fremdleistungen or 0.0
     mk = r.materialkosten or 0.0
     netto = brutto / 1.19
     mwst = brutto - netto
@@ -89,7 +89,7 @@ def buchhaltung_list(request: Request, jahr: int = 0,
     def _summe(rows):
         return {
             "brutto": round(sum(r.brutto or 0 for r in rows), 2),
-            "pk":     round(sum(r.personalkosten or 0 for r in rows), 2),
+            "pk":     round(sum(r.fremdleistungen or 0 for r in rows), 2),
             "mk":     round(sum(r.materialkosten or 0 for r in rows), 2),
             "mwst":   round(sum(compute(r)["mwst"] for r in rows), 2),
             "netto":  round(sum(compute(r)["netto"] for r in rows), 2),
@@ -114,7 +114,7 @@ def buchhaltung_list(request: Request, jahr: int = 0,
     totals = {
         "brutto":  round(sum(r.brutto or 0 for r in rechnungen), 2),
         "offen":   round(sum(r.brutto or 0 for r in rechnungen if not r.bezahlt), 2),
-        "pk":      round(sum(r.personalkosten or 0 for r in rechnungen), 2),
+        "pk":      round(sum(r.fremdleistungen or 0 for r in rechnungen), 2),
         "mk":      round(sum(r.materialkosten or 0 for r in rechnungen), 2),
         "mwst":    round(sum(compute(r)["mwst"] for r in rechnungen), 2),
         "netto":   round(sum(compute(r)["netto"] for r in rechnungen), 2),
@@ -125,36 +125,164 @@ def buchhaltung_list(request: Request, jahr: int = 0,
 
     jahre = list(range(date.today().year, 2023, -1))
 
-    # Events mit erfassten Bestellungen (letzte 180 Tage) – fürs Vorbefüllen der
-    # Materialkosten im Neue-Rechnung-Formular ("aus Event übernehmen").
-    from models import Event, EventBestellung
-    from sqlalchemy import func as _f
+    # Events der letzten 180 Tage fürs Vorbefüllen im Neue-Rechnung-Formular
+    # („aus Event übernehmen"): Material aus den Bestellungen, Fremdleistungen aus
+    # den Honorarzeilen. Events ohne beides sind hier uninteressant.
+    from models import Event, EventBestellung, EventHonorar
     from datetime import timedelta
+    import honorare
     grenze = date.today() - timedelta(days=180)
-    event_vorschlaege = query_filter(
-        db.query(Event, _f.sum(EventBestellung.betrag))
-        .join(EventBestellung, EventBestellung.event_id == Event.id)
-        .filter(Event.datum >= grenze),
+    kandidaten = query_filter(
+        db.query(Event).filter(Event.datum >= grenze),
         Event.marke, mfilter, neutral_sichtbar=False
-    ).group_by(Event.id).order_by(Event.datum.desc()).limit(30).all()
-    event_vorschlaege = [
-        {"datum": e.datum, "kunde_firma": e.kunde_firma or e.anlass or "Event",
-         "summe": round(s or 0, 2), "marke": e.marke}
-        for e, s in event_vorschlaege]
+    ).order_by(Event.datum.desc()).limit(60).all()
+    event_vorschlaege = []
+    for e in kandidaten:
+        material = round(sum(b.betrag or 0 for b in
+                             db.query(EventBestellung).filter(
+                                 EventBestellung.event_id == e.id).all()), 2)
+        fremd = honorare.summe(db, e.id)
+        if not material and not fremd:
+            continue
+        event_vorschlaege.append({
+            "id": e.id, "datum": e.datum,
+            "kunde_firma": e.kunde_firma or e.anlass or "Event",
+            "summe": material, "fremd": fremd, "marke": e.marke,
+            "offen": honorare.offene_anzahl(db, e.id),
+        })
+        if len(event_vorschlaege) >= 30:
+            break
+
+    # Aufschlüsselung je Rechnung (nur bei verknüpftem Event) + Zähler für das Badge
+    for g in monatsgruppen:
+        for row in g["rows"]:
+            row["honorare"] = _honorar_zeilen(db, row["r"].event_id)
+            row["offen_honorare"] = sum(1 for h in row["honorare"] if h.offen)
 
     today_iso = date.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("admin/buchhaltung.html", tpl_context(
         request, monatsgruppen=monatsgruppen, anzahl=len(rechnungen),
         jahr=jahr, jahre=jahre, totals=totals, today=today_iso,
         event_vorschlaege=event_vorschlaege, marken_filter=mfilter,
+        ausstehend=_ausstehende_honorare(db, mfilter),
     ))
+
+
+# ── Fremdleistungen: Aufschlüsselung je Dienstleister ─────────────────────────
+
+def _honorar_zeilen(db, event_id):
+    """Honorarzeilen eines Events, Teamleitung zuerst wäre hier egal – sortiert
+    nach Name, damit die Reihenfolge zwischen zwei Aufrufen stabil bleibt."""
+    if not event_id:
+        return []
+    from models import EventHonorar, Dienstleister
+    return (db.query(EventHonorar)
+            .join(Dienstleister, Dienstleister.id == EventHonorar.dienstleister_id)
+            .filter(EventHonorar.event_id == event_id)
+            .order_by(Dienstleister.vorname, Dienstleister.nachname).all())
+
+
+def _ausstehende_honorare(db, mfilter):
+    """Arbeitsliste über alle Events: Welche Dienstleister-Rechnung fehlt noch?
+
+    Bewusst unabhängig davon, ob es zum Event schon eine Kundenrechnung gibt –
+    zwischen Event und Rechnungsstellung liegen oft Wochen, und in dieser Zeit
+    braucht eine eingehende Rechnung trotzdem einen Platz."""
+    from models import Event, EventHonorar
+    from marken import query_filter as _qf
+    heute = date.today()
+    rows = _qf(
+        db.query(EventHonorar).join(Event, Event.id == EventHonorar.event_id)
+        .filter(EventHonorar.tatsaechlich == None,      # noqa: E711
+                Event.datum <= heute),
+        Event.marke, mfilter, neutral_sichtbar=False
+    ).order_by(Event.datum).all()
+    return [{
+        "h": h, "ev": h.event, "d": h.dienstleister,
+        "tage": (heute - h.event.datum).days if h.event and h.event.datum else 0,
+    } for h in rows if h.event and h.dienstleister]
+
+
+@router.post("/honorar/{hid}")
+def honorar_speichern(hid: int, betrag: str = Form(""), db: Session = Depends(get_db),
+                      user=Depends(get_admin_user)):
+    """Tatsächliches Honorar eintragen. Die Fremdleistungen aller Rechnungen zu
+    diesem Event ziehen automatisch nach – auch rückwirkend, denn genau dafür ist
+    die Aufschlüsselung da."""
+    from models import EventHonorar
+    h = db.query(EventHonorar).filter(EventHonorar.id == hid).first()
+    if not h:
+        return RedirectResponse("/admin/buchhaltung", status_code=303)
+    wert = parse_float(betrag)
+    if str(betrag).strip() == "":
+        h.tatsaechlich = None          # Eingabe geleert → wieder offener Posten
+        h.eingegangen_am = None
+    else:
+        h.tatsaechlich = wert
+        h.eingegangen_am = date.today()
+    db.commit()
+    _fremdleistungen_nachziehen(db, h.event_id)
+    return RedirectResponse(_zurueck(db, h.event_id), status_code=303)
+
+
+@router.post("/honorar/{hid}/loeschen")
+def honorar_loeschen(hid: int, db: Session = Depends(get_db),
+                     user=Depends(get_admin_user)):
+    """Zeile entfernen – z. B. wenn jemand krank abgesagt hat und nie eine
+    Rechnung stellt."""
+    from models import EventHonorar
+    h = db.query(EventHonorar).filter(EventHonorar.id == hid).first()
+    if not h:
+        return RedirectResponse("/admin/buchhaltung", status_code=303)
+    eid = h.event_id
+    db.delete(h)
+    db.commit()
+    _fremdleistungen_nachziehen(db, eid)
+    return RedirectResponse(_zurueck(db, eid), status_code=303)
+
+
+def _fremdleistungen_nachziehen(db, event_id):
+    """Summe der Honorarzeilen in die Rechnung(en) dieses Events schreiben."""
+    if not event_id:
+        return
+    import honorare
+    neu = honorare.summe(db, event_id)
+    for r in db.query(Rechnung).filter(Rechnung.event_id == event_id).all():
+        r.fremdleistungen = neu
+    db.commit()
+
+
+def _zurueck(db, event_id) -> str:
+    """Zurück in das Jahr der zugehörigen Rechnung (sonst laufendes Jahr)."""
+    r = (db.query(Rechnung).filter(Rechnung.event_id == event_id).first()
+         if event_id else None)
+    jahr = r.datum.year if r and r.datum else date.today().year
+    return f"/admin/buchhaltung?jahr={jahr}"
+
+
+@router.post("/honorar/{hid}/erinnern")
+def honorar_erinnern(hid: int, db: Session = Depends(get_db),
+                     user=Depends(get_admin_user)):
+    """Erinnerungsmail an den Dienstleister: Rechnung fehlt noch."""
+    from models import EventHonorar
+    h = db.query(EventHonorar).filter(EventHonorar.id == hid).first()
+    if not h or not h.dienstleister or not h.event:
+        return RedirectResponse("/admin/buchhaltung", status_code=303)
+    try:
+        from email_service import send_honorar_erinnerung
+        send_honorar_erinnerung(h.dienstleister, h.event)
+        h.erinnert_am = date.today()
+        db.commit()
+    except Exception as e:
+        print(f"Honorar-Erinnerung fehlgeschlagen (Honorar {hid}): {e}")
+    return RedirectResponse(_zurueck(db, h.event_id) + "&erinnert=1", status_code=303)
 
 
 # ── Neue Rechnung ──────────────────────────────────────────────────────────────
 
 def _apply_form(r: Rechnung, datum: str, kunde: str, rgnr: str,
-                brutto: str, personalkosten: str, materialkosten: str, notiz: str,
-                marke: str = None):
+                brutto: str, fremdleistungen: str, materialkosten: str, notiz: str,
+                marke: str = None, event_id: str = ""):
     if marke in ("Kindsalabim", "Knallfrosch"):
         r.marke = marke
     try:
@@ -164,9 +292,11 @@ def _apply_form(r: Rechnung, datum: str, kunde: str, rgnr: str,
     r.kunde = kunde.strip() or None
     r.rgnr = rgnr.strip() or None
     r.brutto = parse_float(brutto)
-    r.personalkosten = parse_float(personalkosten)
+    r.fremdleistungen = parse_float(fremdleistungen)
     r.materialkosten = parse_float(materialkosten)
     r.notiz = notiz.strip() or None
+    if str(event_id).strip().isdigit():
+        r.event_id = int(event_id)
 
 
 @router.post("/neu")
@@ -175,10 +305,11 @@ def buchhaltung_neu(
     kunde: str = Form(""),
     rgnr: str = Form(""),
     brutto: str = Form("0"),
-    personalkosten: str = Form("0"),
+    fremdleistungen: str = Form("0"),
     materialkosten: str = Form("0"),
     notiz: str = Form(""),
     marke: str = Form(""),
+    event_id: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(get_admin_user),
 ):
@@ -187,7 +318,8 @@ def buchhaltung_neu(
     # Ohne Auswahl: eigene Marken-Ansicht übernehmen (bei „beide" bleibt Kindsalabim)
     eigene = admin_marke(db, user)
     r.marke = "Kindsalabim" if eigene == BEIDE else eigene
-    _apply_form(r, datum, kunde, rgnr, brutto, personalkosten, materialkosten, notiz, marke)
+    _apply_form(r, datum, kunde, rgnr, brutto, fremdleistungen, materialkosten, notiz,
+                marke, event_id)
     db.add(r)
     db.commit()
     return RedirectResponse(f"/admin/buchhaltung?jahr={r.datum.year}", status_code=303)
@@ -213,24 +345,26 @@ def buchhaltung_edit_save(
     kunde: str = Form(""),
     rgnr: str = Form(""),
     brutto: str = Form("0"),
-    personalkosten: str = Form("0"),
+    fremdleistungen: str = Form("0"),
     materialkosten: str = Form("0"),
     notiz: str = Form(""),
     marke: str = Form(""),
+    event_id: str = Form(""),
     db: Session = Depends(get_db),
     user=Depends(get_admin_user),
 ):
     r = db.query(Rechnung).filter(Rechnung.id == rid).first()
     if not r:
         return RedirectResponse("/admin/buchhaltung", status_code=303)
-    _apply_form(r, datum, kunde, rgnr, brutto, personalkosten, materialkosten, notiz, marke)
+    _apply_form(r, datum, kunde, rgnr, brutto, fremdleistungen, materialkosten, notiz,
+                marke, event_id)
     db.commit()
     return RedirectResponse(f"/admin/buchhaltung?jahr={r.datum.year}", status_code=303)
 
 
 # ── Inline-Editieren (Excel-artig: Klick auf den Wert in der Liste) ─────────────
 
-_INLINE_FELDER = {"brutto", "personalkosten", "materialkosten"}
+_INLINE_FELDER = {"brutto", "fremdleistungen", "materialkosten"}
 
 
 @router.post("/{rid}/feld")
@@ -307,7 +441,7 @@ def buchhaltung_export(jahr: int = 0, db: Session = Depends(get_db),
     w = csv.writer(out, delimiter=";")
     w.writerow([
         "Nr", "Datum", "Kunde", "Rgnr", "Brutto", "Noch offen",
-        "Personalkosten", "Materialkosten", "MwSt", "Netto",
+        "Fremdleistungen", "Materialkosten", "MwSt", "Netto",
         "Nettogewinn ca", "Steuerrücklage 40% UK1", "Invest-Rücklage 10% UK2",
     ])
 
@@ -325,7 +459,7 @@ def buchhaltung_export(jahr: int = 0, db: Session = Depends(get_db),
             r.rgnr or "",
             fmt(r.brutto or 0),
             fmt(noch_offen),
-            fmt(r.personalkosten or 0),
+            fmt(r.fremdleistungen or 0),
             fmt(r.materialkosten or 0),
             fmt(c["mwst"]),
             fmt(c["netto"]),

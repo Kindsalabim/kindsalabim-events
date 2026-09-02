@@ -86,21 +86,26 @@
   <form method="post" action="/admin/buchhaltung/neu">
     {% if event_vorschlaege %}
     <div class="mb-3">
-      <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Aus Event übernehmen <span class="font-normal">(optional – füllt Kunde &amp; Materialkosten aus den erfassten Bestellungen)</span></label>
+      <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Aus Event übernehmen <span class="font-normal">(optional – füllt Kunde, Material und Fremdleistungen; erst dadurch lässt sich die Rechnung später je Dienstleister aufschlüsseln)</span></label>
       <select onchange="bhEventVorlage(this)" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white">
         <option value="">– Event wählen –</option>
         {% for e in event_vorschlaege %}
-        <option data-kunde="{{ e.kunde_firma }}" data-material="{{ '%.2f'|format(e.summe)|replace('.', ',') }}">{{ e.datum | de_date }} · {{ e.kunde_firma }} · Material {{ e.summe | de_euro }} €</option>
+        <option data-id="{{ e.id }}" data-kunde="{{ e.kunde_firma }}"
+                data-material="{{ '%.2f'|format(e.summe)|replace('.', ',') }}"
+                data-fremd="{{ '%.2f'|format(e.fremd)|replace('.', ',') }}">{{ e.datum | de_date }} · {{ e.kunde_firma }} · Material {{ e.summe | de_euro }} € · Fremdl. {{ e.fremd | de_euro }} €{% if e.offen %} ({{ e.offen }} Rg. offen){% endif %}</option>
         {% endfor %}
       </select>
+      <input type="hidden" name="event_id" value="">
     </div>
     <script>
       function bhEventVorlage(s){
         var o = s.selectedOptions[0];
-        if (!o || (!o.dataset.kunde && !o.dataset.material)) return;
+        if (!o || !o.dataset.id) { return; }
         var f = s.closest('form');
+        f.event_id.value = o.dataset.id;
         if (o.dataset.kunde && !f.kunde.value.trim()) f.kunde.value = o.dataset.kunde;
         if (o.dataset.material) f.materialkosten.value = o.dataset.material;
+        if (o.dataset.fremd) f.fremdleistungen.value = o.dataset.fremd;
       }
     </script>
     {% endif %}
@@ -135,8 +140,8 @@
                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
       </div>
       <div>
-        <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Personalkosten (€)</label>
-        <input type="text" name="personalkosten" placeholder="0,00"
+        <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Fremdleistungen (€)</label>
+        <input type="text" name="fremdleistungen" placeholder="0,00"
                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
       </div>
       <div>
@@ -153,6 +158,55 @@
     <button type="submit" class="btn-primary">Rechnung speichern</button>
   </form>
 </div>
+
+{% if request.query_params.get('erinnert') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-green-bg);color:var(--c-green);">✓ Erinnerung verschickt.</div>
+{% endif %}
+
+<!-- ── Ausstehende Dienstleister-Rechnungen (über alle Events) ── -->
+{% if ausstehend %}
+<details class="card mb-3 overflow-hidden">
+  <summary class="flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none list-none">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" stroke-width="2.5" stroke-linecap="round" class="bh-chevron"><polyline points="6 9 12 15 18 9"/></svg>
+    <span class="font-semibold" style="color:var(--ink-1);">⏳ Ausstehende Dienstleister-Rechnungen</span>
+    <span class="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap" style="background:#fef3c7;color:#92400e;">{{ ausstehend|length }}</span>
+  </summary>
+  <div class="px-5 pb-4" style="border-top:1px solid var(--line);">
+    <p class="text-xs mt-3 mb-2" style="color:var(--ink-4);">
+      Diese Honorare sind noch geschätzt – sobald die Rechnung eintrifft, den Betrag bei der
+      passenden Kundenrechnung eintragen (Klick auf den Fremdleistungs-Betrag).
+    </p>
+    <table class="w-full text-xs">
+      {% for a in ausstehend %}
+      <tr style="border-bottom:1px solid var(--line);">
+        <td class="py-2 pr-3 font-medium whitespace-nowrap" style="color:var(--ink-1);">{{ a.d.vorname }} {{ a.d.nachname }}</td>
+        <td class="py-2 pr-3" style="color:var(--ink-3);">
+          <a href="/admin/events/{{ a.ev.id }}" class="hover:underline">{{ a.ev.kunde_firma or a.ev.anlass or 'Event' }}</a>
+          <span style="color:var(--ink-4);">· {{ a.ev.datum | de_date }}</span>
+        </td>
+        <td class="py-2 pr-3 text-right whitespace-nowrap" style="color:var(--ink-4);">
+          {% if a.h.geschaetzt %}ca. {{ a.h.geschaetzt | de_euro }} €{% else %}–{% endif %}
+        </td>
+        <td class="py-2 pr-3 text-right whitespace-nowrap" style="color:{% if a.tage >= 30 %}var(--c-coral){% else %}var(--ink-4);{% endif %};">
+          seit {{ a.tage }} Tag{% if a.tage != 1 %}en{% endif %}
+        </td>
+        <td class="py-2 text-right whitespace-nowrap">
+          <form method="post" action="/admin/buchhaltung/honorar/{{ a.h.id }}/erinnern" class="inline">
+            <button type="submit" class="hover:underline" style="color:var(--brand-primary);"
+                    title="Erinnerungsmail an {{ a.d.vorname }} schicken">Erinnerung schicken</button>
+          </form>
+          {% if a.h.erinnert_am %}<span class="ml-1" style="color:var(--ink-4);" title="Zuletzt erinnert">({{ a.h.erinnert_am | de_date }})</span>{% endif %}
+          <form method="post" action="/admin/buchhaltung/honorar/{{ a.h.id }}/loeschen" class="inline ml-2"
+                onsubmit="return confirm('Zeile entfernen? (z. B. weil die Person kurzfristig ausgefallen ist)')">
+            <button type="submit" class="px-1" style="color:var(--c-coral);" title="Zeile entfernen">✕</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</details>
+{% endif %}
 
 <!-- ── Rechnungen nach Monat (neueste zuerst, aufklappbar) ── -->
 {% if monatsgruppen %}
@@ -178,7 +232,7 @@
           <th class="px-3 py-2.5 text-left text-xs font-semibold" style="color:var(--ink-4);">Datum</th>
           <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Brutto</th>
           <th class="px-3 py-2.5 text-center text-xs font-semibold" style="color:var(--ink-4);">Bezahlt</th>
-          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Pers.K.</th>
+          <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);" title="Honorare der Dienstleister (Fremdleistungen)">Fremdl.</th>
           <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Mat.K.</th>
           <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">MwSt.</th>
           <th class="px-3 py-2.5 text-right text-xs font-semibold" style="color:var(--ink-4);">Netto</th>
@@ -221,9 +275,21 @@
               </button>
             </form>
           </td>
+          {% if row.honorare %}
+          {# Aufgeschlüsselt: Klick öffnet die Zeilen je Dienstleister (statt sie in die Tabelle zu quetschen) #}
+          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap">
+            <button type="button" onclick="bhHonorare('{{ r.id }}')"
+                    class="hover:underline" style="color:var(--brand-primary);"
+                    title="Aufschlüsselung je Dienstleister anzeigen">
+              {{ (r.fremdleistungen or 0) | de_euro }} €
+              {% if row.offen_honorare %}<span class="ml-1 font-semibold" style="color:var(--c-amber);" title="{{ row.offen_honorare }} Rechnung(en) stehen noch aus">⏳{{ row.offen_honorare }}</span>{% endif %}
+            </button>
+          </td>
+          {% else %}
           <td class="bh-edit px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);"
-              data-rid="{{ r.id }}" data-feld="personalkosten" data-wert="{{ '%.2f'|format(r.personalkosten or 0)|replace('.', ',') }}"
-              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.personalkosten or 0) | de_euro }} €</td>
+              data-rid="{{ r.id }}" data-feld="fremdleistungen" data-wert="{{ '%.2f'|format(r.fremdleistungen or 0)|replace('.', ',') }}"
+              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.fremdleistungen or 0) | de_euro }} €</td>
+          {% endif %}
           <td class="bh-edit px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);"
               data-rid="{{ r.id }}" data-feld="materialkosten" data-wert="{{ '%.2f'|format(r.materialkosten or 0)|replace('.', ',') }}"
               title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.materialkosten or 0) | de_euro }} €</td>
@@ -277,6 +343,59 @@
             </div>
           </td>
         </tr>
+        {% if row.honorare %}
+        {# Aufschlüsselung der Fremdleistungen – eingeklappt, damit die Liste eine Zeile pro Rechnung bleibt #}
+        <tr id="hon-{{ r.id }}" class="hidden" style="background:#fafafa;">
+          <td colspan="14" class="px-6 py-3">
+            <table class="w-full text-xs" style="max-width:640px;">
+              {% for h in row.honorare %}
+              <tr>
+                <td class="py-1.5 pr-3 whitespace-nowrap" style="color:var(--ink-1);">
+                  {{ h.dienstleister.vorname }} {{ h.dienstleister.nachname }}
+                </td>
+                <td class="py-1.5 pr-3 text-right whitespace-nowrap" style="color:var(--ink-4);">
+                  {% if h.geschaetzt %}geschätzt {{ h.geschaetzt | de_euro }} €{% else %}– kein Satz hinterlegt{% endif %}
+                </td>
+                <td class="py-1.5 pr-3">
+                  <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}" class="flex items-center gap-1.5">
+                    <input type="text" name="betrag" inputmode="decimal" placeholder="Betrag"
+                           value="{{ ('%.2f'|format(h.tatsaechlich)|replace('.', ',')) if h.tatsaechlich is not none else '' }}"
+                           class="w-24 rounded-lg border border-gray-200 px-2 py-1 text-xs text-right">
+                    <button type="submit" class="text-xs px-2 py-1 rounded-lg hover:bg-gray-100" style="color:var(--brand-primary);">✓</button>
+                  </form>
+                </td>
+                <td class="py-1.5 pr-3 whitespace-nowrap">
+                  {% if h.offen %}
+                  <span style="color:var(--c-amber);">⏳ offen</span>
+                  {% else %}
+                  <span style="color:var(--c-green);">✅ {{ h.eingegangen_am | de_date }}</span>
+                  {% endif %}
+                </td>
+                <td class="py-1.5 text-right whitespace-nowrap">
+                  {% if h.offen %}
+                  <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/erinnern" class="inline">
+                    <button type="submit" class="text-xs hover:underline" style="color:var(--ink-4);"
+                            title="Erinnerungsmail an {{ h.dienstleister.vorname }} schicken">Erinnerung schicken</button>
+                  </form>
+                  {% endif %}
+                  <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/loeschen" class="inline ml-2"
+                        onsubmit="return confirm('Zeile entfernen? (z. B. weil die Person kurzfristig ausgefallen ist)')">
+                    <button type="submit" class="text-xs px-1" style="color:var(--c-coral);" title="Zeile entfernen">✕</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+              <tr style="border-top:1px solid var(--line);">
+                <td class="pt-2 text-xs font-semibold" style="color:var(--ink-2);">Summe</td>
+                <td class="pt-2 text-right text-xs font-semibold whitespace-nowrap" style="color:var(--ink-1);">{{ (r.fremdleistungen or 0) | de_euro }} €</td>
+                <td colspan="3" class="pt-2 pl-3 text-xs" style="color:var(--ink-4);">
+                  {% if row.offen_honorare %}{{ row.offen_honorare }} Rechnung{% if row.offen_honorare != 1 %}en{% endif %} ausstehend – der Betrag ist bis dahin geschätzt{% else %}alle Rechnungen erfasst{% endif %}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
       <tfoot>
@@ -319,7 +438,14 @@
 
 <script>
 (function(){
-  // ── Inline-Editieren (Excel-artig): Klick auf Brutto/Personal-/Materialkosten ──
+  // ── Fremdleistungen aufklappen: die Aufschlüsselung je Dienstleister ──
+  // (global, weil der Knopf sie per onclick aufruft – dieses Skript ist ein IIFE)
+  window.bhHonorare = function(rid){
+    var tr = document.getElementById('hon-' + rid);
+    if (tr) tr.classList.toggle('hidden');
+  };
+
+  // ── Inline-Editieren (Excel-artig): Klick auf Brutto/Fremdleistungen/Material ──
   document.querySelectorAll('.bh-edit').forEach(function(td){
     td.addEventListener('click', function(){
       if (td.querySelector('input')) return;           // schon im Bearbeiten-Modus

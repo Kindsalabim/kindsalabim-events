@@ -30,6 +30,7 @@ NOTIF_TYPEN = [
     ("bestellung", "Automatische Bestellung bei Zusage", True, False),
     ("warteliste", "Warteliste: Dienstleister rückt automatisch nach", True, False),
     ("geburtstag", "Geburtstag eines Dienstleisters", True, False),
+    ("honorar_offen", "Dienstleister-Rechnung fehlt (30 Tage nach dem Event)", True, False),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 

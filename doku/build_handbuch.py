@@ -153,12 +153,12 @@ s.add(Reservierung(datum=date.today() + timedelta(days=40), art="WORKSHOP",
 
 s.add(Rechnung(datum=date.today() - timedelta(days=40), kunde="Rheintal Werke GmbH",
                rgnr="RE-2026-089", brutto=1547.00, bezahlt=True,
-               personalkosten=420.0, materialkosten=180.0))
+               fremdleistungen=420.0, materialkosten=180.0))
 s.add(Rechnung(datum=date.today() - timedelta(days=9), kunde="Familie Sommer",
-               rgnr="RE-2026-101", brutto=830.00, bezahlt=True, personalkosten=250.0))
+               rgnr="RE-2026-101", brutto=830.00, bezahlt=True, fremdleistungen=250.0))
 s.add(Rechnung(datum=date.today() - timedelta(days=4), kunde="Beispiel & Söhne KG",
                rgnr="RE-2026-102", brutto=1190.00, bezahlt=False,
-               personalkosten=380.0, materialkosten=199.90))
+               fremdleistungen=380.0, materialkosten=199.90))
 
 for typ, titel, text in [
     ("dl_zusage", "Zusage: Mia Farben – Sommerfest",
@@ -613,11 +613,29 @@ story = [
 
     Paragraph("13. Buchhaltung", H2),
     bullets([
-        "Alle Rechnungen nach Monaten gruppiert, mit Jahres-Summen (Brutto, offen, Personal-/Material"
-        "kosten, MwSt., Netto, Gewinn, Steuerrücklage, Invest). Werte in der Tabelle sind per Klick "
-        "direkt editierbar.",
-        "<b>Neue Rechnung:</b> oben &bdquo;Aus Event übernehmen&ldquo; wählen → Kunde und Materialkosten "
-        "werden aus den erfassten Bestellungen vorbefüllt.",
+        "Alle Rechnungen nach Monaten gruppiert, mit Jahres-Summen (Brutto, offen, Fremdleistungen, "
+        "Materialkosten, MwSt., Netto, Gewinn, Steuerrücklage, Invest). Werte in der Tabelle sind "
+        "per Klick direkt editierbar.",
+        "<b>Fremdleistungen</b> sind die Honorare der Dienstleister (früher &bdquo;Personalkosten&ldquo; – "
+        "die Dienstleister sind selbstständig, „Personal“ ist die Kategorie für Angestellte).",
+        "<b>Neue Rechnung:</b> oben &bdquo;Aus Event übernehmen&ldquo; wählen → Kunde, Materialkosten "
+        "(aus den Bestellungen) und Fremdleistungen (aus den Honoraren) werden vorbefüllt. Nur so "
+        "verknüpft sich die Rechnung mit dem Event – Voraussetzung für die Aufschlüsselung unten.",
+        "<b>Aufschlüsselung je Dienstleister:</b> Sagt jemand zu, legt die App automatisch eine "
+        "Honorarzeile mit einer <b>Schätzung</b> an (Aktionszeit + Auf-/Abbau + Fahrzeit; beim "
+        "Künstler das Pauschalbudget). Die Zeile bleibt ein offener Posten, bis die Rechnung des "
+        "Dienstleisters eintrifft – die Liste bleibt trotzdem eine Zeile pro Rechnung: Ein Klick auf "
+        "den Fremdleistungs-Betrag klappt die Personen darunter auf. Dort den echten Betrag "
+        "eintippen; die Summe oben zieht automatisch nach, auch Wochen später.",
+        "Das <b>⏳-Zeichen</b> neben dem Betrag zeigt schon beim Überfliegen, wie viele Rechnungen "
+        "noch fehlen. Der Betrag ist bis dahin geschätzt.",
+        "<b>Ausstehende Dienstleister-Rechnungen</b> (Block über der Liste): alle offenen Posten über "
+        "alle Events hinweg, nach Alter sortiert – mit Knopf &bdquo;Erinnerung schicken&ldquo; (fertige "
+        "Mail an den Dienstleister) und ✕ zum Entfernen, wenn nie eine Rechnung kommt (z. B. weil "
+        "jemand kurzfristig krank abgesagt hat).",
+        "<b>Schätzung wird besser:</b> Sobald genug Einsätze abgerechnet sind, vergleicht die App "
+        "Schätzung und Ist und korrigiert künftige Schätzungen um den durchschnittlichen Versatz – "
+        "so laufen die Kosten nicht dauerhaft zu niedrig mit.",
         "<b>Bezahlt-Haken</b> pro Rechnung. Unbezahlte Rechnungen nach Zahlungsziel (14 Werktage) melden "
         "sich wöchentlich per Glocke + Mail, bis der Haken gesetzt ist.",
         "CSV-Export für die Steuerberatung über &bdquo;Export&ldquo;.",
@@ -662,6 +680,7 @@ story = [
         ["Bei jeder Zusage", "Automatische „Bestellung“ (PDF nach Anwaltsvorlage) an den Dienstleister – nur wenn Stundensatz/Budget hinterlegt, sonst Hinweis-Glocke"],
         ["Jährlich", "Erinnerung, das Scheinselbstständigkeits-Scoring der Dienstleister zu aktualisieren"],
         ["Am Geburtstag", "Glocke, wenn ein aktiver Dienstleister Geburtstag hat (nur wenn er sein Geburtsdatum angegeben hat)"],
+        ["30 Tage nach dem Event", "Einmalige Glocke, wenn Dienstleister-Rechnungen fehlen (gesammelt pro Event) – danach ist es Sache des Dienstleisters"],
         ["Montags", "Baker-Ross-Katalog aktualisieren + CSV-Backup-Mail (Events, Dienstleister, Rechnungen, Kunden)"],
     ], breiten=[48*mm, None]),
     Spacer(1, 6),

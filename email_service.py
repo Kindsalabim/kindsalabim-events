@@ -395,6 +395,38 @@ def send_gewerbeschein_erinnerung(dienstleister, base_url: str):
           _wrap(content, "#003864", cfg, beide_logos=True))
 
 
+def send_honorar_erinnerung(dienstleister, event, base_url: str = ""):
+    """Erinnerung an einen Dienstleister, dessen Rechnung zu einem Einsatz aussteht.
+    Bewusst freundlich und ohne Frist – die Rechnungsstellung ist seine Sache,
+    wir erinnern einmal daran."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    was = _esc(_no_none(event.anlass) or "unseren Einsatz")
+    wo = _esc(_no_none(event.kunde_firma))
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {_esc(dienstleister.vorname)},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      für <strong>{was}</strong>{f' bei {wo}' if wo else ''} am
+      <strong>{de_date(event.datum)}</strong> haben wir noch keine Rechnung von dir.
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      Falls du sie schon geschrieben hast, ist bei uns vielleicht etwas untergegangen –
+      dann schick sie uns gern noch einmal. Falls nicht: Eine Vorlage und eine kurze
+      Erläuterung dazu findest du in deinem Portal unter „Mein Profil".
+    </p>
+    <a href="{base_url or 'https://kindsalabim-events.onrender.com'}/portal/profil"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      Zum Portal →
+    </a>
+    <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
+      Danke dir – so können wir den Einsatz sauber abschließen.
+    </p>"""
+    _send(dienstleister.email,
+          f"Rechnung zu {was} am {de_date(event.datum)}",
+          _wrap(content, color, cfg))
+
+
 def send_bestellung(dienstleister, event, pdf: bytes, dateiname: str):
     """Automatische Bestellung (Anwaltsvorlage) direkt nach der Zusage – markenrein."""
     cfg = get_config()

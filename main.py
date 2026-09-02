@@ -257,6 +257,21 @@ def run_migrations():
                 conn.rollback()
     add_column("rechnungen", "ueberfaellig_erinnert", "BOOLEAN DEFAULT 0")
     add_column("rechnungen", "ueberfaellig_erinnert_am", "VARCHAR")
+    # „Personalkosten" → „Fremdleistungen": Die Dienstleister sind selbstständig, und
+    # „Personal" wäre im Prüfungsfall ein geschenktes Argument. Werte werden einmalig
+    # übernommen; die alte Spalte bleibt unangetastet in der DB liegen (kein Datenverlust,
+    # taucht aber nicht mehr im Modell und damit auch nicht mehr im CSV-Backup auf).
+    _rg_spalten = {c["name"] for c in _sa_inspect(engine).get_columns("rechnungen")}
+    add_column("rechnungen", "fremdleistungen", "FLOAT DEFAULT 0")
+    if "fremdleistungen" not in _rg_spalten and "personalkosten" in _rg_spalten:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("UPDATE rechnungen SET fremdleistungen = personalkosten"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    # Rechnung ↔ Event: Grundlage der Fremdleistungs-Aufschlüsselung je Dienstleister
+    add_column("rechnungen", "event_id", "INTEGER")
 
     # Status-Modell vereinheitlicht: "Entwurf"/"Bestätigt" gibt es nicht mehr → "Gebucht".
     with engine.connect() as conn:
@@ -463,12 +478,32 @@ def seed_admin():
         db.close()
 
 
+def backfill_honorare():
+    """Honorarzeilen für bestehende Zusagen zu noch bevorstehenden Events.
+
+    Nur die Zukunft: Bei vergangenen Events sind die Rechnungen längst bezahlt –
+    dort würden nur Karteileichen in der Ausstehend-Liste landen. Läuft bei jedem
+    Start, legt aber nur an, was fehlt (siehe honorare.backfill_zukunft)."""
+    db = SessionLocal()
+    try:
+        from honorare import backfill_zukunft
+        n = backfill_zukunft(db)
+        if n:
+            print(f"[MIGRATION] {n} Honorarzeilen für kommende Events angelegt")
+    except Exception as e:
+        db.rollback()
+        print(f"[MIGRATION] Honorar-Backfill übersprungen: {e}")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     run_migrations()
     migrate_kunden()
     backfill_kunden()
+    backfill_honorare()
     seed_admin()
     if get_config().get("demo_mode") and engine.dialect.name != "postgresql":
         from seed_demo import seed_demo_data

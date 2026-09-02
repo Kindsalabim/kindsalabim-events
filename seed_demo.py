@@ -182,12 +182,12 @@ def seed_demo_data(reset: bool = False):
         # ── Buchhaltung ──
         db.add(Rechnung(datum=t - timedelta(days=10), kunde="Stadt Dortmund", rgnr="RE-2026-001",
                         brutto=1450.0, bezahlt=True, steuer_erledigt=True,
-                        personalkosten=600.0, materialkosten=120.0))
+                        fremdleistungen=600.0, materialkosten=120.0))
         db.add(Rechnung(datum=t - timedelta(days=3), kunde="Stadtwerke Essen", rgnr="RE-2026-002",
-                        brutto=980.0, bezahlt=False, personalkosten=400.0, materialkosten=80.0))
+                        brutto=980.0, bezahlt=False, fremdleistungen=400.0, materialkosten=80.0))
         db.add(Rechnung(datum=t - timedelta(days=1), kunde="Knallfrosch Stammkunde GmbH",
                         rgnr="RE-2026-003", brutto=2100.0, bezahlt=True, steuer_erledigt=False,
-                        personalkosten=900.0, materialkosten=200.0))
+                        fremdleistungen=900.0, materialkosten=200.0))
 
         # ── Wissensdatenbank (hierarchisch: Kategorie → Unterseiten, HTML-Inhalt) ──
         def art(titel, inhalt, parent=None, sicht="beide", sort=0, veroeff=True):

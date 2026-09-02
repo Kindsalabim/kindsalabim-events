@@ -301,6 +301,43 @@ class EventBestellung(Base):
     erstellt_am = Column(String)
 
 
+class EventHonorar(Base):
+    """Honorar eines Dienstleisters für einen Einsatz – der Gegenpart zu
+    EventBestellung (Material) auf der Fremdleistungs-Seite.
+
+    Entsteht automatisch bei der Zusage mit einer Schätzung (`geschaetzt`) und
+    bleibt ein offener Posten, bis die Rechnung des Dienstleisters eintrifft
+    (`tatsaechlich` + `eingegangen_am`). Die Summe je Event füllt die
+    Fremdleistungen der Kundenrechnung – auch rückwirkend, denn die Rechnungen
+    der Dienstleister kommen meist erst nach der Kundenrechnung.
+    """
+    __tablename__ = "event_honorare"
+    __table_args__ = (UniqueConstraint("event_id", "dienstleister_id",
+                                       name="uq_honorar_event_dl"),)
+
+    id               = Column(Integer, primary_key=True, index=True)
+    event_id         = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    dienstleister_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=False, index=True)
+    geschaetzt       = Column(Float)          # None = kein Stundensatz/Budget hinterlegt
+    tatsaechlich     = Column(Float)          # None = Rechnung steht noch aus
+    eingegangen_am   = Column(Date)           # Datum der eingegangenen Rechnung
+    erinnert_am      = Column(Date)           # letzte Erinnerung an den Dienstleister
+    erstellt_am      = Column(String)
+
+    event         = relationship("Event")
+    dienstleister = relationship("Dienstleister")
+
+    @property
+    def offen(self) -> bool:
+        return self.tatsaechlich is None
+
+    @property
+    def betrag(self) -> float:
+        """Was in die Fremdleistungen einfließt: Ist-Wert, sonst die Schätzung."""
+        return (self.tatsaechlich if self.tatsaechlich is not None
+                else (self.geschaetzt or 0.0))
+
+
 class EventDatei(Base):
     __tablename__ = "event_dateien"
 
@@ -453,8 +490,13 @@ class Rechnung(Base):
     # Letzte Überfällig-Meldung (ISO-Datum) – wiederholt sich alle 7 Tage, bis bezahlt.
     ueberfaellig_erinnert_am = Column(String)
     steuer_erledigt  = Column(Boolean, default=False)
-    personalkosten   = Column(Float, default=0.0)
+    # „Fremdleistungen" statt „Personalkosten": Die Dienstleister sind selbstständig –
+    # Personalkosten ist die Kategorie für Angestellte (Scheinselbstständigkeits-Vorsorge).
+    fremdleistungen  = Column(Float, default=0.0)
     materialkosten   = Column(Float, default=0.0)
+    # Verknüpfung zum Event (über „Aus Event übernehmen") – Grundlage der
+    # Fremdleistungs-Aufschlüsselung je Dienstleister.
+    event_id         = Column(Integer, ForeignKey("events.id"), index=True)
     notiz            = Column(Text)
 
 
