@@ -577,7 +577,7 @@ story = [
         "Urlaub/Sperrzeiten pflegen Dienstleister selbst im Portal – gesperrte Personen rutschen in den "
         "Anfrage-Listen automatisch nach unten.",
         "<b>Scheinselbstständigkeits-Vorsorge in der Karte:</b> Das interne <b>Status-Scoring</b> "
-        "(Anwalts-System, Ampel 🟢/🟡/🔴, ab 130 Punkten kritisch) bewertet jeden Dienstleister in "
+        "(Anwalts-System, Ampel grün/gelb/rot, ab 130 Punkten kritisch) bewertet jeden Dienstleister in "
         "ca. 2 Minuten. Das <b>Nachweis-Dossier</b> (PDF-Knopf in der Karte) dokumentiert für den "
         "Prüfungsfall die freie Auftragsannahme: alle angebotenen, angenommenen und abgelehnten "
         "Anfragen, Fristverlängerungen, Sperrzeiten und Unterlagen-Status.",
@@ -620,18 +620,23 @@ story = [
         "die Dienstleister sind selbstständig, „Personal“ ist die Kategorie für Angestellte).",
         "<b>Neue Rechnung:</b> oben &bdquo;Aus Event übernehmen&ldquo; wählen → Kunde, Materialkosten "
         "(aus den Bestellungen) und Fremdleistungen (aus den Honoraren) werden vorbefüllt. Nur so "
-        "verknüpft sich die Rechnung mit dem Event – Voraussetzung für die Aufschlüsselung unten.",
-        "<b>Aufschlüsselung je Dienstleister:</b> Sagt jemand zu, legt die App automatisch eine "
+        "verknüpft sich die Rechnung mit dem Event – Voraussetzung für die Aufschlüsselung unten. "
+        "Events, die bereits eine Rechnung haben, stehen nicht zur Auswahl.",
+        "<b>Nachträglich zuordnen:</b> Bei einer bestehenden Rechnung lässt sich das Event über "
+        "&bdquo;Bearbeiten&ldquo; → &bdquo;Zugehöriges Event&ldquo; nachtragen; hängen dort "
+        "Honorarzeilen, wird ihre Summe übernommen.",
+        "<b>Aufschlüsselung je Dienstleister</b> (erscheint nur bei zugeordnetem Event): "
+        "Sagt jemand zu, legt die App automatisch eine "
         "Honorarzeile mit einer <b>Schätzung</b> an (Aktionszeit + Auf-/Abbau + Fahrzeit; beim "
         "Künstler das Pauschalbudget). Die Zeile bleibt ein offener Posten, bis die Rechnung des "
         "Dienstleisters eintrifft – die Liste bleibt trotzdem eine Zeile pro Rechnung: Ein Klick auf "
         "den Fremdleistungs-Betrag klappt die Personen darunter auf. Dort den echten Betrag "
         "eintippen; die Summe oben zieht automatisch nach, auch Wochen später.",
-        "Das <b>⏳-Zeichen</b> neben dem Betrag zeigt schon beim Überfliegen, wie viele Rechnungen "
-        "noch fehlen. Der Betrag ist bis dahin geschätzt.",
+        "Der <b>orange Zähler</b> neben dem Betrag (Sanduhr + Zahl) zeigt schon beim Überfliegen, "
+        "wie viele Rechnungen noch fehlen. Der Betrag ist bis dahin geschätzt.",
         "<b>Ausstehende Dienstleister-Rechnungen</b> (Block über der Liste): alle offenen Posten über "
         "alle Events hinweg, nach Alter sortiert – mit Knopf &bdquo;Erinnerung schicken&ldquo; (fertige "
-        "Mail an den Dienstleister) und ✕ zum Entfernen, wenn nie eine Rechnung kommt (z. B. weil "
+        "Mail an den Dienstleister) und einem Kreuz zum Entfernen, wenn nie eine Rechnung kommt (z. B. weil "
         "jemand kurzfristig krank abgesagt hat).",
         "<b>Schätzung wird besser:</b> Sobald genug Einsätze abgerechnet sind, vergleicht die App "
         "Schätzung und Ist und korrigiert künftige Schätzungen um den durchschnittlichen Versatz – "
