@@ -20,6 +20,21 @@ from routes.bakerross import router as bakerross_router
 from routes.papierkorb import router as papierkorb_router
 from routes.benachrichtigungen import router as benachrichtigungen_router
 
+def pg_typedef(typedef: str) -> str:
+    """Spaltendefinition für PostgreSQL anpassen.
+
+    Postgres kennt kein „BOOLEAN DEFAULT 0" – dort muss es true/false heißen.
+    Die Ersetzung darf aber NUR Boolean-Spalten treffen: Ein pauschales
+    replace("DEFAULT 0", …) macht aus „FLOAT DEFAULT 0" ein ungültiges
+    „FLOAT DEFAULT false"; das ALTER scheitert still und die Spalte fehlt
+    danach produktiv (Fremdleistungen-Vorfall 03.09.2026 – lokal unbemerkt,
+    weil SQLite diesen Zweig gar nicht durchläuft).
+    """
+    if typedef.strip().upper().startswith("BOOLEAN"):
+        return typedef.replace("DEFAULT 0", "DEFAULT false")
+    return typedef
+
+
 def run_migrations():
     """Fügt fehlende Spalten zur bestehenden Datenbank hinzu (SQLite & PostgreSQL)."""
     from sqlalchemy import text
@@ -27,9 +42,8 @@ def run_migrations():
     is_postgres = engine.dialect.name == "postgresql"
 
     def add_column(table: str, col: str, typedef: str):
-        # Postgres kennt kein "BOOLEAN DEFAULT 0" – nur true/false.
         if is_postgres:
-            typedef = typedef.replace("DEFAULT 0", "DEFAULT false")
+            typedef = pg_typedef(typedef)
             sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typedef}"
         else:
             sql = f"ALTER TABLE {table} ADD COLUMN {col} {typedef}"
@@ -38,8 +52,14 @@ def run_migrations():
             try:
                 conn.execute(text(sql))
                 conn.commit()
-            except Exception:
-                conn.rollback()  # Spalte existiert bereits (SQLite wirft hier)
+            except Exception as e:
+                conn.rollback()
+                # „Spalte existiert bereits" ist der Normalfall (SQLite wirft hier bei
+                # jedem Start). Alles andere ist ein echter Fehler und muss sichtbar
+                # sein – sonst fehlt die Spalte still in der Produktion.
+                meldung = str(e).lower()
+                if not ("duplicate column" in meldung or "already exists" in meldung):
+                    print(f"[MIGRATION] {table}.{col} FEHLGESCHLAGEN: {e}")
 
     dl_columns = [
         ("magic_token",              "VARCHAR"),
