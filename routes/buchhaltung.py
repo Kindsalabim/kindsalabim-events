@@ -154,14 +154,21 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
     from marken import query_filter
     from datetime import timedelta
     import honorare
-    grenze = date.today() - timedelta(days=180)
+    heute = date.today()
+    grenze = heute - timedelta(days=365)
     schon_abgerechnet = {
         r.event_id for r in db.query(Rechnung).filter(Rechnung.event_id != None).all()  # noqa: E711
         if r.id != aktuelle_rechnung}
+    # Alle noch nicht abgerechneten Events – auch ohne erfasste Kosten. Die Auswahl
+    # stellt die Verknüpfung her (Voraussetzung für die Aufschlüsselung), nicht nur
+    # das Vorbefüllen; ein Event ohne Bestellungen braucht sie genauso.
     kandidaten = query_filter(
         db.query(Event).filter(Event.datum >= grenze),
-        Event.marke, mfilter, neutral_sichtbar=False
-    ).order_by(Event.datum.desc()).limit(120).all()
+        Event.marke, mfilter, neutral_sichtbar=False).all()
+    # Abgerechnet wird nach dem Event: das zuletzt gelaufene zuerst, danach die
+    # noch bevorstehenden (aufsteigend) – Vorkasse-Rechnungen bleiben erreichbar.
+    kandidaten.sort(key=lambda e: (e.datum > heute,
+                                   e.datum if e.datum > heute else -e.datum.toordinal()))
     vorschlaege = []
     for e in kandidaten:
         if e.id in schon_abgerechnet:
@@ -169,16 +176,14 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
         material = round(sum(b.betrag or 0 for b in
                              db.query(EventBestellung).filter(
                                  EventBestellung.event_id == e.id).all()), 2)
-        fremd = honorare.summe(db, e.id)
-        if not material and not fremd:
-            continue
         vorschlaege.append({
             "id": e.id, "datum": e.datum,
             "kunde_firma": e.kunde_firma or e.anlass or "Event",
-            "summe": material, "fremd": fremd, "marke": e.marke,
+            "summe": material, "fremd": honorare.summe(db, e.id), "marke": e.marke,
             "offen": honorare.offene_anzahl(db, e.id),
+            "kuenftig": e.datum > heute,
         })
-        if len(vorschlaege) >= 30:
+        if len(vorschlaege) >= 60:
             break
     return vorschlaege
 
@@ -310,8 +315,9 @@ def _apply_form(r: Rechnung, datum: str, kunde: str, rgnr: str,
     r.fremdleistungen = parse_float(fremdleistungen)
     r.materialkosten = parse_float(materialkosten)
     r.notiz = notiz.strip() or None
+    # "" = Zuordnung unverändert lassen · "0" = Zuordnung entfernen · sonst setzen
     if str(event_id).strip().isdigit():
-        r.event_id = int(event_id)
+        r.event_id = int(event_id) or None
 
 
 @router.post("/neu")

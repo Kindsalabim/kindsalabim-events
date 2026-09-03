@@ -251,6 +251,74 @@ def test_event_laesst_sich_nachtraeglich_zuordnen(admin, db):
     assert r2.fremdleistungen == 190.0        # Summe aus den Honorarzeilen übernommen
 
 
+def test_bestandsrechnungen_werden_ihrem_event_zugeordnet(db):
+    """Ohne Verknüpfung greift weder die Aufschlüsselung noch der Filter
+    „Event hat schon eine Rechnung". Der Backfill stellt sie über Kunde + Datum her."""
+    from main import link_rechnungen_events
+    from models import AppEinstellung
+    s = SessionLocal()
+    try:
+        # Schalter zurücksetzen – der Backfill läuft bewusst nur einmal
+        s.query(AppEinstellung).filter(
+            AppEinstellung.key == "rechnung_event_backfill").delete()
+        s.commit()
+        eid = make_event(datum=date.today() - timedelta(days=20),
+                         kunde_firma="Zuordnungs-Kunde GmbH")
+        r = Rechnung(datum=date.today(), kunde="zuordnungs-kunde gmbh",   # andere Schreibung
+                     brutto=1200.0, marke="Kindsalabim")
+        s.add(r); s.commit(); s.refresh(r)
+        rid = r.id
+    finally:
+        s.close()
+    link_rechnungen_events()
+    db.expire_all()
+    assert reload(Rechnung, rid).event_id == eid
+
+
+def test_zuordnung_ueberspringt_zu_alte_events(db):
+    """Ein Event von vor über 90 Tagen gehört nicht zu einer heutigen Rechnung."""
+    from main import link_rechnungen_events
+    from models import AppEinstellung
+    s = SessionLocal()
+    try:
+        s.query(AppEinstellung).filter(
+            AppEinstellung.key == "rechnung_event_backfill").delete()
+        s.commit()
+        make_event(datum=date.today() - timedelta(days=200), kunde_firma="Uralt AG")
+        r = Rechnung(datum=date.today(), kunde="Uralt AG", brutto=500.0,
+                     marke="Kindsalabim")
+        s.add(r); s.commit(); s.refresh(r)
+        rid = r.id
+    finally:
+        s.close()
+    link_rechnungen_events()
+    db.expire_all()
+    assert reload(Rechnung, rid).event_id is None
+
+
+def test_auswahl_zeigt_events_ohne_erfasste_kosten(admin, db):
+    """Auch ein Event ohne Bestellungen/Honorare braucht die Verknüpfung –
+    sonst fehlt es in der Auswahl (Fall „ggw")."""
+    eid = make_event(datum=date.today() - timedelta(days=3),
+                     kunde_firma="Ohne Kosten GmbH")
+    html = admin.get(f"/admin/buchhaltung?jahr={date.today().year}").text
+    assert f'data-id="{eid}"' in html
+
+
+def test_auswahl_sortiert_zuletzt_gelaufene_zuerst(admin, db):
+    from routes.buchhaltung import _event_vorschlaege
+    make_event(datum=date.today() - timedelta(days=2), kunde_firma="Gestern GmbH")
+    make_event(datum=date.today() + timedelta(days=40), kunde_firma="Bald GmbH")
+    v = _event_vorschlaege(db, "beide")
+    daten = [e["datum"] for e in v]
+    vergangen = [d for d in daten if d <= date.today()]
+    kuenftig = [d for d in daten if d > date.today()]
+    assert vergangen == sorted(vergangen, reverse=True)   # jüngstes zuerst
+    assert kuenftig == sorted(kuenftig)                   # danach die kommenden
+    if vergangen and kuenftig:
+        assert daten.index(vergangen[0]) < daten.index(kuenftig[0])
+
+
 def test_erinnerung_verschickt_mail(admin, db, mails):
     eid, hids, rid = _event_mit_rechnung(db)
     admin.post(f"/admin/buchhaltung/honorar/{hids[0]}/erinnern", follow_redirects=False)

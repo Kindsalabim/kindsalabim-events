@@ -86,13 +86,13 @@
   <form method="post" action="/admin/buchhaltung/neu">
     {% if event_vorschlaege %}
     <div class="mb-3">
-      <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Aus Event übernehmen <span class="font-normal">(optional – füllt Kunde, Material und Fremdleistungen; erst dadurch lässt sich die Rechnung später je Dienstleister aufschlüsseln)</span></label>
+      <label class="block text-xs font-semibold mb-1" style="color:var(--ink-3);">Aus Event übernehmen <span class="font-normal">(optional – verknüpft die Rechnung mit dem Event und füllt Kunde, Fremdleistungen und Material vor. Nur verknüpfte Rechnungen lassen sich je Dienstleister aufschlüsseln. Zuletzt gelaufene Events zuerst; bereits abgerechnete stehen nicht in der Liste.)</span></label>
       <select onchange="bhEventVorlage(this)" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white">
         <option value="">– Event wählen –</option>
         {% for e in event_vorschlaege %}
         <option data-id="{{ e.id }}" data-kunde="{{ e.kunde_firma }}"
                 data-material="{{ '%.2f'|format(e.summe)|replace('.', ',') }}"
-                data-fremd="{{ '%.2f'|format(e.fremd)|replace('.', ',') }}">{{ e.datum | de_date }} · {{ e.kunde_firma }} · Material {{ e.summe | de_euro }} € · Fremdl. {{ e.fremd | de_euro }} €{% if e.offen %} ({{ e.offen }} Rg. offen){% endif %}</option>
+                data-fremd="{{ '%.2f'|format(e.fremd)|replace('.', ',') }}">{{ e.datum | de_date }} · {{ e.kunde_firma }}{% if e.kuenftig %} (noch nicht gelaufen){% endif %}{% if e.fremd %} · Fremdl. {{ e.fremd | de_euro }} €{% if e.offen %} ({{ e.offen }} Rg. offen){% endif %}{% endif %}{% if e.summe %} · Material {{ e.summe | de_euro }} €{% endif %}</option>
         {% endfor %}
       </select>
       <input type="hidden" name="event_id" value="">

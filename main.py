@@ -516,6 +516,61 @@ def backfill_honorare():
         db.close()
 
 
+def link_rechnungen_events():
+    """Einmalig: Bestandsrechnungen ihrem Event zuordnen (Kundenname + Datum).
+
+    Ohne Verknüpfung greift weder die Fremdleistungs-Aufschlüsselung noch der
+    Filter „Event hat schon eine Rechnung" – und ohne den steht in der
+    Event-Auswahl alles drin. Zugeordnet wird konservativ: gleicher Kundenname
+    (case-insensitiv), Event-Datum vor dem Rechnungsdatum, höchstens 90 Tage
+    davor, nächstliegendes zuerst, jedes Event nur einmal.
+
+    Läuft genau einmal (Schalter in app_einstellungen) – sonst würde eine
+    bewusst entfernte Zuordnung beim nächsten Start wiederkommen.
+    """
+    from datetime import timedelta
+    from models import AppEinstellung, Event, Rechnung
+    db = SessionLocal()
+    try:
+        schalter = db.query(AppEinstellung).filter(
+            AppEinstellung.key == "rechnung_event_backfill").first()
+        if schalter and schalter.value == "done":
+            return
+        vergeben = {r.event_id for r in db.query(Rechnung).filter(
+            Rechnung.event_id != None).all()}          # noqa: E711
+        offen = db.query(Rechnung).filter(Rechnung.event_id == None,   # noqa: E711
+                                          Rechnung.kunde != None).all()  # noqa: E711
+        events = db.query(Event).filter(Event.datum != None).all()       # noqa: E711
+        nach_kunde = {}
+        for e in events:
+            if e.kunde_firma:
+                nach_kunde.setdefault(e.kunde_firma.strip().lower(), []).append(e)
+        treffer = 0
+        for r in sorted(offen, key=lambda x: x.datum or date.min):
+            kandidaten = [
+                e for e in nach_kunde.get((r.kunde or "").strip().lower(), [])
+                if e.id not in vergeben and e.datum and r.datum
+                and e.datum <= r.datum and (r.datum - e.datum) <= timedelta(days=90)]
+            if not kandidaten:
+                continue
+            treffer_ev = max(kandidaten, key=lambda e: e.datum)   # nächstliegendes
+            r.event_id = treffer_ev.id
+            vergeben.add(treffer_ev.id)
+            treffer += 1
+        if not schalter:
+            schalter = AppEinstellung(key="rechnung_event_backfill")
+            db.add(schalter)
+        schalter.value = "done"
+        db.commit()
+        if treffer:
+            print(f"[MIGRATION] {treffer} Rechnungen ihrem Event zugeordnet")
+    except Exception as e:
+        db.rollback()
+        print(f"[MIGRATION] Rechnung-Event-Zuordnung übersprungen: {e}")
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -523,6 +578,7 @@ async def lifespan(app: FastAPI):
     migrate_kunden()
     backfill_kunden()
     backfill_honorare()
+    link_rechnungen_events()
     seed_admin()
     if get_config().get("demo_mode") and engine.dialect.name != "postgresql":
         from seed_demo import seed_demo_data

@@ -77,8 +77,9 @@
         {% endif %}
         <select name="event_id" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm bg-white">
           <option value="">{% if zugeordnet %}– Zuordnung beibehalten –{% else %}– kein Event zugeordnet –{% endif %}</option>
+          {% if zugeordnet %}<option value="0">– Zuordnung entfernen –</option>{% endif %}
           {% for e in event_vorschlaege %}
-          <option value="{{ e.id }}" {% if zugeordnet and e.id == zugeordnet.id %}selected{% endif %}>{{ e.datum | de_date }} · {{ e.kunde_firma }}{% if e.fremd %} · Fremdl. {{ e.fremd | de_euro }} €{% endif %}{% if e.summe %} · Material {{ e.summe | de_euro }} €{% endif %}</option>
+          <option value="{{ e.id }}" {% if zugeordnet and e.id == zugeordnet.id %}selected{% endif %}>{{ e.datum | de_date }} · {{ e.kunde_firma }}{% if e.kuenftig %} (noch nicht gelaufen){% endif %}{% if e.fremd %} · Fremdl. {{ e.fremd | de_euro }} €{% endif %}{% if e.summe %} · Material {{ e.summe | de_euro }} €{% endif %}</option>
           {% endfor %}
         </select>
         <p class="text-xs mt-1.5" style="color:var(--ink-4);">
