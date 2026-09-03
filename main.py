@@ -499,15 +499,14 @@ def seed_admin():
 
 
 def backfill_honorare():
-    """Honorarzeilen für bestehende Zusagen zu noch bevorstehenden Events.
+    """Honorarzeilen für bestehende Zusagen (Events der letzten 60 Tage + Zukunft).
 
-    Nur die Zukunft: Bei vergangenen Events sind die Rechnungen längst bezahlt –
-    dort würden nur Karteileichen in der Ausstehend-Liste landen. Läuft bei jedem
-    Start, legt aber nur an, was fehlt (siehe honorare.backfill_zukunft)."""
+    Läuft bei jedem Start, legt aber nur an, was fehlt (siehe
+    honorare.backfill_offene)."""
     db = SessionLocal()
     try:
-        from honorare import backfill_zukunft
-        n = backfill_zukunft(db)
+        from honorare import backfill_offene
+        n = backfill_offene(db)
         if n:
             print(f"[MIGRATION] {n} Honorarzeilen für kommende Events angelegt")
     except Exception as e:

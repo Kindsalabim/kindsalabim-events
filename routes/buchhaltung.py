@@ -125,33 +125,7 @@ def buchhaltung_list(request: Request, jahr: int = 0,
 
     jahre = list(range(date.today().year, 2023, -1))
 
-    # Events der letzten 180 Tage fürs Vorbefüllen im Neue-Rechnung-Formular
-    # („aus Event übernehmen"): Material aus den Bestellungen, Fremdleistungen aus
-    # den Honorarzeilen. Events ohne beides sind hier uninteressant.
-    from models import Event, EventBestellung, EventHonorar
-    from datetime import timedelta
-    import honorare
-    grenze = date.today() - timedelta(days=180)
-    kandidaten = query_filter(
-        db.query(Event).filter(Event.datum >= grenze),
-        Event.marke, mfilter, neutral_sichtbar=False
-    ).order_by(Event.datum.desc()).limit(60).all()
-    event_vorschlaege = []
-    for e in kandidaten:
-        material = round(sum(b.betrag or 0 for b in
-                             db.query(EventBestellung).filter(
-                                 EventBestellung.event_id == e.id).all()), 2)
-        fremd = honorare.summe(db, e.id)
-        if not material and not fremd:
-            continue
-        event_vorschlaege.append({
-            "id": e.id, "datum": e.datum,
-            "kunde_firma": e.kunde_firma or e.anlass or "Event",
-            "summe": material, "fremd": fremd, "marke": e.marke,
-            "offen": honorare.offene_anzahl(db, e.id),
-        })
-        if len(event_vorschlaege) >= 30:
-            break
+    event_vorschlaege = _event_vorschlaege(db, mfilter)
 
     # Aufschlüsselung je Rechnung (nur bei verknüpftem Event) + Zähler für das Badge
     for g in monatsgruppen:
@@ -166,6 +140,47 @@ def buchhaltung_list(request: Request, jahr: int = 0,
         event_vorschlaege=event_vorschlaege, marken_filter=mfilter,
         ausstehend=_ausstehende_honorare(db, mfilter),
     ))
+
+
+def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
+    """Events für „Aus Event übernehmen": Material aus den Bestellungen,
+    Fremdleistungen aus den Honorarzeilen.
+
+    Ausgeblendet werden Events, die bereits eine Rechnung haben – an ein
+    abgerechnetes Event lässt sich keine zweite Rechnung hängen. Beim Bearbeiten
+    bleibt das eigene Event natürlich in der Liste (`aktuelle_rechnung`).
+    """
+    from models import Event, EventBestellung
+    from marken import query_filter
+    from datetime import timedelta
+    import honorare
+    grenze = date.today() - timedelta(days=180)
+    schon_abgerechnet = {
+        r.event_id for r in db.query(Rechnung).filter(Rechnung.event_id != None).all()  # noqa: E711
+        if r.id != aktuelle_rechnung}
+    kandidaten = query_filter(
+        db.query(Event).filter(Event.datum >= grenze),
+        Event.marke, mfilter, neutral_sichtbar=False
+    ).order_by(Event.datum.desc()).limit(120).all()
+    vorschlaege = []
+    for e in kandidaten:
+        if e.id in schon_abgerechnet:
+            continue
+        material = round(sum(b.betrag or 0 for b in
+                             db.query(EventBestellung).filter(
+                                 EventBestellung.event_id == e.id).all()), 2)
+        fremd = honorare.summe(db, e.id)
+        if not material and not fremd:
+            continue
+        vorschlaege.append({
+            "id": e.id, "datum": e.datum,
+            "kunde_firma": e.kunde_firma or e.anlass or "Event",
+            "summe": material, "fremd": fremd, "marke": e.marke,
+            "offen": honorare.offene_anzahl(db, e.id),
+        })
+        if len(vorschlaege) >= 30:
+            break
+    return vorschlaege
 
 
 # ── Fremdleistungen: Aufschlüsselung je Dienstleister ─────────────────────────
@@ -334,8 +349,15 @@ def buchhaltung_edit_form(rid: int, request: Request,
     r = db.query(Rechnung).filter(Rechnung.id == rid).first()
     if not r:
         return RedirectResponse("/admin/buchhaltung", status_code=303)
+    # Event nachträglich zuordnen – Bestandsrechnungen haben noch keine Verknüpfung,
+    # ohne sie gibt es keine Fremdleistungs-Aufschlüsselung.
+    from marken import admin_marke
+    from models import Event
+    zugeordnet = (db.query(Event).filter(Event.id == r.event_id).first()
+                  if r.event_id else None)
     return templates.TemplateResponse("admin/buchhaltung_edit.html",
-                                      tpl_context(request, r=r))
+        tpl_context(request, r=r, zugeordnet=zugeordnet,
+                    event_vorschlaege=_event_vorschlaege(db, admin_marke(db, user), rid)))
 
 
 @router.post("/{rid}/edit")
@@ -359,6 +381,12 @@ def buchhaltung_edit_save(
     _apply_form(r, datum, kunde, rgnr, brutto, fremdleistungen, materialkosten, notiz,
                 marke, event_id)
     db.commit()
+    # Hängen am zugeordneten Event Honorarzeilen, sind sie die verlässlichere Quelle
+    # als ein von Hand getippter Sammelbetrag – Summe daraus übernehmen.
+    if r.event_id:
+        from models import EventHonorar
+        if db.query(EventHonorar).filter(EventHonorar.event_id == r.event_id).first():
+            _fremdleistungen_nachziehen(db, r.event_id)
     return RedirectResponse(f"/admin/buchhaltung?jahr={r.datum.year}", status_code=303)
 
 

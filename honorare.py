@@ -18,7 +18,7 @@ die Aktionszeit; Auf-/Abbau, Fahrzeit und Nebenkosten stehen dort bewusst ohne
 Zahl („nach tatsächlichem Aufwand"). Genau diese Posten schätzt `schaetzung`
 zusätzlich mit ab.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 
@@ -137,15 +137,23 @@ def offene_anzahl(db, event_id: int) -> int:
         EventHonorar.tatsaechlich == None).scalar() or 0        # noqa: E711
 
 
-def backfill_zukunft(db) -> int:
-    """Einmalig beim Umstieg: Honorarzeilen für schon bestehende Zusagen zu Events,
-    die noch bevorstehen. Vergangene Events bleiben außen vor – dort sind die
-    Rechnungen längst bezahlt und würden nur als Karteileichen auftauchen."""
+BACKFILL_TAGE = 60
+
+
+def backfill_offene(db, tage: int = BACKFILL_TAGE) -> int:
+    """Honorarzeilen für bereits bestehende Zusagen anlegen.
+
+    Fenster: alle Events ab `tage` Tagen in der Vergangenheit. Nur die Zukunft
+    zu nehmen wäre zu eng – gerade bei den zuletzt gelaufenen Events ist die
+    Kundenrechnung oft noch offen, und genau dort hilft die Aufschlüsselung.
+    Weiter zurück gehen wir bewusst nicht: Dort sind die Honorare längst bezahlt
+    und die Zeilen wären nur Karteileichen in der Ausstehend-Liste.
+    """
     from models import Event
     zusagen = db.query(Verfuegbarkeitsanfrage).join(
         Event, Event.id == Verfuegbarkeitsanfrage.event_id).filter(
         Verfuegbarkeitsanfrage.status == "Ja",
-        Event.datum >= date.today()).all()
+        Event.datum >= date.today() - timedelta(days=tage)).all()
     n = 0
     for a in zusagen:
         vorher = db.query(EventHonorar).filter(

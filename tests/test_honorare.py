@@ -207,6 +207,50 @@ def test_liste_zeigt_aufschluesselung_und_badge(admin, db):
     assert "Ausstehende Dienstleister-Rechnungen" in html
 
 
+def test_abgerechnete_events_stehen_nicht_zur_auswahl(admin, db):
+    """Eine zweite Rechnung an dasselbe Event gibt es nicht – solche Events
+    gehören nicht in die „Aus Event übernehmen"-Liste."""
+    eid, hids, rid = _event_mit_rechnung(db)
+    html = admin.get(f"/admin/buchhaltung?jahr={date.today().year}").text
+    assert f'data-id="{eid}"' not in html
+
+    # Ohne Rechnung taucht dasselbe Event wieder auf
+    s = SessionLocal()
+    try:
+        s.query(Rechnung).filter(Rechnung.id == rid).update({Rechnung.event_id: None})
+        s.commit()
+    finally:
+        s.close()
+    html2 = admin.get(f"/admin/buchhaltung?jahr={date.today().year}").text
+    assert f'data-id="{eid}"' in html2
+
+
+def test_event_laesst_sich_nachtraeglich_zuordnen(admin, db):
+    """Bestandsrechnungen haben keine Event-Verknüpfung – ohne die gibt es keine
+    Aufschlüsselung. Das Bearbeiten-Formular muss sie nachtragen können."""
+    eid = make_event(datum=date.today() - timedelta(days=5))
+    s = SessionLocal()
+    try:
+        did = make_dienstleister()
+        s.add(EventHonorar(event_id=eid, dienstleister_id=did, geschaetzt=190.0))
+        r = Rechnung(datum=date.today(), kunde="Nachtrag GmbH", brutto=900.0,
+                     marke="Kindsalabim", fremdleistungen=0.0)
+        s.add(r); s.commit(); s.refresh(r)
+        rid = r.id
+    finally:
+        s.close()
+    assert 'name="event_id"' in admin.get(f"/admin/buchhaltung/{rid}/edit").text
+    admin.post(f"/admin/buchhaltung/{rid}/edit", data={
+        "datum": date.today().isoformat(), "kunde": "Nachtrag GmbH", "rgnr": "",
+        "brutto": "900,00", "fremdleistungen": "0", "materialkosten": "0",
+        "notiz": "", "marke": "Kindsalabim", "event_id": str(eid),
+    }, follow_redirects=False)
+    db.expire_all()
+    r2 = reload(Rechnung, rid)
+    assert r2.event_id == eid
+    assert r2.fremdleistungen == 190.0        # Summe aus den Honorarzeilen übernommen
+
+
 def test_erinnerung_verschickt_mail(admin, db, mails):
     eid, hids, rid = _event_mit_rechnung(db)
     admin.post(f"/admin/buchhaltung/honorar/{hids[0]}/erinnern", follow_redirects=False)

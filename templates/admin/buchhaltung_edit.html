@@ -68,6 +68,25 @@
                class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
       </div>
 
+      <div class="col-span-2">
+        <label class="block text-sm font-semibold mb-1.5" style="color:var(--ink-2);">Zugehöriges Event</label>
+        {% if zugeordnet %}
+        <p class="text-sm mb-2" style="color:var(--ink-2);">
+          Zugeordnet: <a href="/admin/events/{{ zugeordnet.id }}" class="underline" style="color:var(--brand-primary);">{{ zugeordnet.kunde_firma or zugeordnet.anlass }} · {{ zugeordnet.datum | de_date }}</a>
+        </p>
+        {% endif %}
+        <select name="event_id" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm bg-white">
+          <option value="">{% if zugeordnet %}– Zuordnung beibehalten –{% else %}– kein Event zugeordnet –{% endif %}</option>
+          {% for e in event_vorschlaege %}
+          <option value="{{ e.id }}" {% if zugeordnet and e.id == zugeordnet.id %}selected{% endif %}>{{ e.datum | de_date }} · {{ e.kunde_firma }}{% if e.fremd %} · Fremdl. {{ e.fremd | de_euro }} €{% endif %}{% if e.summe %} · Material {{ e.summe | de_euro }} €{% endif %}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1.5" style="color:var(--ink-4);">
+          Nur mit zugeordnetem Event lässt sich die Rechnung in der Liste je Dienstleister
+          aufschlüsseln. Events, die schon eine Rechnung haben, stehen hier nicht zur Auswahl.
+        </p>
+      </div>
+
     </div>
 
     <div class="flex gap-3">
