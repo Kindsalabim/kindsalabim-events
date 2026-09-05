@@ -10,7 +10,7 @@ from typing import Optional
 MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
           "August", "September", "Oktober", "November", "Dezember"]
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from database import get_db, SessionLocal
 from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit, Reservierung, ExternerTeamer
 import secrets
@@ -1054,6 +1054,13 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     ).order_by(EventDatei.uploaded_at).all()
     planungs_urls = [(d, generate_presigned_url(d.r2_key)) for d in planungsdateien]
 
+    # Fotos aus dem Eventbericht (vom Teamleiter im Portal hochgeladen)
+    bericht_fotos = db.query(EventDatei).filter(
+        EventDatei.event_id == event_id,
+        EventDatei.typ == "bericht_foto"
+    ).order_by(EventDatei.uploaded_at).all()
+    bericht_foto_urls = [(d, generate_presigned_url(d.r2_key)) for d in bericht_fotos]
+
     ab_dateien = db.query(EventDatei).filter(
         EventDatei.event_id == event_id,
         EventDatei.typ == "auftragsbestaetigung"
@@ -1099,6 +1106,7 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
+                    bericht_foto_urls=bericht_foto_urls,
                     ab_urls=ab_urls, logistiker_warnung=logistiker_warnung,
                     sperrzeit_map=sperrzeit_map, lange_her_ids=lange_her_ids,
                     karte_data=karte_data, karte_ohne_standort=karte_ohne_standort,
@@ -1890,6 +1898,55 @@ def dienstleister_list(request: Request, db: Session = Depends(get_db), _=Depend
     all_d = db.query(Dienstleister).order_by(Dienstleister.nachname).all()
     return templates.TemplateResponse("admin/contractors.html",
         tpl_context(request, dienstleister=all_d))
+
+# ── Stundensätze pflegen (alle auf einer Seite) ───────────────────────────────
+
+STUNDENSATZ_STANDARD = 20.0   # Regelsatz Teamer (mit Aykut abgestimmt, 06.09.2026)
+
+
+def _teamer_query(db):
+    """Alle, die als Teamer eingesetzt werden – reine Künstler bleiben außen vor.
+
+    Künstler bekommen keinen Stundensatz, sondern je Job eine Pauschale (das
+    Budget an der Anfrage). Ein „Beides"-Eintrag arbeitet aber auch als Teamer
+    und braucht den Satz."""
+    return db.query(Dienstleister).filter(
+        Dienstleister.aktiv == True,                                  # noqa: E712
+        or_(Dienstleister.rolle == None, Dienstleister.rolle != "Künstler")  # noqa: E711
+    ).order_by(Dienstleister.nachname, Dienstleister.vorname)
+
+
+@router.get("/stundensaetze", response_class=HTMLResponse)
+def stundensaetze_form(request: Request, gespeichert: int = -1,
+                       db: Session = Depends(get_db), user=Depends(nur_inhaber)):
+    """Sammel-Formular für die Teamer-Stundensätze.
+
+    Ohne hinterlegten Satz entsteht weder eine Auto-Bestellung noch eine
+    Honorar-Schätzung – deshalb sind leere Felder mit dem Regelsatz vorbelegt.
+    Gespeichert wird ausschließlich, was hier sichtbar im Feld steht."""
+    return templates.TemplateResponse("admin/stundensaetze.html",
+        tpl_context(request, leute=_teamer_query(db).all(),
+                    standard=STUNDENSATZ_STANDARD, gespeichert=gespeichert))
+
+
+@router.post("/stundensaetze")
+async def stundensaetze_speichern(request: Request, db: Session = Depends(get_db),
+                                  user=Depends(nur_inhaber)):
+    form = await request.form()
+    geaendert = 0
+    for d in _teamer_query(db).all():
+        roh = (form.get(f"satz_{d.id}") or "").strip()
+        try:
+            wert = float(roh.replace(",", ".")) if roh else None
+        except ValueError:
+            continue          # unlesbare Eingabe: lieber den alten Wert behalten
+        if wert != d.stundensatz_teamer:
+            d.stundensatz_teamer = wert
+            geaendert += 1
+    db.commit()
+    return RedirectResponse(f"/admin/stundensaetze?gespeichert={geaendert}",
+                            status_code=303)
+
 
 @router.get("/dienstleister/export.csv")
 def dienstleister_export(db: Session = Depends(get_db), _=Depends(get_admin_user)):

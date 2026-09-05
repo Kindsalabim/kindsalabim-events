@@ -1,0 +1,56 @@
+{% extends "admin_base.html" %}
+{% set active = 'dienstleister' %}
+{% block title %}Stundensätze – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+{% if gespeichert >= 0 %}
+<div class="mb-5 rounded-lg px-4 py-3 text-sm font-medium" style="background: var(--c-green-bg); color: var(--c-green);">
+  {% if gespeichert %}✓ {{ gespeichert }} Stundens{% if gespeichert == 1 %}atz{% else %}ätze{% endif %} gespeichert.
+  {% else %}✓ Gespeichert – es hat sich nichts geändert.{% endif %}
+</div>
+{% endif %}
+
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Stundensätze</h1>
+  <p class="text-sm text-gray-500 mt-0.5">Teamer-Sätze für Bestellung und Kostenschätzung</p>
+</div>
+
+<div class="mb-5 rounded-xl px-4 py-3.5 text-sm leading-relaxed" style="background:#f3f4f6; color:#374151;">
+  Leere Felder sind mit dem Regelsatz <strong>{{ '%.2f'|format(standard) | replace('.', ',') }} €</strong> vorbelegt.
+  Prüfe die Ausnahmen und klicke unten auf Speichern – gespeichert wird genau das, was in den Feldern steht.
+  <span class="block mt-1.5" style="color:#6b7280;">
+    Künstler stehen bewusst nicht in dieser Liste: Sie bekommen keinen Stundensatz, sondern je Job eine Pauschale (das Budget an der Anfrage).
+  </span>
+</div>
+
+<form method="post" action="/admin/stundensaetze" class="card p-5">
+  <div class="divide-y divide-gray-100">
+    {% for d in leute %}
+    <div class="flex items-center justify-between gap-4 py-2.5">
+      <div class="min-w-0">
+        <a href="/admin/dienstleister/{{ d.id }}" class="text-sm font-medium text-gray-900 hover:underline">{{ d.vorname }} {{ d.nachname }}</a>
+        {% if d.rolle == 'Beides' %}<span class="ml-1.5 text-xs text-gray-400">Teamer + Künstler</span>{% endif %}
+        {% if not d.stundensatz_teamer %}<span class="ml-1.5 text-xs" style="color:var(--c-warning, #b45309);">neu</span>{% endif %}
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <input type="text" name="satz_{{ d.id }}" inputmode="decimal"
+               pattern="[0-9]+([,.][0-9]{1,2})?" title="Betrag, z. B. 25,00"
+               value="{{ '%.2f'|format(d.stundensatz_teamer if d.stundensatz_teamer else standard) | replace('.', ',') }}"
+               class="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm text-right focus-ring">
+        <span class="text-sm text-gray-500">€/Std.</span>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-500 py-2">Keine aktiven Teamer vorhanden.</p>
+    {% endfor %}
+  </div>
+
+  {% if leute %}
+  <div class="flex items-center gap-3 mt-5 pt-4 border-t border-gray-100">
+    <button type="submit" class="btn-primary px-5 py-2.5 text-sm">Speichern</button>
+    <a href="/admin/dienstleister" class="text-sm text-gray-500 hover:underline">Abbrechen</a>
+  </div>
+  {% endif %}
+</form>
+
+{% endblock %}

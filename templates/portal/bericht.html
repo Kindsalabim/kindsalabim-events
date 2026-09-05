@@ -59,6 +59,16 @@
       <h2 class="text-sm font-semibold mb-1" style="color: var(--ink-2);">Fotos vom Event</h2>
       <p class="text-xs mb-4" style="color: var(--ink-4);">Bitte lade ein paar Fotos hoch, sie sind für uns sehr wertvoll.</p>
 
+      {% if abgelehnt %}
+      <div class="rounded-xl px-3.5 py-3 mb-4 text-sm" style="background:#fef3c7; color:#92400e;">
+        <strong>{{ abgelehnt }} {% if abgelehnt == 1 %}Bild konnte{% else %}Bilder konnten{% endif %} nicht gespeichert werden.</strong>
+        Das liegt am Dateiformat oder daran, dass die Datei zu groß ist (mehr als 20 MB).
+        Alle anderen Fotos siehst du unten – die sind angekommen.
+        Tipp: Öffne das Bild auf dem Handy, mach einen Screenshot davon und lade den Screenshot hoch.
+        Wenn es weiter nicht klappt, schick uns die Bilder einfach per WhatsApp.
+      </div>
+      {% endif %}
+
       {% if foto_urls %}
       <div class="grid grid-cols-3 gap-2 mb-4">
         {% for foto, url in foto_urls %}

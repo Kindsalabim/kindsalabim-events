@@ -42,6 +42,10 @@
       <button class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
               title="Bestands-Rollout: bittet alle aktiven Dienstleister ohne AGB-Bestätigung per Mail um die Online-Bestätigung im Portal">✉ AGB-Bestätigung anfordern</button>
     </form>
+    {% if not ist_buero_user(request) %}
+    <a href="/admin/stundensaetze" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+       title="Alle Teamer-Stundensätze auf einer Seite pflegen – Grundlage für Bestellung und Kostenschätzung">€ Stundensätze</a>
+    {% endif %}
     <a href="/admin/dienstleister/export.csv" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">↓ CSV-Export</a>
     <a href="/admin/import" class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">↑ CSV-Import</a>
     <a href="/admin/dienstleister/new" class="btn-primary">

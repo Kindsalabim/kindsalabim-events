@@ -373,7 +373,7 @@ def portal_absage(request: Request, anfrage_id: int, background_tasks: Backgroun
 # ── Eventbericht (nur Teamleiter) ───────────────────────────────────────────────
 
 @router.get("/bericht/{event_id}", response_class=HTMLResponse)
-def portal_bericht_form(request: Request, event_id: int,
+def portal_bericht_form(request: Request, event_id: int, abgelehnt: int = 0,
                         db: Session = Depends(get_db), user=Depends(get_portal_user)):
     did = int(user["sub"])
     ev = db.query(Event).filter(Event.id == event_id).first()
@@ -396,7 +396,7 @@ def portal_bericht_form(request: Request, event_id: int,
     verlauf_choices = [c.strip() for c in verlauf_choice.split(",") if c.strip()] if verlauf_choice else []
 
     return templates.TemplateResponse("portal/bericht.html",
-        tpl_context(request, ev=ev, foto_urls=foto_urls,
+        tpl_context(request, ev=ev, foto_urls=foto_urls, abgelehnt=abgelehnt,
                     kinder_choice=kinder_choice, kinder_extra=kinder_extra,
                     verlauf_choices=verlauf_choices, verlauf_extra=verlauf_extra,
                     feedback_choice=feedback_choice, feedback_extra=feedback_extra))

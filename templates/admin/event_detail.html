@@ -999,6 +999,23 @@
         <p class="text-sm text-gray-500">⏳ Offen – wird vom Teamleiter nach dem Event im Portal ausgefüllt.
         {% if not ev.teamleiter_id %}<span class="block text-xs text-amber-600 mt-1">Noch kein Teamleiter festgelegt.</span>{% endif %}</p>
       {% endif %}
+
+      {# Fotos aus dem Bericht – auch schon, bevor der Bericht abgeschickt ist. #}
+      {% if bericht_foto_urls %}
+      <p class="text-xs text-gray-500 mt-4 mb-2">Fotos vom Event <span class="text-gray-300">({{ bericht_foto_urls|length }})</span></p>
+      <div class="grid grid-cols-3 gap-2">
+        {% for foto, url in bericht_foto_urls %}
+        {% if url %}
+        <a href="{{ url }}" target="_blank" rel="noopener" title="{{ foto.filename }}"
+           class="block rounded-lg overflow-hidden" style="aspect-ratio: 1;">
+          <img src="{{ url }}" alt="{{ foto.filename }}" class="w-full h-full object-cover">
+        </a>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% elif ev.bericht_eingereicht_am and not ev.zaubershow_event %}
+      <p class="text-xs text-gray-500 mt-4">Keine Fotos hochgeladen.</p>
+      {% endif %}
     </div>
 
     <!-- Rechnung -->

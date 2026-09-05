@@ -198,19 +198,27 @@ async def upload_bericht_foto(
     user=Depends(get_portal_user),
 ):
     """Nimmt ein oder mehrere Fotos (Galerie-Mehrfachauswahl). Ungültige Dateien
-    (falscher Typ / zu groß) werden übersprungen, gültige hochgeladen."""
+    (falscher Typ / zu groß) werden übersprungen – aber nicht stillschweigend:
+    die Zahl der abgelehnten Bilder landet in der Rückmeldung. Sonst glaubt die
+    Teamleitung, die Fotos seien hochgeladen (Fall Diakoniewerk, 06.09.2026)."""
     did = int(user["sub"])
     ev = db.get(Event, event_id)
     if not ev or ev.teamleiter_id != did:
         raise HTTPException(403)
+    abgelehnt = 0
     for f in file:
         if f.content_type not in ALLOWED_FOTO:
+            abgelehnt += 1
             continue
         data = await f.read()
         if not data or len(data) > MAX_SIZE_MB * 1024 * 1024:
+            abgelehnt += 1
             continue
         _upload(data, event_id, f.filename or "foto", f.content_type, "bericht_foto", db)
-    return RedirectResponse(f"/portal/bericht/{event_id}", status_code=303)
+    ziel = f"/portal/bericht/{event_id}"
+    if abgelehnt:
+        ziel += f"?abgelehnt={abgelehnt}"
+    return RedirectResponse(ziel, status_code=303)
 
 
 @router.post("/portal/events/{event_id}/fotos/{datei_id}/delete")
