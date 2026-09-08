@@ -1,0 +1,49 @@
+{# Aufschlüsselung der Fremdleistungen einer Rechnung.
+   Wird per Klick nachgeladen (GET /admin/buchhaltung/<rid>/honorare) – vorher steckte
+   dieser Block für JEDE Rechnung im Seiten-HTML, auch ungeöffnet. #}
+<table class="w-full text-xs" style="max-width:640px;">
+  {% for h in honorare %}
+  <tr>
+    <td class="py-1.5 pr-3 whitespace-nowrap" style="color:var(--ink-1);">
+      {{ h.dienstleister.vorname }} {{ h.dienstleister.nachname }}
+    </td>
+    <td class="py-1.5 pr-3 text-right whitespace-nowrap" style="color:var(--ink-4);">
+      {% if h.geschaetzt %}geschätzt {{ h.geschaetzt | de_euro }} €{% else %}– kein Satz hinterlegt{% endif %}
+    </td>
+    <td class="py-1.5 pr-3">
+      <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}" class="flex items-center gap-1.5">
+        <input type="text" name="betrag" inputmode="decimal" placeholder="Betrag"
+               value="{{ ('%.2f'|format(h.tatsaechlich)|replace('.', ',')) if h.tatsaechlich is not none else '' }}"
+               class="w-24 rounded-lg border border-gray-200 px-2 py-1 text-xs text-right">
+        <button type="submit" class="text-xs px-2 py-1 rounded-lg hover:bg-gray-100" style="color:var(--brand-primary);">✓</button>
+      </form>
+    </td>
+    <td class="py-1.5 pr-3 whitespace-nowrap">
+      {% if h.offen %}
+      <span style="color:var(--c-amber);">⏳ offen</span>
+      {% else %}
+      <span style="color:var(--c-green);">✅ {{ h.eingegangen_am | de_date }}</span>
+      {% endif %}
+    </td>
+    <td class="py-1.5 text-right whitespace-nowrap">
+      {% if h.offen %}
+      <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/erinnern" class="inline">
+        <button type="submit" class="text-xs hover:underline" style="color:var(--ink-4);"
+                title="Erinnerungsmail an {{ h.dienstleister.vorname }} schicken">Erinnerung schicken</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/loeschen" class="inline ml-2"
+            onsubmit="return confirm('Zeile entfernen? (z. B. weil die Person kurzfristig ausgefallen ist)')">
+        <button type="submit" class="text-xs px-1" style="color:var(--c-coral);" title="Zeile entfernen">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  <tr style="border-top:1px solid var(--line);">
+    <td class="pt-2 text-xs font-semibold" style="color:var(--ink-2);">Summe</td>
+    <td class="pt-2 text-right text-xs font-semibold whitespace-nowrap" style="color:var(--ink-1);">{{ (r.fremdleistungen or 0) | de_euro }} €</td>
+    <td colspan="3" class="pt-2 pl-3 text-xs" style="color:var(--ink-4);">
+      {% if offen_honorare %}{{ offen_honorare }} Rechnung{% if offen_honorare != 1 %}en{% endif %} ausstehend – der Betrag ist bis dahin geschätzt{% else %}alle Rechnungen erfasst{% endif %}
+    </td>
+  </tr>
+</table>

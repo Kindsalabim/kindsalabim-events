@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy import case
+from sqlalchemy.orm import Session, joinedload
 from datetime import date, datetime
 import io, csv
 
@@ -127,11 +128,15 @@ def buchhaltung_list(request: Request, jahr: int = 0,
 
     event_vorschlaege = _event_vorschlaege(db, mfilter)
 
-    # Aufschlüsselung je Rechnung (nur bei verknüpftem Event) + Zähler für das Badge
+    # Für die Liste reichen ZÄHLER je Event (eine Sammelabfrage). Die Zeilen selbst
+    # werden erst beim Aufklappen nachgeladen – vorher steckten sie für jede Rechnung
+    # im HTML, auch ungeöffnet, und die Seite wurde über ein Megabyte groß.
+    zaehler = _honorar_zaehler(db)
     for g in monatsgruppen:
         for row in g["rows"]:
-            row["honorare"] = _honorar_zeilen(db, row["r"].event_id)
-            row["offen_honorare"] = sum(1 for h in row["honorare"] if h.offen)
+            gesamt, offen = zaehler.get(row["r"].event_id, (0, 0))
+            row["hat_honorare"] = gesamt > 0
+            row["offen_honorare"] = offen
 
     today_iso = date.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("admin/buchhaltung.html", tpl_context(
@@ -139,7 +144,20 @@ def buchhaltung_list(request: Request, jahr: int = 0,
         jahr=jahr, jahre=jahre, totals=totals, today=today_iso,
         event_vorschlaege=event_vorschlaege, marken_filter=mfilter,
         ausstehend=_ausstehende_honorare(db, mfilter),
+        offen_auto=request.query_params.get("offen", ""),
     ))
+
+
+def _honorar_zaehler(db):
+    """{event_id: (anzahl, davon offen)} – eine Abfrage für die ganze Seite."""
+    from models import EventHonorar
+    from sqlalchemy import func as _f
+    rows = db.query(
+        EventHonorar.event_id,
+        _f.count(EventHonorar.id),
+        _f.sum(case((EventHonorar.tatsaechlich == None, 1), else_=0)),   # noqa: E711
+    ).group_by(EventHonorar.event_id).all()
+    return {eid: (int(n or 0), int(offen or 0)) for eid, n, offen in rows}
 
 
 def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
@@ -150,10 +168,10 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
     abgerechnetes Event lässt sich keine zweite Rechnung hängen. Beim Bearbeiten
     bleibt das eigene Event natürlich in der Liste (`aktuelle_rechnung`).
     """
-    from models import Event, EventBestellung
+    from models import Event, EventBestellung, EventHonorar
     from marken import query_filter
+    from sqlalchemy import func as _f
     from datetime import timedelta
-    import honorare
     heute = date.today()
     grenze = heute - timedelta(days=365)
     schon_abgerechnet = {
@@ -169,18 +187,26 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
     # noch bevorstehenden (aufsteigend) – Vorkasse-Rechnungen bleiben erreichbar.
     kandidaten.sort(key=lambda e: (e.datum > heute,
                                    e.datum if e.datum > heute else -e.datum.toordinal()))
+    # Material und Honorare je Event in zwei Sammelabfragen statt drei pro Event
+    material_je_event = dict(
+        db.query(EventBestellung.event_id, _f.sum(EventBestellung.betrag))
+        .group_by(EventBestellung.event_id).all())
+    honorare_je_event = {}
+    for eid, gesch, ist in db.query(EventHonorar.event_id, EventHonorar.geschaetzt,
+                                    EventHonorar.tatsaechlich).all():
+        summe, offen = honorare_je_event.get(eid, (0.0, 0))
+        honorare_je_event[eid] = (summe + (ist if ist is not None else (gesch or 0.0)),
+                                  offen + (1 if ist is None else 0))
     vorschlaege = []
     for e in kandidaten:
         if e.id in schon_abgerechnet:
             continue
-        material = round(sum(b.betrag or 0 for b in
-                             db.query(EventBestellung).filter(
-                                 EventBestellung.event_id == e.id).all()), 2)
+        fremd, offen = honorare_je_event.get(e.id, (0.0, 0))
         vorschlaege.append({
             "id": e.id, "datum": e.datum,
             "kunde_firma": e.kunde_firma or e.anlass or "Event",
-            "summe": material, "fremd": honorare.summe(db, e.id), "marke": e.marke,
-            "offen": honorare.offene_anzahl(db, e.id),
+            "summe": round(material_je_event.get(e.id) or 0, 2),
+            "fremd": round(fremd, 2), "marke": e.marke, "offen": offen,
             "kuenftig": e.datum > heute,
         })
         if len(vorschlaege) >= 60:
@@ -197,6 +223,7 @@ def _honorar_zeilen(db, event_id):
         return []
     from models import EventHonorar, Dienstleister
     return (db.query(EventHonorar)
+            .options(joinedload(EventHonorar.dienstleister))
             .join(Dienstleister, Dienstleister.id == EventHonorar.dienstleister_id)
             .filter(EventHonorar.event_id == event_id)
             .order_by(Dienstleister.vorname, Dienstleister.nachname).all())
@@ -211,8 +238,11 @@ def _ausstehende_honorare(db, mfilter):
     from models import Event, EventHonorar
     from marken import query_filter as _qf
     heute = date.today()
+    # joinedload: sonst wird zu JEDER Zeile Event und Dienstleister einzeln nachgeladen
     rows = _qf(
-        db.query(EventHonorar).join(Event, Event.id == EventHonorar.event_id)
+        db.query(EventHonorar)
+        .options(joinedload(EventHonorar.event), joinedload(EventHonorar.dienstleister))
+        .join(Event, Event.id == EventHonorar.event_id)
         .filter(EventHonorar.tatsaechlich == None,      # noqa: E711
                 Event.datum <= heute),
         Event.marke, mfilter, neutral_sichtbar=False
@@ -221,6 +251,19 @@ def _ausstehende_honorare(db, mfilter):
         "h": h, "ev": h.event, "d": h.dienstleister,
         "tage": (heute - h.event.datum).days if h.event and h.event.datum else 0,
     } for h in rows if h.event and h.dienstleister]
+
+
+@router.get("/{rid}/honorare", response_class=HTMLResponse)
+def honorar_panel(rid: int, request: Request, db: Session = Depends(get_db),
+                  user=Depends(get_admin_user)):
+    """HTML-Fragment mit der Aufschlüsselung – wird beim Aufklappen nachgeladen."""
+    r = db.query(Rechnung).filter(Rechnung.id == rid).first()
+    if not r:
+        return HTMLResponse("", status_code=404)
+    zeilen = _honorar_zeilen(db, r.event_id)
+    return templates.TemplateResponse("admin/_honorar_panel.html", tpl_context(
+        request, r=r, honorare=zeilen,
+        offen_honorare=sum(1 for h in zeilen if h.offen)))
 
 
 @router.post("/honorar/{hid}")
@@ -273,11 +316,14 @@ def _fremdleistungen_nachziehen(db, event_id):
 
 
 def _zurueck(db, event_id) -> str:
-    """Zurück in das Jahr der zugehörigen Rechnung (sonst laufendes Jahr)."""
+    """Zurück in das Jahr der zugehörigen Rechnung (sonst laufendes Jahr).
+    `offen` klappt das Panel gleich wieder auf – man trägt meist mehrere
+    Beträge nacheinander ein."""
     r = (db.query(Rechnung).filter(Rechnung.event_id == event_id).first()
          if event_id else None)
     jahr = r.datum.year if r and r.datum else date.today().year
-    return f"/admin/buchhaltung?jahr={jahr}"
+    ziel = f"/admin/buchhaltung?jahr={jahr}"
+    return f"{ziel}&offen={r.id}" if r else ziel
 
 
 @router.post("/honorar/{hid}/erinnern")

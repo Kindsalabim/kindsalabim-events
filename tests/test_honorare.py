@@ -319,6 +319,24 @@ def test_auswahl_sortiert_zuletzt_gelaufene_zuerst(admin, db):
         assert daten.index(vergangen[0]) < daten.index(kuenftig[0])
 
 
+def test_panel_wird_nachgeladen_statt_mitgeliefert(admin, db):
+    """Die Aufschlüsselung darf nicht im Seiten-HTML stecken (sonst wird die Liste
+    bei vielen Rechnungen megabyteschwer) – nur die Hülle plus Nachlade-Adresse."""
+    eid, hids, rid = _event_mit_rechnung(db)
+    seite = admin.get(f"/admin/buchhaltung?jahr={date.today().year}").text
+    assert f'data-url="/admin/buchhaltung/{rid}/honorare"' in seite
+    assert f'action="/admin/buchhaltung/honorar/{hids[0]}"' not in seite   # erst im Fragment
+
+    fragment = admin.get(f"/admin/buchhaltung/{rid}/honorare")
+    assert fragment.status_code == 200
+    assert f'action="/admin/buchhaltung/honorar/{hids[0]}"' in fragment.text
+    assert "Rechnungen ausstehend" in fragment.text
+
+
+def test_panel_unbekannte_rechnung_gibt_404(admin):
+    assert admin.get("/admin/buchhaltung/999999/honorare").status_code == 404
+
+
 def test_erinnerung_verschickt_mail(admin, db, mails):
     eid, hids, rid = _event_mit_rechnung(db)
     admin.post(f"/admin/buchhaltung/honorar/{hids[0]}/erinnern", follow_redirects=False)

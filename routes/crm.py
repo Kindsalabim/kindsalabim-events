@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from datetime import datetime, date
 
 from database import get_db
@@ -150,7 +150,8 @@ def kunden_list(request: Request, db: Session = Depends(get_db), _=Depends(get_a
         q = q.filter(Kunde.pipeline_status == status)
     if tag:
         q = q.filter(Kunde.tags.any(KundeTag.name == tag))
-    kunden = q.order_by(func.lower(Kunde.firma)).all()
+    # Tags gleich mitladen – sonst holt das Template sie je Kunde einzeln nach (N+1)
+    kunden = q.options(selectinload(Kunde.tags)).order_by(func.lower(Kunde.firma)).all()
     # Event-Anzahl je Kunde (eine Aggregat-Query statt N+1)
     counts = dict(db.query(Event.kunde_id, func.count(Event.id))
                   .filter(Event.kunde_id != None)  # noqa: E711

@@ -275,7 +275,7 @@
               </button>
             </form>
           </td>
-          {% if row.honorare %}
+          {% if row.hat_honorare %}
           {# Aufgeschlüsselt: Klick öffnet die Zeilen je Dienstleister (statt sie in die Tabelle zu quetschen) #}
           <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap">
             <button type="button" onclick="bhHonorare('{{ r.id }}')"
@@ -343,56 +343,12 @@
             </div>
           </td>
         </tr>
-        {% if row.honorare %}
-        {# Aufschlüsselung der Fremdleistungen – eingeklappt, damit die Liste eine Zeile pro Rechnung bleibt #}
+        {% if row.hat_honorare %}
+        {# Leere Hülle – der Inhalt wird beim ersten Aufklappen nachgeladen, damit
+           nicht für JEDE Rechnung die ganze Aufschlüsselung im Seiten-HTML steckt #}
         <tr id="hon-{{ r.id }}" class="hidden" style="background:#fafafa;">
-          <td colspan="14" class="px-6 py-3">
-            <table class="w-full text-xs" style="max-width:640px;">
-              {% for h in row.honorare %}
-              <tr>
-                <td class="py-1.5 pr-3 whitespace-nowrap" style="color:var(--ink-1);">
-                  {{ h.dienstleister.vorname }} {{ h.dienstleister.nachname }}
-                </td>
-                <td class="py-1.5 pr-3 text-right whitespace-nowrap" style="color:var(--ink-4);">
-                  {% if h.geschaetzt %}geschätzt {{ h.geschaetzt | de_euro }} €{% else %}– kein Satz hinterlegt{% endif %}
-                </td>
-                <td class="py-1.5 pr-3">
-                  <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}" class="flex items-center gap-1.5">
-                    <input type="text" name="betrag" inputmode="decimal" placeholder="Betrag"
-                           value="{{ ('%.2f'|format(h.tatsaechlich)|replace('.', ',')) if h.tatsaechlich is not none else '' }}"
-                           class="w-24 rounded-lg border border-gray-200 px-2 py-1 text-xs text-right">
-                    <button type="submit" class="text-xs px-2 py-1 rounded-lg hover:bg-gray-100" style="color:var(--brand-primary);">✓</button>
-                  </form>
-                </td>
-                <td class="py-1.5 pr-3 whitespace-nowrap">
-                  {% if h.offen %}
-                  <span style="color:var(--c-amber);">⏳ offen</span>
-                  {% else %}
-                  <span style="color:var(--c-green);">✅ {{ h.eingegangen_am | de_date }}</span>
-                  {% endif %}
-                </td>
-                <td class="py-1.5 text-right whitespace-nowrap">
-                  {% if h.offen %}
-                  <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/erinnern" class="inline">
-                    <button type="submit" class="text-xs hover:underline" style="color:var(--ink-4);"
-                            title="Erinnerungsmail an {{ h.dienstleister.vorname }} schicken">Erinnerung schicken</button>
-                  </form>
-                  {% endif %}
-                  <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/loeschen" class="inline ml-2"
-                        onsubmit="return confirm('Zeile entfernen? (z. B. weil die Person kurzfristig ausgefallen ist)')">
-                    <button type="submit" class="text-xs px-1" style="color:var(--c-coral);" title="Zeile entfernen">✕</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-              <tr style="border-top:1px solid var(--line);">
-                <td class="pt-2 text-xs font-semibold" style="color:var(--ink-2);">Summe</td>
-                <td class="pt-2 text-right text-xs font-semibold whitespace-nowrap" style="color:var(--ink-1);">{{ (r.fremdleistungen or 0) | de_euro }} €</td>
-                <td colspan="3" class="pt-2 pl-3 text-xs" style="color:var(--ink-4);">
-                  {% if row.offen_honorare %}{{ row.offen_honorare }} Rechnung{% if row.offen_honorare != 1 %}en{% endif %} ausstehend – der Betrag ist bis dahin geschätzt{% else %}alle Rechnungen erfasst{% endif %}
-                </td>
-              </tr>
-            </table>
+          <td colspan="14" class="px-6 py-3" data-url="/admin/buchhaltung/{{ r.id }}/honorare">
+            <span class="text-xs" style="color:var(--ink-4);">Lade …</span>
           </td>
         </tr>
         {% endif %}
@@ -438,12 +394,33 @@
 
 <script>
 (function(){
-  // ── Fremdleistungen aufklappen: die Aufschlüsselung je Dienstleister ──
+  // ── Fremdleistungen aufklappen: Inhalt wird beim ersten Öffnen nachgeladen ──
   // (global, weil der Knopf sie per onclick aufruft – dieses Skript ist ein IIFE)
   window.bhHonorare = function(rid){
     var tr = document.getElementById('hon-' + rid);
-    if (tr) tr.classList.toggle('hidden');
+    if (!tr) return;
+    tr.classList.toggle('hidden');
+    var td = tr.querySelector('td[data-url]');
+    if (!td || td.dataset.geladen) return;            // schon geladen
+    td.dataset.geladen = '1';
+    fetch(td.dataset.url, {credentials: 'same-origin'})
+      .then(function(r){ return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function(html){ td.innerHTML = html; })
+      .catch(function(){
+        td.innerHTML = '<span class="text-xs" style="color:var(--c-coral);">'
+          + 'Aufschlüsselung konnte nicht geladen werden – bitte Seite neu laden.</span>';
+        delete td.dataset.geladen;                    // nächster Klick versucht es erneut
+      });
   };
+
+  // Nach dem Speichern eines Betrags kommt ?offen=<rid> zurück – Panel gleich wieder
+  // aufklappen, damit man mehrere Beträge nacheinander eintragen kann.
+  var bhAutoOffen = {{ (offen_auto or '') | tojson }};
+  if (bhAutoOffen) {
+    window.bhHonorare(bhAutoOffen);
+    var bhZiel = document.getElementById('hon-' + bhAutoOffen);
+    if (bhZiel) bhZiel.scrollIntoView({block: 'center'});
+  }
 
   // ── Inline-Editieren (Excel-artig): Klick auf Brutto/Fremdleistungen/Material ──
   document.querySelectorAll('.bh-edit').forEach(function(td){
