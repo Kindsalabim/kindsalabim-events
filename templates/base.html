@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{{ cfg.app_name }}{% endblock %}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  {# Tailwind als fertige Datei statt Play-CDN: der lud 407 KB JavaScript und erzeugte
+     das CSS bei JEDEM Seitenaufruf im Browser (und warnt selbst davor, ihn produktiv
+     einzusetzen). Die Datei wird mit doku/build_tailwind.py neu erzeugt – nötig, wenn
+     neue Tailwind-Klassen in Templates dazukommen. #}
+  <link rel="stylesheet" href="/static/css/tailwind.css?v=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
