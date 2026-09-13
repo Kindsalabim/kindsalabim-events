@@ -634,10 +634,11 @@ story = [
         "eintippen; die Summe oben zieht automatisch nach, auch Wochen später.",
         "Der <b>orange Zähler</b> neben dem Betrag (Sanduhr + Zahl) zeigt schon beim Überfliegen, "
         "wie viele Rechnungen noch fehlen. Der Betrag ist bis dahin geschätzt.",
-        "<b>Ausstehende Dienstleister-Rechnungen</b> (Block über der Liste): alle offenen Posten über "
-        "alle Events hinweg, nach Alter sortiert – mit Knopf &bdquo;Erinnerung schicken&ldquo; (fertige "
-        "Mail an den Dienstleister) und einem Kreuz zum Entfernen, wenn nie eine Rechnung kommt (z. B. weil "
-        "jemand kurzfristig krank abgesagt hat).",
+        "Kommt nie eine Rechnung (z. B. weil jemand kurzfristig krank abgesagt hat), entfernt das "
+        "Kreuz in der Zeile den Posten.",
+        "<b>Bewusst ohne Mahnwesen:</b> Die App erinnert weder dich noch den Dienstleister an "
+        "ausstehende Rechnungen – das brachte mehr Ballast als Nutzen. Die Rechnung zu stellen "
+        "ist Sache des Dienstleisters; der orange Zähler reicht als Hinweis.",
         "<b>Schätzung wird besser:</b> Sobald genug Einsätze abgerechnet sind, vergleicht die App "
         "Schätzung und Ist und korrigiert künftige Schätzungen um den durchschnittlichen Versatz – "
         "so laufen die Kosten nicht dauerhaft zu niedrig mit.",
@@ -685,7 +686,6 @@ story = [
         ["Bei jeder Zusage", "Automatische „Bestellung“ (PDF nach Anwaltsvorlage) an den Dienstleister – nur wenn Stundensatz/Budget hinterlegt, sonst Hinweis-Glocke"],
         ["Jährlich", "Erinnerung, das Scheinselbstständigkeits-Scoring der Dienstleister zu aktualisieren"],
         ["Am Geburtstag", "Glocke, wenn ein aktiver Dienstleister Geburtstag hat (nur wenn er sein Geburtsdatum angegeben hat)"],
-        ["30 Tage nach dem Event", "Einmalige Glocke, wenn Dienstleister-Rechnungen fehlen (gesammelt pro Event) – danach ist es Sache des Dienstleisters"],
         ["Montags", "Baker-Ross-Katalog aktualisieren + CSV-Backup-Mail (Events, Dienstleister, Rechnungen, Kunden)"],
     ], breiten=[48*mm, None]),
     Spacer(1, 6),

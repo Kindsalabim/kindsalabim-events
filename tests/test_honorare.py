@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import honorare
 from database import SessionLocal
 from models import (Dienstleister, Event, EventHonorar, Rechnung,
-                    Verfuegbarkeitsanfrage, Benachrichtigung)
+                    Verfuegbarkeitsanfrage)
 from factories import make_event, make_dienstleister, make_anfrage, reload, portal_login
 
 
@@ -203,8 +203,22 @@ def test_liste_zeigt_aufschluesselung_und_badge(admin, db):
     eid, hids, rid = _event_mit_rechnung(db)
     html = admin.get(f"/admin/buchhaltung?jahr={date.today().year}").text
     assert f"hon-{rid}" in html                    # Aufklapper vorhanden
-    assert "⏳2" in html                            # zwei Rechnungen ausstehend
-    assert "Ausstehende Dienstleister-Rechnungen" in html
+    assert "⏳2" in html                            # zwei Rechnungen noch geschätzt
+
+
+def test_keine_erinnerungs_mechanik_mehr(admin, db):
+    """Glocke, Mahn-Mail und Ausstehend-Liste wurden am 13.09.2026 zurückgebaut
+    (Aykut: „viel Ballast für sehr wenig Nutzen"). Die Betragseingabe bleibt."""
+    eid, hids, rid = _event_mit_rechnung(db)
+    html = admin.get(f"/admin/buchhaltung?jahr={date.today().year}").text
+    assert "Ausstehende Dienstleister-Rechnungen" not in html
+    assert "Erinnerung schicken" not in html
+    # Auch nicht im nachgeladenen Panel
+    fragment = admin.get(f"/admin/buchhaltung/{rid}/honorare").text
+    assert "Erinnerung schicken" not in fragment
+    assert "/erinnern" not in fragment
+    # Die Route selbst gibt es nicht mehr
+    assert admin.post(f"/admin/buchhaltung/honorar/{hids[0]}/erinnern").status_code == 404
 
 
 def test_abgerechnete_events_stehen_nicht_zur_auswahl(admin, db):
@@ -335,59 +349,3 @@ def test_panel_wird_nachgeladen_statt_mitgeliefert(admin, db):
 
 def test_panel_unbekannte_rechnung_gibt_404(admin):
     assert admin.get("/admin/buchhaltung/999999/honorare").status_code == 404
-
-
-def test_erinnerung_verschickt_mail(admin, db, mails):
-    eid, hids, rid = _event_mit_rechnung(db)
-    admin.post(f"/admin/buchhaltung/honorar/{hids[0]}/erinnern", follow_redirects=False)
-    db.expire_all()
-    assert reload(EventHonorar, hids[0]).erinnert_am == date.today()
-    assert mails and "Rechnung zu" in mails[-1][1]
-
-
-# ── Glocke 30 Tage nach dem Event ────────────────────────────────────────────
-
-def test_glocke_nach_30_tagen_einmalig(db):
-    """Die Test-DB wird nicht pro Test zurückgesetzt – deshalb wird gezielt auf das
-    eigene Event geprüft statt auf absolute Zähler."""
-    from routes.cron import _run_honorar_erinnerungen
-    eid = make_event(datum=date.today() - timedelta(days=31))
-    s = SessionLocal()
-    try:
-        firma = s.get(Event, eid).kunde_firma
-        for _ in range(2):
-            s.add(EventHonorar(event_id=eid, dienstleister_id=make_dienstleister(),
-                               geschaetzt=200.0))
-        s.commit()
-        _run_honorar_erinnerungen(s)
-        meine = [b for b in s.query(Benachrichtigung).filter(
-            Benachrichtigung.typ == "honorar_offen").all() if firma in (b.text or "")]
-        assert len(meine) == 1                       # eine Sammelmeldung, nicht zwei
-        assert "2 Dienstleister-Rechnungen" in meine[0].titel
-        zeilen = s.query(EventHonorar).filter(EventHonorar.event_id == eid).all()
-        assert all(h.erinnert_am == date.today() for h in zeilen)
-
-        # Zweiter Lauf meldet zu diesem Event nichts mehr
-        _run_honorar_erinnerungen(s)
-        nochmal = [b for b in s.query(Benachrichtigung).filter(
-            Benachrichtigung.typ == "honorar_offen").all() if firma in (b.text or "")]
-        assert len(nochmal) == 1
-    finally:
-        s.close()
-
-
-def test_keine_glocke_vor_30_tagen(db):
-    from routes.cron import _run_honorar_erinnerungen
-    eid = make_event(datum=date.today() - timedelta(days=5))
-    s = SessionLocal()
-    try:
-        s.add(EventHonorar(event_id=eid, dienstleister_id=make_dienstleister(),
-                           geschaetzt=200.0))
-        s.commit()
-        vorher = s.query(Benachrichtigung).filter(
-            Benachrichtigung.typ == "honorar_offen").count()
-        _run_honorar_erinnerungen(s)
-        assert s.query(Benachrichtigung).filter(
-            Benachrichtigung.typ == "honorar_offen").count() == vorher
-    finally:
-        s.close()

@@ -310,6 +310,11 @@ class EventHonorar(Base):
     (`tatsaechlich` + `eingegangen_am`). Die Summe je Event füllt die
     Fremdleistungen der Kundenrechnung – auch rückwirkend, denn die Rechnungen
     der Dienstleister kommen meist erst nach der Kundenrechnung.
+
+    Bewusst OHNE Erinnerungs-Mechanik: Glocke, Mahn-Mail und Ausstehend-Liste
+    gab es bis 13.09.2026 und brachten laut Aykut „viel Ballast für sehr wenig
+    Nutzen" – die Rechnung zu stellen ist Sache des Dienstleisters. Die Spalte
+    `erinnert_am` bleibt in der Datenbank liegen, wird aber nicht mehr genutzt.
     """
     __tablename__ = "event_honorare"
     __table_args__ = (UniqueConstraint("event_id", "dienstleister_id",
@@ -321,7 +326,6 @@ class EventHonorar(Base):
     geschaetzt       = Column(Float)          # None = kein Stundensatz/Budget hinterlegt
     tatsaechlich     = Column(Float)          # None = Rechnung steht noch aus
     eingegangen_am   = Column(Date)           # Datum der eingegangenen Rechnung
-    erinnert_am      = Column(Date)           # letzte Erinnerung an den Dienstleister
     erstellt_am      = Column(String)
 
     event         = relationship("Event")

@@ -159,55 +159,6 @@
   </form>
 </div>
 
-{% if request.query_params.get('erinnert') %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-green-bg);color:var(--c-green);">✓ Erinnerung verschickt.</div>
-{% endif %}
-
-<!-- ── Ausstehende Dienstleister-Rechnungen (über alle Events) ── -->
-{% if ausstehend %}
-<details class="card mb-3 overflow-hidden">
-  <summary class="flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none list-none">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" stroke-width="2.5" stroke-linecap="round" class="bh-chevron"><polyline points="6 9 12 15 18 9"/></svg>
-    <span class="font-semibold" style="color:var(--ink-1);">⏳ Ausstehende Dienstleister-Rechnungen</span>
-    <span class="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap" style="background:#fef3c7;color:#92400e;">{{ ausstehend|length }}</span>
-  </summary>
-  <div class="px-5 pb-4" style="border-top:1px solid var(--line);">
-    <p class="text-xs mt-3 mb-2" style="color:var(--ink-4);">
-      Diese Honorare sind noch geschätzt – sobald die Rechnung eintrifft, den Betrag bei der
-      passenden Kundenrechnung eintragen (Klick auf den Fremdleistungs-Betrag).
-    </p>
-    <table class="w-full text-xs">
-      {% for a in ausstehend %}
-      <tr style="border-bottom:1px solid var(--line);">
-        <td class="py-2 pr-3 font-medium whitespace-nowrap" style="color:var(--ink-1);">{{ a.d.vorname }} {{ a.d.nachname }}</td>
-        <td class="py-2 pr-3" style="color:var(--ink-3);">
-          <a href="/admin/events/{{ a.ev.id }}" class="hover:underline">{{ a.ev.kunde_firma or a.ev.anlass or 'Event' }}</a>
-          <span style="color:var(--ink-4);">· {{ a.ev.datum | de_date }}</span>
-        </td>
-        <td class="py-2 pr-3 text-right whitespace-nowrap" style="color:var(--ink-4);">
-          {% if a.h.geschaetzt %}ca. {{ a.h.geschaetzt | de_euro }} €{% else %}–{% endif %}
-        </td>
-        <td class="py-2 pr-3 text-right whitespace-nowrap" style="color:{% if a.tage >= 30 %}var(--c-coral){% else %}var(--ink-4);{% endif %};">
-          seit {{ a.tage }} Tag{% if a.tage != 1 %}en{% endif %}
-        </td>
-        <td class="py-2 text-right whitespace-nowrap">
-          <form method="post" action="/admin/buchhaltung/honorar/{{ a.h.id }}/erinnern" class="inline">
-            <button type="submit" class="hover:underline" style="color:var(--brand-primary);"
-                    title="Erinnerungsmail an {{ a.d.vorname }} schicken">Erinnerung schicken</button>
-          </form>
-          {% if a.h.erinnert_am %}<span class="ml-1" style="color:var(--ink-4);" title="Zuletzt erinnert">({{ a.h.erinnert_am | de_date }})</span>{% endif %}
-          <form method="post" action="/admin/buchhaltung/honorar/{{ a.h.id }}/loeschen" class="inline ml-2"
-                onsubmit="return confirm('Zeile entfernen? (z. B. weil die Person kurzfristig ausgefallen ist)')">
-            <button type="submit" class="px-1" style="color:var(--c-coral);" title="Zeile entfernen">✕</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-</details>
-{% endif %}
-
 <!-- ── Rechnungen nach Monat (neueste zuerst, aufklappbar) ── -->
 {% if monatsgruppen %}
 {% for g in monatsgruppen %}

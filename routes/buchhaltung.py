@@ -143,7 +143,6 @@ def buchhaltung_list(request: Request, jahr: int = 0,
         request, monatsgruppen=monatsgruppen, anzahl=len(rechnungen),
         jahr=jahr, jahre=jahre, totals=totals, today=today_iso,
         event_vorschlaege=event_vorschlaege, marken_filter=mfilter,
-        ausstehend=_ausstehende_honorare(db, mfilter),
         offen_auto=request.query_params.get("offen", ""),
     ))
 
@@ -229,30 +228,6 @@ def _honorar_zeilen(db, event_id):
             .order_by(Dienstleister.vorname, Dienstleister.nachname).all())
 
 
-def _ausstehende_honorare(db, mfilter):
-    """Arbeitsliste über alle Events: Welche Dienstleister-Rechnung fehlt noch?
-
-    Bewusst unabhängig davon, ob es zum Event schon eine Kundenrechnung gibt –
-    zwischen Event und Rechnungsstellung liegen oft Wochen, und in dieser Zeit
-    braucht eine eingehende Rechnung trotzdem einen Platz."""
-    from models import Event, EventHonorar
-    from marken import query_filter as _qf
-    heute = date.today()
-    # joinedload: sonst wird zu JEDER Zeile Event und Dienstleister einzeln nachgeladen
-    rows = _qf(
-        db.query(EventHonorar)
-        .options(joinedload(EventHonorar.event), joinedload(EventHonorar.dienstleister))
-        .join(Event, Event.id == EventHonorar.event_id)
-        .filter(EventHonorar.tatsaechlich == None,      # noqa: E711
-                Event.datum <= heute),
-        Event.marke, mfilter, neutral_sichtbar=False
-    ).order_by(Event.datum).all()
-    return [{
-        "h": h, "ev": h.event, "d": h.dienstleister,
-        "tage": (heute - h.event.datum).days if h.event and h.event.datum else 0,
-    } for h in rows if h.event and h.dienstleister]
-
-
 @router.get("/{rid}/honorare", response_class=HTMLResponse)
 def honorar_panel(rid: int, request: Request, db: Session = Depends(get_db),
                   user=Depends(get_admin_user)):
@@ -324,24 +299,6 @@ def _zurueck(db, event_id) -> str:
     jahr = r.datum.year if r and r.datum else date.today().year
     ziel = f"/admin/buchhaltung?jahr={jahr}"
     return f"{ziel}&offen={r.id}" if r else ziel
-
-
-@router.post("/honorar/{hid}/erinnern")
-def honorar_erinnern(hid: int, db: Session = Depends(get_db),
-                     user=Depends(get_admin_user)):
-    """Erinnerungsmail an den Dienstleister: Rechnung fehlt noch."""
-    from models import EventHonorar
-    h = db.query(EventHonorar).filter(EventHonorar.id == hid).first()
-    if not h or not h.dienstleister or not h.event:
-        return RedirectResponse("/admin/buchhaltung", status_code=303)
-    try:
-        from email_service import send_honorar_erinnerung
-        send_honorar_erinnerung(h.dienstleister, h.event)
-        h.erinnert_am = date.today()
-        db.commit()
-    except Exception as e:
-        print(f"Honorar-Erinnerung fehlgeschlagen (Honorar {hid}): {e}")
-    return RedirectResponse(_zurueck(db, h.event_id) + "&erinnert=1", status_code=303)
 
 
 # ── Neue Rechnung ──────────────────────────────────────────────────────────────

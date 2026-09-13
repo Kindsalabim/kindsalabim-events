@@ -26,13 +26,7 @@
       {% endif %}
     </td>
     <td class="py-1.5 text-right whitespace-nowrap">
-      {% if h.offen %}
-      <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/erinnern" class="inline">
-        <button type="submit" class="text-xs hover:underline" style="color:var(--ink-4);"
-                title="Erinnerungsmail an {{ h.dienstleister.vorname }} schicken">Erinnerung schicken</button>
-      </form>
-      {% endif %}
-      <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/loeschen" class="inline ml-2"
+      <form method="post" action="/admin/buchhaltung/honorar/{{ h.id }}/loeschen" class="inline"
             onsubmit="return confirm('Zeile entfernen? (z. B. weil die Person kurzfristig ausgefallen ist)')">
         <button type="submit" class="text-xs px-1" style="color:var(--c-coral);" title="Zeile entfernen">✕</button>
       </form>

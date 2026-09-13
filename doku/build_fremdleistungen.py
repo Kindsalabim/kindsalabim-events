@@ -9,6 +9,7 @@ Aufruf aus dem Repo-Wurzelverzeichnis:
 """
 import os
 import sys
+from datetime import date
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -270,10 +271,6 @@ def build():
         c.circle(MARGE + 106 * mm, py + 1.1 * mm, 1.1 * mm, fill=1, stroke=0)
         c.setFont("Helvetica", 8)
         c.drawString(MARGE + 109 * mm, py, status)
-        if offen:
-            c.setFillColorRGB(*NAVY)
-            c.setFont("Helvetica", 8)
-            c.drawString(MARGE + 140 * mm, py, "Erinnerung schicken")
         py -= 6.4 * mm
     # Summenzeile im Panel
     c.setStrokeColorRGB(*RAND)
@@ -290,16 +287,15 @@ def build():
     # ── Zwei Kästen unten ─────────────────────────────────────────────────────
     sw2 = (inhalt_w - 5 * mm) / 2
     kaesten = [
-        ("Nichts geht verloren",
-         "Über der Rechnungsliste steht der Block „Ausstehende Dienstleister-Rechnungen“ – "
-         "alle offenen Posten über alle Events hinweg, nach Alter sortiert. Von dort lässt sich "
-         "pro Person eine Erinnerungsmail schicken. Kommt nie eine Rechnung (z. B. nach einer "
+        ("Kein Mahnwesen",
+         "Die App erinnert bewusst weder dich noch den Dienstleister an ausstehende Rechnungen – "
+         "das brachte mehr Ballast als Nutzen. Die Rechnung zu stellen ist seine Sache; der orange "
+         "Zähler in der Zeile reicht als Hinweis. Kommt nie eine Rechnung (z. B. nach einer "
          "kurzfristigen Krankmeldung), entfernt ein Klick auf das ✕ die Zeile."),
         ("Die Schätzung wird besser",
-         "30 Tage nach dem Event meldet die Glocke einmalig, welche Rechnungen fehlen. Und sobald "
-         "genug Einsätze abgerechnet sind, vergleicht die App Schätzung und Ist und korrigiert "
-         "künftige Schätzungen um den durchschnittlichen Versatz – damit die Kosten nicht "
-         "dauerhaft zu niedrig mitlaufen."),
+         "Sobald genug Einsätze abgerechnet sind, vergleicht die App Schätzung und Ist und "
+         "korrigiert künftige Schätzungen um den durchschnittlichen Versatz – damit die Kosten "
+         "nicht dauerhaft zu niedrig mitlaufen."),
     ]
     hoehe = 14 * mm + max(absatz_hoehe(c, t, sw2 - 8 * mm, size=8, lh=3.7 * mm)
                           for _, t in kaesten)
@@ -331,7 +327,8 @@ def build():
     c.setFont("Helvetica", 7)
     c.setFillColorRGB(*GRAU)
     c.drawString(MARGE, 10 * mm, "Kindsalabim Events-App")
-    c.drawRightString(W - MARGE, 10 * mm, "Fremdleistungen – Stand 03.09.2026")
+    c.drawRightString(W - MARGE, 10 * mm,
+                      f"Fremdleistungen – Stand {date.today().strftime('%d.%m.%Y')}")
 
     c.showPage()
     c.save()
