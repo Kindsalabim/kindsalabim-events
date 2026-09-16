@@ -504,7 +504,8 @@
         <td class="py-3 text-gray-500">{{ a.rolle_anfrage }}</td>
         <td class="py-3">
           {% if a.status == 'Ja' %}
-            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-bestaetigt">
+            {# Farbe je Antwort eindeutig: grün = zugesagt, rot = abgesagt, grau = wartet noch #}
+            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-green-bg);color:var(--c-green);">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
               Zugesagt
             </span>
@@ -524,7 +525,7 @@
             </span>
             {% endif %}
           {% else %}
-            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full badge-status-entwurf">Ausstehend</span>
+            <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:#f1f5f9;color:#475569;">Ausstehend</span>
           {% endif %}
         </td>
         <td class="py-3 text-xs">
