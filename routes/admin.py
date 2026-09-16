@@ -43,6 +43,10 @@ templates.env.globals["ankunft_anzeige"] = _ankunft.ankunft_anzeige
 templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
 templates.env.globals["weitere_ap_liste"] = weitere_ap_liste
 
+# Ab wie vielen Tagen vor dem Event ein noch nicht verschicktes Briefing auf der
+# Event-Karte angemahnt wird (mit Aykut abgestimmt, 08.09.2026).
+BRIEFING_HINWEIS_TAGE = 7
+
 # Gebuchte Aktionen – gruppiert fürs Formular (Reihenfolge = Anzeige-Reihenfolge).
 # Gruppe 1 = die Aktionen, für die wir Künstler brauchen.
 PRODUKTE_GRUPPEN = [
@@ -485,12 +489,17 @@ def dashboard(request: Request, db: Session = Depends(get_db), user=Depends(get_
         pending = pending_map.get(ev.id, 0)
         checkliste_offen = bool(ev.checklist_token and not ev.cl_eingereicht_am)
         urgent = 0 <= days_until <= 14
+        # Monate vorher ist ein offenes Briefing normal – erst in der letzten Woche
+        # ist es ein Versäumnis (zweimal passiert, 09/2026).
+        briefing_offen = (0 <= days_until <= BRIEFING_HINWEIS_TAGE
+                          and not ev.briefing_verfuegbar)
         offene_rueckmeldungen += pending
         if checkliste_offen:
             offene_checklisten += 1
         upcoming_data.append({"ev": ev, "fehlende_teamer": ft, "fehlende_kuenstler": fk,
                               "days_until": days_until, "pending": pending,
-                              "checkliste_offen": checkliste_offen, "urgent": urgent})
+                              "checkliste_offen": checkliste_offen, "urgent": urgent,
+                              "briefing_offen": briefing_offen})
 
     # Vergangene, aber noch nicht abgeschlossene Events aus der Hauptliste ausgruppieren
     # (sie machen sie sonst unübersichtlich) → eigene eingeklappte Gruppe oben im Dashboard.

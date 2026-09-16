@@ -194,6 +194,13 @@
                   {{ ic('box', 13) }} Material
                 </span>
                 {% endif %}
+                {% if item.briefing_offen %}
+                <span class="text-xs flex items-center gap-1 font-semibold" style="color:#b45309;"
+                      title="Das Event ist in weniger als einer Woche und das Briefing ist noch nicht verschickt.">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Briefing fehlt
+                </span>
+                {% endif %}
               </div>
             </div>
 
