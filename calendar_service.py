@@ -69,6 +69,107 @@ def _calendar_id(ev):
     return cfg.get(key)
 
 
+def diagnose() -> dict:
+    """Prüft die Kalender-Verbindung – rein lesend, ändert nichts.
+
+    Hintergrund: Fällt der Kalender aus, merkt man es sonst erst daran, dass
+    Termine nicht auftauchen (Vorfall 13.09.2026). Zwei Pfade scheitern dabei
+    völlig lautlos: fehlende Zugangsdaten und fehlende Kalender-ID.
+
+    Rückgabe: {"ok": bool, "meldung": str, "kalender": [{marke, ok, detail}]}
+    """
+    cfg = get_config()
+    if not cfg.get("google_calendar_credentials"):
+        return {"ok": False, "kalender": [],
+                "meldung": "Es sind keine Google-Zugangsdaten hinterlegt "
+                           "(Umgebungsvariable GOOGLE_CALENDAR_CREDENTIALS). "
+                           "Ohne sie schreibt die App gar nichts in den Kalender."}
+    svc = _service()
+    if not svc:
+        return {"ok": False, "kalender": [],
+                "meldung": "Die Zugangsdaten sind hinterlegt, der Client lässt sich "
+                           "damit aber nicht aufbauen – vermutlich sind sie "
+                           "unvollständig oder kein gültiges Dienstkonto-JSON."}
+    ergebnis, alle_ok = [], True
+    for marke, key in (("Kindsalabim", "calendar_id_kindsalabim"),
+                       ("Knallfrosch", "calendar_id_knallfrosch")):
+        cid = cfg.get(key)
+        if not cid:
+            ergebnis.append({"marke": marke, "ok": False,
+                             "detail": f"Keine Kalender-ID hinterlegt ({key})"})
+            alle_ok = False
+            continue
+        try:
+            kal = svc.calendars().get(calendarId=cid).execute()
+            ergebnis.append({"marke": marke, "ok": True,
+                             "detail": f"verbunden mit „{kal.get('summary', cid)}“"})
+        except Exception as e:
+            text = str(e)
+            if "404" in text or "notFound" in text:
+                hinweis = ("Kalender nicht gefunden oder nicht freigegeben – das "
+                           "Dienstkonto braucht Schreibrechte auf diesen Kalender.")
+            elif "403" in text:
+                hinweis = ("Zugriff verweigert – Freigabe für das Dienstkonto prüfen "
+                           "(Schreibrechte nötig).")
+            else:
+                hinweis = text.splitlines()[0][:200]
+            ergebnis.append({"marke": marke, "ok": False, "detail": hinweis})
+            alle_ok = False
+    return {"ok": alle_ok, "kalender": ergebnis,
+            "meldung": "Verbindung steht." if alle_ok
+                       else "Mindestens ein Kalender ist nicht erreichbar."}
+
+
+def fehlende_nachtragen(db, tage_zurueck: int = 30) -> dict:
+    """Trägt Kalendereinträge nach, die fehlen (kein `kalender_event_id`).
+
+    Gedacht für die Zeit nach einem Kalender-Ausfall: Was die App währenddessen
+    angelegt hat, steht nur in der Datenbank – für den Alltag zählt aber der
+    Kalender. Erfasst kommende Termine plus die letzten `tage_zurueck` Tage,
+    Events wie Reservierungen. Bestehende Einträge bleiben unberührt.
+    """
+    from datetime import date, timedelta
+    from models import Event, Reservierung
+    grenze = date.today() - timedelta(days=tage_zurueck)
+    bericht = {"events": 0, "reservierungen": 0, "fehler": []}
+
+    offene_events = db.query(Event).filter(
+        Event.kalender_event_id == None,                 # noqa: E711
+        Event.datum >= grenze,
+        Event.status != "Abgesagt").all()
+    for ev in offene_events:
+        try:
+            sync_event(ev)
+            if ev.kalender_event_id:
+                bericht["events"] += 1
+        except Exception as e:
+            bericht["fehler"].append(f"Event {ev.id}: {e}")
+    db.commit()
+
+    offene_res = db.query(Reservierung).filter(
+        Reservierung.kalender_event_id == None,          # noqa: E711
+        Reservierung.datum >= grenze).all()
+    for r in offene_res:
+        try:
+            if sync_reservierung_async(r.id):
+                bericht["reservierungen"] += 1
+        except Exception as e:
+            bericht["fehler"].append(f"Reservierung {r.id}: {e}")
+    return bericht
+
+
+def dienstkonto_adresse() -> str:
+    """E-Mail des Dienstkontos – die muss im Google-Kalender freigegeben sein."""
+    raw = get_config().get("google_calendar_credentials")
+    if not raw:
+        return ""
+    try:
+        info = json.loads(raw) if isinstance(raw, str) else raw
+        return info.get("client_email", "")
+    except Exception:
+        return ""
+
+
 def _stadt(ort: str) -> str:
     """Stadt aus dem Veranstaltungsort ziehen (nach 5-stelliger PLZ; sonst letztes Segment)."""
     if not ort:
@@ -216,19 +317,48 @@ def delete_event_async(cal_event_id, marke):
 
 
 def sync_event_async(event_id):
-    """Hintergrund-Sync: eigene DB-Session, lädt Event, synct, committet kalender_event_id."""
+    """Hintergrund-Sync: eigene DB-Session, lädt Event, synct, committet kalender_event_id.
+
+    Bleibt der Eintrag danach aus, wird das gemeldet – ein stiller Kalender-Ausfall
+    fällt sonst erst auf, wenn ein Termin im Alltag fehlt (Vorfall 13.09.2026)."""
     from database import SessionLocal
     from models import Event
     db = SessionLocal()
     try:
         ev = db.query(Event).filter(Event.id == event_id).first()
-        if ev:
-            sync_event(ev)
-            db.commit()
+        if not ev:
+            return
+        sync_event(ev)
+        db.commit()
+        if not ev.kalender_event_id:
+            _melde_kalender_ausfall(db, f"{ev.anlass or 'Event'} am "
+                                        f"{ev.datum.strftime('%d.%m.%Y') if ev.datum else '?'}",
+                                    f"/admin/events/{ev.id}", ev.marke)
     except Exception as e:
         print(f"Kalender-Hintergrund-Sync fehlgeschlagen ({event_id}): {e}")
     finally:
         db.close()
+
+
+def _melde_kalender_ausfall(db, was: str, link: str, marke=None):
+    """Eine Glocke, wenn ein Kalendereintrag nicht geschrieben werden konnte.
+    Höchstens eine Meldung pro Tag – bei einem Totalausfall sonst eine Flut."""
+    from datetime import datetime
+    from models import Benachrichtigung
+    from notifications import notify
+    heute = datetime.now().strftime("%Y-%m-%d")
+    schon_heute = db.query(Benachrichtigung).filter(
+        Benachrichtigung.typ == "kalender_fehler",
+        Benachrichtigung.erstellt_am >= heute).first()
+    if schon_heute:
+        return
+    notify(db, "kalender_fehler", "⚠ Kalender-Eintrag fehlt",
+           f'„{was}" konnte nicht in den Google-Kalender geschrieben werden. '
+           f'Solange das so bleibt, fehlen dort alle neuen Termine. '
+           f'Unter Einstellungen → „Kalender-Verbindung prüfen" steht der Grund; '
+           f'dort lassen sich fehlende Einträge auch nachtragen.',
+           "/admin/kalender-status", marke=marke)
+    db.commit()
 
 
 # ── Reservierungen (anthrazitfarbener Ganztags-Block) ───────────────────────────
@@ -292,6 +422,10 @@ def sync_reservierung_async(reservierung_id) -> bool:
         svc = _service()
         cid = _calendar_id(r)
         if not svc or not cid:
+            # Stiller Ausfall – genau das soll nicht mehr unbemerkt bleiben
+            _melde_kalender_ausfall(
+                db, f"Reservierung {r.kunde_firma or ''} am {r.datum.strftime('%d.%m.%Y')}",
+                "/admin/reservierungen", r.marke)
             return False
         body = _reservierung_body(r)
         if r.kalender_event_id:

@@ -1,0 +1,100 @@
+{% extends "admin_base.html" %}
+{% set active = 'einstellungen' %}
+{% block title %}Kalender-Verbindung – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/admin/einstellungen" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-4 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Einstellungen
+  </a>
+  <h1 class="text-2xl font-bold text-gray-900">Kalender-Verbindung</h1>
+  <p class="text-sm text-gray-500 mt-0.5">Schreibt die App gerade in deine Google-Kalender?</p>
+</div>
+
+{% if request.query_params.get('nachgetragen') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-green-bg);color:var(--c-green);">
+  ✓ Nachgetragen: {{ request.query_params.get('nachgetragen').split('/')[0] }} Events und
+  {{ request.query_params.get('nachgetragen').split('/')[1] }} Reservierungen in den Kalender geschrieben.
+  {% if request.query_params.get('fehler') != '0' %}
+  <span style="color:var(--c-coral);">{{ request.query_params.get('fehler') }} Einträge schlugen fehl.</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Status ── -->
+<div class="card p-6 mb-4" style="border-left:4px solid {% if diagnose.ok %}var(--c-green){% else %}var(--c-coral){% endif %};">
+  <div class="flex items-start gap-3">
+    <span style="font-size:1.4rem;line-height:1;">{% if diagnose.ok %}✅{% else %}⚠️{% endif %}</span>
+    <div class="min-w-0">
+      <p class="font-semibold" style="color:var(--ink-1);">{{ diagnose.meldung }}</p>
+      {% if diagnose.kalender %}
+      <dl class="mt-3 space-y-2 text-sm">
+        {% for k in diagnose.kalender %}
+        <div class="flex gap-3">
+          <dt class="w-28 shrink-0" style="color:var(--ink-4);">{{ k.marke }}</dt>
+          <dd style="color:{% if k.ok %}var(--c-green){% else %}var(--c-coral){% endif %};">
+            {% if k.ok %}✓{% else %}✕{% endif %} {{ k.detail }}
+          </dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not diagnose.ok %}
+<!-- ── Was zu tun ist ── -->
+<div class="card p-6 mb-4">
+  <h2 class="text-sm font-semibold text-gray-700 mb-3">Was jetzt zu tun ist</h2>
+  {% if 'Zugangsdaten' in diagnose.meldung %}
+  <ol class="text-sm space-y-2" style="color:var(--ink-2);">
+    <li>1. In <b>Render</b> den Events-Service öffnen → <b>Environment</b>.</li>
+    <li>2. Prüfen, ob die Variable <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;">GOOGLE_CALENDAR_CREDENTIALS</code> existiert und den vollständigen JSON-Inhalt des Dienstkontos enthält.</li>
+    <li>3. Nach dem Speichern startet der Service neu – danach diese Seite neu laden.</li>
+  </ol>
+  {% else %}
+  <ol class="text-sm space-y-2" style="color:var(--ink-2);">
+    <li>1. Google Kalender öffnen → betroffenen Kalender → <b>Einstellungen und Freigabe</b>.</li>
+    <li>2. Unter „Für bestimmte Personen freigeben" muss das Dienstkonto stehen{% if dienstkonto %}:
+        <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;">{{ dienstkonto }}</code>{% endif %} –
+        mit der Berechtigung <b>„Änderungen an Terminen vornehmen"</b>.</li>
+    <li>3. Danach diese Seite neu laden.</li>
+  </ol>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Fehlende Einträge ── -->
+<div class="card p-6">
+  <h2 class="text-sm font-semibold text-gray-700 mb-1">Fehlende Kalendereinträge</h2>
+  <p class="text-xs mb-4" style="color:var(--ink-4);">
+    Termine der letzten 30 Tage und alle kommenden, die in der App stehen, aber nicht im Kalender –
+    typischerweise alles, was während eines Ausfalls angelegt wurde.
+  </p>
+  <div class="flex items-center gap-6 mb-4">
+    <div>
+      <p class="text-2xl font-bold" style="color:{% if fehlende_ev %}var(--c-coral){% else %}var(--ink-3){% endif %};">{{ fehlende_ev }}</p>
+      <p class="text-xs" style="color:var(--ink-4);">Event{% if fehlende_ev != 1 %}s{% endif %}</p>
+    </div>
+    <div>
+      <p class="text-2xl font-bold" style="color:{% if fehlende_res %}var(--c-coral){% else %}var(--ink-3){% endif %};">{{ fehlende_res }}</p>
+      <p class="text-xs" style="color:var(--ink-4);">Reservierung{% if fehlende_res != 1 %}en{% endif %}</p>
+    </div>
+  </div>
+  {% if fehlende_ev or fehlende_res %}
+  <form method="post" action="/admin/kalender-status/nachtragen">
+    <button type="submit" class="btn-primary" {% if not diagnose.ok %}disabled style="opacity:.5;cursor:not-allowed;"{% endif %}>
+      Jetzt in den Kalender nachtragen
+    </button>
+    {% if not diagnose.ok %}
+    <p class="text-xs mt-2" style="color:var(--c-coral);">Erst die Verbindung reparieren – sonst bleibt es beim Versuch.</p>
+    {% endif %}
+  </form>
+  {% else %}
+  <p class="text-sm" style="color:var(--c-green);">✓ Alles im Kalender.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

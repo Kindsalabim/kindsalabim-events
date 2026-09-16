@@ -389,6 +389,41 @@ def test_email(user=Depends(get_admin_user)):
     except Exception as e:
         return HTMLResponse(f"<p style='font-family:sans-serif;padding:2rem;color:red'>❌ Fehler: <b>{e}</b></p>")
 
+# ── Kalender-Verbindung prüfen & nachtragen ───────────────────────────────────
+
+@router.get("/kalender-status", response_class=HTMLResponse)
+def kalender_status(request: Request, db: Session = Depends(get_db),
+                    user=Depends(get_admin_user)):
+    """Zeigt, ob die App in die Google-Kalender schreiben kann – und wie viele
+    Termine dort fehlen. Fällt die Verbindung aus, merkt man es sonst erst,
+    wenn Termine nicht auftauchen (Vorfall 13.09.2026)."""
+    import calendar_service
+    from models import Reservierung
+    d = calendar_service.diagnose()
+    grenze = date.today() - timedelta(days=30)
+    fehlende_ev = db.query(Event).filter(
+        Event.kalender_event_id == None,                 # noqa: E711
+        Event.datum >= grenze, Event.status != "Abgesagt").count()
+    fehlende_res = db.query(Reservierung).filter(
+        Reservierung.kalender_event_id == None,          # noqa: E711
+        Reservierung.datum >= grenze).count()
+    return templates.TemplateResponse("admin/kalender_status.html", tpl_context(
+        request, diagnose=d, fehlende_ev=fehlende_ev, fehlende_res=fehlende_res,
+        dienstkonto=calendar_service.dienstkonto_adresse()))
+
+
+@router.post("/kalender-status/nachtragen")
+def kalender_nachtragen(db: Session = Depends(get_db), user=Depends(get_admin_user)):
+    """Fehlende Kalendereinträge anlegen – nach einem Ausfall."""
+    import calendar_service
+    b = calendar_service.fehlende_nachtragen(db)
+    from urllib.parse import urlencode
+    return RedirectResponse(
+        "/admin/kalender-status?" + urlencode({
+            "nachgetragen": f"{b['events']}/{b['reservierungen']}",
+            "fehler": len(b["fehler"])}), status_code=303)
+
+
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 @router.get("/dashboard", response_class=HTMLResponse)

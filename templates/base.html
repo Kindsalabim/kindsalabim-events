@@ -8,7 +8,7 @@
      das CSS bei JEDEM Seitenaufruf im Browser (und warnt selbst davor, ihn produktiv
      einzusetzen). Die Datei wird mit doku/build_tailwind.py neu erzeugt – nötig, wenn
      neue Tailwind-Klassen in Templates dazukommen. #}
-  <link rel="stylesheet" href="/static/css/tailwind.css?v=1">
+  <link rel="stylesheet" href="/static/css/tailwind.css?v={{ css_version }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">

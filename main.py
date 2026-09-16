@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 from fastapi import Depends, FastAPI, HTTPException
@@ -636,6 +637,20 @@ import routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.ticke
 import routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross, routes.benachrichtigungen
 
 
+def _css_version() -> str:
+    """Änderungszeit von tailwind.css als Cache-Schlüssel.
+
+    Eine fest verdrahtete Versionsnummer wäre eine Falle: Nach einem Neubau des
+    CSS würden Browser tagelang die alte Datei weiterverwenden, weil sich die
+    Adresse nicht geändert hat."""
+    try:
+        pfad = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "static", "css", "tailwind.css")
+        return str(int(os.path.getmtime(pfad)))
+    except Exception:
+        return "1"
+
+
 def _ist_buero_user(request) -> bool:
     """Jinja-Global: Ist der eingeloggte Admin ein Büro-Zugang? Fehler nie nach oben
     durchreichen – im Zweifel Vollzugriff anzeigen (Sperre greift serverseitig)."""
@@ -663,6 +678,18 @@ for _mod in (routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes
         _mod.templates.env.globals["notif_unread"] = admin_notif_unread
         # Rolle des eingeloggten Admins für die Oberfläche (Menü, Knöpfe, Konditionen)
         _mod.templates.env.globals["ist_buero_user"] = _ist_buero_user
+    except Exception:
+        pass
+
+# css_version braucht JEDE Umgebung, die base.html rendert – auch Portal und
+# Kunden-Checkliste, sonst bliebe dort der Cache-Schlüssel leer.
+import routes.portal, routes.checklist, routes.fotos   # noqa: E402
+_CSS_V = _css_version()
+for _mod in (routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets,
+             routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross,
+             routes.benachrichtigungen, routes.portal, routes.checklist):
+    try:
+        _mod.templates.env.globals["css_version"] = _CSS_V
     except Exception:
         pass
 

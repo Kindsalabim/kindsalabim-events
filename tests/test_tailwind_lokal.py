@@ -26,6 +26,21 @@ def test_lokales_css_wird_eingebunden():
     assert re.search(r'<link[^>]+href="/static/css/tailwind\.css', _base())
 
 
+def test_cache_schluessel_haengt_an_der_datei():
+    """Eine feste Versionsnummer wäre eine Falle: Nach einem Neubau des CSS
+    würden Browser die alte Datei weiterverwenden (Fall 13.09.2026)."""
+    assert "?v={{ css_version }}" in _base()
+
+
+def test_css_version_ist_in_allen_umgebungen_gesetzt():
+    """base.html rendert auch im Portal und in der Kunden-Checkliste."""
+    import main   # noqa: F401  – registriert die Jinja-Globals beim Import
+    import routes.admin, routes.portal, routes.checklist
+    for modul in (routes.admin, routes.portal, routes.checklist):
+        assert modul.templates.env.globals.get("css_version"), \
+            f"css_version fehlt in {modul.__name__}"
+
+
 def test_css_datei_existiert_und_ist_echtes_tailwind():
     assert os.path.exists(CSS), "static/css/tailwind.css fehlt – build_tailwind.py laufen lassen"
     inhalt = io.open(CSS, encoding="utf-8").read()
