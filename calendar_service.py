@@ -101,8 +101,27 @@ def diagnose() -> dict:
             continue
         try:
             kal = svc.calendars().get(calendarId=cid).execute()
-            ergebnis.append({"marke": marke, "ok": True,
-                             "detail": f"verbunden mit „{kal.get('summary', cid)}“"})
+            name = kal.get("summary", cid)
+            # Lesen allein beweist nichts: Mit reiner Lese-Freigabe klappt der Abruf,
+            # jedes Anlegen scheitert aber (Vorfall 16.09.2026). Die Rolle steht in
+            # der Kalenderliste des Dienstkontos – ebenfalls rein lesend abrufbar.
+            try:
+                rolle = svc.calendarList().get(calendarId=cid).execute().get("accessRole")
+            except Exception:
+                rolle = None
+            if rolle in ("reader", "freeBusyReader"):
+                ergebnis.append({"marke": marke, "ok": False,
+                                 "detail": f"„{name}“ ist nur LESBAR freigegeben – die App "
+                                           f"kann keine Termine eintragen. Freigabe auf "
+                                           f"„Änderungen an Terminen vornehmen“ ändern."})
+                alle_ok = False
+            elif rolle in ("writer", "owner"):
+                ergebnis.append({"marke": marke, "ok": True,
+                                 "detail": f"verbunden mit „{name}“, Schreibrecht vorhanden"})
+            else:
+                ergebnis.append({"marke": marke, "ok": True,
+                                 "detail": f"„{name}“ erreichbar – ob die App schreiben darf, "
+                                           f"zeigt sich erst beim Nachtragen"})
         except Exception as e:
             text = str(e)
             if "404" in text or "notFound" in text:
@@ -116,8 +135,24 @@ def diagnose() -> dict:
             ergebnis.append({"marke": marke, "ok": False, "detail": hinweis})
             alle_ok = False
     return {"ok": alle_ok, "kalender": ergebnis,
-            "meldung": "Verbindung steht." if alle_ok
-                       else "Mindestens ein Kalender ist nicht erreichbar."}
+            "meldung": "Kalender erreichbar." if alle_ok
+                       else "Mindestens ein Kalender ist nicht erreichbar oder nicht beschreibbar."}
+
+
+def fehlende_eintraege(db, tage_zurueck: int = 30):
+    """(events, reservierungen) ohne Kalendereintrag – kommende Termine plus die
+    letzten `tage_zurueck` Tage. Abgesagte Events gehören nicht in den Kalender."""
+    from datetime import date, timedelta
+    from models import Event, Reservierung
+    grenze = date.today() - timedelta(days=tage_zurueck)
+    events = db.query(Event).filter(
+        Event.kalender_event_id == None,                 # noqa: E711
+        Event.datum >= grenze,
+        Event.status != "Abgesagt").order_by(Event.datum).all()
+    reservierungen = db.query(Reservierung).filter(
+        Reservierung.kalender_event_id == None,          # noqa: E711
+        Reservierung.datum >= grenze).order_by(Reservierung.datum).all()
+    return events, reservierungen
 
 
 def fehlende_nachtragen(db, tage_zurueck: int = 30) -> dict:
@@ -125,36 +160,43 @@ def fehlende_nachtragen(db, tage_zurueck: int = 30) -> dict:
 
     Gedacht für die Zeit nach einem Kalender-Ausfall: Was die App währenddessen
     angelegt hat, steht nur in der Datenbank – für den Alltag zählt aber der
-    Kalender. Erfasst kommende Termine plus die letzten `tage_zurueck` Tage,
-    Events wie Reservierungen. Bestehende Einträge bleiben unberührt.
-    """
-    from datetime import date, timedelta
-    from models import Event, Reservierung
-    grenze = date.today() - timedelta(days=tage_zurueck)
-    bericht = {"events": 0, "reservierungen": 0, "fehler": []}
+    Kalender. Bestehende Einträge bleiben unberührt.
 
-    offene_events = db.query(Event).filter(
-        Event.kalender_event_id == None,                 # noqa: E711
-        Event.datum >= grenze,
-        Event.status != "Abgesagt").all()
+    Jeder Fehlschlag landet MIT GRUND im Bericht. Vorher kam bei einem
+    Schreibverbot „0 nachgetragen, 0 Fehler" heraus (Vorfall 16.09.2026).
+    """
+    bericht = {"versucht": 0, "events": 0, "reservierungen": 0, "fehler": []}
+    offene_events, offene_res = fehlende_eintraege(db, tage_zurueck)
+
     for ev in offene_events:
+        bericht["versucht"] += 1
+        titel = f"{ev.kunde_firma or ev.anlass or 'Event'} ({ev.datum.strftime('%d.%m.%Y')})"
         try:
-            sync_event(ev)
-            if ev.kalender_event_id:
-                bericht["events"] += 1
+            grund = sync_event(ev)
         except Exception as e:
-            bericht["fehler"].append(f"Event {ev.id}: {e}")
+            grund = fehler_erklaeren(e)
+        if ev.kalender_event_id and not grund:
+            bericht["events"] += 1
+        else:
+            bericht["fehler"].append({"titel": titel,
+                                      "grund": grund or "Kein Eintrag entstanden."})
     db.commit()
 
-    offene_res = db.query(Reservierung).filter(
-        Reservierung.kalender_event_id == None,          # noqa: E711
-        Reservierung.datum >= grenze).all()
     for r in offene_res:
+        bericht["versucht"] += 1
+        titel = (f"Reservierung {r.kunde_firma or r.anlass or ''} "
+                 f"({r.datum.strftime('%d.%m.%Y')})").replace("  ", " ")
         try:
-            if sync_reservierung_async(r.id):
-                bericht["reservierungen"] += 1
+            ok = sync_reservierung_async(r.id)
         except Exception as e:
-            bericht["fehler"].append(f"Reservierung {r.id}: {e}")
+            ok = False
+            bericht["fehler"].append({"titel": titel, "grund": fehler_erklaeren(e)})
+            continue
+        if ok:
+            bericht["reservierungen"] += 1
+        else:
+            bericht["fehler"].append({"titel": titel, "grund": "Konnte nicht eingetragen "
+                                      "werden – Grund siehe Kalender-Prüfung oben."})
     return bericht
 
 
@@ -277,15 +319,20 @@ def _event_body(ev) -> dict:
 
 def sync_event(ev):
     """Erstellt oder aktualisiert den Kalendereintrag. No-op ohne Credentials.
-    Setzt ev.kalender_event_id – der Aufrufer muss anschließend committen."""
+    Setzt ev.kalender_event_id – der Aufrufer muss anschließend committen.
+
+    Rückgabe: None bei Erfolg, sonst ein verständlicher Grund. Die bisherigen
+    Aufrufer ignorieren das; das Nachtragen braucht es aber – vorher verschwand
+    ein Schreibfehler hier wortlos im Log, und „0 nachgetragen" sah aus wie
+    „nichts zu tun" (Vorfall 16.09.2026)."""
     svc = _service()
     if not svc:
-        return
+        return "Keine Verbindung zum Google-Kalender (Zugangsdaten fehlen oder sind ungültig)."
     cid = _calendar_id(ev)
     if not cid:
-        return
+        return f"Keine Kalender-ID für die Marke {ev.marke or '?'} hinterlegt."
     if not (ev.datum and ev.startzeit and ev.endzeit):
-        return
+        return "Datum oder Uhrzeit fehlt am Event."
     body = _event_body(ev)
     try:
         if ev.kalender_event_id:
@@ -293,8 +340,26 @@ def sync_event(ev):
         else:
             created = svc.events().insert(calendarId=cid, body=body).execute()
             ev.kalender_event_id = created.get("id")
+        return None
     except Exception as e:
         print(f"Kalender-Sync fehlgeschlagen (Event {ev.id}): {e}")
+        return fehler_erklaeren(e)
+
+
+def fehler_erklaeren(e) -> str:
+    """Google-API-Fehler in einen Satz übersetzen, mit dem man etwas anfangen kann."""
+    text = str(e)
+    if "403" in text and ("writer" in text or "requiredAccessLevel" in text
+                          or "forbidden" in text.lower()):
+        return ("Das Dienstkonto darf diesen Kalender nur LESEN, nicht beschreiben. "
+                "In Google Kalender die Freigabe auf „Änderungen an Terminen vornehmen“ "
+                "ändern.")
+    if "403" in text:
+        return "Zugriff verweigert (403) – Freigabe des Kalenders für das Dienstkonto prüfen."
+    if "404" in text or "notFound" in text:
+        return ("Kalender nicht gefunden (404) – ist er für das Dienstkonto freigegeben "
+                "und stimmt die Kalender-ID?")
+    return text.splitlines()[0][:220] if text else "Unbekannter Fehler"
 
 
 def delete_event(ev):

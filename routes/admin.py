@@ -397,31 +397,29 @@ def kalender_status(request: Request, db: Session = Depends(get_db),
     """Zeigt, ob die App in die Google-Kalender schreiben kann – und wie viele
     Termine dort fehlen. Fällt die Verbindung aus, merkt man es sonst erst,
     wenn Termine nicht auftauchen (Vorfall 13.09.2026)."""
+    return _kalender_status_seite(request, db)
+
+
+def _kalender_status_seite(request, db, ergebnis=None):
+    """Status + Liste der fehlenden Einträge; nach dem Nachtragen mit Ergebnis.
+    Bewusst eine Liste statt nur Zahlen – beim Funke-Fall (16.09.) war „3 Events"
+    ohne Namen keine Hilfe."""
     import calendar_service
-    from models import Reservierung
-    d = calendar_service.diagnose()
-    grenze = date.today() - timedelta(days=30)
-    fehlende_ev = db.query(Event).filter(
-        Event.kalender_event_id == None,                 # noqa: E711
-        Event.datum >= grenze, Event.status != "Abgesagt").count()
-    fehlende_res = db.query(Reservierung).filter(
-        Reservierung.kalender_event_id == None,          # noqa: E711
-        Reservierung.datum >= grenze).count()
+    fehlende_ev, fehlende_res = calendar_service.fehlende_eintraege(db)
     return templates.TemplateResponse("admin/kalender_status.html", tpl_context(
-        request, diagnose=d, fehlende_ev=fehlende_ev, fehlende_res=fehlende_res,
+        request, diagnose=calendar_service.diagnose(),
+        fehlende_ev=fehlende_ev, fehlende_res=fehlende_res, ergebnis=ergebnis,
         dienstkonto=calendar_service.dienstkonto_adresse()))
 
 
-@router.post("/kalender-status/nachtragen")
-def kalender_nachtragen(db: Session = Depends(get_db), user=Depends(get_admin_user)):
-    """Fehlende Kalendereinträge anlegen – nach einem Ausfall."""
+@router.post("/kalender-status/nachtragen", response_class=HTMLResponse)
+def kalender_nachtragen(request: Request, db: Session = Depends(get_db),
+                        user=Depends(get_admin_user)):
+    """Fehlende Kalendereinträge anlegen – nach einem Ausfall. Zeigt das Ergebnis
+    direkt mit Gründen an (die passen nicht sinnvoll in eine Weiterleitungs-URL)."""
     import calendar_service
-    b = calendar_service.fehlende_nachtragen(db)
-    from urllib.parse import urlencode
-    return RedirectResponse(
-        "/admin/kalender-status?" + urlencode({
-            "nachgetragen": f"{b['events']}/{b['reservierungen']}",
-            "fehler": len(b["fehler"])}), status_code=303)
+    ergebnis = calendar_service.fehlende_nachtragen(db)
+    return _kalender_status_seite(request, db, ergebnis)
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────

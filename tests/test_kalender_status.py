@@ -82,9 +82,13 @@ def test_nachtragen_erfasst_nur_was_fehlt(db, monkeypatch):
     abgesagt = make_event(datum=date.today() + timedelta(days=11), status="Abgesagt")
 
     gesynct = []
-    monkeypatch.setattr(calendar_service, "sync_event",
-                        lambda ev: (gesynct.append(ev.id),
-                                    setattr(ev, "kalender_event_id", f"neu-{ev.id}")))
+
+    def _sync_ok(ev):
+        gesynct.append(ev.id)
+        ev.kalender_event_id = f"neu-{ev.id}"
+        return None                                  # None = Erfolg
+
+    monkeypatch.setattr(calendar_service, "sync_event", _sync_ok)
     monkeypatch.setattr(calendar_service, "sync_reservierung_async", lambda rid: False)
 
     s = SessionLocal()
@@ -111,3 +115,92 @@ def test_nachtragen_zaehlt_reservierungen(db, monkeypatch):
         assert bericht["reservierungen"] >= 1
     finally:
         s.close()
+
+
+# ── Vorfall 16.09.2026: Lesen klappt, Schreiben nicht ────────────────────────
+
+GOOGLE_403 = ('<HttpError 403 when requesting https://www.googleapis.com/calendar/v3/'
+              'calendars/x/events returned "You need to have writer access to this '
+              'calendar.". Details: "[{\'domain\': \'calendar\', \'reason\': '
+              '\'requiredAccessLevel\'}]">')
+
+
+def test_schreibverbot_wird_verstaendlich_erklaert():
+    grund = calendar_service.fehler_erklaeren(Exception(GOOGLE_403))
+    assert "nur LESEN" in grund and "Änderungen an Terminen vornehmen" in grund
+
+
+def test_nachtragen_meldet_schreibfehler_mit_grund(db, monkeypatch):
+    """Vorher: „0 nachgetragen, 0 Fehler" – weil sync_event den Fehler schluckte."""
+    make_event(datum=date.today() + timedelta(days=13), kunde_firma="FUNKE Medien NRW")
+
+    class _Kaputt:
+        def events(self):
+            return self
+
+        def insert(self, **kw):
+            return self
+
+        def execute(self):
+            raise Exception(GOOGLE_403)
+
+    monkeypatch.setattr(calendar_service, "_service", lambda: _Kaputt())
+    monkeypatch.setattr(calendar_service, "get_config",
+                        lambda: {"calendar_id_kindsalabim": "k@x.de",
+                                 "calendar_id_knallfrosch": "f@x.de"})
+    monkeypatch.setattr(calendar_service, "sync_reservierung_async", lambda rid: True)
+    s = SessionLocal()
+    try:
+        bericht = calendar_service.fehlende_nachtragen(s)
+    finally:
+        s.close()
+    funke = [f for f in bericht["fehler"] if "FUNKE" in f["titel"]]
+    assert funke, "Schreibfehler wurde nicht gemeldet"
+    assert "nur LESEN" in funke[0]["grund"]
+
+
+def test_diagnose_erkennt_reine_lesefreigabe(monkeypatch):
+    """calendars().get() klappt auch mit Leserecht – die Rolle muss geprüft werden."""
+    class _NurLesen:
+        def __init__(self):
+            self._antwort = {}
+
+        def calendars(self):
+            self._antwort = {"summary": "Kindsalabim"}
+            return self
+
+        def calendarList(self):
+            self._antwort = {"accessRole": "reader"}
+            return self
+
+        def get(self, **kw):
+            return self
+
+        def execute(self):
+            return self._antwort
+
+    monkeypatch.setattr(calendar_service, "get_config",
+                        lambda: {"google_calendar_credentials": "{}",
+                                 "calendar_id_kindsalabim": "k@x.de",
+                                 "calendar_id_knallfrosch": "f@x.de"})
+    monkeypatch.setattr(calendar_service, "_service", lambda: _NurLesen())
+    d = calendar_service.diagnose()
+    assert d["ok"] is False
+    assert all("nur LESBAR" in k["detail"] for k in d["kalender"])
+
+
+def test_statusseite_listet_fehlende_mit_namen(admin, db):
+    make_event(datum=date.today() + timedelta(days=14), kunde_firma="Sichtbar im Status GmbH")
+    html = admin.get("/admin/kalender-status").text
+    assert "Sichtbar im Status GmbH" in html
+
+
+def test_nachtragen_zeigt_grund_auf_der_seite(admin, db, monkeypatch):
+    make_event(datum=date.today() + timedelta(days=15), kunde_firma="Grund-Anzeige AG")
+    monkeypatch.setattr(calendar_service, "sync_event",
+                        lambda ev: calendar_service.fehler_erklaeren(Exception(GOOGLE_403)))
+    monkeypatch.setattr(calendar_service, "sync_reservierung_async", lambda rid: True)
+    html = admin.post("/admin/kalender-status/nachtragen").text
+    assert "konnten nicht in den Kalender geschrieben werden" in html
+    assert "nur LESEN" in html
+    assert "Grund-Anzeige AG" in html
