@@ -409,6 +409,7 @@ def _kalender_status_seite(request, db, ergebnis=None):
     return templates.TemplateResponse("admin/kalender_status.html", tpl_context(
         request, diagnose=calendar_service.diagnose(),
         fehlende_ev=fehlende_ev, fehlende_res=fehlende_res, ergebnis=ergebnis,
+        offene_loeschungen=calendar_service.offene_loeschungen(db),
         dienstkonto=calendar_service.dienstkonto_adresse()))
 
 
@@ -697,15 +698,27 @@ def reservierung_edit_save(
     background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
     return RedirectResponse("/admin/reservierungen", status_code=303)
 
+def _kalender_titel(obj, art: str = "") -> str:
+    """Lesbarer Name eines Kalendereintrags – für die Liste noch zu löschender Blöcke."""
+    name = obj.kunde_firma or obj.anlass or "Termin"
+    datum = obj.datum.strftime("%d.%m.%Y") if obj.datum else ""
+    return " ".join(t for t in (art, name, f"({datum})" if datum else "") if t)
+
+
 @router.post("/reservierungen/{res_id}/freigeben")
 def reservierung_freigeben(res_id: int, background_tasks: BackgroundTasks,
+                           zurueck: str = Form(""),
                            db: Session = Depends(get_db), _=Depends(get_admin_user)):
     r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
     if r:
         import calendar_service
         if r.kalender_event_id:
-            background_tasks.add_task(calendar_service.delete_event_async, r.kalender_event_id, r.marke)
+            background_tasks.add_task(calendar_service.delete_event_async, r.kalender_event_id,
+                                      r.marke, _kalender_titel(r, "Reservierung"))
         db.delete(r); db.commit()
+    # Vom Doppel-Hinweis auf der Event-Seite aus zurück dorthin – nur interne Pfade
+    if zurueck.startswith("/admin/") and "//" not in zurueck:
+        return RedirectResponse(zurueck, status_code=303)
     return RedirectResponse("/admin/reservierungen", status_code=303)
 
 @router.post("/reservierungen/{res_id}/umwandeln")
@@ -742,7 +755,8 @@ def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
                 v.event_id = ev.id
                 v.reservierung_id = None
         if res.kalender_event_id:
-            background_tasks.add_task(calendar_service.delete_event_async, res.kalender_event_id, res.marke)
+            background_tasks.add_task(calendar_service.delete_event_async, res.kalender_event_id,
+                                      res.marke, _kalender_titel(res, "Reservierung"))
         db.delete(res)
     db.commit()
     for ev in events:
@@ -1135,8 +1149,13 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     logistiker_warnung = bool(ev.material_mitnahme and not ev.logistiker_id
                               and not logistiker_zugesagt)
 
+    # Reservierung, die zu diesem Event gehört, aber nie umgewandelt wurde (Funke-Fall)
+    from reservierung_abgleich import passende_reservierungen
+    doppel_reservierungen = passende_reservierungen(db, ev)
+
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
+                    doppel_reservierungen=doppel_reservierungen,
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
                     bericht_foto_urls=bericht_foto_urls,
@@ -1307,7 +1326,8 @@ def event_delete(event_id: int, background_tasks: BackgroundTasks,
         import calendar_service
         from papierkorb import archive_event
         archive_event(db, ev, user.get("sub") or user.get("email"))  # Notfall-Sicherung vor dem Löschen
-        background_tasks.add_task(calendar_service.delete_event_async, ev.kalender_event_id, ev.marke)
+        background_tasks.add_task(calendar_service.delete_event_async, ev.kalender_event_id,
+                                  ev.marke, _kalender_titel(ev))
         db.delete(ev); db.commit()
     return RedirectResponse("/admin/dashboard", status_code=303)
 

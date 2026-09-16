@@ -270,8 +270,23 @@ def _run_reservierung_farben(db: Session) -> int:
         Reservierung.kalender_event_id != None,              # noqa: E711
         Reservierung.kalender_abgelaufen_markiert == False,  # noqa: E712
     ).all()
+    from notifications import notify
+    from reservierung_abgleich import passendes_event
     count = 0
     for r in faellig:
+        # Schon als Event gebucht (nur nie umgewandelt)? Dann nicht pink färben,
+        # sondern einmalig darauf hinweisen – Auflösen per Klick auf der Event-Seite.
+        ev = passendes_event(db, r)
+        if ev:
+            notify(db, "reservierung_doppelt",
+                   f"Reservierung noch offen: {r.kunde_firma}",
+                   f"Für {r.kunde_firma} am {r.datum.strftime('%d.%m.%Y')} gibt es schon ein "
+                   f"gebuchtes Event – die Reservierung steht aber noch zusätzlich im Kalender. "
+                   f"Auf der Event-Seite mit einem Klick auflösen.",
+                   f"/admin/events/{ev.id}", marke=r.marke)
+            r.kalender_abgelaufen_markiert = True
+            db.commit()
+            continue
         if calendar_service.sync_reservierung_async(r.id):
             r.kalender_abgelaufen_markiert = True
             db.commit()

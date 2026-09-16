@@ -546,6 +546,11 @@ story = [
         "Tag vorbei, löscht die App den Eintrag automatisch (der Kalender-Block bleibt).",
         "<b>Kopieren</b> an der Karte befüllt das Neu-Formular mit allen Daten der Reservierung vor – "
         "nur der Termin bleibt leer.",
+        "<b>Schon als Event gebucht?</b> Wurde statt Umwandeln ein neues Event angelegt, zeigt die "
+        "Event-Seite einen gelben Hinweis &bdquo;Offene Reservierung … gefunden&ldquo; (gleicher Tag, "
+        "ähnlicher Kundenname). <b>Reservierung auflösen</b> entfernt sie samt Kalender-Block; das Event "
+        "bleibt unverändert. Läuft so eine Reservierung ab, färbt die App sie nicht pink, sondern meldet "
+        "sich einmal per Glocke.",
     ]),
     *shots("reservierungen", 150, "Reservierungen: aktive Liste, Neu-Formular, abgelaufene im Dropdown."),
 
@@ -698,6 +703,11 @@ story = [
         "betroffenen Event/Bereich.",
         "<b>Einstellungen:</b> E-Mail-Schalter je Meldungstyp, Briefing-Regeln (Seite &bdquo;Allgemeines&ldquo;), "
         "Baker-Ross-Aufschlag, Telegram-Schalter u. a.",
+        "<b>Kalender-Verbindung prüfen</b> (Einstellungen): zeigt, ob die App in beide Google-Kalender "
+        "<b>schreiben</b> darf (Freigabe &bdquo;Änderungen an Terminen vornehmen&ldquo; für das angezeigte "
+        "Dienstkonto), listet fehlende Einträge und Kalender-Blöcke, deren Löschen gescheitert ist. "
+        "<b>Jetzt in den Kalender nachtragen</b> holt beides nach und nennt bei Fehlern den Grund. "
+        "Fällt der Kalender aus, meldet die Glocke das einmal am Tag.",
     ]),
     *shots("benachricht", 150, "Benachrichtigungs-Verlauf (Glocke)."),
 

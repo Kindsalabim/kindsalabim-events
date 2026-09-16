@@ -204,3 +204,96 @@ def test_nachtragen_zeigt_grund_auf_der_seite(admin, db, monkeypatch):
     assert "konnten nicht in den Kalender geschrieben werden" in html
     assert "nur LESEN" in html
     assert "Grund-Anzeige AG" in html
+
+
+# ── Verwaiste Kalender-Blöcke ────────────────────────────────────────────────
+# Vorfall 13.–16.09.2026: Reservierung umgewandelt, Datensatz samt Kalender-ID
+# gelöscht, Kalender-Löschen scheiterte → pinker Block blieb für immer stehen.
+
+def _loesch_warteschlange_leeren():
+    s = SessionLocal()
+    try:
+        calendar_service._loeschungen_speichern(s, [])
+    finally:
+        s.close()
+
+
+def _offene():
+    s = SessionLocal()
+    try:
+        return calendar_service.offene_loeschungen(s)
+    finally:
+        s.close()
+
+
+class _LoeschDienst:
+    def __init__(self, fehler=None):
+        self.fehler = fehler
+
+    def events(self):
+        return self
+
+    def delete(self, **kw):
+        return self
+
+    def execute(self):
+        if self.fehler:
+            raise Exception(self.fehler)
+        return {}
+
+
+def _kalender_an(monkeypatch, dienst):
+    monkeypatch.setattr(calendar_service, "_service", lambda: dienst)
+    monkeypatch.setattr(calendar_service, "get_config",
+                        lambda: {"google_calendar_credentials": "{}",
+                                 "calendar_id_kindsalabim": "k@x.de",
+                                 "calendar_id_knallfrosch": "f@x.de"})
+
+
+def test_gescheitertes_loeschen_wird_vorgemerkt(monkeypatch):
+    _loesch_warteschlange_leeren()
+    _kalender_an(monkeypatch, _LoeschDienst(GOOGLE_403))
+    assert calendar_service.delete_event_async("abc123", "Kindsalabim", "Reservierung Herten") is False
+    # Doppelter Versuch derselben ID erzeugt keinen zweiten Eintrag
+    calendar_service.delete_event_async("abc123", "Kindsalabim", "Reservierung Herten")
+    offen = _offene()
+    assert len(offen) == 1
+    assert offen[0]["titel"] == "Reservierung Herten" and "nur LESEN" in offen[0]["grund"]
+
+
+def test_schon_geloeschter_block_zaehlt_als_erledigt(monkeypatch):
+    _loesch_warteschlange_leeren()
+    _kalender_an(monkeypatch, _LoeschDienst("<HttpError 410 ... Resource has been deleted>"))
+    assert calendar_service.delete_event_async("weg1", "Knallfrosch", "Alt") is True
+    assert _offene() == []
+
+
+def test_nachtragen_holt_loeschen_nach(monkeypatch):
+    _loesch_warteschlange_leeren()
+    _kalender_an(monkeypatch, _LoeschDienst(GOOGLE_403))
+    calendar_service.delete_event_async("nach1", "Kindsalabim", "Reservierung Hohenzollernstraße")
+    assert len(_offene()) == 1
+
+    _kalender_an(monkeypatch, _LoeschDienst())  # Schreibrecht wieder da
+    monkeypatch.setattr(calendar_service, "sync_event", lambda ev: None)
+    monkeypatch.setattr(calendar_service, "sync_reservierung_async", lambda rid: True)
+    s = SessionLocal()
+    try:
+        bericht = calendar_service.fehlende_nachtragen(s)
+    finally:
+        s.close()
+    assert bericht["geloescht"] == 1
+    assert _offene() == []
+
+
+def test_statusseite_zeigt_offene_loeschungen(admin, monkeypatch):
+    _loesch_warteschlange_leeren()
+    _kalender_an(monkeypatch, _LoeschDienst(GOOGLE_403))
+    calendar_service.delete_event_async("sicht1", "Kindsalabim", "Reservierung Sichtbar-Block")
+    monkeypatch.setattr(calendar_service, "diagnose",
+                        lambda: {"ok": True, "meldung": "ok", "kalender": []})
+    html = admin.get("/admin/kalender-status").text
+    assert "noch gelöscht werden müssen" in html
+    assert "Reservierung Sichtbar-Block" in html
+    assert "Jetzt in den Kalender nachtragen" in html
+    _loesch_warteschlange_leeren()

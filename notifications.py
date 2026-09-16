@@ -31,6 +31,7 @@ NOTIF_TYPEN = [
     ("warteliste", "Warteliste: Dienstleister rückt automatisch nach", True, False),
     ("geburtstag", "Geburtstag eines Dienstleisters", True, False),
     ("kalender_fehler", "Kalender-Eintrag konnte nicht geschrieben werden", True, True),
+    ("reservierung_doppelt", "Reservierung offen, obwohl schon als Event gebucht", True, False),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 

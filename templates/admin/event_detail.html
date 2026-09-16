@@ -155,6 +155,18 @@
   <a href="/admin/events/{{ ev.id }}" class="btn-secondary shrink-0 self-start sm:self-auto">Wieder sperren</a>
 </div>
 {% endif %}
+{% for r in doppel_reservierungen %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm leading-relaxed flex items-start gap-3" style="background:var(--c-amber-bg);color:var(--c-amber);">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  <span class="min-w-0"><strong>Offene Reservierung „{{ r.kunde_firma }}" am {{ r.datum.strftime('%d.%m.') }} gefunden.</strong>
+    Sieht aus wie dieselbe Buchung – die Reservierung steht noch zusätzlich im Kalender.</span>
+  <form method="post" action="/admin/reservierungen/{{ r.id }}/freigeben" class="ml-auto shrink-0"
+        onsubmit="return confirm('Reservierung auflösen und ihren Kalender-Block entfernen? Das Event bleibt unverändert.');">
+    <input type="hidden" name="zurueck" value="/admin/events/{{ ev.id }}">
+    <button type="submit" class="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">Reservierung auflösen</button>
+  </form>
+</div>
+{% endfor %}
 {% if logistiker_warnung %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm leading-relaxed flex items-start gap-2" style="background:#fef3c7;color:#92400e;">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>

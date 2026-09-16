@@ -165,7 +165,7 @@ def fehlende_nachtragen(db, tage_zurueck: int = 30) -> dict:
     Jeder Fehlschlag landet MIT GRUND im Bericht. Vorher kam bei einem
     Schreibverbot „0 nachgetragen, 0 Fehler" heraus (Vorfall 16.09.2026).
     """
-    bericht = {"versucht": 0, "events": 0, "reservierungen": 0, "fehler": []}
+    bericht = {"versucht": 0, "events": 0, "reservierungen": 0, "geloescht": 0, "fehler": []}
     offene_events, offene_res = fehlende_eintraege(db, tage_zurueck)
 
     for ev in offene_events:
@@ -197,6 +197,21 @@ def fehlende_nachtragen(db, tage_zurueck: int = 30) -> dict:
         else:
             bericht["fehler"].append({"titel": titel, "grund": "Konnte nicht eingetragen "
                                       "werden – Grund siehe Kalender-Prüfung oben."})
+
+    # Vorgemerkte Löschungen nachholen (Blöcke gelöschter Reservierungen/Events)
+    rest, vorgemerkt = [], offene_loeschungen(db)
+    for eintrag in vorgemerkt:
+        bericht["versucht"] += 1
+        erledigt, grund = _kalender_loeschen(eintrag.get("id"), eintrag.get("marke"))
+        if erledigt:
+            bericht["geloescht"] += 1
+        else:
+            eintrag["grund"] = grund
+            rest.append(eintrag)
+            bericht["fehler"].append({"titel": f"Block „{eintrag.get('titel')}“ entfernen",
+                                      "grund": grund or "Löschen fehlgeschlagen."})
+    if vorgemerkt:
+        _loeschungen_speichern(db, rest)
     return bericht
 
 
@@ -367,18 +382,93 @@ def delete_event(ev):
     delete_event_async(ev.kalender_event_id, ev.marke)
 
 
-def delete_event_async(cal_event_id, marke):
-    """Löscht per Kalender-Event-ID + Marke (für Hintergrund-Aufrufe ohne ORM-Objekt)."""
+_LOESCH_KEY = "kalender_loeschen_offen"
+
+
+def _kalender_loeschen(cal_event_id, marke):
+    """Einen Kalendereintrag löschen. Rückgabe (erledigt, grund).
+    „Schon weg" (404/410) zählt als erledigt – das Ziel ist ja erreicht."""
     svc = _service()
-    if not svc or not cal_event_id:
-        return
+    if not svc:
+        return False, "Keine Verbindung zum Google-Kalender."
     cfg = get_config()
     key = "calendar_id_knallfrosch" if marke == "Knallfrosch" else "calendar_id_kindsalabim"
     cid = cfg.get(key)
+    if not cid:
+        return False, f"Keine Kalender-ID für die Marke {marke or '?'} hinterlegt."
     try:
         svc.events().delete(calendarId=cid, eventId=cal_event_id).execute()
+        return True, None
     except Exception as e:
+        text = str(e)
+        if "404" in text or "410" in text or "notFound" in text or "deleted" in text:
+            return True, None
         print(f"Kalender-Löschen fehlgeschlagen: {e}")
+        return False, fehler_erklaeren(e)
+
+
+def delete_event_async(cal_event_id, marke, titel: str = "") -> bool:
+    """Löscht per Kalender-Event-ID + Marke (für Hintergrund-Aufrufe ohne ORM-Objekt).
+
+    Scheitert das Löschen, wird der Eintrag VORGEMERKT: Die Aufrufer (Reservierung
+    umwandeln/freigeben, Event löschen) haben den Datensatz samt Kalender-ID dann
+    schon entfernt – ohne Vormerkung bliebe der Block für immer im Kalender stehen,
+    ohne dass die App noch davon weiß (Vorfall 13.–16.09.2026, pinke Blöcke Herten
+    und Hohenzollernstraße). `fehlende_nachtragen` holt das Löschen nach."""
+    if not cal_event_id:
+        return True
+    erledigt, grund = _kalender_loeschen(cal_event_id, marke)
+    # Ohne konfigurierte Zugangsdaten ist der Kalender schlicht aus (lokal/Tests) –
+    # dann gibt es nichts nachzuholen.
+    if not erledigt and get_config().get("google_calendar_credentials"):
+        _loeschung_vormerken(cal_event_id, marke, titel, grund)
+    return erledigt
+
+
+def _loeschung_vormerken(cal_event_id, marke, titel, grund):
+    import json as _json
+    from datetime import date as _date
+    from database import SessionLocal
+    from models import AppEinstellung
+    db = SessionLocal()
+    try:
+        row = db.query(AppEinstellung).filter(AppEinstellung.key == _LOESCH_KEY).first()
+        liste = _json.loads(row.value) if row and row.value else []
+        if not any(e.get("id") == cal_event_id for e in liste):
+            liste.append({"id": cal_event_id, "marke": marke, "titel": titel or "Kalendereintrag",
+                          "grund": grund, "seit": _date.today().isoformat()})
+        if not row:
+            row = AppEinstellung(key=_LOESCH_KEY)
+            db.add(row)
+        row.value = _json.dumps(liste, ensure_ascii=False)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Kalender-Löschung konnte nicht vorgemerkt werden: {e}")
+    finally:
+        db.close()
+
+
+def offene_loeschungen(db) -> list:
+    """Kalender-Blöcke, deren Löschen noch aussteht."""
+    import json as _json
+    from models import AppEinstellung
+    row = db.query(AppEinstellung).filter(AppEinstellung.key == _LOESCH_KEY).first()
+    try:
+        return _json.loads(row.value) if row and row.value else []
+    except ValueError:
+        return []
+
+
+def _loeschungen_speichern(db, liste):
+    import json as _json
+    from models import AppEinstellung
+    row = db.query(AppEinstellung).filter(AppEinstellung.key == _LOESCH_KEY).first()
+    if not row:
+        row = AppEinstellung(key=_LOESCH_KEY)
+        db.add(row)
+    row.value = _json.dumps(liste, ensure_ascii=False)
+    db.commit()
 
 
 def sync_event_async(event_id):
