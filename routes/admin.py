@@ -622,11 +622,74 @@ def reservierungen_list(request: Request, kopie: int = None,
     # ?kopie=<id> → Neue-Reservierung-Formular mit den Daten dieser Reservierung
     # vorbefüllen (Datum bleibt leer) – Pendant zum Event-„Kopieren".
     kopie_r = db.query(Reservierung).filter(Reservierung.id == kopie).first() if kopie else None
+    # ?neu=1&kunde_firma=…&datum=… → Vorlage aus dem Anfrage-Assistenten (Geschäftskunden)
+    vorlage = _reservierung_vorlage(request.query_params) if request.query_params.get("neu") == "1" else None
     kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
     return templates.TemplateResponse("admin/reservierungen.html",
         tpl_context(request, aktive=aktive, abgelaufene=abgelaufene, today=heute,
-                    frist_default=heute + timedelta(days=5), kunden=kunden,
-                    serien=serien, kopie=kopie_r))
+                    frist_default=(vorlage.frist if vorlage and vorlage.frist else heute + timedelta(days=5)),
+                    kunden=kunden, serien=serien, kopie=vorlage or kopie_r,
+                    vorlage=vorlage))
+
+
+_RES_ARTEN = {"Z": "Z", "B": "B", "ZB": "ZB", "WORKSHOP": "WORKSHOP", "DIV.": "Div.", "DIV": "Div."}
+
+
+def _reservierung_vorlage(q):
+    """Formular-Vorbefüllung per Link (Anfrage-Assistent → „Als Reservierung in der
+    Events-App anlegen"). Wird NICHT gespeichert – Aykut prüft und klickt Speichern.
+    Ungültige Werte werden leer gelassen und als Hinweis gemeldet, statt still zu raten."""
+    from types import SimpleNamespace
+    hinweise = []
+
+    def _datum(name, label):
+        wert = (q.get(name) or "").strip()
+        if not wert:
+            return None
+        try:
+            return date.fromisoformat(wert)
+        except ValueError:
+            hinweise.append(f"{label} „{wert}“ nicht lesbar – bitte eintragen.")
+            return None
+
+    def _zeit(name, label):
+        wert = (q.get(name) or "").strip()
+        if not wert:
+            return ""
+        if wert in ZEITEN:
+            return wert
+        try:
+            h, m = (int(x) for x in wert.split(":"))
+            gerundet = f"{h:02d}:{(m // 15) * 15:02d}"
+        except ValueError:
+            gerundet = ""
+        if gerundet in ZEITEN:
+            hinweise.append(f"{label} {wert} auf {gerundet} gerundet – bitte prüfen.")
+            return gerundet
+        hinweise.append(f"{label} „{wert}“ nicht lesbar – bitte wählen.")
+        return ""
+
+    art_roh = (q.get("art") or "").strip()
+    art = _RES_ARTEN.get(art_roh.upper())
+    if not art or art == "Div.":
+        hinweise.append("Art bitte wählen – mit „Div.“ blockiert der Termin im Anfrage-Assistenten nicht.")
+    startzeit = _zeit("startzeit", "Beginn")
+    if not startzeit:
+        hinweise.append("Ohne Beginn wird der Kalender-Block ganztägig – der Anfrage-Assistent übersieht ihn.")
+    marke = (q.get("marke") or "").strip().capitalize()
+    return SimpleNamespace(
+        datum=_datum("datum", "Termin"), frist=_datum("frist", "Frist"),
+        startzeit=startzeit, endzeit=_zeit("endzeit", "Ende"),
+        art=art if art and art != "Div." else None,
+        marke=marke if marke in ("Kindsalabim", "Knallfrosch") else "Kindsalabim",
+        kunde_firma=(q.get("kunde_firma") or "").strip(),
+        kunde_kontakt=(q.get("kunde_kontakt") or "").strip(),
+        kunde_telefon=(q.get("kunde_telefon") or "").strip(),
+        kunde_email=(q.get("kunde_email") or "").strip(),
+        anlass=(q.get("anlass") or "").strip(),
+        veranstaltungsort=(q.get("veranstaltungsort") or "").strip(),
+        notiz=(q.get("notiz") or "").strip(),
+        hinweise=hinweise)
 
 @router.post("/reservierungen/new")
 def reservierung_create(

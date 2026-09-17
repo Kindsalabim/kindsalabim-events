@@ -19,13 +19,18 @@
 <details class="card p-5 mb-6" {% if kopie %}open{% endif %}>
   <summary class="text-sm font-semibold cursor-pointer select-none" style="color: var(--brand-primary);">+ Neue Reservierung</summary>
   <form method="post" action="/admin/reservierungen/new" class="mt-4 pt-4 space-y-4" style="border-top:1px solid #f3f4f6;">
-    {% if kopie %}
+    {% if vorlage %}
+    <div class="text-xs font-medium px-3 py-2 rounded-lg" style="background:var(--c-amber-bg);color:var(--c-amber);">
+      <p>📨 Aus dem Anfrage-Assistenten übernommen – bitte prüfen und speichern.</p>
+      {% for h in vorlage.hinweise %}<p class="mt-1">⚠️ {{ h }}</p>{% endfor %}
+    </div>
+    {% elif kopie %}
     <p class="text-xs font-medium px-3 py-2 rounded-lg" style="background:var(--c-amber-bg);color:var(--c-amber);">📋 Daten aus der Reservierung „{{ kopie.kunde_firma }}" ({{ kopie.datum | de_date }}) übernommen – nur noch Termin wählen.</p>
     {% endif %}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Termin *</label>
-        <input type="date" name="datum" required class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <input type="date" name="datum" required {% if vorlage and vorlage.datum %}value="{{ vorlage.datum.isoformat() }}" {% endif %}class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Frist <span class="text-gray-500 font-normal">(Rückmeldung bis)</span></label>

@@ -549,6 +549,10 @@ story = [
         "Tag vorbei, löscht die App den Eintrag automatisch (der Kalender-Block bleibt).",
         "<b>Kopieren</b> an der Karte befüllt das Neu-Formular mit allen Daten der Reservierung vor – "
         "nur der Termin bleibt leer.",
+        "<b>Aus dem Anfrage-Assistenten:</b> Bei Geschäftskunden öffnet dessen Knopf &bdquo;Als Reservierung "
+        "in der Events-App anlegen&ldquo; dieses Formular fertig ausgefüllt. Prüfen, speichern – fertig. "
+        "Gelbe Hinweise zeigen, was fehlt: Art &bdquo;Div.&ldquo; oder fehlende Uhrzeit würden den Termin für "
+        "den Assistenten unsichtbar machen. Kindergeburtstage laufen bewusst nicht über die Events-App.",
         "<b>Schon als Event gebucht?</b> Wurde statt Umwandeln ein neues Event angelegt, zeigt die "
         "Event-Seite einen gelben Hinweis &bdquo;Offene Reservierung … gefunden&ldquo; (gleicher Tag, "
         "ähnlicher Kundenname). <b>Reservierung auflösen</b> entfernt sie samt Kalender-Block; das Event "
