@@ -43,10 +43,38 @@ def get_admin_user(request: Request):
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER,
                             headers={"Location": "/admin/login"})
     payload = decode_token(token, " admin:")
-    if not payload or payload.get("role") != "admin":
+    if not payload or payload.get("role") != "admin" or not admin_sitzung_gueltig(payload):
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER,
                             headers={"Location": "/admin/login"})
     return payload
+
+
+def admin_sitzung_gueltig(payload: dict) -> bool:
+    """Gehört das (signaturgültige) Token noch zu einem aktiven Zugang?
+
+    Ohne diese Prüfung blieb ein gelöschter oder deaktivierter Zugang bis zum
+    Token-Ablauf (30 Tage) eingeloggt – ein gelöschter Büro-Zugang sogar mit
+    Vollzugriff, weil unbekannte Zugänge als Inhaber galten. `sv` (Sitzungs-
+    Version) wird beim Passwort-Zurücksetzen erhöht und beendet alte Sitzungen;
+    Tokens ohne `sv` (vor Einführung ausgestellt) zählen als 0."""
+    from database import SessionLocal
+    from models import Admin
+    from sqlalchemy import func
+    email = (payload.get("sub") or payload.get("email") or "").strip().lower()
+    if not email:
+        return False
+    db = SessionLocal()
+    try:
+        a = db.query(Admin).filter(func.lower(Admin.email) == email).first()
+        if not a or not a.aktiv:
+            print(f"[AUTH] admin: Zugang {email} gelöscht oder deaktiviert")
+            return False
+        if int(payload.get("sv") or 0) != int(a.sitzung_version or 0):
+            print(f"[AUTH] admin: Sitzung von {email} beendet (Passwort geändert)")
+            return False
+        return True
+    finally:
+        db.close()
 
 def create_magic_token(dienstleister, db) -> str:
     """Generiert einen Magic-Link-Token (36h gültig) und speichert ihn."""

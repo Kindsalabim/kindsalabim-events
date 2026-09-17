@@ -12,10 +12,14 @@
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Admin angelegt.</div>{% endif %}
 {% if request.query_params.get('ok') == 'geloescht' %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Admin entfernt.</div>{% endif %}
+{% if request.query_params.get('ok') == 'deaktiviert' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Zugang deaktiviert – die Person ist ab sofort ausgeloggt.</div>{% endif %}
+{% if request.query_params.get('ok') == 'aktiviert' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Zugang wieder aktiv.</div>{% endif %}
 {% if request.query_params.get('fehler') == 'vorhanden' %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Diese E-Mail ist bereits als Admin hinterlegt.</div>{% endif %}
 {% if request.query_params.get('fehler') == 'geschuetzt' %}
-<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Du kannst dich nicht selbst und nicht den letzten Admin löschen.</div>{% endif %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Du kannst dich nicht selbst und nicht den letzten Inhaber-Zugang löschen oder deaktivieren.</div>{% endif %}
 {% if request.query_params.get('fehler') == 'pw_kurz' %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Das Start-Passwort muss mindestens 8 Zeichen lang sein.</div>{% endif %}
 
@@ -35,6 +39,7 @@
         <td class="px-5 py-3.5 font-medium text-gray-800">
           {{ a.email }}
           {% if a.email == me %}<span class="ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">du</span>{% endif %}
+          {% if not a.aktiv %}<span class="ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background:#f1f5f9;color:#475569;">deaktiviert</span>{% endif %}
         </td>
         <td class="px-5 py-3.5 text-gray-500">{{ a.name or '–' }}</td>
         <td class="px-5 py-3.5">
@@ -54,9 +59,14 @@
         </td>
         <td class="px-5 py-3.5 text-right">
           {% if a.email != me and admins|length > 1 %}
-          <form method="post" action="/admin/admins/{{ a.id }}/delete" onsubmit="return confirm('Admin „{{ a.email }}“ entfernen?')">
-            <button class="text-xs text-red-600 hover:text-red-600 transition-colors">Entfernen</button>
-          </form>
+          <div class="inline-flex items-center gap-4">
+            <form method="post" action="/admin/admins/{{ a.id }}/aktiv">
+              <button class="text-xs text-gray-500 hover:text-gray-800 transition-colors">{{ 'Deaktivieren' if a.aktiv else 'Reaktivieren' }}</button>
+            </form>
+            <form method="post" action="/admin/admins/{{ a.id }}/delete" onsubmit="return confirm('Admin „{{ a.email }}“ entfernen?')">
+              <button class="text-xs text-red-600 hover:text-red-600 transition-colors">Entfernen</button>
+            </form>
+          </div>
           {% else %}
           <span class="text-xs text-gray-300">geschützt</span>
           {% endif %}

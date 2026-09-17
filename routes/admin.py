@@ -15,7 +15,7 @@ from database import get_db, SessionLocal
 from models import Event, Dienstleister, Verfuegbarkeitsanfrage, EventDatei, Admin, Kunde, DienstleisterSperrzeit, Reservierung, ExternerTeamer
 import secrets
 from routes.fotos import generate_presigned_url, download_file
-from auth import (get_admin_user, verify_password, hash_password, create_token,
+from auth import (get_admin_user, admin_sitzung_gueltig, verify_password, hash_password, create_token,
                   decode_token, COOKIE_SECURE)
 from config import get_config
 from distance import rank_contractors, get_coords_for_address, get_coords_for_dienstleister
@@ -243,7 +243,9 @@ def login_page(request: Request):
     # /admin/login wie „ausgeloggt", obwohl die Sitzung noch gültig ist.
     token = request.cookies.get("admin_token")
     payload = decode_token(token, " admin:") if token else None
-    if payload and payload.get("role") == "admin":
+    # Gelöschte/deaktivierte Zugänge NICHT weiterleiten – sonst Endlosschleife
+    # zwischen Login und Dashboard.
+    if payload and payload.get("role") == "admin" and admin_sitzung_gueltig(payload):
         return RedirectResponse("/admin/dashboard", status_code=303)
     return templates.TemplateResponse("admin/login.html", tpl_context(request))
 
@@ -256,7 +258,8 @@ def login(request: Request, email: str = Form(...), password: str = Form(...),
         return templates.TemplateResponse("admin/login.html",
             tpl_context(request, error="Ungültige Zugangsdaten"))
     # 30 Tage Login (internes Single-User-Tool) – Token-Laufzeit und Cookie gleich lang
-    token = create_token({"sub": a.email, "role": "admin"}, expires_minutes=60*24*30)
+    token = create_token({"sub": a.email, "role": "admin", "sv": a.sitzung_version or 0},
+                         expires_minutes=60*24*30)
     resp = RedirectResponse("/admin/dashboard", status_code=303)
     resp.set_cookie("admin_token", token, httponly=True, secure=COOKIE_SECURE,
                     samesite="lax", max_age=60*60*24*30)
@@ -325,6 +328,7 @@ def reset_post(request: Request, token: str, password: str = Form(...),
             tpl_context(request, token=token, gueltig=True,
                         pw_fehler="Das Passwort muss mindestens 8 Zeichen lang sein."))
     a.password_hash = hash_password(password)
+    a.sitzung_version = (a.sitzung_version or 0) + 1   # alte Logins (z. B. verlorenes Handy) beenden
     a.reset_token = None
     a.reset_token_expires = None
     db.commit()
@@ -369,6 +373,28 @@ def admins_create(request: Request, db: Session = Depends(get_db), user=Depends(
                  erstellt_am=datetime.now().isoformat(timespec="seconds")))
     db.commit()
     return RedirectResponse("/admin/admins?ok=angelegt", status_code=303)
+
+@router.post("/admins/{aid}/aktiv")
+def admins_aktiv(aid: int, db: Session = Depends(get_db), user=Depends(nur_inhaber)):
+    """Zugang deaktivieren/reaktivieren – wirkt sofort (auch auf laufende Logins).
+    Nie sich selbst, nie den letzten aktiven Inhaber."""
+    from rechte import INHABER
+    a = db.query(Admin).filter(Admin.id == aid).first()
+    if not a:
+        return RedirectResponse("/admin/admins", status_code=303)
+    if a.aktiv:
+        andere_inhaber = db.query(Admin).filter(
+            Admin.id != a.id, Admin.aktiv == True,  # noqa: E712
+            or_(Admin.rolle == None, Admin.rolle == INHABER)).count()  # noqa: E711
+        if a.email == user.get("sub") or andere_inhaber == 0:
+            return RedirectResponse("/admin/admins?fehler=geschuetzt", status_code=303)
+        a.aktiv = False
+        ok = "deaktiviert"
+    else:
+        a.aktiv = True
+        ok = "aktiviert"
+    db.commit()
+    return RedirectResponse(f"/admin/admins?ok={ok}", status_code=303)
 
 @router.post("/admins/{aid}/delete")
 def admins_delete(aid: int, db: Session = Depends(get_db), user=Depends(nur_inhaber)):

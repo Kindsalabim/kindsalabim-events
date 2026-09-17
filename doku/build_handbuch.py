@@ -171,6 +171,9 @@ for typ, titel, text in [
     s.add(Benachrichtigung(typ=typ, titel=titel, text=text,
                            erstellt_am=datetime.now().isoformat(timespec="seconds")))
 
+# Handbuch-Zugang als Inhaber (unbekannte Zugänge hätten nur Büro-Rechte)
+from models import Admin                                    # noqa: E402
+s.add(Admin(email="handbuch@local", name="Handbuch", password_hash="x", aktiv=True, rolle="inhaber"))
 s.commit()
 EV1, LISA_ID = ev.id, lisa.id
 s.close()
@@ -718,7 +721,9 @@ story = [
         "Preise, Abläufe, B2B-Wissen. Auch fürs Portal freigebbare Seiten.",
         "<b>Tickets:</b> internes Aufgaben-Board (Zu erledigen / In Bearbeitung / Erledigt) mit "
         "Wichtigkeit – für alles, was kein Event ist.",
-        "<b>Admin-Zugänge:</b> weitere Admins anlegen/deaktivieren; Passwort-Reset per Mail. "
+        "<b>Admin-Zugänge:</b> weitere Admins anlegen, <b>deaktivieren</b> (Name bleibt, Zugang ruht) "
+        "oder entfernen – beides wirkt <b>sofort</b>, auch auf ein noch offenes Login. Passwort-Reset "
+        "per Mail; danach sind alle alten Anmeldungen dieses Zugangs beendet (z. B. verlorenes Handy). "
         "Je Zugang wird der <b>Zugriff</b> gewählt: <b>Inhaber</b> (Vollzugriff) oder "
         "<b>Büro / Disposition</b>.",
         "<b>Büro / Disposition</b> darf alles Operative: Events und Reservierungen anlegen und "

@@ -1,7 +1,6 @@
 """Büro-/Disposition-Rolle: gesperrte Bereiche, ausgeblendete Konditionen.
 
-Der `admin`-Fixture-Zugang (a@b.de) hat keinen Admin-Datensatz und gilt damit
-weiter als Inhaber – bestehende Tests bleiben davon unberührt.
+Der `admin`-Fixture-Zugang (a@b.de) ist ein Inhaber-Datensatz (conftest).
 """
 from auth import create_token
 from models import Admin, Dienstleister, Event, Kunde

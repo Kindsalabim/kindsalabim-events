@@ -437,6 +437,8 @@ class Admin(Base):
     # Rolle: "inhaber" = Vollzugriff · "buero" = Disposition ohne Geld & Verwaltung
     # (keine Buchhaltung, keine Stundensätze, kein Löschen, keine Zugangsverwaltung)
     rolle               = Column(String, default="inhaber")
+    # Steigt beim Passwort-Zurücksetzen → alle vorher ausgestellten Logins ungültig
+    sitzung_version     = Column(Integer, default=0)
 
 
 class Benachrichtigung(Base):

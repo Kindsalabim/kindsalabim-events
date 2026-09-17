@@ -55,8 +55,29 @@ def client():
         yield c
 
 
+def _fixture_admin_anlegen():
+    """Der `admin`-Fixture-Zugang muss als aktiver Inhaber in der DB stehen –
+    get_admin_user prüft seit 17.09.2026 bei jedem Aufruf den Datensatz."""
+    from models import Admin
+    s = SessionLocal()
+    try:
+        a = s.query(Admin).filter(Admin.email == "a@b.de").first()
+        if not a:
+            s.add(Admin(email="a@b.de", name="Test-Admin", password_hash="x",
+                        aktiv=True, rolle="inhaber"))
+        else:
+            a.aktiv, a.rolle, a.sitzung_version = True, "inhaber", 0
+        s.commit()
+    finally:
+        s.close()
+
+
+_fixture_admin_anlegen()   # auch für Tests, die den Cookie selbst setzen
+
+
 @pytest.fixture
 def admin(client):
+    _fixture_admin_anlegen()
     client.cookies.set("admin_token", create_token({"sub": "a@b.de", "role": "admin"}, expires_minutes=60))
     return client
 

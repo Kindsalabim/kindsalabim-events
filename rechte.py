@@ -33,12 +33,16 @@ def normalisieren(wert) -> str:
 
 
 def admin_rolle(db, user) -> str:
-    """Rolle des eingeloggten Admins (unbekannt = Vollzugriff, wie bisher)."""
+    """Rolle des eingeloggten Admins. Ein Zugang ohne Datensatz (gelöscht) bekommt
+    nicht mehr stillschweigend Vollzugriff, sondern die Büro-Rolle – Sicherheitsnetz
+    hinter der Sitzungsprüfung in auth.get_admin_user."""
     email = ((user or {}).get("sub") or (user or {}).get("email") or "").strip().lower()
     if not email:
         return INHABER
     a = db.query(Admin).filter(func.lower(Admin.email) == email).first()
-    return normalisieren(a.rolle if a else None)
+    if not a:
+        return BUERO
+    return normalisieren(a.rolle)
 
 
 def ist_buero(db, user) -> bool:

@@ -242,6 +242,7 @@ def run_migrations():
     # Bestehende Zugänge bleiben Inhaber – eingeschränkt wird nur, wer bewusst
     # auf „buero" gesetzt wird.
     add_column("admins", "rolle", "VARCHAR DEFAULT 'inhaber'")
+    add_column("admins", "sitzung_version", "INTEGER DEFAULT 0")
     # Geburtstag: freiwillige Angabe im Profil, Glocke am Tag selbst
     add_column("dienstleister", "geburtsdatum", "DATE")
     add_column("dienstleister", "geburtstag_erinnert_am", "DATE")
