@@ -521,6 +521,80 @@ def send_warteliste_nachrueckung(dienstleister, event, neue_frist):
           _wrap(content, color, cfg))
 
 
+def send_anfrage_zurueckgezogen(dienstleister, event, grund: str, war_zugesagt: bool,
+                                zusatz: str = ""):
+    """Wir ziehen eine Anfrage zurück (Kunde hat geändert, Planungsfehler, …).
+
+    Ohne diese Mail blieb die Anfrage im Postfach des Dienstleisters stehen, nur
+    im Portal verschwand sie kommentarlos. Bei einer schon gegebenen Zusage ist
+    es eine Stornierung der Bestellung (Einkaufs-AGB §5)."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    if war_zugesagt:
+        kern = ("wir müssen dir leider absagen: Für diesen Einsatz <strong>brauchen wir "
+                "dich doch nicht</strong>. Die Bestellung dafür ist damit storniert.")
+        betreff = f"Einsatz abgesagt – {event.anlass} am {de_date(event.datum)}"
+    else:
+        kern = ("die Anfrage für diesen Einsatz ist <strong>leider nicht mehr aktuell</strong>. "
+                "Du musst nichts weiter tun, auch nicht mehr antworten.")
+        betreff = f"Anfrage nicht mehr aktuell – {event.anlass} am {de_date(event.datum)}"
+    zusatz_html = (f'<p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">'
+                   f'{_esc(zusatz)}</p>') if zusatz else ""
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {_esc(dienstleister.vorname)},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">{kern}</p>
+    <div style="background:#f8fafc;border-left:3px solid #94a3b8;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:20px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', event.anlass)}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Grund', grund)}
+      </table>
+    </div>
+    {zusatz_html}
+    <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">
+      Das tut uns leid. Danke, dass du dir den Termin freigehalten hast. Wir melden uns bald wieder mit neuen Anfragen.
+    </p>"""
+    _send(dienstleister.email, betreff, _wrap(content, color, cfg))
+
+
+def send_anfrage_geaendert(dienstleister, event, anfrage, neue_bestellung: bool = False):
+    """Rolle/Budget/Logistik einer Anfrage wurden nachträglich angepasst (z. B. als
+    Teamerin angefragt, eingesetzt wird sie aber als Künstlerin)."""
+    cfg = get_config()
+    color = _brand_color(event.marke)
+    budget = (f"{anfrage.budget:.2f} € pauschal (inkl. Fahrtkosten)".replace(".", ",")
+              if anfrage.rolle_anfrage == "Künstler" and anfrage.budget else "")
+    if anfrage.status == "Ja":
+        kern = "wir haben deinen Einsatz angepasst. Bitte schau kurz drüber, ob das für dich so passt."
+        if neue_bestellung:
+            kern += " Eine neue Bestellung mit den geänderten Angaben bekommst du gleich per Mail."
+        knopf = "Zum Portal →"
+    else:
+        kern = ("wir haben deine Anfrage angepasst. Bitte entscheide auf Grundlage "
+                "dieser neuen Angaben, ob du dabei sein kannst.")
+        knopf = "Jetzt antworten →"
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {_esc(dienstleister.vorname)},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">{kern}</p>
+    <div style="background:#eff6ff;border-left:3px solid {color};border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Event', event.anlass)}
+        {_info_row('Datum', de_date(event.datum))}
+        {_info_row('Deine Rolle', anfrage.rolle_anfrage)}
+        {_info_row('Budget', budget) if budget else ''}
+        {_info_row('Material-Logistik', 'ja, du holst Material im Lager ab' if anfrage.als_logistiker else 'nein, du musst nicht ins Lager')}
+      </table>
+    </div>
+    <a href="https://kindsalabim-events.onrender.com/portal"
+       style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
+              padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+      {knopf}
+    </a>"""
+    _send(dienstleister.email,
+          f"Anfrage angepasst – {event.anlass} am {de_date(event.datum)}",
+          _wrap(content, color, cfg))
+
+
 def send_erinnerung(dienstleister, event):
     cfg = get_config()
     color = _brand_color(event.marke)

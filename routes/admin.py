@@ -1573,12 +1573,18 @@ def anfrage_entfernen(
     if not a:
         raise HTTPException(404)
     ev = db.query(Event).filter(Event.id == event_id).first()
+    _anfrage_loesen(db, a, ev)
+    return RedirectResponse(f"/admin/events/{event_id}#wf-team", status_code=303)
+
+
+def _anfrage_loesen(db, a, ev):
+    """Anfrage löschen samt Teamleiter-/Logistiker-Zuordnung und erwartetem Honorar
+    (außer es liegt schon eine Rechnung vor). Gemeinsam für Mülleimer und Zurückziehen."""
     did = a.dienstleister_id
     if ev and ev.teamleiter_id == did:
         ev.teamleiter_id = None
     if ev and ev.logistiker_id == did:
         ev.logistiker_id = None
-    # Erwartetes Honorar mit entfernen – außer es liegt schon eine Rechnung vor
     from honorare import honorar_entfernen
     honorar_entfernen(db, a)
     db.delete(a)
@@ -1586,7 +1592,150 @@ def anfrage_entfernen(
     if ev:
         ev.status = auto_status(ev, db)
         db.commit()
-    return RedirectResponse(f"/admin/events/{event_id}#wf-team", status_code=303)
+
+
+# Gründe fürs Zurückziehen einer Anfrage (mit Aykut abgestimmt, 17.09.2026)
+ZURUECKZIEHEN_GRUENDE = {
+    "kunde":   "Der Kunde hat die Buchung geändert.",
+    "planung": "Bei unserer Planung ist ein Fehler passiert.",
+    "besetzt": "Wir sind für diesen Einsatz schon vollständig besetzt.",
+}
+ZURUECKZIEHBAR = ("Ausstehend", "Ja", "Abgelaufen")
+
+
+@router.post("/events/{event_id}/anfrage/{anfrage_id}/zurueckziehen")
+def anfrage_zurueckziehen(
+    event_id: int, anfrage_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    grund: str = Form("kunde"), zusatz: str = Form(""), bedarf_senken: bool = Form(False),
+):
+    """Anfrage zurückziehen UND dem Dienstleister Bescheid geben – der Gegenpart zum
+    stillen Mülleimer. Bei schon gegebener Zusage ist das eine Stornierung der
+    Bestellung (Einkaufs-AGB §5). Nachweis: Notiz an der Dienstleister-Karte, weil
+    der Anfrage-Datensatz (Quelle des Dossiers) dabei gelöscht wird."""
+    a = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.id == anfrage_id,
+        Verfuegbarkeitsanfrage.event_id == event_id).first()
+    if not a:
+        raise HTTPException(404)
+    ziel = f"/admin/events/{event_id}"
+    if a.status not in ZURUECKZIEHBAR:        # hat selbst abgesagt → nichts zurückzuziehen
+        return RedirectResponse(ziel + "#wf-team", status_code=303)
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    d = a.dienstleister
+    war_zugesagt = a.status == "Ja"
+    rolle = a.rolle_anfrage
+    grund_text = ZURUECKZIEHEN_GRUENDE.get(grund, ZURUECKZIEHEN_GRUENDE["kunde"])
+    zusatz = zusatz.strip()
+
+    _anfrage_loesen(db, a, ev)
+
+    if ev and bedarf_senken:
+        if rolle == "Künstler":
+            ev.anzahl_kuenstler = max(0, (ev.anzahl_kuenstler or 0) - 1)
+        else:
+            ev.anzahl_teamer = max(0, (ev.anzahl_teamer or 0) - 1)
+    if d and ev:
+        zeile = (f"{date.today().strftime('%d.%m.%Y')}: Anfrage „{ev.anlass}“ "
+                 f"({de_date(ev.datum)}) von uns zurückgezogen"
+                 f"{' nach Zusage' if war_zugesagt else ''} – {grund_text}")
+        d.notizen = (d.notizen.rstrip() + "\n" + zeile) if (d.notizen or "").strip() else zeile
+    db.commit()
+
+    mailfehler = False
+    if d and ev:
+        if d.email and "@" in d.email:
+            try:
+                from email_service import send_anfrage_zurueckgezogen
+                send_anfrage_zurueckgezogen(d, ev, grund_text, war_zugesagt, zusatz)
+            except Exception as e:
+                print(f"[ZURUECKZIEHEN] Mail an DL {d.id} fehlgeschlagen: {e}")
+                mailfehler = True
+        else:
+            mailfehler = True
+    from urllib.parse import urlencode
+    params = {"zurueckgezogen": d.vorname if d else ""}
+    if mailfehler:
+        params["mailfehler"] = 1
+    return RedirectResponse(f"{ziel}?{urlencode(params)}#wf-team", status_code=303)
+
+@router.post("/events/{event_id}/anfrage/{anfrage_id}/aendern")
+def anfrage_aendern(
+    event_id: int, anfrage_id: int, background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), _=Depends(get_admin_user),
+    rolle: str = Form("Teamer"), budget: str = Form(""),
+    als_logistiker: bool = Form(False), benachrichtigen: bool = Form(False),
+):
+    """Rolle, Budget und Logistik einer verschickten Anfrage nachträglich anpassen
+    (z. B. als Teamerin + Logistikerin angefragt, eingesetzt als Kinderschminkerin).
+
+    Zieht nach: Logistiker-Zuordnung am Event, Honorar-Schätzung (solange keine
+    Rechnung erfasst ist) und – bei schon gegebener Zusage – eine korrigierte
+    Bestellung, weil die alte sonst die falsche Vergütung nennt."""
+    a = db.query(Verfuegbarkeitsanfrage).filter(
+        Verfuegbarkeitsanfrage.id == anfrage_id,
+        Verfuegbarkeitsanfrage.event_id == event_id).first()
+    if not a:
+        raise HTTPException(404)
+    ziel = f"/admin/events/{event_id}"
+    if a.status not in ZURUECKZIEHBAR:
+        return RedirectResponse(ziel + "#wf-team", status_code=303)
+    ev, d = a.event, a.dienstleister
+
+    neue_rolle = "Künstler" if rolle == "Künstler" else "Teamer"
+    neues_budget = None
+    if neue_rolle == "Künstler":
+        b = (budget or "").replace("€", "").strip()
+        if "," in b:                         # deutsches Format „1.200,00"
+            b = b.replace(".", "").replace(",", ".")
+        try:
+            neues_budget = round(float(b), 2) if b else None
+        except ValueError:
+            neues_budget = a.budget          # unlesbar: bisherigen Wert behalten
+    vorher = (a.rolle_anfrage, a.budget, bool(a.als_logistiker))
+    nachher = (neue_rolle, neues_budget, bool(als_logistiker))
+    if vorher == nachher:
+        return RedirectResponse(ziel + "#wf-team", status_code=303)
+
+    a.rolle_anfrage, a.budget, a.als_logistiker = nachher
+    if ev and not als_logistiker and ev.logistiker_id == a.dienstleister_id:
+        ev.logistiker_id = None
+
+    from models import EventHonorar
+    from honorare import schaetzung, lernfaktor
+    h = db.query(EventHonorar).filter(EventHonorar.event_id == event_id,
+                                      EventHonorar.dienstleister_id == a.dienstleister_id).first()
+    if h and h.tatsaechlich is None and ev and d:
+        h.geschaetzt = schaetzung(a, ev, d, lernfaktor(db))
+
+    neue_bestellung = a.status == "Ja" and bool(a.bestellung_am)
+    if neue_bestellung:
+        a.bestellung_am = None               # sonst überspringt der Task (idempotent)
+        a.bestellung_r2_key = None
+    if ev:
+        ev.status = auto_status(ev, db)
+    db.commit()
+    if neue_bestellung:
+        from bestellung import bestellung_erzeugen_async
+        background_tasks.add_task(bestellung_erzeugen_async, a.id)
+
+    mailfehler = False
+    if benachrichtigen and d and ev:
+        try:
+            if not (d.email and "@" in d.email):
+                raise ValueError("keine gültige E-Mail")
+            from email_service import send_anfrage_geaendert
+            send_anfrage_geaendert(d, ev, a, neue_bestellung)
+        except Exception as e:
+            print(f"[ANFRAGE-AENDERN] Mail an DL {a.dienstleister_id} fehlgeschlagen: {e}")
+            mailfehler = True
+    from urllib.parse import urlencode
+    params = {"geaendert": d.vorname if d else ""}
+    if benachrichtigen:
+        params["informiert"] = 1
+    if mailfehler:
+        params["mailfehler"] = 1
+    return RedirectResponse(f"{ziel}?{urlencode(params)}#wf-team", status_code=303)
+
 
 @router.post("/events/{event_id}/teamleiter")
 def set_teamleiter(
