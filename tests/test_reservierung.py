@@ -45,7 +45,7 @@ def test_reservierung_body_zeitgebunden_und_format():
     body = calendar_service._reservierung_body(res)
     assert body["start"] == {"dateTime": "2026-07-20T17:45:00", "timeZone": "Europe/Berlin"}
     assert body["end"] == {"dateTime": "2026-07-20T18:45:00", "timeZone": "Europe/Berlin"}
-    assert body["summary"] == "(Z) Köln, Kindergeburtstag, Fr. Otto, reserv. bis 10.07.2099"
+    assert body["summary"] == "(Z) Köln, Familie Otto, Kindergeburtstag, Fr. Otto, reserv. bis 10.07.2099"
     assert body["colorId"] == "8"
 
 
@@ -96,3 +96,18 @@ def test_neue_reservierung_frist_vorbelegt_heute_plus_5(admin):
     h = admin.get("/admin/reservierungen").text
     erwartet = (date.today() + timedelta(days=5)).isoformat()
     assert f'name="frist" value="{erwartet}"' in h
+
+
+def test_titel_mit_firma_und_ohne_doppelten_namen():
+    """(ART) Stadt, Firma, Anlass, Ansprechpartner – Firma steht nicht doppelt, wenn
+    kein eigener Ansprechpartner eingetragen ist."""
+    rid = _make_res(kunde_firma="Stadtwerke Essen", kunde_kontakt="Christiane Voss",
+                    anlass="Weihnachtsfeier", veranstaltungsort="45127 Essen", art="WORKSHOP",
+                    frist=date(2099, 7, 10))
+    body = calendar_service._reservierung_body(reload(Reservierung, rid))
+    assert body["summary"] == ("(WORKSHOP) Essen, Stadtwerke Essen, Weihnachtsfeier, "
+                               "Christiane Voss, reserv. bis 10.07.2099")
+    rid = _make_res(kunde_firma="Solo GmbH", kunde_kontakt="", anlass="Sommerfest",
+                    veranstaltungsort="45127 Essen", art="Z", frist=None)
+    body = calendar_service._reservierung_body(reload(Reservierung, rid))
+    assert body["summary"] == "(Z) Essen, Solo GmbH, Sommerfest"

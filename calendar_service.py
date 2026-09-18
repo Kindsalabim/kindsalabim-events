@@ -530,9 +530,13 @@ def _plus_eine_stunde(zeit: str) -> str:
 
 def _reservierung_body(r) -> dict:
     stadt = _stadt(r.veranstaltungsort or "")
-    kontakt = (r.kunde_kontakt or "").strip() or (r.kunde_firma or "").strip()
+    # Titel: (ART) Stadt, Firma, Anlass, Ansprechpartner – Firma gewünscht von Aykut 18.09.2026
+    firma = (r.kunde_firma or "").strip()
+    kontakt = (r.kunde_kontakt or "").strip()
+    if kontakt.lower() == firma.lower():
+        kontakt = ""
     art = (r.art or "Div.").strip()
-    rest = ", ".join(p for p in [stadt, r.anlass, kontakt] if p)
+    rest = ", ".join(p for p in [stadt, firma, r.anlass, kontakt] if p)
     summary = f"({art})" + (f" {rest}" if rest else "")
     if r.frist:
         summary += f", reserv. bis {r.frist.strftime('%d.%m.%Y')}"
