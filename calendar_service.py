@@ -145,10 +145,16 @@ def fehlende_eintraege(db, tage_zurueck: int = 30):
     from datetime import date, timedelta
     from models import Event, Reservierung
     grenze = date.today() - timedelta(days=tage_zurueck)
-    events = db.query(Event).filter(
-        Event.kalender_event_id == None,                 # noqa: E711
+    from sqlalchemy import and_, or_
+    kandidaten = db.query(Event).filter(
+        or_(Event.kalender_event_id == None,             # noqa: E711
+            and_(Event.show_startzeit != None,           # noqa: E711
+                 Event.show_kalender_event_id == None)),  # noqa: E711
         Event.datum >= grenze,
         Event.status != "Abgesagt").order_by(Event.datum).all()
+    # Zaubershow-Block fehlt nur, wenn er auch gebraucht wird
+    events = [ev for ev in kandidaten if not ev.kalender_event_id
+              or zaubershow_eigener_eintrag(ev)]
     reservierungen = db.query(Reservierung).filter(
         Reservierung.kalender_event_id == None,          # noqa: E711
         Reservierung.datum >= grenze).order_by(Reservierung.datum).all()
@@ -175,7 +181,9 @@ def fehlende_nachtragen(db, tage_zurueck: int = 30) -> dict:
             grund = sync_event(ev)
         except Exception as e:
             grund = fehler_erklaeren(e)
-        if ev.kalender_event_id and not grund:
+        if ev.kalender_event_id and not grund and not (
+                ev.show_startzeit and zaubershow_eigener_eintrag(ev)
+                and not ev.show_kalender_event_id):
             bericht["events"] += 1
         else:
             bericht["fehler"].append({"titel": titel,
@@ -275,11 +283,21 @@ def _event_art(ev) -> str:
     return _kurz_von(aktiv)
 
 
-def _title(ev) -> str:
+def zaubershow_eigener_eintrag(ev) -> bool:
+    """Braucht das Event einen eigenen (Z)-Block? Ja, wenn eine Zaubershow gebucht ist,
+    der Hauptauftrag sie im Titel aber nicht zeigt – bei gemischten Aktionen steht dort
+    nur (div.). Am Telefon sah der Tag dann frei aus, obwohl Aykut zaubert."""
+    roh = ", ".join(filter(None, [getattr(ev, "produkte", None) or "",
+                                  getattr(ev, "produkte_freitext", None) or ""]))
+    zauber = any("zaubershow" in p.strip().lower() for p in roh.split(","))
+    return zauber and _event_art(ev) == "div."
+
+
+def _title(ev, art: str = None) -> str:
     stadt = _stadt(ev.veranstaltungsort)
     kontakt = (ev.kunde_kontakt or "").strip() or (ev.kunde_firma or "").strip()
     rest = ", ".join(p for p in [stadt, ev.anlass, kontakt] if p)
-    art = _event_art(ev)
+    art = art or _event_art(ev)
     title = f"({art}) {rest}".strip() if rest else f"({art})"
     if ev.status == "Abgesagt":
         return f"ABGESAGT – {title}"
@@ -332,6 +350,43 @@ def _event_body(ev) -> dict:
     }
 
 
+def _show_body(ev) -> dict:
+    ende = (ev.show_endzeit if (ev.show_endzeit and ev.show_endzeit > ev.show_startzeit)
+            else _plus_eine_stunde(ev.show_startzeit))
+    return {
+        "summary": _title(ev, "Z"),
+        "location": ev.veranstaltungsort or "",
+        "description": ("Zaubershow innerhalb dieses Events – der Gesamtauftrag steht "
+                        "als eigener (div.)-Eintrag im Kalender.\n\n" + _description(ev)),
+        "colorId": _color_id(ev),
+        "start": _dt(ev.datum, ev.show_startzeit),
+        "end": _dt(ev.datum, ende),
+    }
+
+
+def _sync_show(ev, svc, cid):
+    """Eigenen (Z)-Block anlegen/aktualisieren – oder entfernen, wenn er nicht mehr
+    gebraucht wird (Show-Uhrzeit gelöscht, Zaubershow abgewählt, nur noch Zaubershow)."""
+    noetig = bool(ev.datum and ev.show_startzeit and zaubershow_eigener_eintrag(ev))
+    try:
+        if noetig:
+            body = _show_body(ev)
+            if ev.show_kalender_event_id:
+                svc.events().update(calendarId=cid, eventId=ev.show_kalender_event_id,
+                                    body=body).execute()
+            else:
+                created = svc.events().insert(calendarId=cid, body=body).execute()
+                ev.show_kalender_event_id = created.get("id")
+        elif ev.show_kalender_event_id:
+            delete_event_async(ev.show_kalender_event_id, ev.marke,
+                               f"Zaubershow {ev.kunde_firma or ev.anlass or ''}".strip())
+            ev.show_kalender_event_id = None
+        return None
+    except Exception as e:
+        print(f"Kalender-Sync Zaubershow fehlgeschlagen (Event {ev.id}): {e}")
+        return fehler_erklaeren(e)
+
+
 def sync_event(ev):
     """Erstellt oder aktualisiert den Kalendereintrag. No-op ohne Credentials.
     Setzt ev.kalender_event_id – der Aufrufer muss anschließend committen.
@@ -355,10 +410,10 @@ def sync_event(ev):
         else:
             created = svc.events().insert(calendarId=cid, body=body).execute()
             ev.kalender_event_id = created.get("id")
-        return None
     except Exception as e:
         print(f"Kalender-Sync fehlgeschlagen (Event {ev.id}): {e}")
         return fehler_erklaeren(e)
+    return _sync_show(ev, svc, cid)
 
 
 def fehler_erklaeren(e) -> str:
@@ -378,8 +433,9 @@ def fehler_erklaeren(e) -> str:
 
 
 def delete_event(ev):
-    """Entfernt den Kalendereintrag. No-op ohne Credentials / ohne ID."""
+    """Entfernt den Kalendereintrag (samt Zaubershow-Block). No-op ohne Credentials / ohne ID."""
     delete_event_async(ev.kalender_event_id, ev.marke)
+    delete_event_async(ev.show_kalender_event_id, ev.marke)
 
 
 _LOESCH_KEY = "kalender_loeschen_offen"

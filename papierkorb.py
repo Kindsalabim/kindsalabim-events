@@ -122,6 +122,7 @@ def _coerce(model_cls, data: dict) -> dict:
 def _restore_event(db, daten):
     kw = _coerce(Event, daten["event"])
     kw["kalender_event_id"] = None  # alter Kalendereintrag ist gelöscht → neu synchronisieren
+    kw["show_kalender_event_id"] = None
     # Verweise auf zwischenzeitlich gelöschte Kunden/Dienstleister lösen, sonst bricht
     # der komplette Restore am FK-Constraint ab (Postgres). Die Spalten sind nullable. (Review M14)
     if kw.get("kunde_id") and not db.query(Kunde).filter(Kunde.id == kw["kunde_id"]).first():

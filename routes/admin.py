@@ -193,6 +193,16 @@ def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
 
 # ── Termin-Serie (mehrtägige Events) ─────────────────────────────────────────────
 
+def _show_zeiten_fehler(show_startzeit, show_endzeit):
+    """Uhrzeit der Zaubershow in gemischten Events (eigener (Z)-Block im Kalender)."""
+    s, e = (show_startzeit or "").strip(), (show_endzeit or "").strip()
+    if e and not s:
+        return "Bei der Zaubershow fehlt der Beginn."
+    if s and e and e <= s:
+        return "Bei der Zaubershow muss das Ende nach dem Beginn liegen."
+    return None
+
+
 def _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, base_start, base_end):
     """Parst weitere Termintage aus dem Formular (parallele Listen). Leere Datumszeilen
     werden übersprungen; fehlende Zeiten erben die Zeiten des Haupttags.
@@ -912,7 +922,8 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
                      material_info="", transporter_angeboten=False,
                      ankunft_modus="auto", ankunft_text="", treffpunkt="",
                      kunde_adresse="", vor_ort_name="", vor_ort_telefon="",
-                     weitere_ansprechpartner=None, privatkunde=False):
+                     weitere_ansprechpartner=None, privatkunde=False,
+                     show_startzeit="", show_endzeit=""):
     """Baut ein leichtes Objekt mit den eingegebenen Werten, damit das Formular bei
     einem Validierungsfehler die Eingaben behält (statt sie zu verlieren)."""
     from types import SimpleNamespace
@@ -936,6 +947,7 @@ def _event_form_echo(datum_d, datum, anlass, startzeit, endzeit, veranstaltungso
         zaubershow_event=zaubershow_event,
         material_info=material_info, transporter_angeboten=transporter_angeboten,
         ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
+        show_startzeit=show_startzeit, show_endzeit=show_endzeit,
     )
 
 
@@ -959,6 +971,7 @@ def event_create(
     ankunft_modus: str = Form("auto"), ankunft_text: str = Form(""), treffpunkt: str = Form(""),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     privatkunde: bool = Form(False),
+    show_startzeit: str = Form(""), show_endzeit: str = Form(""),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     extra_datum: list = Form([]), extra_startzeit: list = Form([]),
@@ -971,6 +984,7 @@ def event_create(
     if not ort_abweichend:
         veranstaltungsort = (kunde_adresse or "").strip()
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event, abgesagt=(status == "Abgesagt"))
+    fehler = fehler or _show_zeiten_fehler(show_startzeit, show_endzeit)
     extra_tage, extra_fehler = _parse_extra_tage(extra_datum, extra_startzeit, extra_endzeit, startzeit, endzeit)
     fehler = fehler or extra_fehler
     if fehler:
@@ -984,7 +998,8 @@ def event_create(
                                 ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
                                 kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
                                 vor_ort_telefon=vor_ort_telefon,
-                                weitere_ansprechpartner=wap_json, privatkunde=privatkunde)
+                                weitere_ansprechpartner=wap_json, privatkunde=privatkunde,
+                                show_startzeit=show_startzeit, show_endzeit=show_endzeit)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler))
@@ -1004,6 +1019,7 @@ def event_create(
         treffpunkt=treffpunkt.strip() or None,
         checkliste_uebersprungen=checkliste_uebersprungen,
         zaubershow_event=zaubershow_event,
+        show_startzeit=show_startzeit.strip() or None, show_endzeit=show_endzeit.strip() or None,
         marke=marke, status=status
     )
     db.add(ev)
@@ -1250,10 +1266,12 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     # Reservierung, die zu diesem Event gehört, aber nie umgewandelt wurde (Funke-Fall)
     from reservierung_abgleich import passende_reservierungen
     doppel_reservierungen = passende_reservierungen(db, ev)
+    import calendar_service
 
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     doppel_reservierungen=doppel_reservierungen,
+                    show_eigener_eintrag=calendar_service.zaubershow_eigener_eintrag(ev),
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
                     bericht_foto_urls=bericht_foto_urls,
@@ -1328,6 +1346,7 @@ def event_update(
     ankunft_modus: str = Form("auto"), ankunft_text: str = Form(""), treffpunkt: str = Form(""),
     checkliste_uebersprungen: bool = Form(False), zaubershow_event: bool = Form(False),
     privatkunde: bool = Form(False),
+    show_startzeit: str = Form(""), show_endzeit: str = Form(""),
     status: str = Form("Gebucht"),
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     entsperrt: bool = Form(False), serie_propagieren: bool = Form(False),
@@ -1342,6 +1361,7 @@ def event_update(
     if not ort_abweichend:
         veranstaltungsort = (kunde_adresse or "").strip()
     datum_d, fehler = validate_event_form(datum, startzeit, endzeit, kunde_telefon, veranstaltungsort, produkte, zaubershow=zaubershow_event, abgesagt=(status == "Abgesagt"))
+    fehler = fehler or _show_zeiten_fehler(show_startzeit, show_endzeit)
     if fehler:
         kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
         serie_count = db.query(Event).filter(Event.serien_id == ev.serien_id).count() if ev.serien_id else 0
@@ -1356,7 +1376,8 @@ def event_update(
                                 ankunft_modus=ankunft_modus, ankunft_text=ankunft_text, treffpunkt=treffpunkt,
                                 kunde_adresse=kunde_adresse, vor_ort_name=vor_ort_name,
                                 vor_ort_telefon=vor_ort_telefon,
-                                weitere_ansprechpartner=wap_json, privatkunde=privatkunde)
+                                weitere_ansprechpartner=wap_json, privatkunde=privatkunde,
+                                show_startzeit=show_startzeit, show_endzeit=show_endzeit)
         return templates.TemplateResponse("admin/event_form.html",
             tpl_context(request, event=echo, produkte_list=PRODUKTE_LIST, kunden=kunden,
                         anlass_list=ANLASS_LIST, error=fehler, serie_count=serie_count))
@@ -1379,6 +1400,8 @@ def event_update(
     ev.checkliste_uebersprungen = checkliste_uebersprungen
     ev.zaubershow_event = zaubershow_event
     ev.privatkunde = privatkunde
+    ev.show_startzeit = show_startzeit.strip() or None
+    ev.show_endzeit = show_endzeit.strip() or None
     if crm_verknuepfen:
         link_kunde(db, ev, kunde_firma, kunde_kontakt, kunde_telefon, kunde_email, marke)
     db.commit()
@@ -1426,6 +1449,8 @@ def event_delete(event_id: int, background_tasks: BackgroundTasks,
         archive_event(db, ev, user.get("sub") or user.get("email"))  # Notfall-Sicherung vor dem Löschen
         background_tasks.add_task(calendar_service.delete_event_async, ev.kalender_event_id,
                                   ev.marke, _kalender_titel(ev))
+        background_tasks.add_task(calendar_service.delete_event_async, ev.show_kalender_event_id,
+                                  ev.marke, _kalender_titel(ev, "Zaubershow"))
         db.delete(ev); db.commit()
     return RedirectResponse("/admin/dashboard", status_code=303)
 

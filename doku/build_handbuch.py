@@ -400,6 +400,11 @@ story = [
         "<b>Produkte &amp; Personal:</b> gebuchte Aktionen ankreuzen (bestimmen Künstler-Sparte und "
         "Ankunfts-Vorlauf), Anzahl Teamer/Künstler, Material-Mitnahme (steuert Logistiker &amp; Erinnerungen).",
         "<b>Zaubershow-Event:</b> Sonderfall ohne Team/Checkliste/Bericht – schließt allein über die Rechnung ab.",
+        "<b>Zaubershow in gemischten Events:</b> Ist neben der Zaubershow noch etwas anderes gebucht "
+        "(z. B. Hüpfburg, Kinderschminken), steht der Auftrag im Kalender nur als <b>(div.)</b>. Das Formular "
+        "fragt dann nach <b>Beginn/Ende der Zaubershow</b>; damit legt die App einen zweiten Kalender-Eintrag "
+        "<b>(Z)</b> zur Show-Uhrzeit an – der Tag ist für dich als belegt erkennbar, auch im Anfrage-Assistenten. "
+        "Fehlt die Uhrzeit, warnt die Event-Seite.",
     ]),
     *shots("event_neu", 150, "Neues Event anlegen: Grunddaten, Kundendaten mit Privatkunde-Häkchen, vor Ort, Produkte."),
 

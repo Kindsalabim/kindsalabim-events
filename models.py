@@ -53,6 +53,11 @@ class Event(Base):
     teamleiter_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=True)
     kunde_id = Column(Integer, ForeignKey("kunden.id"), nullable=True)  # CRM-Verknüpfung (optional)
     kalender_event_id = Column(String, nullable=True)  # Google-Kalender-Event-ID (Sync)
+    # Zaubershow innerhalb eines gemischten Events: eigene Uhrzeit + eigener (Z)-Block im
+    # Kalender, weil der Hauptauftrag nur als (div.) erscheint (Feuerwehr Bochum, 22.09.2026)
+    show_startzeit = Column(String)
+    show_endzeit = Column(String)
+    show_kalender_event_id = Column(String)
     serien_id = Column(String, nullable=True, index=True)  # mehrtägiges Event: gemeinsamer Token aller Termintage (None = einzelner Tag)
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
     teamleiter_mail_gesendet = Column(Boolean, default=False)  # Info-Mail an Kunden (1 Woche vorher) versendet?

@@ -380,6 +380,53 @@
           </div>
         </div>
       </div>
+      {# Zaubershow in einem gemischten Event: Der Gesamtauftrag erscheint im Kalender nur
+         als (div.) – die Show bekommt deshalb eine eigene Uhrzeit und einen (Z)-Block. #}
+      <div id="show-zeit" class="rounded-lg p-4" style="background:var(--c-amber-bg);display:none;">
+        <p class="text-sm font-medium" style="color:var(--c-amber);">Wann findet die Zaubershow statt?</p>
+        <p class="text-xs mt-0.5 mb-3" style="color:var(--c-amber);">Neben der Zaubershow sind weitere Aktionen gebucht – im Kalender steht der Auftrag deshalb als (div.). Mit Uhrzeit bekommt die Show einen eigenen Eintrag (Z), damit der Tag für dich als belegt erkennbar ist.</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Beginn Zaubershow</label>
+            {{ time_select('show_startzeit', event.show_startzeit if event and event.show_startzeit else '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Ende <span class="text-gray-500 font-normal">(sonst Beginn + 1 h)</span></label>
+            {{ time_select('show_endzeit', event.show_endzeit if event and event.show_endzeit else '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          function pruefeShowZeit() {
+            var boxen = document.querySelectorAll('input[name="produkte"]:checked');
+            // Gleiche Regel wie calendar_service._event_art: Nur wenn der Kalendertitel
+            // (div.) wird, braucht die Show einen eigenen Eintrag. Zauber+Ballon = (ZB),
+            // Workshop-Kombis = (WORKSHOP+Z) – dort steht die Show schon im Titel.
+            var werte = [];
+            boxen.forEach(function (b) { werte.push((b.value || '').toLowerCase()); });
+            var frei = (document.getElementById('produkte_freitext') || {}).value || '';
+            frei.split(',').forEach(function (f) { if (f.trim()) werte.push(f.trim().toLowerCase()); });
+            var zauber = false, workshop = false, schmink = false, andere = false;
+            werte.forEach(function (v) {
+              if (v === 'kein material') return;
+              if (v.indexOf('workshop') >= 0) workshop = true;
+              else if (v.indexOf('zaubershow') >= 0) zauber = true;
+              else if (v.indexOf('schmink') >= 0) schmink = true;
+              else if (v.indexOf('ballonmod') < 0) andere = true;
+            });
+            var noetig = zauber && !workshop && (schmink || andere);
+            document.getElementById('show-zeit').style.display = noetig ? '' : 'none';
+          }
+          document.addEventListener('change', function (e) {
+            if (e.target && (e.target.name === 'produkte' || e.target.id === 'produkte_freitext')) pruefeShowZeit();
+          });
+          document.addEventListener('input', function (e) {
+            if (e.target && e.target.id === 'produkte_freitext') pruefeShowZeit();
+          });
+          pruefeShowZeit();
+        })();
+      </script>
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Anzahl Teamer</label>
