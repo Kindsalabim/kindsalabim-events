@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Danke für deine Rückmeldung</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --brand: {% if check.marke == 'Knallfrosch' %}#1a7a1a{% else %}#1D4E89{% endif %}; }
+    body { font-family: 'Nunito', system-ui, sans-serif; background: #f0f5fc; color: #1a2332;
+           margin: 0; padding: 2.5rem 1rem; }
+    .karte { max-width: 33rem; margin: 0 auto; background: #fff; border: 1px solid #e5ebf4;
+             border-radius: 1.25rem; padding: 2rem; box-shadow: 0 4px 20px rgba(16,24,40,.09); }
+    h1 { font-family: 'Poppins', sans-serif; font-size: 1.35rem; margin: 0 0 .75rem; color: var(--brand); }
+    p { line-height: 1.65; margin: 0 0 1rem; }
+    .daten { background: #f8fafc; border-left: 3px solid var(--brand); border-radius: 0 .75rem .75rem 0;
+             padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: .95rem; }
+    .daten div { margin: .2rem 0; }
+    .leise { color: #6b7280; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="karte">
+    {% if anfrage.status == 'Ja' %}
+    <h1>Danke, notiert!</h1>
+    <p>
+      Wir haben festgehalten, dass du an diesem Tag Zeit hast.
+      {% if check.frist %}Bitte halte ihn uns bis zum <strong>{{ check.frist.strftime('%d.%m.%Y') }}</strong> frei.{% endif %}
+    </p>
+    <p><strong>Das ist noch keine Buchung.</strong> Wir sagen dir Bescheid, sobald der Kunde
+       entschieden hat, so oder so.</p>
+    {% else %}
+    <h1>Alles klar, danke!</h1>
+    <p>Wir haben notiert, dass es bei dir an diesem Tag nicht passt. Du musst nichts weiter tun.</p>
+    {% endif %}
+
+    <div class="daten">
+      <div><strong>Datum:</strong> {{ check.datum.strftime('%d.%m.%Y') }}</div>
+      {% if check.startzeit %}<div><strong>Uhrzeit:</strong> {{ check.startzeit }}{% if check.endzeit %}–{{ check.endzeit }}{% endif %} Uhr</div>{% endif %}
+      {% if check.aktion %}<div><strong>Aktion:</strong> {{ check.aktion }}</div>{% endif %}
+      {% if check.veranstaltungsort %}<div><strong>Ort:</strong> {{ check.veranstaltungsort }}</div>{% endif %}
+    </div>
+
+    {% if schon %}
+    <p class="leise">Diese Antwort hattest du uns schon gegeben, sie gilt weiterhin.
+       Hat sich etwas geändert? Dann ruf uns kurz an.</p>
+    {% else %}
+    <p class="leise">Du kannst dieses Fenster jetzt schließen.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

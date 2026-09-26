@@ -15,6 +15,95 @@
   <p class="text-sm text-gray-500 mt-0.5">Unverbindliche Termin-Holds – getrennt von den festen Buchungen. Werden zur Buchung umgewandelt oder freigegeben.</p>
 </div>
 
+{% if request.query_params.get('ok') == 'aus_vorabcheck' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">✓ Reservierung aus dem Vorab-Check angelegt. Die Zusagen hängen mit dran.</div>{% endif %}
+{% if request.query_params.get('ok') == 'vorab_abgesagt' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#f1f5f9;color:#475569;">✓ Vorab-Check abgesagt. Wer den Termin freigehalten hat, bekommt Bescheid.</div>{% endif %}
+{% if request.query_params.get('fehler') == 'vorab_datum' %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-danger-bg);color:var(--c-danger);">Für den Vorab-Check fehlt ein gültiges Datum.</div>{% endif %}
+
+<!-- Vorab-Checks (Ausnahmefall – der Abschnitt erscheint nur, wenn es offene gibt) -->
+{% if vorabchecks %}
+<div class="card p-5 mb-6" style="border-left:4px solid var(--c-amber);">
+  <h2 class="text-sm font-semibold text-gray-700 mb-1">Vor dem Angebot</h2>
+  <p class="text-xs mb-3" style="color:var(--ink-4);">
+    Unverbindlich angefragte Termine, von denen der Kunde noch nichts weiß. Sagt jemand zu, wird daraus eine Reservierung.
+  </p>
+  <ul class="text-sm" style="border-top:1px solid var(--line);">
+    {% for c in vorabchecks %}
+    {% set ja = c.anfragen | selectattr('status', 'equalto', 'Ja') | list %}
+    {% set offen = c.anfragen | selectattr('status', 'equalto', 'Ausstehend') | list %}
+    <li class="flex items-center gap-3 py-2.5" style="border-bottom:1px solid var(--line);">
+      <span class="w-24 shrink-0" style="color:var(--ink-3);">{{ c.datum | de_date }}</span>
+      <a href="/admin/vorabcheck/{{ c.id }}" class="min-w-0 truncate hover:underline" style="color:var(--ink-1);">
+        {{ c.aktion or 'Anfrage' }}{% if c.kunde_firma %} · {{ c.kunde_firma }}{% endif %}
+      </a>
+      <span class="ml-auto text-xs shrink-0" style="color:{% if ja %}var(--c-green){% else %}var(--ink-4){% endif %};">
+        {% if ja %}{{ ja | length }}× hält frei{% elif offen %}{{ offen | length }}× wartet auf Antwort{% else %}noch niemand gefragt{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Vorab-Check anlegen (eingeklappt – Ausnahmefall) -->
+<details class="card p-5 mb-6">
+  <summary class="text-sm font-semibold cursor-pointer select-none" style="color:var(--ink-3);">+ Vorab-Check (erst Dienstleister fragen, dann Angebot)</summary>
+  <form method="post" action="/admin/vorabcheck/new" class="mt-4 pt-4 space-y-4" style="border-top:1px solid #f3f4f6;">
+    <p class="text-xs" style="color:var(--ink-4);">
+      Für knappe Sparten, kurzfristige Termine oder gefragte Wochenenden: erst unverbindlich anfragen,
+      ob jemand kann. Es entsteht noch keine Reservierung und kein Kalender-Eintrag.
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Termin *</label>
+        <input type="date" name="datum" required class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Beginn</label>
+        {{ time_select('startzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Ende</label>
+        {{ time_select('endzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Marke</label>
+        <select name="marke" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+          <option>Kindsalabim</option>
+          <option>Knallfrosch</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Aktion</label>
+        <input type="text" name="aktion" placeholder="z. B. Ballonmodellage, Kinderschminken" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Ort</label>
+        <input type="text" name="veranstaltungsort" placeholder="z. B. 45657 Recklinghausen" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Kunde <span class="text-gray-400 font-normal">(optional)</span></label>
+        <input type="text" name="kunde_firma" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Künstler-Budget <span class="text-gray-400 font-normal">(für die Anfrage)</span></label>
+        <input type="text" name="budget" inputmode="decimal" placeholder="z. B. 300" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Notiz <span class="text-gray-400 font-normal">(optional)</span></label>
+        <input type="text" name="notiz" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+      </div>
+    </div>
+    <button type="submit" class="btn-primary">Vorab-Check anlegen</button>
+  </form>
+</details>
+
 <!-- Neue Reservierung -->
 <details class="card p-5 mb-6" {% if kopie %}open{% endif %}>
   <summary class="text-sm font-semibold cursor-pointer select-none" style="color: var(--brand-primary);">+ Neue Reservierung</summary>

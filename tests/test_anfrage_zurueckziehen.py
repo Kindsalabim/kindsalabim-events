@@ -44,9 +44,9 @@ def test_zusage_wird_storniert(admin, db, mails):
     db.commit()
     _ziehen(admin, eid, aid, grund="planung")
     [(to, betreff, html)] = _an(mails, did)
-    assert "Einsatz abgesagt" in betreff
+    assert "Einsatz entfällt" in betreff
     assert "storniert" in html
-    assert "Planung ist ein Fehler passiert" in html
+    assert "bei der Planung ein Fehler unterlaufen" in html
     db.expire_all()
     assert db.query(EventHonorar).filter(EventHonorar.event_id == eid,
                                          EventHonorar.dienstleister_id == did).count() == 0
@@ -163,3 +163,17 @@ def test_banner_nach_dem_zurueckziehen(admin, db):
         f"/admin/events/{eid}?zurueckgezogen=Lisa").text
     assert "Die Mail konnte nicht gesendet werden" in admin.get(
         f"/admin/events/{eid}?zurueckgezogen=Lisa&mailfehler=1").text
+
+
+def test_absagetext_macht_den_dienstleister_nicht_verantwortlich(admin, db, mails):
+    """Rückmeldung einer Künstlerin (24.09.2026): „Wir brauchen dich doch nicht"
+    klang wie ihre Schuld. Der Text muss den Grund bei uns lassen."""
+    did = make_dienstleister(vorname="Nadja")
+    eid = make_event()
+    aid = make_anfrage(eid, did, status="Ja")
+    _ziehen(admin, eid, aid, grund="planung")
+    [(_, _, html)] = _an(mails, did)
+    assert "brauchen" not in html
+    assert "Der Grund liegt bei uns, nicht bei dir" in html
+    assert "–" not in html.split("Hallo")[1].split("<div")[0]   # kein Gedankenstrich im Text
+    assert "Danke, dass du zugesagt und dir den Tag freigehalten hast" in html

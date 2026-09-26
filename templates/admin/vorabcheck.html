@@ -1,0 +1,104 @@
+{% extends "admin_base.html" %}
+{% set active = 'reservierungen' %}
+{% block title %}Vorab-Check – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/admin/reservierungen" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-4 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Reservierungen
+  </a>
+  <h1 class="text-2xl font-bold text-gray-900">{{ check.aktion or 'Vorab-Check' }} am {{ check.datum | de_date }}</h1>
+  <p class="text-sm text-gray-500 mt-0.5">
+    Unverbindlich anfragen, bevor der Kunde ein Angebot bekommt.
+    {% if check.kunde_firma %}Kunde: {{ check.kunde_firma }}.{% endif %}
+    {% if check.veranstaltungsort %}{{ check.veranstaltungsort }}.{% endif %}
+    {% if check.startzeit %}{{ check.startzeit }}{% if check.endzeit %}–{{ check.endzeit }}{% endif %} Uhr.{% endif %}
+  </p>
+</div>
+
+<!-- ── Stand der Anfragen ── -->
+<div class="card p-6 mb-4">
+  <h2 class="text-sm font-semibold text-gray-700 mb-1">Unverbindliche Anfragen</h2>
+  <p class="text-xs mb-4" style="color:var(--ink-4);">
+    Gefragt wird nach einer Zusage, den Termin bis {{ check.frist | de_date }} freizuhalten.
+    Geantwortet wird per Klick in der Mail.
+  </p>
+  {% if check.anfragen %}
+  <ul class="text-sm" style="border-top:1px solid var(--line);">
+    {% for a in check.anfragen %}
+    <li class="flex items-center gap-3 py-2.5" style="border-bottom:1px solid var(--line);">
+      <span style="font-size:1rem;">{% if a.status == 'Ja' %}✅{% elif a.status == 'Nein' %}✖️{% else %}⏳{% endif %}</span>
+      <span class="min-w-0 truncate" style="color:var(--ink-1);">
+        {{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}
+      </span>
+      <span class="text-xs" style="color:var(--ink-4);">{{ a.rolle }}</span>
+      <span class="ml-auto text-xs shrink-0" style="color:{% if a.status == 'Ja' %}var(--c-green){% elif a.status == 'Nein' %}var(--c-coral){% else %}var(--ink-4){% endif %};">
+        {% if a.status == 'Ja' %}hält den Termin frei{% elif a.status == 'Nein' %}kann nicht{% else %}wartet auf Antwort{% endif %}
+        {% if a.info_gesendet_am %} · Bescheid gegeben{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-sm" style="color:var(--ink-4);">Noch niemand gefragt.</p>
+  {% endif %}
+</div>
+
+<!-- ── Wie es weitergeht ── -->
+{% if check.status == 'offen' %}
+<div class="card p-6 mb-4">
+  <h2 class="text-sm font-semibold text-gray-700 mb-3">Wie geht es weiter?</h2>
+  <div class="flex flex-wrap items-end gap-6">
+    <form method="post" action="/admin/vorabcheck/{{ check.id }}/reservierung" class="flex items-end gap-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1.5">Frist für den Kunden</label>
+        <input type="date" name="frist" value="{{ check.frist.isoformat() if check.frist else '' }}"
+               class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+      </div>
+      <button type="submit" class="btn-primary text-sm px-4 py-2" {% if not zusagen %}disabled style="opacity:.5;cursor:not-allowed;"{% endif %}>
+        Angebot raus: Reservierung anlegen
+      </button>
+    </form>
+    <form method="post" action="/admin/vorabcheck/{{ check.id }}/absagen"
+          onsubmit="return confirm('Kunde absagen? Wer den Termin freihält, bekommt sofort Bescheid.')">
+      <button type="submit" class="text-sm text-gray-500 hover:text-gray-800 transition-colors">Kunde absagen</button>
+    </form>
+  </div>
+  {% if not zusagen %}
+  <p class="text-xs mt-3" style="color:var(--ink-4);">Solange niemand zugesagt hat, gibt es noch nichts anzubieten.</p>
+  {% endif %}
+</div>
+{% else %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:#f1f5f9;color:#475569;">
+  {% if check.status == 'uebernommen' %}✓ Erledigt: Daraus ist eine Reservierung bzw. Buchung geworden.
+  {% else %}✓ Erledigt: Der Kunde hat eine Absage bekommen.{% endif %}
+</div>
+{% endif %}
+
+<!-- ── Weitere anfragen ── -->
+{% if check.status == 'offen' %}
+{% for rolle in ['Künstler', 'Teamer'] %}
+{% if vorschlag[rolle] %}
+<form method="post" action="/admin/vorabcheck/{{ check.id }}/anfragen" class="card p-6 mb-4">
+  <input type="hidden" name="rolle" value="{{ rolle }}">
+  <h2 class="text-sm font-semibold text-gray-700 mb-3">{{ rolle }} unverbindlich anfragen</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+    {% for d in vorschlag[rolle][:12] %}
+    <label class="flex items-center gap-2.5 text-sm p-2.5 rounded-lg border border-gray-100 hover:border-gray-200 cursor-pointer transition-colors">
+      <input type="checkbox" name="dienstleister_ids" value="{{ d.id }}"
+             class="rounded border-gray-300" style="accent-color: var(--brand-primary);">
+      <span class="min-w-0 truncate">{{ d.vorname }} {{ d.nachname }}
+        {% if d.kuenstler_sparte %}<span class="text-xs text-gray-500">{% for s in d.kuenstler_sparte.split(', ') %}{{ sparte_icon.get(s, '') }}{% endfor %}</span>{% endif %}
+        {% if d.stadt %}<span class="text-xs text-gray-400">· {{ d.stadt }}</span>{% endif %}
+      </span>
+    </label>
+    {% endfor %}
+  </div>
+  <button type="submit" class="btn-primary text-sm px-4 py-2">Unverbindliche Anfrage senden</button>
+</form>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% endblock %}

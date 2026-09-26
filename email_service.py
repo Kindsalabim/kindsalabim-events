@@ -531,13 +531,19 @@ def send_anfrage_zurueckgezogen(dienstleister, event, grund: str, war_zugesagt: 
     cfg = get_config()
     color = _brand_color(event.marke)
     if war_zugesagt:
-        kern = ("wir müssen dir leider absagen: Für diesen Einsatz <strong>brauchen wir "
-                "dich doch nicht</strong>. Die Bestellung dafür ist damit storniert.")
-        betreff = f"Einsatz abgesagt – {event.anlass} am {de_date(event.datum)}"
+        # Absage nach Zusage: Der Fehler liegt bei uns – das muss der Text auch so sagen.
+        # „Wir brauchen dich doch nicht" kam bei einer Künstlerin zu Recht schlecht an (24.09.2026).
+        kern = ("leider müssen wir dir für diesen Einsatz <strong>absagen</strong>. Der Grund "
+                "liegt bei uns, nicht bei dir. Danke, dass du zugesagt und dir den Tag "
+                "freigehalten hast. Die Bestellung für diesen Einsatz ist damit storniert.")
+        betreff = f"Einsatz entfällt: {event.anlass} am {de_date(event.datum)}"
+        schluss = ("Das tut uns aufrichtig leid. Wir fragen dich sehr gern bald wieder an.")
     else:
-        kern = ("die Anfrage für diesen Einsatz ist <strong>leider nicht mehr aktuell</strong>. "
-                "Du musst nichts weiter tun, auch nicht mehr antworten.")
-        betreff = f"Anfrage nicht mehr aktuell – {event.anlass} am {de_date(event.datum)}"
+        kern = ("die Anfrage für diesen Einsatz hat sich bei uns <strong>erledigt</strong>. "
+                "Du musst nichts weiter tun und auch nicht mehr antworten.")
+        betreff = f"Anfrage nicht mehr aktuell: {event.anlass} am {de_date(event.datum)}"
+        schluss = ("Entschuldige die Umstände und danke, dass du dir die Anfrage angesehen hast. "
+                   "Wir melden uns bald wieder mit neuen Terminen.")
     zusatz_html = (f'<p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">'
                    f'{_esc(zusatz)}</p>') if zusatz else ""
     content = f"""
@@ -551,9 +557,7 @@ def send_anfrage_zurueckgezogen(dienstleister, event, grund: str, war_zugesagt: 
       </table>
     </div>
     {zusatz_html}
-    <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">
-      Das tut uns leid. Danke, dass du dir den Termin freigehalten hast. Wir melden uns bald wieder mit neuen Anfragen.
-    </p>"""
+    <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">{schluss}</p>"""
     _send(dienstleister.email, betreff, _wrap(content, color, cfg))
 
 
@@ -1328,3 +1332,97 @@ def send_backup(attachments, counts: dict):
 
     _deliver(BACKUP_EMPFAENGER, f"🗄️ Backup {datum} – Kindsalabim Events",
              _wrap(content, color, cfg), attachments)
+
+
+# ── Vorab-Check: unverbindliche Anfrage vor dem Angebot ──────────────────────
+
+def _vorab_zeile(check):
+    zeit = (f"{check.startzeit} – {check.endzeit} Uhr" if check.startzeit and check.endzeit
+            else (f"ab {check.startzeit} Uhr" if check.startzeit else ""))
+    return zeit
+
+
+def send_vorabanfrage(dienstleister, check, ja_url: str, nein_url: str, budget=None):
+    """Unverbindliche Anfrage, BEVOR der Kunde ein Angebot bekommt.
+
+    Muss ohne jeden Zweifel als „noch keine Buchung" lesbar sein – sonst trägt sich
+    jemand den Termin als Auftrag ein (genau der Ärger, den das Feature verhindern
+    soll). Antwort per Klick, ohne Portal-Login."""
+    cfg = get_config()
+    color = _brand_color(check.marke)
+    budget_txt = (f"{budget:.2f} € pauschal (inkl. Fahrtkosten)".replace(".", ",")
+                  if budget else "")
+    frist_txt = de_date(check.frist) if check.frist else ""
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {_esc(dienstleister.vorname)},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+      wir haben eine Anfrage und möchten dich fragen, <strong>bevor</strong> wir dem Kunden ein
+      Angebot schicken: Hättest du an dem Tag Zeit und Lust?
+    </p>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0;font-size:15px;color:#9a3412;line-height:1.6;">
+        <strong>Das ist noch keine Buchung.</strong> Sagst du zu, halte uns den Termin bitte
+        {("bis " + frist_txt) if frist_txt else "ein paar Tage"} frei. Bis dahin sagen wir dir
+        sicher Bescheid, ob der Kunde bucht oder nicht.
+      </p>
+    </div>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Datum', de_date(check.datum))}
+        {_info_row('Uhrzeit', _vorab_zeile(check)) if _vorab_zeile(check) else ''}
+        {_info_row('Ort', check.veranstaltungsort) if check.veranstaltungsort else ''}
+        {_info_row('Aktion', check.aktion) if check.aktion else ''}
+        {_info_row('Budget', budget_txt) if budget_txt else ''}
+      </table>
+    </div>
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="padding-right:10px;">
+        <a href="{ja_url}" style="display:inline-block;background:{color};color:#ffffff;
+           text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:600;">
+          Ja, ich halte den Termin frei
+        </a>
+      </td>
+      <td>
+        <a href="{nein_url}" style="display:inline-block;background:#ffffff;color:#374151;
+           border:1px solid #d1d5db;text-decoration:none;padding:12px 22px;border-radius:8px;
+           font-size:14px;font-weight:600;">
+          Nein, ich kann nicht
+        </a>
+      </td>
+    </tr></table>
+    <p style="margin:20px 0 0;font-size:14px;color:#6b7280;line-height:1.6;">
+      Ein Klick genügt, du musst dich nirgends anmelden. Bitte antworte kurzfristig.
+      Wir brauchen die Rückmeldung für unser Angebot.
+    </p>"""
+    subject = f"(Unverbindliche Anfrage) {check.aktion or 'Einsatz'} am {de_date(check.datum)}"
+    _send(dienstleister.email, subject, _wrap(content, color, cfg))
+
+
+def send_vorab_entwarnung(dienstleister, check, gebucht: bool = False):
+    """Rückmeldung nach der unverbindlichen Anfrage: Der Kunde hat nicht gebucht
+    (Termin wieder frei) – oder doch, dann folgt die richtige Anfrage."""
+    cfg = get_config()
+    color = _brand_color(check.marke)
+    if gebucht:
+        kern = ("gute Nachricht: Der Kunde hat gebucht. Die richtige Anfrage mit allen "
+                "Angaben bekommst du gleich per Mail. Bitte dort noch einmal zusagen.")
+        subject = f"Gebucht: {check.aktion or 'Einsatz'} am {de_date(check.datum)}"
+        schluss = "Danke, dass du dir den Tag freigehalten hast."
+    else:
+        kern = ("der Kunde hat sich gegen die Buchung entschieden. Du kannst den Termin "
+                "wieder freigeben.")
+        subject = f"Termin wieder frei: {de_date(check.datum)}"
+        schluss = ("Danke, dass du dir den Tag freigehalten hast. Wir melden uns bald "
+                   "wieder mit neuen Anfragen.")
+    content = f"""
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {_esc(dienstleister.vorname)},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">{kern}</p>
+    <div style="background:#f8fafc;border-left:3px solid #94a3b8;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:20px;">
+      <table cellpadding="0" cellspacing="0" width="100%">
+        {_info_row('Datum', de_date(check.datum))}
+        {_info_row('Aktion', check.aktion) if check.aktion else ''}
+        {_info_row('Ort', check.veranstaltungsort) if check.veranstaltungsort else ''}
+      </table>
+    </div>
+    <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">{schluss}</p>"""
+    _send(dienstleister.email, subject, _wrap(content, color, cfg))

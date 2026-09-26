@@ -142,7 +142,7 @@ class Dienstleister(Base):
     plz = Column(String)
     stadt = Column(String)
     rolle = Column(String, default="Teamer")     # Teamer, Künstler, Beides
-    kuenstler_sparte = Column(String)            # Kinderschminke, Ballonkünstler, Schminke + Ballon, Showact, Walkact, Sonstiges (None = reiner Teamer)
+    kuenstler_sparte = Column(String)            # kommagetrennt: Kinderschminke, Ballonkünstler, Showact, Walkact, Sonstiges (None = reiner Teamer)
     erfahrungspunkte = Column(Integer, default=0)  # LEGACY (seit 08/2026 ohne Funktion, Daten bleiben erhalten)
     qualitaet = Column(Integer)                   # LEGACY 1–5 ⭐ (ersetzt durch lieferantenbewertung, Migration ×2)
     lieferantenbewertung = Column(Integer)        # Interne Lieferantenbewertung 1–10 (None = noch nicht bewertet)
@@ -247,6 +247,63 @@ class Reservierung(Base):
     # Umwandeln in eine Buchung mit ans neue Event.
     bastelvorschlaege = relationship(
         "Bastelvorschlag", foreign_keys="Bastelvorschlag.reservierung_id", viewonly=True)
+
+
+class Vorabcheck(Base):
+    """Stufe VOR dem Angebot: „Finden wir überhaupt jemanden?"
+
+    Bei knappen Sparten (Ballon), kurzfristigen Terminen oder gefragten Wochenenden
+    fragt Aykut erst unverbindlich bei Künstlern/Teamern an und schickt dem Kunden
+    erst danach ein Angebot. Bis dahin gibt es bewusst weder Reservierung noch
+    Kalender-Block – der Kunde weiß ja noch nichts. Sagt jemand zu, wird daraus per
+    Klick die Reservierung (Angebot raus); sagt niemand zu, bekommt der Kunde eine
+    Absage. Ausnahmefall, kein Pflichtschritt (mit Aykut abgestimmt, 26.09.2026)."""
+    __tablename__ = "vorabchecks"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    datum             = Column(Date, nullable=False)
+    startzeit         = Column(String)
+    endzeit           = Column(String)
+    veranstaltungsort = Column(String)
+    aktion            = Column(String)      # z. B. „Ballonmodellage, Kinderschminken"
+    kunde_firma       = Column(String)      # optional – oft nur ein Name
+    budget            = Column(Float)       # Künstler-Budget für die Anfrage-Mail
+    marke             = Column(String, default="Kindsalabim")
+    frist             = Column(Date)        # bis wann der Dienstleister uns den Tag freihält
+    notiz             = Column(Text)
+    status            = Column(String, default="offen")   # offen | uebernommen | abgesagt
+    reservierung_id   = Column(Integer, ForeignKey("reservierungen.id"), nullable=True)
+    event_id          = Column(Integer, ForeignKey("events.id"), nullable=True)
+    erinnert_am       = Column(Date)        # Glocke „wartet auf Bescheid" (einmal pro Tag)
+    erstellt_am       = Column(String)
+
+    anfragen = relationship("Vorabanfrage", back_populates="check",
+                            cascade="all, delete-orphan")
+
+
+class Vorabanfrage(Base):
+    """Unverbindliche Anfrage an einen Dienstleister zu einem Vorabcheck.
+
+    Bewusst NICHT die normale Verfuegbarkeitsanfrage: die hängt an einem Event und
+    bringt Fristenlauf, Warteliste, Bestellung und Honorar mit – alles Dinge, die es
+    vor dem Angebot noch nicht geben darf. Antwort per Klick in der Mail (Token),
+    ohne Portal-Login."""
+    __tablename__ = "vorabanfragen"
+    __table_args__ = (UniqueConstraint("vorabcheck_id", "dienstleister_id",
+                                       name="ux_vorab_check_dl"),)
+
+    id               = Column(Integer, primary_key=True, index=True)
+    vorabcheck_id    = Column(Integer, ForeignKey("vorabchecks.id"), nullable=False)
+    dienstleister_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=False)
+    rolle            = Column(String, default="Künstler")    # Künstler | Teamer
+    status           = Column(String, default="Ausstehend")  # Ausstehend | Ja | Nein
+    token            = Column(String, unique=True, index=True)
+    erstellt_am      = Column(String)
+    beantwortet_am   = Column(String)
+    info_gesendet_am = Column(String)   # Entwarnung/Buchungs-Info schon raus?
+
+    check         = relationship("Vorabcheck", back_populates="anfragen")
+    dienstleister = relationship("Dienstleister")
 
 
 class DienstleisterSperrzeit(Base):

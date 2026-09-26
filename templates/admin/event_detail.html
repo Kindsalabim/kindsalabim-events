@@ -791,9 +791,9 @@
               .addTo(map).bindPopup('<b>Veranstaltungsort</b><br>'+(data.ort||''));
             bounds.push(data.event);
           }
-          var SPARTE_ICON = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Showact':'🎩','Walkact':'🚶','Sonstiges':'🎭'};
+          var SPARTE_ICON = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Showact':'🎩','Walkact':'🚶','Sonstiges':'🎭'};
           data.dienstleister.forEach(function(d){
-            var icon = SPARTE_ICON[d.sparte];
+            var icon = (d.sparte || '').split(', ').map(function(s){ return SPARTE_ICON[s] || ''; }).join('');
             var t = '<b>'+d.name+(d.logistiker?' 🚚':'')+'</b><br>'+(d.stadt||'')+' · '+d.rolle;
             if (icon) t += ' · '+icon+' '+d.sparte;
             if (d.distanz != null) t += '<br>'+d.distanz+' km entfernt';
@@ -828,7 +828,7 @@
       </script>
       {% endif %}
 
-      {% set sparte_icons = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Showact':'🎩','Walkact':'🚶','Sonstiges':'🎭'} %}
+      {% set sparte_icons = sparte_icon %}
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen"
             onsubmit="if (this.querySelectorAll('input[name=dienstleister_ids]:checked').length === 0) { alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'); return false; } var b=this.querySelector('button[type=submit]'); setTimeout(function(){ b.disabled=true; b.textContent='Wird gesendet …'; }, 0); return true;">
@@ -842,13 +842,12 @@
         </label>
         {% endif %}
         {% if rolle == 'Künstler' %}
-        {% set sparten_present = ranked | selectattr('kuenstler_sparte') | map(attribute='kuenstler_sparte') | list %}
-        {% set kombi_present = 'Schminke + Ballon' in sparten_present %}
+        {% set sparten_present = ranked | selectattr('kuenstler_sparte') | map(attribute='kuenstler_sparte') | join(', ') %}
         {% if sparten_present %}
         <div class="flex flex-wrap gap-1.5 mb-3">
           <button type="button" data-sparte="" onclick="filterSparte(this)" class="sparte-chip chip-active">Alle</button>
-          {% for s, icon in [('Kinderschminke','🐱'), ('Ballonkünstler','🎈'), ('Schminke + Ballon','🎈🐱'), ('Showact','🎩'), ('Walkact','🚶'), ('Sonstiges','🎭')] %}
-          {% if s in sparten_present or (s in ['Kinderschminke', 'Ballonkünstler'] and kombi_present) %}
+          {% for s, icon in sparten %}
+          {% if s in sparten_present.split(', ') %}
           <button type="button" data-sparte="{{ s }}" onclick="filterSparte(this)" class="sparte-chip">{{ icon }} {{ s }}</button>
           {% endif %}
           {% endfor %}
@@ -868,7 +867,7 @@
               {% if already %}disabled{% endif %}
               class="mt-0.5 rounded border-gray-300" style="accent-color: var(--brand-primary);">
             <span class="min-w-0">
-              <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.kuenstler_sparte %} {{ sparte_icons.get(d.kuenstler_sparte, '') }}{% endif %}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
+              <span class="font-medium text-gray-800">{{ d.vorname }} {{ d.nachname }}{% if d.kuenstler_sparte %} {% for s in d.kuenstler_sparte.split(', ') %}{{ sparte_icons.get(s, '') }}{% endfor %}{% endif %}{% if d.logistiker %} <span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}</span>
               <span class="block text-xs text-gray-500 mt-0.5">
                 {{ d.stadt or '–' }}{% if d.rang_distanz_km is not none %} · {{ d.rang_distanz_km|round(0)|int }} km{% endif %}{% if d.lieferantenbewertung %} · ★ {{ d.lieferantenbewertung }}/10{% else %} · <span class="italic">nicht bewertet</span>{% endif %}
               </span>
@@ -947,8 +946,7 @@
           var q = suche ? suche.value.trim().toLowerCase() : '';
           form.querySelectorAll('.dl-pick').forEach(function(l){
             var s = l.dataset.dlsparte;
-            var okSparte = !sparte || s === sparte
-              || ((sparte === 'Kinderschminke' || sparte === 'Ballonkünstler') && s === 'Schminke + Ballon');
+            var okSparte = !sparte || (s || '').split(', ').indexOf(sparte) !== -1;
             var okName = !q || (l.dataset.dlname || '').indexOf(q) !== -1;
             l.style.display = (okSparte && okName) ? '' : 'none';
           });

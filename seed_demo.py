@@ -77,7 +77,7 @@ def seed_demo_data(reset: bool = False):
                           aktiv=True, dsgvo_unterzeichnet=True, gebiet="Rheinland"),
             Dienstleister(vorname="Cora", nachname="Conrad", email="cora.conrad@demo.de",
                           telefon="0201 5678901", strasse="Rüttenscheider Str. 2, 45130 Essen",
-                          stadt="Essen", rolle="Künstler", kuenstler_sparte="Schminke + Ballon",
+                          stadt="Essen", rolle="Künstler", kuenstler_sparte="Kinderschminke, Ballonkünstler",
                           lieferantenbewertung=10, mobilitaet="Beides", fuehrerschein=True,
                           logistiker=True, aktiv=True, dsgvo_unterzeichnet=True, gebiet="Ruhrgebiet"),
             Dienstleister(vorname="Stefan", nachname="Stein", email="stefan.stein@demo.de",

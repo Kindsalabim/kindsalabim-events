@@ -17,8 +17,8 @@ def _form(**over):
 def test_airbrush_ueberall_verdrahtet(admin):
     assert "Airbrush-Tattoos" in PRODUKTE_LIST
     # Sparte wie Kinderschminken → Nachbesetzungs-Vorschlag filtert richtig
-    assert PRODUKT_SPARTE["Airbrush-Tattoos"] == {"Kinderschminke", "Schminke + Ballon"}
-    assert benoetigte_sparten("Airbrush-Tattoos") == {"Kinderschminke", "Schminke + Ballon"}
+    assert PRODUKT_SPARTE["Airbrush-Tattoos"] == {"Kinderschminke"}
+    assert benoetigte_sparten("Airbrush-Tattoos") == {"Kinderschminke"}
     # Reine Künstler-Buchung → Eigenverantwortung; im Mix 30 Min Vorlauf
     assert ankunft.auto_vorlauf("Airbrush-Tattoos") is None
     assert ankunft.auto_vorlauf("Airbrush-Tattoos, Bastelaktion") == 45

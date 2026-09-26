@@ -138,6 +138,15 @@ def run_migrations():
 
     add_column("events", "kunde_id", "INTEGER")
     add_column("events", "kalender_event_id", "VARCHAR")
+    # Künstler-Sparten sind seit 24.09.2026 mehrfach wählbar – alte Kombi auflösen
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("UPDATE dienstleister SET kuenstler_sparte = "
+                              "'Kinderschminke, Ballonkünstler' "
+                              "WHERE kuenstler_sparte = 'Schminke + Ballon'"))
+            conn.commit()
+    except Exception as e:
+        print(f"[MIGRATION] Sparten-Umstellung fehlgeschlagen: {e}")
     add_column("events", "show_startzeit", "VARCHAR")
     add_column("events", "show_endzeit", "VARCHAR")
     add_column("events", "show_kalender_event_id", "VARCHAR")
@@ -633,12 +642,15 @@ app.include_router(crm_router)
 app.include_router(bakerross_router)
 app.include_router(papierkorb_router, dependencies=[Depends(nur_inhaber)])
 app.include_router(benachrichtigungen_router)
+from routes.vorab import router as vorab_router          # noqa: E402
+app.include_router(vorab_router)
 
 # Glocken-Badge (notif_unread) auf allen Admin-Seiten verfügbar machen –
 # jede Route hat eine eigene Jinja2Templates-Umgebung, daher zentral registrieren.
 from notifications import admin_notif_unread
 import routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets
 import routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross, routes.benachrichtigungen
+import routes.vorab
 
 
 def _css_version() -> str:
@@ -677,7 +689,7 @@ def _ist_buero_user(request) -> bool:
 
 for _mod in (routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets,
              routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross,
-             routes.benachrichtigungen):
+             routes.benachrichtigungen, routes.vorab):
     try:
         _mod.templates.env.globals["notif_unread"] = admin_notif_unread
         # Rolle des eingeloggten Admins für die Oberfläche (Menü, Knöpfe, Konditionen)
@@ -691,7 +703,7 @@ import routes.portal, routes.checklist, routes.fotos   # noqa: E402
 _CSS_V = _css_version()
 for _mod in (routes.admin, routes.crm, routes.buchhaltung, routes.wissen, routes.tickets,
              routes.papierkorb, routes.import_jira, routes.angebot, routes.bakerross,
-             routes.benachrichtigungen, routes.portal, routes.checklist):
+             routes.benachrichtigungen, routes.portal, routes.checklist, routes.vorab):
     try:
         _mod.templates.env.globals["css_version"] = _CSS_V
     except Exception:

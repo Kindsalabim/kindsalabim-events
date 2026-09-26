@@ -28,10 +28,22 @@ def rechnung_anschrift(marke: str) -> dict:
 SPARTE_BRIEFING = {
     "Kinderschminke":    "Kinderschminken",
     "Ballonkünstler":    "Ballonmodellage",
-    "Schminke + Ballon": "Kinderschminken + Ballonmodellage",
     "Showact":           "Showact",
     "Walkact":           "Walkact",
 }
+
+# Künstler können mehreres können (Ballon UND Showact); die Sparten stehen deshalb
+# kommagetrennt in `kuenstler_sparte`. Die frühere Kombi „Schminke + Ballon" ist in
+# die beiden Einzel-Sparten aufgelöst (Migration in main.run_migrations, 24.09.2026).
+SPARTEN = [("Kinderschminke", "🐱"), ("Ballonkünstler", "🎈"), ("Showact", "🎩"),
+           ("Walkact", "🚶"), ("Sonstiges", "🎭")]
+SPARTE_ICON = dict(SPARTEN)
+
+
+def sparten_liste(dienstleister) -> list:
+    """Sparten eines Dienstleisters als Liste (leer = reiner Teamer)."""
+    roh = getattr(dienstleister, "kuenstler_sparte", None) or ""
+    return [s.strip() for s in roh.split(",") if s.strip()]
 
 
 def weitere_ap_liste(obj) -> list:
@@ -67,17 +79,17 @@ def weitere_ap_json(namen, telefone, emails=None):
 
 
 def sparte_label(dienstleister) -> str:
-    """Briefing-Zusatz wie „(Ballonmodellage)" aus der Profil-Sparte; '' wenn keine."""
-    s = SPARTE_BRIEFING.get(getattr(dienstleister, "kuenstler_sparte", None) or "")
-    return f"({s})" if s else ""
+    """Briefing-Zusatz wie „(Ballonmodellage)" aus den Profil-Sparten; '' wenn keine."""
+    teile = [SPARTE_BRIEFING[s] for s in sparten_liste(dienstleister) if s in SPARTE_BRIEFING]
+    return f"({' + '.join(teile)})" if teile else ""
 
 
 # Welche Künstler-Sparte(n) deckt eine gebuchte Aktion ab? Für die Nachbesetzungs-
 # Vorschläge: ein Zauberer soll nicht für eine Kinderschminken-Lücke vorgeschlagen werden.
 PRODUKT_SPARTE = {
-    "Kinderschminken":              {"Kinderschminke", "Schminke + Ballon"},
-    "Airbrush-Tattoos":             {"Kinderschminke", "Schminke + Ballon"},
-    "Ballonmodellage":              {"Ballonkünstler", "Schminke + Ballon"},
+    "Kinderschminken":              {"Kinderschminke"},
+    "Airbrush-Tattoos":             {"Kinderschminke"},
+    "Ballonmodellage":              {"Ballonkünstler"},
     "Zaubershow":                   {"Showact"},
     "Zauberworkshop":               {"Showact"},
     "Zaubershow + Ballonmodellage": {"Showact"},
@@ -95,11 +107,11 @@ def benoetigte_sparten(produkte) -> set:
 
 
 def kuenstler_passt(dienstleister, benoetigt) -> bool:
-    """Passt die Profil-Sparte zu (mindestens) einer benötigten Sparte?
+    """Passt eine der Profil-Sparten zu (mindestens) einer benötigten Sparte?
     Ohne benötigte Sparte passt jeder (kein Filter)."""
     if not benoetigt:
         return True
-    return (getattr(dienstleister, "kuenstler_sparte", None) or "") in benoetigt
+    return bool(set(sparten_liste(dienstleister)) & set(benoetigt))
 
 
 # Standard-Regeln für Seite 2 des Briefings – übernommen aus der bewährten

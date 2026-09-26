@@ -539,6 +539,19 @@ story = [
     ]),
 
     Paragraph("10. Reservierungen", H2),
+    Paragraph("<b>Vorab-Check (Ausnahmefall, vor dem Angebot):</b> Wenn unklar ist, ob überhaupt "
+              "jemand kann (knappe Sparte, kurzfristig, gefragtes Wochenende), fragst du erst die "
+              "Dienstleister und schickst dem Kunden danach ein Angebot. Auf der Reservierungen-Seite "
+              "unter &bdquo;+ Vorab-Check&ldquo; Termin, Aktion und Ort eintragen, dann Künstler oder "
+              "Teamer <b>unverbindlich anfragen</b>. Die Mail trägt &bdquo;(Unverbindliche Anfrage)&ldquo; "
+              "im Betreff und bittet, den Termin 7 Tage freizuhalten; geantwortet wird per Klick in der "
+              "Mail, ohne Login. Sagt jemand zu: <b>&bdquo;Angebot raus: Reservierung anlegen&ldquo;</b> – "
+              "daraus entsteht die normale Reservierung samt Kalender-Block. Sagt niemand zu: "
+              "<b>&bdquo;Kunde absagen&ldquo;</b>. Wer freigehalten hat, bekommt automatisch Bescheid, "
+              "sobald die Reservierung gebucht oder freigegeben wird – und die Glocke erinnert dich, "
+              "solange jemand auf deine Rückmeldung wartet. Es entsteht erst mit der Reservierung ein "
+              "Kalender-Eintrag.", P),
+    Spacer(1, 6),
     bullets([
         "Unverbindliche Termin-Holds vor der Buchung – getrennt von echten Events. Mit Frist "
         "(&bdquo;Rückmeldung bis&ldquo;, vorbelegt heute + 5 Tage), Art-Kürzel (Z/B/ZB/WORKSHOP/Div.) und "
@@ -575,6 +588,10 @@ story = [
         "5-Sterne-Qualität (alte Sterne wurden ×2 übernommen), fließt ins Empfehlungs-Ranking ein "
         "und ist für Dienstleister nie sichtbar; die Zahl bisheriger Aufträge zeigt die Karte "
         "automatisch aus der Anfrage-Historie.",
+        "<b>Künstler-Sparten:</b> im Profil <b>mehrfach ankreuzbar</b> (z. B. Ballonkünstler + Showact) – "
+        "die Person taucht dann bei jeder passenden Lücke auf. Die frühere Kombi-Kategorie "
+        "&bdquo;Schminke + Ballon&ldquo; gibt es nicht mehr; betroffene Profile wurden automatisch auf "
+        "Kinderschminke + Ballonkünstler umgestellt. Bei reinen Teamern nichts ankreuzen.",
         "<b>Aktiv</b>-Häkchen steuert, ob jemand anfragbar ist und sich einloggen kann. "
         "<b>Wichtig:</b> Der Portal-Login läuft NUR über Magic-Link (kein Passwort) – die hinterlegte "
         "E-Mail-Adresse muss stimmen (Groß-/Kleinschreibung ist egal). Landet jemand versehentlich "

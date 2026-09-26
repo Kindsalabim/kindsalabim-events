@@ -25,6 +25,7 @@ from choices import (ZEITEN, de_date, de_month, de_month_long, de_euro,
                      weitere_ap_json)
 from validation import validate_event_form, validate_dienstleister_form, parse_geburtsdatum
 from rechte import nur_inhaber, ist_buero
+from routes.vorab import offene_checks
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
@@ -38,6 +39,9 @@ templates.env.filters["de_month"] = de_month
 templates.env.filters["de_month_long"] = de_month_long
 templates.env.filters["de_euro"] = de_euro
 templates.env.globals["zeiten"] = ZEITEN
+from choices import SPARTEN, SPARTE_ICON          # noqa: E402  (Künstler-Sparten, mehrfach wählbar)
+templates.env.globals["sparten"] = SPARTEN
+templates.env.globals["sparte_icon"] = SPARTE_ICON
 import ankunft as _ankunft
 templates.env.globals["ankunft_anzeige"] = _ankunft.ankunft_anzeige
 templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
@@ -639,7 +643,7 @@ def reservierungen_list(request: Request, kopie: int = None,
         tpl_context(request, aktive=aktive, abgelaufene=abgelaufene, today=heute,
                     frist_default=(vorlage.frist if vorlage and vorlage.frist else heute + timedelta(days=5)),
                     kunden=kunden, serien=serien, kopie=vorlage or kopie_r,
-                    vorlage=vorlage))
+                    vorlage=vorlage, vorabchecks=offene_checks(db)))
 
 
 _RES_ARTEN = {"Z": "Z", "B": "B", "ZB": "ZB", "WORKSHOP": "WORKSHOP", "DIV.": "Div.", "DIV": "Div."}
@@ -806,6 +810,14 @@ def reservierung_edit_save(
     background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
     return RedirectResponse("/admin/reservierungen", status_code=303)
 
+def _sparten_text(werte) -> str:
+    """Mehrfach angekreuzte Künstler-Sparten als kommagetrennter Text (None = keine).
+    Künstler können mehreres können, z. B. Ballon UND Showact (Aykut, 24.09.2026)."""
+    from choices import SPARTE_ICON
+    gewaehlt = [w.strip() for w in (werte or []) if w and w.strip() in SPARTE_ICON]
+    return ", ".join(gewaehlt) or None
+
+
 def _kalender_titel(obj, art: str = "") -> str:
     """Lesbarer Name eines Kalendereintrags – für die Liste noch zu löschender Blöcke."""
     name = obj.kunde_firma or obj.anlass or "Termin"
@@ -820,9 +832,13 @@ def reservierung_freigeben(res_id: int, background_tasks: BackgroundTasks,
     r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
     if r:
         import calendar_service
+        from routes.vorab import entwarnung_senden, reservierung_abschliessen
         if r.kalender_event_id:
             background_tasks.add_task(calendar_service.delete_event_async, r.kalender_event_id,
                                       r.marke, _kalender_titel(r, "Reservierung"))
+        # Wer uns den Tag freihält, erfährt sofort, dass er wieder frei ist
+        for aid in reservierung_abschliessen(db, r.id, gebucht=False):
+            background_tasks.add_task(entwarnung_senden, aid, False)
         db.delete(r); db.commit()
     # Vom Doppel-Hinweis auf der Event-Seite aus zurück dorthin – nur interne Pfade
     if zurueck.startswith("/admin/") and "//" not in zurueck:
@@ -865,6 +881,11 @@ def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
         if res.kalender_event_id:
             background_tasks.add_task(calendar_service.delete_event_async, res.kalender_event_id,
                                       res.marke, _kalender_titel(res, "Reservierung"))
+        from routes.vorab import entwarnung_senden, reservierung_abschliessen
+        db.flush()
+        for aid in reservierung_abschliessen(db, res.id, gebucht=True,
+                                             event_id=(ziel_ev.id if ziel_ev else None)):
+            background_tasks.add_task(entwarnung_senden, aid, True)
         db.delete(res)
     db.commit()
     for ev in events:
@@ -1711,7 +1732,7 @@ def _anfrage_loesen(db, a, ev):
 # Gründe fürs Zurückziehen einer Anfrage (mit Aykut abgestimmt, 17.09.2026)
 ZURUECKZIEHEN_GRUENDE = {
     "kunde":   "Der Kunde hat die Buchung geändert.",
-    "planung": "Bei unserer Planung ist ein Fehler passiert.",
+    "planung": "Uns ist bei der Planung ein Fehler unterlaufen.",
     "besetzt": "Wir sind für diesen Einsatz schon vollständig besetzt.",
 }
 ZURUECKZIEHBAR = ("Ausstehend", "Ja", "Abgelaufen")
@@ -2198,7 +2219,8 @@ def _dl_form_echo(form, bestehend=None):
         id=getattr(bestehend, "id", None),
         vorname=txt("vorname"), nachname=txt("nachname"), email=txt("email"),
         telefon=txt("telefon"), strasse=txt("strasse"), plz=txt("plz"), stadt=txt("stadt"),
-        rolle=txt("rolle", "Teamer"), kuenstler_sparte=txt("kuenstler_sparte") or None,
+        rolle=txt("rolle", "Teamer"),
+        kuenstler_sparte=_sparten_text(form.getlist("kuenstler_sparte")),
         lieferantenbewertung=int(bewertung) if bewertung.isdigit() else None,
         mobilitaet=txt("mobilitaet", "Auto"), kleidergroesse=txt("kleidergroesse"),
         geburtsdatum=parse_geburtsdatum(txt("geburtsdatum"))[1],
@@ -2320,7 +2342,7 @@ async def dienstleister_create(
     vorname: str = Form(...), nachname: str = Form(...),
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
-    rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
+    rolle: str = Form("Teamer"), kuenstler_sparte: list = Form([]),
     lieferantenbewertung: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     geburtsdatum: str = Form(""),
@@ -2359,7 +2381,7 @@ async def dienstleister_create(
     d = Dienstleister(
         vorname=vorname, nachname=nachname, email=email, telefon=telefon,
         strasse=strasse, plz=plz, stadt=stadt, rolle=rolle,
-        kuenstler_sparte=kuenstler_sparte.strip() or None,
+        kuenstler_sparte=_sparten_text(kuenstler_sparte),
         lieferantenbewertung=_bew(lieferantenbewertung),
         mobilitaet=mobilitaet,
         kleidergroesse=kleidergroesse,
@@ -2507,7 +2529,7 @@ async def dienstleister_update(
     vorname: str = Form(...), nachname: str = Form(...),
     email: str = Form(...), telefon: str = Form(""),
     strasse: str = Form(""), plz: str = Form(""), stadt: str = Form(""),
-    rolle: str = Form("Teamer"), kuenstler_sparte: str = Form(""),
+    rolle: str = Form("Teamer"), kuenstler_sparte: list = Form([]),
     lieferantenbewertung: str = Form(""),
     mobilitaet: str = Form("Auto"), kleidergroesse: str = Form(""),
     geburtsdatum: str = Form(""),
@@ -2539,7 +2561,7 @@ async def dienstleister_update(
 
     d.vorname = vorname; d.nachname = nachname; d.email = email
     d.telefon = telefon; d.strasse = strasse; d.plz = plz; d.stadt = stadt
-    d.rolle = rolle; d.kuenstler_sparte = kuenstler_sparte.strip() or None
+    d.rolle = rolle; d.kuenstler_sparte = _sparten_text(kuenstler_sparte)
     d.lieferantenbewertung = (int(lieferantenbewertung)
                               if lieferantenbewertung.strip() in [str(i) for i in range(1, 11)] else None)
     d.mobilitaet = mobilitaet; d.kleidergroesse = kleidergroesse

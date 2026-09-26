@@ -372,8 +372,10 @@ def _run_reservierungen_aufraeumen(db: Session) -> int:
     App-Liste wird aufgeräumt."""
     from models import Reservierung
     heute = _heute()
+    from routes.vorab import reservierung_abschliessen
     alte = db.query(Reservierung).filter(Reservierung.datum < heute).all()
     for r in alte:
+        reservierung_abschliessen(db, r.id, gebucht=False)   # Verknüpfung lösen
         db.delete(r)
     db.commit()
     return len(alte)
@@ -622,6 +624,10 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     reservierungen_geloescht = _run_reservierungen_aufraeumen(db)
     reservierung_farben = _run_reservierung_farben(db)
 
+    # Vorab-Check: jemand hält den Tag frei und wartet auf unsere Rückmeldung
+    from routes.vorab import offene_rueckmeldungen_melden
+    vorab_wartet = offene_rueckmeldungen_melden(db)
+
     # Wöchentliche Gewerbeschein-Erinnerung an neue Dienstleister
     gewerbeschein_erinnerungen = _run_gewerbeschein_erinnerungen(db)
 
@@ -651,6 +657,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "rechnung_erinnerungen": rechnung_erinnerungen,
                          "reservierungen_umgefaerbt": reservierung_farben,
                          "reservierungen_geloescht": reservierungen_geloescht,
+                         "vorab_wartet": vorab_wartet,
                          "gewerbeschein_erinnerungen": gewerbeschein_erinnerungen,
                          "scoring_erinnerungen": scoring_erinnerungen,
                          "geburtstage": geburtstage,

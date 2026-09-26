@@ -72,7 +72,6 @@
     <option value="">Alle Sparten</option>
     <option value="kinderschminke">🐱 Kinderschminke</option>
     <option value="ballonkünstler">🎈 Ballonkünstler</option>
-    <option value="schminke + ballon">🎈🐱 Schminke + Ballon</option>
     <option value="showact">🎩 Showact</option>
     <option value="walkact">🚶 Walkact</option>
     <option value="sonstiges">🎭 Sonstiges</option>
@@ -141,8 +140,9 @@
         <td class="px-5 py-3.5 text-gray-600">
           {{ d.rolle }}
           {% if d.kuenstler_sparte %}
-          {% set icon = {'Kinderschminke':'🐱','Ballonkünstler':'🎈','Schminke + Ballon':'🎈🐱','Showact':'🎩','Walkact':'🚶','Sonstiges':'🎭'}.get(d.kuenstler_sparte, '') %}
-          <div class="text-xs text-gray-500 mt-0.5">{{ icon }} {{ d.kuenstler_sparte }}</div>
+          <div class="text-xs text-gray-500 mt-0.5">
+            {% for s in d.kuenstler_sparte.split(', ') %}{{ sparte_icon.get(s, '') }} {{ s }}{% if not loop.last %} · {% endif %}{% endfor %}
+          </div>
           {% endif %}
         </td>
         <td class="px-5 py-3.5 text-gray-500 text-xs">
@@ -214,8 +214,8 @@ function filterTable() {
       row.dataset.email.includes(q) ||
       row.dataset.ort.includes(q);
     const matchRolle = !rolle || row.dataset.rolle.includes(rolle);
-    const matchSparte = !sparte || row.dataset.sparte === sparte
-      || ((sparte === 'kinderschminke' || sparte === 'ballonkünstler') && row.dataset.sparte === 'schminke + ballon');
+    // Mehrere Sparten je Person – Filter trifft, wenn eine davon passt
+    const matchSparte = !sparte || row.dataset.sparte.split(', ').includes(sparte);
     const matchDsgvo = !dsgvo || row.dataset.dsgvo === dsgvo;
     row.style.display = (matchText && matchRolle && matchSparte && matchDsgvo) ? '' : 'none';
   });

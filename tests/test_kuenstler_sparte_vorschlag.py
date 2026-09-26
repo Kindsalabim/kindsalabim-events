@@ -16,22 +16,23 @@ from database import SessionLocal
 # ── Reine Logik (deterministisch) ────────────────────────────────────────────────
 
 def test_benoetigte_sparten_mapping():
-    assert benoetigte_sparten("Kinderschminken") == {"Kinderschminke", "Schminke + Ballon"}
-    assert benoetigte_sparten("Ballonmodellage") == {"Ballonkünstler", "Schminke + Ballon"}
+    assert benoetigte_sparten("Kinderschminken") == {"Kinderschminke"}
+    assert benoetigte_sparten("Ballonmodellage") == {"Ballonkünstler"}
     assert benoetigte_sparten("Zaubershow") == {"Showact"}
     assert benoetigte_sparten("Walkact") == {"Walkact"}
     # Mehrere Aktionen → Vereinigung
     assert benoetigte_sparten("Kinderschminken, Zaubershow") == \
-        {"Kinderschminke", "Schminke + Ballon", "Showact"}
+        {"Kinderschminke", "Showact"}
     # Nicht-künstlerische Aktion / leer → keine Anforderung (kein Filter)
     assert benoetigte_sparten("Spieleland") == set()
     assert benoetigte_sparten("") == set()
 
 
 def test_kuenstler_passt():
-    benoetigt = {"Kinderschminke", "Schminke + Ballon"}
+    benoetigt = {"Kinderschminke"}
     assert kuenstler_passt(SimpleNamespace(kuenstler_sparte="Kinderschminke"), benoetigt) is True
-    assert kuenstler_passt(SimpleNamespace(kuenstler_sparte="Schminke + Ballon"), benoetigt) is True
+    assert kuenstler_passt(SimpleNamespace(kuenstler_sparte="Kinderschminke, Ballonkünstler"),
+                           benoetigt) is True   # Mehrfach-Sparte: eine passende genügt
     # Der Aykut-Fall: Zauberer für Kinderschminken → nein
     assert kuenstler_passt(SimpleNamespace(kuenstler_sparte="Showact"), benoetigt) is False
     # Ohne Anforderung passt jeder
@@ -53,7 +54,7 @@ def test_vorschlag_hat_immer_passende_sparte():
         ev = s.get(Event, eid)
         v = admin.vorschlag_ersatz(ev, s, "Künstler")
         assert v is not None                        # es gibt einen passenden
-        assert (v.kuenstler_sparte or "") in {"Kinderschminke", "Schminke + Ballon"}
+        assert "Kinderschminke" in (v.kuenstler_sparte or "")
     finally:
         s.close()
 
@@ -73,6 +74,6 @@ def test_zauberer_wird_fuer_kinderschminken_nie_vorgeschlagen():
         # Falls ein Vorschlag kommt (durch andere passende Alt-Daten), ist es NICHT der Zauberer
         assert v is None or v.id != zid
         if v is not None:
-            assert (v.kuenstler_sparte or "") in {"Kinderschminke", "Schminke + Ballon"}
+            assert "Kinderschminke" in (v.kuenstler_sparte or "")
     finally:
         s.close()
