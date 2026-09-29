@@ -78,5 +78,20 @@ def ankunft_anzeige(ev) -> str:
     return f"{uhr} Uhr (= {mins} Min vor Aktionsbeginn)"
 
 
+def ankunft_fuer(ev, anfrage=None) -> str:
+    """Ankunft für EINE Person. Hat sie eine eigene Aktionszeit (Show 15–16 Uhr in
+    einem Event von 12–18 Uhr), zählt deren Beginn – sonst käme sie Stunden zu früh."""
+    von = getattr(anfrage, "einsatz_von", None) if anfrage else None
+    if not von:
+        return ankunft_anzeige(ev)
+    from types import SimpleNamespace
+    eigen = SimpleNamespace(ankunft_modus=getattr(ev, "ankunft_modus", None),
+                            ankunft_text=getattr(ev, "ankunft_text", None),
+                            produkte=getattr(ev, "produkte", None),
+                            material_mitnahme=getattr(ev, "material_mitnahme", None),
+                            startzeit=von)
+    return ankunft_anzeige(eigen)
+
+
 def treffpunkt_anzeige(ev) -> str:
     return (getattr(ev, "treffpunkt", "") or "").strip() or DEFAULT_TREFFPUNKT

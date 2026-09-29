@@ -944,9 +944,21 @@ def _budget_row(budget):
     return _info_row('Budget', f"{de_euro(budget)} € pauschal (inkl. Fahrtkosten)")
 
 
+def _einsatzzeit_rows(event, anfrage) -> str:
+    """Zeitzeilen der Anfrage-Mail: Hat die Person eine eigene Aktionszeit, steht sie
+    zuerst – die Veranstaltungszeit bleibt als Rahmen darunter."""
+    von = getattr(anfrage, "einsatz_von", None) if anfrage else None
+    if not von:
+        return _info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")
+    bis = getattr(anfrage, "einsatz_bis", None)
+    deine = f"{von} – {bis} Uhr" if bis else f"ab {von} Uhr"
+    return (_info_row('Deine Aktionszeit', deine)
+            + _info_row('Veranstaltung', f"{event.startzeit} – {event.endzeit} Uhr"))
+
+
 def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str,
                                 magic_url: str = "", als_logistiker: bool = False,
-                                budget=None, rolle: str = "Künstler"):
+                                budget=None, rolle: str = "Künstler", anfrage=None):
     cfg = get_config()
     color = _brand_color(event.marke)
     portal_url = magic_url or f"{base_url}/portal/login"
@@ -976,7 +988,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', event.anlass)}
         {_info_row('Datum', de_date(event.datum))}
-        {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
+        {_einsatzzeit_rows(event, anfrage)}
         {_info_row('Ort', anfrage_ort(event.veranstaltungsort, rolle))}
         {_info_row('Produkte', event.produkte)}
         {_budget_row(budget)}

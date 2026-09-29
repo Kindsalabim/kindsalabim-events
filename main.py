@@ -147,6 +147,8 @@ def run_migrations():
             conn.commit()
     except Exception as e:
         print(f"[MIGRATION] Sparten-Umstellung fehlgeschlagen: {e}")
+    add_column("verfuegbarkeitsanfragen", "einsatz_von", "VARCHAR")
+    add_column("verfuegbarkeitsanfragen", "einsatz_bis", "VARCHAR")
     add_column("events", "show_startzeit", "VARCHAR")
     add_column("events", "show_endzeit", "VARCHAR")
     add_column("events", "show_kalender_event_id", "VARCHAR")

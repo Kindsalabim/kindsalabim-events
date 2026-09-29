@@ -367,7 +367,8 @@ class _Seite:
             self.col_y[spalte] = neu_y
 
 
-def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None) -> bytes:
+def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None,
+                       zeiten=None) -> bytes:
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
     seite = _Seite(c, ev)
@@ -431,8 +432,12 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None
         # Sparte nur zeigen, wenn die Person bei DIESEM Event als Künstler eingesetzt
         # ist (rollen = {dienstleister_id: rolle_anfrage}); ohne rollen wie bisher.
         zeige_sparte = rollen is None or rollen.get(m.id) == "Künstler"
-        team_zeilen.append(("team", f"{m.vorname} {m.nachname}", m.telefon, is_tl,
-                            sparte_label(m) if zeige_sparte else ""))
+        zusatz = sparte_label(m) if zeige_sparte else ""
+        # Eigene Aktionszeit (z. B. Show 15–16 Uhr in einem Event von 12–18 Uhr)
+        eigene = (zeiten or {}).get(m.id)
+        if eigene:
+            zusatz = f"{zusatz} {eigene}".strip()
+        team_zeilen.append(("team", f"{m.vorname} {m.nachname}", m.telefon, is_tl, zusatz))
     for e in (externe or []):
         team_zeilen.append(("team", e.name, e.telefon, False, "(extern)"))
     if not team_zeilen:

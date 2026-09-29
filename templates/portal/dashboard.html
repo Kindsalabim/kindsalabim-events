@@ -157,6 +157,9 @@
           <!-- Eckdaten -->
           <div class="mt-3.5 space-y-1.5 text-xs" style="color: var(--ink-2);">
             <p class="flex items-center gap-2">{{ ic('clock', 14) }} {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
+            {% if a.einsatz_von %}
+            <p class="flex items-center gap-2 font-semibold" style="color: var(--ink-1);">{{ ic('clock', 14) }} Deine Aktionszeit: {{ a.einsatz_von }}{% if a.einsatz_bis %}–{{ a.einsatz_bis }}{% endif %} Uhr</p>
+            {% endif %}
             <p class="flex items-center gap-2">{{ ic('pin', 14) }} {{ anfrage_ort(a.event.veranstaltungsort, a.rolle_anfrage) }}</p>
             {% if a.event.produkte %}
             <p class="flex items-center gap-2" style="color: var(--ink-3);">{{ ic('check', 14) }} {{ a.event.produkte }}</p>
@@ -287,6 +290,12 @@
 
           <div class="mt-3.5 space-y-1.5 text-xs" style="color: var(--ink-2);">
             <p class="flex items-center gap-2">{{ ic('clock', 14) }} {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
+            {% if a.einsatz_von %}
+            <p class="flex items-center gap-2 font-semibold" style="color: var(--ink-1);">{{ ic('clock', 14) }} Deine Aktionszeit: {{ a.einsatz_von }}{% if a.einsatz_bis %}–{{ a.einsatz_bis }}{% endif %} Uhr</p>
+            {% endif %}
+            {% if a.budget %}
+            <p class="flex items-center gap-2 font-semibold" style="color: var(--ink-1);">{{ ic('star', 14) }} Budget: {{ a.budget | de_euro }} € pauschal <span class="font-normal" style="color: var(--ink-3);">(inkl. Fahrtkosten)</span></p>
+            {% endif %}
             <p class="flex items-center gap-2">{{ ic('pin', 14) }} {{ a.event.veranstaltungsort }}</p>
             {% if a.event.cl_aufbau_von %}
             <p class="flex items-center gap-2" style="color: var(--ink-3);">{{ ic('calendar', 14) }} Aufbau ab {{ a.event.cl_aufbau_von }} Uhr</p>

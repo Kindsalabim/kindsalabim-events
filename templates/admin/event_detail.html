@@ -621,6 +621,14 @@
                 </label>
                 {% endfor %}
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Eigene Aktionszeit <span class="text-gray-400 font-normal">(optional, sonst gelten die Event-Zeiten)</span></label>
+                <div class="flex items-center gap-2">
+                  {{ time_select('einsatz_von', a.einsatz_von or '', 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
+                  <span class="text-sm text-gray-400">bis</span>
+                  {{ time_select('einsatz_bis', a.einsatz_bis or '', 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
+                </div>
+              </div>
               <div data-budget {% if a.rolle_anfrage != 'Künstler' %}hidden{% endif %}>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Budget <span class="text-gray-400 font-normal">(€ pauschal, netto, inkl. Fahrtkosten)</span></label>
                 <input type="text" name="budget" inputmode="decimal" placeholder="z. B. 180"
@@ -919,6 +927,18 @@
           </div>
         </div>
         {% endif %}
+        <div class="mb-3 p-3 rounded-lg" style="background:#f9fafb;border:1px solid #f0f0f0;">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Eigene Aktionszeit <span class="text-gray-400 font-normal">(optional)</span></label>
+          <p class="text-xs text-gray-500 mb-2">
+            Nur nötig, wenn diese Person nicht die ganze Zeit da ist. Beispiel: Event {{ ev.startzeit }}–{{ ev.endzeit }} Uhr,
+            Show aber nur 15:00–16:00 Uhr. Leer = die Zeiten des Events gelten.
+          </p>
+          <div class="flex items-center gap-2">
+            {{ time_select('einsatz_von', '', 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
+            <span class="text-sm text-gray-400">bis</span>
+            {{ time_select('einsatz_bis', '', 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
+          </div>
+        </div>
         <label class="flex items-start gap-2.5 cursor-pointer mb-3 text-sm p-2.5 rounded-lg bg-gray-50 border border-gray-100">
           <input type="checkbox" name="direkt" value="1" class="mt-0.5 rounded" style="accent-color: var(--brand-primary);"
                  onchange="this.closest('form').querySelector('button[type=submit]').textContent = this.checked ? 'Als zugesagt eintragen' : 'Anfragen senden';">

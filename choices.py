@@ -78,6 +78,16 @@ def weitere_ap_json(namen, telefone, emails=None):
     return json.dumps(out, ensure_ascii=False) if out else None
 
 
+def einsatzzeit_text(anfrage) -> str:
+    """Eigene Aktionszeit einer Anfrage als Text („15:00–16:00 Uhr"); '' wenn die
+    Zeiten des Events gelten."""
+    von = getattr(anfrage, "einsatz_von", None)
+    if not von:
+        return ""
+    bis = getattr(anfrage, "einsatz_bis", None)
+    return f"{von}–{bis} Uhr" if bis else f"ab {von} Uhr"
+
+
 def sparte_label(dienstleister) -> str:
     """Briefing-Zusatz wie „(Ballonmodellage)" aus den Profil-Sparten; '' wenn keine."""
     teile = [SPARTE_BRIEFING[s] for s in sparten_liste(dienstleister) if s in SPARTE_BRIEFING]

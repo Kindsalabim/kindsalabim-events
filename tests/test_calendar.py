@@ -11,9 +11,15 @@ def test_stadt_aus_plz():
 
 
 def test_event_title_format():
+    """(ART) Stadt, Firma, Anlass, Ansprechpartner – die Firma gehört in den Titel,
+    sonst steht im Kalender nur ein Vorname (Aykut 29.09.2026)."""
     ev = SimpleNamespace(veranstaltungsort="Markt 1, 45127 Essen", kunde_kontakt="Fr. Becker",
-                         kunde_firma="Kita", anlass="Sommerfest", status="Gebucht")
-    assert calendar_service._title(ev) == "(div.) Essen, Sommerfest, Fr. Becker"
+                         kunde_firma="Kita Sonnenschein", anlass="Sommerfest", status="Gebucht")
+    assert calendar_service._title(ev) == "(div.) Essen, Kita Sonnenschein, Sommerfest, Fr. Becker"
+    # Ohne eigenen Ansprechpartner steht die Firma nur einmal drin
+    ev2 = SimpleNamespace(veranstaltungsort="45127 Essen", kunde_kontakt="", kunde_firma="Solo GmbH",
+                          anlass="Sommerfest", status="Gebucht")
+    assert calendar_service._title(ev2) == "(div.) Essen, Solo GmbH, Sommerfest"
 
 
 def test_event_title_abgesagt_praefix():

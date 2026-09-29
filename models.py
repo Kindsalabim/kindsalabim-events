@@ -339,6 +339,10 @@ class Verfuegbarkeitsanfrage(Base):
     als_logistiker = Column(Boolean, default=False)  # auch als Logistiker (Materialtransport) angefragt
     logistik_transport = Column(String)  # Antwort des Logistikers: eigenes_auto | transporter | ohne (None = offen)
     budget = Column(Float)  # Künstler-Budget (pauschal, netto, inkl. Fahrtkosten) – None = keine Angabe
+    # Eigene Aktionszeit innerhalb des Events: Die Veranstaltung läuft z. B. 12–18 Uhr,
+    # die Zaubershow aber nur 15–16 Uhr. Leer = die Zeiten des Events gelten (Aykut 29.09.2026).
+    einsatz_von = Column(String)
+    einsatz_bis = Column(String)
     bestellung_am = Column(String)      # ISO-Datetime der Auto-Bestellung bei Zusage (None = keine)
     bestellung_r2_key = Column(String)  # archivierte Bestellungs-PDF im R2 (Nachweis)
     # Warteliste: verspätete Zusage, während die Stelle noch fristgerecht bei jemand

@@ -40,6 +40,8 @@ templates.env.filters["de_month_long"] = de_month_long
 templates.env.filters["de_euro"] = de_euro
 templates.env.globals["zeiten"] = ZEITEN
 from choices import SPARTEN, SPARTE_ICON          # noqa: E402  (Künstler-Sparten, mehrfach wählbar)
+from choices import einsatzzeit_text              # noqa: E402  (eigene Aktionszeit je Anfrage)
+templates.env.globals["einsatzzeit_text"] = einsatzzeit_text
 templates.env.globals["sparten"] = SPARTEN
 templates.env.globals["sparte_icon"] = SPARTE_ICON
 import ankunft as _ankunft
@@ -1554,6 +1556,7 @@ def send_anfragen(
     serie: bool = Form(False),
     direkt: bool = Form(False),
     budget: str = Form(""),
+    einsatz_von: str = Form(""), einsatz_bis: str = Form(""),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -1608,6 +1611,8 @@ def send_anfragen(
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     notiz="Manuell als zugesagt eingetragen (ohne Mail)",
                     budget=budget_val,
+                    einsatz_von=einsatz_von.strip() or None,
+                    einsatz_bis=einsatz_bis.strip() or None,
                 )
                 db.add(neu_a)
                 if did in logi_ids:
@@ -1632,6 +1637,8 @@ def send_anfragen(
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     frist_datum=date.today() + timedelta(days=ANFRAGE_FRIST_TAGE),
                     budget=budget_val,
+                    einsatz_von=einsatz_von.strip() or None,
+                    einsatz_bis=einsatz_bis.strip() or None,
                 )
                 db.add(a); db.flush()  # a.id für die Antwort-Links verfügbar machen
                 neue.append((ze, a))
@@ -1640,7 +1647,7 @@ def send_anfragen(
                 ze, a = neue[0]
                 send_verfuegbarkeitsanfrage(d, ze, a.id, base_url, magic_url=magic_url,
                                             als_logistiker=(did in logi_ids), budget=budget_val,
-                                            rolle=rolle)
+                                            rolle=rolle, anfrage=a)
             else:
                 send_serie_anfrage(d, [ze for ze, a in neue], base_url, magic_url=magic_url,
                                    budget=budget_val, rolle=rolle)
@@ -1799,6 +1806,7 @@ def anfrage_aendern(
     db: Session = Depends(get_db), _=Depends(get_admin_user),
     rolle: str = Form("Teamer"), budget: str = Form(""),
     als_logistiker: bool = Form(False), benachrichtigen: bool = Form(False),
+    einsatz_von: str = Form(""), einsatz_bis: str = Form(""),
 ):
     """Rolle, Budget und Logistik einer verschickten Anfrage nachträglich anpassen
     (z. B. als Teamerin + Logistikerin angefragt, eingesetzt als Kinderschminkerin).
@@ -1826,12 +1834,14 @@ def anfrage_aendern(
             neues_budget = round(float(b), 2) if b else None
         except ValueError:
             neues_budget = a.budget          # unlesbar: bisherigen Wert behalten
-    vorher = (a.rolle_anfrage, a.budget, bool(a.als_logistiker))
-    nachher = (neue_rolle, neues_budget, bool(als_logistiker))
+    vorher = (a.rolle_anfrage, a.budget, bool(a.als_logistiker), a.einsatz_von, a.einsatz_bis)
+    nachher = (neue_rolle, neues_budget, bool(als_logistiker),
+               einsatz_von.strip() or None, einsatz_bis.strip() or None)
     if vorher == nachher:
         return RedirectResponse(ziel + "#wf-team", status_code=303)
 
-    a.rolle_anfrage, a.budget, a.als_logistiker = nachher
+    (a.rolle_anfrage, a.budget, a.als_logistiker,
+     a.einsatz_von, a.einsatz_bis) = nachher
     if ev and not als_logistiker and ev.logistiker_id == a.dienstleister_id:
         ev.logistiker_id = None
 
@@ -1963,6 +1973,8 @@ def _briefing_versenden_async(event_id: int, base_url: str):
             Verfuegbarkeitsanfrage.status == "Ja").all()
         dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
         rollen = {a.dienstleister_id: a.rolle_anfrage for a in confirmed}
+        zeiten = {a.dienstleister_id: einsatzzeit_text(a) for a in confirmed
+                  if einsatzzeit_text(a)}
         planung = db.query(EventDatei).filter(
             EventDatei.event_id == event_id, EventDatei.typ == "planung").all()
         anhaenge = [(d.filename, download_file(d.r2_key)) for d in planung]
@@ -1976,7 +1988,8 @@ def _briefing_versenden_async(event_id: int, base_url: str):
         pdf_dabei = False
         try:
             from briefing_pdf import build_briefing_pdf
-            pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen)
+            pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen,
+                             zeiten=zeiten)
             pdf_name = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
             anhaenge = (anhaenge or []) + [(pdf_name, pdf)]
             pdf_dabei = True
@@ -2023,11 +2036,14 @@ def briefing_pdf_download(event_id: int, db: Session = Depends(get_db), _=Depend
         Verfuegbarkeitsanfrage.status == "Ja").all()
     dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
     rollen = {a.dienstleister_id: a.rolle_anfrage for a in confirmed}
+    zeiten = {a.dienstleister_id: einsatzzeit_text(a) for a in confirmed
+              if einsatzzeit_text(a)}
     externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
     from notifications import get_setting
     from choices import BRIEFING_REGELN_DEFAULT
     regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
-    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen)
+    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen,
+                             zeiten=zeiten)
     fname = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})

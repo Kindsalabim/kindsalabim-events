@@ -294,9 +294,14 @@ def zaubershow_eigener_eintrag(ev) -> bool:
 
 
 def _title(ev, art: str = None) -> str:
+    # Titel: (ART) Stadt, Firma, Anlass, Ansprechpartner – wie bei den Reservierungen
+    # (Aykut 29.09.2026). Die Firma stand vorher nur drin, wenn kein Kontakt erfasst war.
     stadt = _stadt(ev.veranstaltungsort)
-    kontakt = (ev.kunde_kontakt or "").strip() or (ev.kunde_firma or "").strip()
-    rest = ", ".join(p for p in [stadt, ev.anlass, kontakt] if p)
+    firma = (ev.kunde_firma or "").strip()
+    kontakt = (ev.kunde_kontakt or "").strip()
+    if kontakt.lower() == firma.lower():
+        kontakt = ""
+    rest = ", ".join(p for p in [stadt, firma, ev.anlass, kontakt] if p)
     art = art or _event_art(ev)
     title = f"({art}) {rest}".strip() if rest else f"({art})"
     if ev.status == "Abgesagt":

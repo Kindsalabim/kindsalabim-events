@@ -9,7 +9,7 @@ from models import Dienstleister, Verfuegbarkeitsanfrage, Event, EventDatei, Die
 from routes.fotos import generate_presigned_url
 from auth import get_portal_user, create_token, create_magic_token, verify_magic_token, COOKIE_SECURE
 from config import get_config
-from choices import anfrage_ort, de_date, de_month, plz_ort, de_euro
+from choices import anfrage_ort, de_date, de_month, plz_ort, de_euro, einsatzzeit_text
 
 router = APIRouter(prefix="/portal")
 templates = Jinja2Templates(directory="templates")
@@ -137,11 +137,14 @@ def portal_briefing_pdf(event_id: int, db: Session = Depends(get_db),
         Verfuegbarkeitsanfrage.status == "Ja").all()
     dienstleister = [a.dienstleister for a in confirmed if a.dienstleister]
     rollen = {a.dienstleister_id: a.rolle_anfrage for a in confirmed}
+    zeiten = {a.dienstleister_id: einsatzzeit_text(a) for a in confirmed
+              if einsatzzeit_text(a)}
     externe = db.query(ExternerTeamer).filter(ExternerTeamer.event_id == event_id).all()
     from notifications import get_setting
     from choices import BRIEFING_REGELN_DEFAULT
     regeln = get_setting(db, "briefing_regeln", BRIEFING_REGELN_DEFAULT).strip() or None
-    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen)
+    pdf = build_briefing_pdf(ev, dienstleister, externe, regeln=regeln, rollen=rollen,
+                             zeiten=zeiten)
     fname = f"Briefing_{(ev.anlass or 'Event').replace(' ', '_')}_{ev.datum.strftime('%Y-%m-%d')}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fname}"'})

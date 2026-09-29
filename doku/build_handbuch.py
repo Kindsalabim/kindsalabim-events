@@ -464,6 +464,11 @@ story = [
         "Verlängerung +2 Tage möglich). Bei Termin-Serien: eine Mail für alle Tage, Zusage pro Tag.",
         "<b>Künstler-Budget:</b> optional je Anfrage; liegt eine Auftragsbestätigung am Event, schlägt die "
         "App das Budget automatisch vor (Netto-Position × 80 %, auf 10er gerundet).",
+        "<b>Eigene Aktionszeit:</b> optional je Anfrage. Läuft die Veranstaltung z. B. 12–18 Uhr, die "
+        "Zaubershow aber nur 15–16 Uhr, trägst du hier 15:00 bis 16:00 ein. Die angefragte Person sieht "
+        "dann in Mail, Portal und Briefing <b>ihre</b> Zeit (die Veranstaltungszeit bleibt als Rahmen "
+        "sichtbar), und die <b>Ankunft</b> rechnet ab ihrem Beginn. Leer = die Zeiten des Events gelten. "
+        "Nachträglich änderbar über &bdquo;Anfrage ändern&ldquo;.",
         "<b>Direkt eintragen</b> (ohne Mail) für telefonisch Vereinbartes; <b>Einmal-Teamer (extern)</b> "
         "beim Briefing für Agentur-Personal.",
         "Zugesagte erscheinen mit Häkchen; dort <b>Teamleitung</b> und (bei Material) <b>Logistiker</b> "
@@ -522,6 +527,10 @@ story = [
         "Jobs annehmen (Absagen geht immer). Das Portal zeigt ihm dauerhaft einen Hinweis; zusätzlich "
         "erinnert ihn die App wöchentlich per Mail an den fehlenden Gewerbeschein.",
     ]),
+    Paragraph("Im Portal sieht der Dienstleister bei <b>zugesagten Einsätzen</b> jetzt auch sein "
+              "<b>Budget</b> und seine <b>eigene Aktionszeit</b> – vorher stand das Budget nur an der "
+              "offenen Anfrage, und es kamen Rückfragen per WhatsApp.", P),
+    Spacer(1, 6),
     *shots("portal", 90, "Dienstleister-Portal (Handy): offene Anfragen und Einsätze."),
     *shots("portal_profil", 90, "„Mein Profil“ im Portal: Selbstauskunft, DSGVO-Einwilligung, Gewerbeschein, Vorlagen."),
 
