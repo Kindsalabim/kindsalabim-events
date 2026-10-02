@@ -648,7 +648,12 @@ def reservierungen_list(request: Request, kopie: int = None,
                     vorlage=vorlage, vorabchecks=offene_checks(db)))
 
 
-_RES_ARTEN = {"Z": "Z", "B": "B", "ZB": "ZB", "WORKSHOP": "WORKSHOP", "DIV.": "Div.", "DIV": "Div."}
+# Kombi-Arten fuer Events, bei denen Aykut selbst auftritt UND Stationen laufen
+# (Aykut 02.10.2026). Der Anfrage-Assistent schlaegt sie automatisch vor.
+_RES_ARTEN = {"Z": "Z", "B": "B", "ZB": "ZB", "WORKSHOP": "WORKSHOP",
+              "DIV.": "Div.", "DIV": "Div.",
+              "Z+DIV.": "Z+Div.", "Z+DIV": "Z+Div.",
+              "ZB+DIV.": "ZB+Div.", "ZB+DIV": "ZB+Div."}
 
 
 def _reservierung_vorlage(q):
