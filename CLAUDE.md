@@ -9,6 +9,17 @@ er selbst tun muss (Render/Secrets) Klick-für-Klick-Anleitungen.
 (Audit + Reststand Code-Review 07/2026) · Obsidian: `KINDSALABIM\11 Knallfrosch-Event-App\
 Event-App – Entwicklungsdokumentation.md`.
 
+## Zuständigkeit (STRIKT)
+
+Dieses Repo gehört der Events-App-Session. **Sessions anderer Apps (Anfrage-/E-Mail-
+Assistent, Social-Media-App) ändern hier nichts** – auch keine einzelne Zeile. Lesen zum
+Verstehen der Schnittstellen ist in Ordnung. Betrifft eine Änderung beide Apps, baut jede
+Session ihren Teil und liefert für die andere einen Prompt; Aykut vermittelt.
+Grund (03.10.2026): fremder Code mit Tailwind-Klassen, die im hier lokal gebauten CSS
+gar nicht existieren – die zuständige Session sieht so etwas, eine fremde nicht.
+Auch die Tailwind-Pflicht gilt: nach Template-Änderungen `python doku/build_tailwind.py`
+(Tailwind ist seit 09/2026 lokal gebaut, NICHT mehr per CDN).
+
 ## Sicherheitsregeln (STRIKT)
 
 - **NIE Live-Endpoints auslösen**: kein echtes Mailen/Posten/Kalender-Schreiben/R2-Upload.

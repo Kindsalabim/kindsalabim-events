@@ -619,12 +619,22 @@ def marken_ansicht_setzen(request: Request, wert: str = Form("beide"),
 # ── Reservierungen (unverbindliche Holds vor der Buchung) ───────────────────────
 
 @router.get("/reservierungen", response_class=HTMLResponse)
-def reservierungen_list(request: Request, kopie: int = None,
+def reservierungen_list(request: Request, kopie: int = None, datum: str = None,
                         db: Session = Depends(get_db), user=Depends(get_admin_user)):
     from marken import admin_marke, query_filter
     res = query_filter(db.query(Reservierung), Reservierung.marke, admin_marke(db, user),
                        neutral_sichtbar=False).order_by(
         Reservierung.datum, Reservierung.frist.is_(None), Reservierung.frist).all()
+    # ?datum=JJJJ-MM-TT → nur die Reservierungen dieses Tages. Der Anfrage-Assistent
+    # verlinkt so direkt auf den passenden Termin, wenn ein Kunde abgesagt hat
+    # (Aykut 03.10.2026) – dort gibt es dann den Freigeben-Knopf.
+    filter_datum = None
+    if datum:
+        try:
+            filter_datum = date.fromisoformat(datum.strip()[:10])
+            res = [r for r in res if r.datum == filter_datum]
+        except ValueError:
+            filter_datum = None
     heute = date.today()
     aktive = [r for r in res if not (r.frist and r.frist < heute)]
     # Abgelaufene eingeklappt darunter, zuletzt abgelaufene zuerst
@@ -645,6 +655,7 @@ def reservierungen_list(request: Request, kopie: int = None,
         tpl_context(request, aktive=aktive, abgelaufene=abgelaufene, today=heute,
                     frist_default=(vorlage.frist if vorlage and vorlage.frist else heute + timedelta(days=5)),
                     kunden=kunden, serien=serien, kopie=vorlage or kopie_r,
+                    filter_datum=filter_datum,
                     vorlage=vorlage, vorabchecks=offene_checks(db)))
 
 

@@ -111,3 +111,20 @@ def test_titel_mit_firma_und_ohne_doppelten_namen():
                     veranstaltungsort="45127 Essen", art="Z", frist=None)
     body = calendar_service._reservierung_body(reload(Reservierung, rid))
     assert body["summary"] == "(Z) Essen, Solo GmbH, Sommerfest"
+
+
+def test_liste_kann_auf_einen_tag_gefiltert_werden(admin):
+    """?datum=JJJJ-MM-TT – der Anfrage-Assistent verlinkt bei einer Kundenabsage
+    direkt auf den Tag, damit die Reservierung mit einem Klick erreichbar ist."""
+    tag = date(2099, 6, 17)
+    _make_res(kunde_firma="Gefilterter Tag GmbH", datum=tag, frist=date(2099, 6, 1))
+    _make_res(kunde_firma="Anderer Tag GmbH", datum=date(2099, 6, 18), frist=date(2099, 6, 1))
+    html = admin.get(f"/admin/reservierungen?datum={tag.isoformat()}").text
+    assert "Gefiltert auf" in html and "17.06.2099" in html and "Filter aufheben" in html
+    assert "Gefilterter Tag GmbH" in html
+    assert "Anderer Tag GmbH" not in html
+    # Ohne Filter sind beide da, kaputtes Datum wird ignoriert
+    for url in ("/admin/reservierungen", "/admin/reservierungen?datum=17.06.2099"):
+        h = admin.get(url).text
+        assert "Gefilterter Tag GmbH" in h and "Anderer Tag GmbH" in h
+        assert "Gefiltert auf" not in h

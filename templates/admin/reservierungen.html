@@ -333,6 +333,14 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
 {% endmacro %}
 
+{% if filter_datum %}
+<div class="mb-4 flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
+     style="background:var(--c-amber-bg);color:var(--c-amber);">
+  <span>Gefiltert auf <strong>{{ filter_datum | de_date }}</strong>{% if not aktive and not abgelaufene %}. Für diesen Tag gibt es keine Reservierung{% endif %}.</span>
+  <a href="/admin/reservierungen" class="underline">Filter aufheben</a>
+</div>
+{% endif %}
+
 <!-- Aktive Reservierungen -->
 {% if aktive %}
 <div class="space-y-3">
