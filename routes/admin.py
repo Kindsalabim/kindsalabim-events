@@ -692,8 +692,11 @@ def _reservierung_vorlage(q):
 
     art_roh = (q.get("art") or "").strip()
     art = _RES_ARTEN.get(art_roh.upper())
-    if not art or art == "Div.":
-        hinweise.append("Art bitte wählen – mit „Div.“ blockiert der Termin im Anfrage-Assistenten nicht.")
+    if not art:
+        # „Div." schickt der Anfrage-Assistent seit 02.10.2026 bewusst, wenn Aykut selbst
+        # nicht auftritt – dann ist „blockiert nicht" richtig und kein Hinweis nötig.
+        hinweise.append("Art bitte wählen – ohne Kürzel steht im Kalender nur „(Div.)“, "
+                        "und der Termin blockiert im Anfrage-Assistenten nicht.")
     startzeit = _zeit("startzeit", "Beginn")
     if not startzeit:
         hinweise.append("Ohne Beginn wird der Kalender-Block ganztägig – der Anfrage-Assistent übersieht ihn.")
@@ -701,7 +704,7 @@ def _reservierung_vorlage(q):
     return SimpleNamespace(
         datum=_datum("datum", "Termin"), frist=_datum("frist", "Frist"),
         startzeit=startzeit, endzeit=_zeit("endzeit", "Ende"),
-        art=art if art and art != "Div." else None,
+        art=art,          # auch „Div." wird übernommen (bewusste Wahl des Assistenten)
         marke=marke if marke in ("Kindsalabim", "Knallfrosch") else "Kindsalabim",
         kunde_firma=(q.get("kunde_firma") or "").strip(),
         kunde_kontakt=(q.get("kunde_kontakt") or "").strip(),

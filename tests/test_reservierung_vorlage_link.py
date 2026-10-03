@@ -41,10 +41,27 @@ def test_formular_ist_vollstaendig_vorbefuellt(admin):
     assert _anzahl() == vorher          # nur Formular, nichts gespeichert
 
 
-def test_warnt_bei_div_und_fehlender_uhrzeit(admin):
-    html = _seite(admin, art="Div.", startzeit="")
+def test_div_ist_eine_gueltige_wahl_ohne_warnung(admin):
+    """Der Anfrage-Assistent schickt „Div." bewusst, wenn Aykut nicht selbst auftritt
+    (02.10.2026). Dann ist „blockiert nicht" richtig – kein Hinweis mehr."""
+    html = _seite(admin, art="Div.")
+    assert "Art bitte wählen" not in html
+    assert '<option value="Div." selected' in html
+
+
+def test_warnt_nur_bei_fehlender_art(admin):
+    html = _seite(admin, art="", startzeit="")
     assert "Art bitte wählen" in html
     assert "ganztägig" in html
+
+
+def test_kombi_arten_werden_uebernommen(admin):
+    """Gemischte Events: Aykut tritt selbst auf UND Stationen laufen."""
+    for roh, erwartet in [("z+div.", "Z+Div."), ("ZB+DIV", "ZB+Div."),
+                          ("workshop", "WORKSHOP"), ("zb", "ZB")]:
+        html = _seite(admin, art=roh)
+        assert f'<option value="{erwartet}" selected' in html, roh
+        assert "Art bitte wählen" not in html, roh
 
 
 def test_krumme_uhrzeit_wird_gerundet_und_gemeldet(admin):
