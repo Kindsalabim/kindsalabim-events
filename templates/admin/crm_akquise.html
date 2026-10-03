@@ -1,0 +1,157 @@
+{% extends "admin_base.html" %}
+{% set active = 'crm' %}
+{% block title %}Akquise – {{ cfg.app_name }}{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/admin/crm" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-600 mb-4 transition-colors">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Kunden
+  </a>
+  <h1 class="text-2xl font-bold text-gray-900">Akquise</h1>
+  <p class="text-sm text-gray-500 mt-0.5">
+    Recherchierte Kontakte, getrennt von den Bestandskunden. {{ offen | length }} noch nicht angesprochen.
+  </p>
+</div>
+
+{% if request.query_params.get('neu') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">
+  ✓ {{ request.query_params.get('neu') }} Kontakte übernommen.
+  {% if request.query_params.get('doppelt') != '0' %}{{ request.query_params.get('doppelt') }} schon vorhanden.{% endif %}
+  {% if request.query_params.get('gesperrt') != '0' %}{{ request.query_params.get('gesperrt') }} gesperrt übersprungen.{% endif %}
+  {% if request.query_params.get('ohne_quelle') != '0' %}{{ request.query_params.get('ohne_quelle') }} ohne Quelle abgelehnt.{% endif %}
+</div>
+{% endif %}
+
+<div class="inline-flex p-1 rounded-xl bg-gray-100 mb-5">
+  <a href="/admin/crm/dashboard" class="px-4 py-1.5 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-700">Übersicht</a>
+  <a href="/admin/crm" class="px-4 py-1.5 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-700">Liste</a>
+  <a href="/admin/crm/pipeline" class="px-4 py-1.5 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-700">Pipeline</a>
+  <a href="/admin/crm/akquise" class="px-4 py-1.5 text-sm font-semibold rounded-lg bg-white shadow-sm" style="color:var(--brand-primary);">Akquise</a>
+</div>
+
+<!-- ── Not-Aus ── -->
+<div class="card p-5 mb-4" style="border-left:4px solid {% if gestoppt %}var(--c-coral){% else %}var(--c-green){% endif %};">
+  <div class="flex flex-wrap items-center gap-4">
+    <div class="min-w-0">
+      <p class="font-semibold" style="color:var(--ink-1);">
+        {% if gestoppt %}Vertriebsversand ist gestoppt{% else %}Vertriebsversand ist freigegeben{% endif %}
+      </p>
+      <p class="text-xs mt-0.5" style="color:var(--ink-4);">
+        Kommt Anwaltspost: sofort stoppen, nichts beantworten, nichts Vorformuliertes unterschreiben,
+        Anwalt einschalten. Danach die Sperre auf der passenden Ebene eintragen.
+      </p>
+    </div>
+    <form method="post" action="/admin/crm/akquise/notaus" class="ml-auto shrink-0">
+      <input type="hidden" name="stoppen" value="{{ '0' if gestoppt else '1' }}">
+      <button type="submit" class="{% if gestoppt %}btn-primary{% else %}btn-secondary{% endif %} text-sm px-4 py-2">
+        {{ 'Versand wieder freigeben' if gestoppt else 'Versand sofort stoppen' }}
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ── Liste einlesen ── -->
+<details class="card p-5 mb-4">
+  <summary class="text-sm font-semibold cursor-pointer select-none" style="color:var(--brand-primary);">+ Recherche-Liste einlesen (CSV)</summary>
+  <form method="post" action="/admin/crm/akquise/import" enctype="multipart/form-data" class="mt-4 pt-4 space-y-3" style="border-top:1px solid #f3f4f6;">
+    <p class="text-xs" style="color:var(--ink-4);">
+      Spalten: <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;">{{ spalten }}</code><br>
+      Ohne Spalte „Quelle“ wird eine Zeile nicht übernommen. Gesperrte und schon vorhandene Organisationen werden übersprungen.
+    </p>
+    <input type="file" name="datei" accept=".csv,text/csv" required
+           class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+    <button type="submit" class="btn-primary text-sm px-4 py-2">Einlesen</button>
+  </form>
+</details>
+
+<!-- ── Kontakte ── -->
+<div class="card overflow-hidden mb-4">
+  <table class="w-full text-sm">
+    <thead>
+      <tr style="border-bottom:1px solid #f3f4f6;background:#fafafa;">
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Organisation</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Anlass</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Ansprechen</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Stand</th>
+        <th class="px-5 py-3"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for k in kontakte %}
+      <tr style="border-bottom:1px solid #f9fafb;">
+        <td class="px-5 py-3">
+          <a href="/admin/crm/{{ k.id }}" class="font-medium hover:underline" style="color:var(--ink-1);">{{ k.firma }}</a>
+          <div class="text-xs mt-0.5" style="color:var(--ink-4);">
+            {% if k.akquise_art %}{{ k.akquise_art }}{% endif %}{% if k.ort %} · {{ k.ort }}{% endif %}
+            {% if k.email %} · {{ k.email }}{% endif %}
+            {% if k.quelle %} · <a href="{{ k.quelle.split(' ')[0] }}" target="_blank" rel="noopener" class="underline">Quelle</a>{% endif %}
+          </div>
+        </td>
+        <td class="px-5 py-3" style="color:var(--ink-3);">{{ k.anlass or '–' }}</td>
+        <td class="px-5 py-3" style="color:var(--ink-3);">
+          {% if k.ansprachemonat %}{{ monat_namen[k.ansprachemonat] }}{% else %}–{% endif %}
+        </td>
+        <td class="px-5 py-3">
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                style="background:{% if k.pipeline_status == 'verloren' %}#f1f5f9;color:#475569{% elif k.pipeline_status == 'lead' %}var(--c-amber-bg);color:var(--c-amber){% else %}var(--c-success-bg);color:var(--c-success){% endif %};">
+            {{ STATUS_LABEL.get(k.pipeline_status, k.pipeline_status) }}
+          </span>
+        </td>
+        <td class="px-5 py-3 text-right">
+          <form method="post" action="/admin/crm/akquise/{{ k.id }}/sperren"
+                onsubmit="return confirm('Nie wieder kontaktieren? Adresse, Domain und Unternehmen werden gesperrt.');">
+            <button class="text-xs text-gray-500 hover:text-red-600 transition-colors">Nie wieder</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="px-5 py-6 text-sm text-center" style="color:var(--ink-4);">
+        Noch keine Kontakte. Oben eine Recherche-Liste einlesen.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Sperrliste ── -->
+<div class="card p-5">
+  <h2 class="text-sm font-semibold text-gray-700 mb-1">Sperrliste</h2>
+  <p class="text-xs mb-3" style="color:var(--ink-4);">
+    Wer hier steht, wird nie wieder angeschrieben. Geprüft wird vor jedem Versand, auf allen vier Ebenen.
+    Einträge laufen nicht ab.
+  </p>
+  {% if sperren %}
+  <ul class="text-sm mb-4" style="border-top:1px solid var(--line);">
+    {% for s in sperren %}
+    <li class="flex items-center gap-3 py-2" style="border-bottom:1px solid var(--line);">
+      <span class="text-xs px-2 py-0.5 rounded-full shrink-0" style="background:#f1f5f9;color:#475569;">{{ s.ebene }}</span>
+      <span class="min-w-0 truncate" style="color:var(--ink-1);">{{ s.anzeige or s.wert }}</span>
+      <span class="ml-auto text-xs shrink-0" style="color:var(--ink-4);">
+        {{ s.grund }}{% if s.erstellt_am %} · {{ s.erstellt_am[8:10] }}.{{ s.erstellt_am[5:7] }}.{{ s.erstellt_am[:4] }}{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/admin/crm/akquise/sperre" class="flex flex-wrap items-end gap-3">
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1.5">Ebene</label>
+      <select name="ebene" class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring">
+        {% for e in ebenen %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="flex-1 min-w-48">
+      <label class="block text-xs font-medium text-gray-700 mb-1.5">Wert (Adresse, Domain, Firma oder Person)</label>
+      <input type="text" name="wert" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1.5">Grund</label>
+      <select name="grund" class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring">
+        {% for wert, label in gruende %}<option value="{{ wert }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-secondary text-sm px-4 py-2">Sperren</button>
+  </form>
+</div>
+
+{% endblock %}

@@ -662,6 +662,19 @@ story = [
         "läuft auf Kindsalabim – bitte einmal prüfen und ggf. beim Bearbeiten korrigieren.",
     ]),
 
+    Paragraph("<b>Akquise</b> (Reiter im CRM, nur für Inhaber): Hier liegen <b>recherchierte</b> "
+              "Kontakte, getrennt von den Bestandskunden. Eine <b>Recherche-Liste</b> kommt als CSV "
+              "herein (Spalten: Organisation, Art, Ort, Kontaktweg, Quelle, Veranstaltung, "
+              "Ansprachemonat, Notiz); <b>ohne Quelle wird eine Zeile abgelehnt</b>, Gesperrte und "
+              "bereits vorhandene Organisationen werden übersprungen. Jeder Kontakt hat einen "
+              "<b>Ansprachemonat</b>, also den Planungszeitpunkt der Veranstaltung. Die <b>Sperrliste</b> "
+              "wirkt auf vier Ebenen (Adresse, Domain, Unternehmen, Person) und läuft nie ab; "
+              "<b>&bdquo;Nie wieder&ldquo;</b> an einem Kontakt sperrt alle drei auf einmal. Der "
+              "<b>Not-Aus</b> stoppt den gesamten Vertriebsversand, etwa nach Anwaltspost. Geprüft wird "
+              "immer technisch vor dem Versand, nie durch die KI. Jede Ansprache wird protokolliert "
+              "(Empfänger, Weg, Quelle der Adresse) – im Streitfall der Nachweis.", P),
+    Spacer(1, 6),
+
     Paragraph("13. Buchhaltung", H2),
     bullets([
         "Alle Rechnungen nach Monaten gruppiert, mit Jahres-Summen (Brutto, offen, Fremdleistungen, "

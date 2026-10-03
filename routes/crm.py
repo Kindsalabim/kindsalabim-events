@@ -4,7 +4,7 @@ Stufe 1: Kundenprofile (Stammdaten, Profil-Wissen, Tags) + Eventhistorie
 inkl. der vom Teamleiter eingereichten Eventberichte. Pipeline-Kanban,
 Aktivitäten und Wiedervorlagen folgen in späteren Stufen.
 """
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -145,7 +145,7 @@ def _apply_form(db, k: Kunde, f: dict):
 @router.get("", response_class=HTMLResponse)
 def kunden_list(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user),
                 tag: str = "", status: str = ""):
-    q = db.query(Kunde)
+    q = db.query(Kunde).filter(Kunde.herkunft != "akquise")
     if status in KUNDE_STATUS:
         q = q.filter(Kunde.pipeline_status == status)
     if tag:
@@ -160,6 +160,120 @@ def kunden_list(request: Request, db: Session = Depends(get_db), _=Depends(get_a
     return templates.TemplateResponse("admin/crm_kunden.html",
         tpl(request, active="crm", kunden=kunden, counts=counts,
             alle_tags=alle_tags, filter_tag=tag, filter_status=status))
+
+
+# ── Akquise: recherchierte Kontakte, Sperrliste, Not-Aus ─────────────────────
+
+SPALTEN_HILFE = ("Organisation; Art; Ort; Kontaktweg; Quelle; Veranstaltung; "
+                 "Ansprachemonat; Notiz")
+
+
+@router.get("/akquise", response_class=HTMLResponse)
+def akquise(request: Request, db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """Kaltakquise-Kontakte aus der Recherche, getrennt von den Bestandskunden."""
+    import vertrieb
+    from models import VertriebSperre
+    kontakte = (db.query(Kunde).filter(Kunde.herkunft == "akquise")
+                .order_by(Kunde.ansprachemonat.is_(None), Kunde.ansprachemonat,
+                          func.lower(Kunde.firma)).all())
+    offen = [k for k in kontakte if k.pipeline_status == "lead"]
+    sperren = db.query(VertriebSperre).order_by(VertriebSperre.id.desc()).all()
+    return templates.TemplateResponse("admin/crm_akquise.html",
+        tpl(request, active="crm", kontakte=kontakte, offen=offen, sperren=sperren,
+            gestoppt=vertrieb.versand_gestoppt(db), gruende=vertrieb.GRUENDE,
+            ebenen=vertrieb.EBENEN, spalten=SPALTEN_HILFE,
+            monat_namen=["", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+                         "August", "September", "Oktober", "November", "Dezember"]))
+
+
+@router.post("/akquise/import")
+async def akquise_import(request: Request, datei: UploadFile = File(...),
+                         db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """Recherche-Liste als CSV einlesen. Ohne Quelle kein Eintrag – geraten wird nichts.
+    Gesperrte und schon vorhandene Organisationen werden übersprungen."""
+    import csv as _csv
+    import io
+    import vertrieb
+    roh = (await datei.read()).decode("utf-8-sig", errors="replace")
+    trenner = ";" if roh.count(";") >= roh.count(",") else ","
+    neu = uebersprungen = gesperrt = ohne_quelle = 0
+    for zeile in _csv.DictReader(io.StringIO(roh), delimiter=trenner):
+        werte = { (k or "").strip().lower(): (v or "").strip() for k, v in zeile.items() }
+
+        def hol(*namen):
+            for n in namen:
+                if werte.get(n):
+                    return werte[n]
+            return ""
+
+        firma = hol("organisation", "firma", "kunde", "name")
+        quelle = hol("quelle", "quelle (link)", "link", "beleg")
+        if not firma:
+            continue
+        if not quelle:
+            ohne_quelle += 1
+            continue
+        mail = hol("mail", "e-mail", "email", "kontaktweg")
+        mail = mail if "@" in mail else ""
+        darf, _grund = vertrieb.darf_kontaktieren(db, email=mail, firma=firma)
+        if not darf:
+            gesperrt += 1
+            continue
+        if db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first():
+            uebersprungen += 1
+            continue
+        monat = hol("ansprachemonat", "monat")
+        zahl = next((int(m) for m in [monat] if m.isdigit() and 1 <= int(m) <= 12), None)
+        if zahl is None:
+            zahl = MONATE.get(monat.strip().lower()[:3])
+        db.add(Kunde(
+            firma=firma, email=mail or None, ort=hol("ort") or None,
+            herkunft="akquise", pipeline_status="lead",
+            akquise_art=hol("art", "typ") or None, quelle=quelle,
+            anlass=hol("veranstaltung", "anlass") or None, ansprachemonat=zahl,
+            kontaktweg=hol("kontaktweg", "weg") or None,
+            notizen=hol("warum passt das", "notiz", "begruendung") or None,
+            erstellt_am=datetime.now().isoformat(timespec="seconds")))
+        neu += 1
+    db.commit()
+    from urllib.parse import urlencode
+    return RedirectResponse("/admin/crm/akquise?" + urlencode(
+        {"neu": neu, "doppelt": uebersprungen, "gesperrt": gesperrt,
+         "ohne_quelle": ohne_quelle}), status_code=303)
+
+
+MONATE = {"jan": 1, "feb": 2, "mär": 3, "mar": 3, "apr": 4, "mai": 5, "jun": 6,
+          "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dez": 12}
+
+
+@router.post("/akquise/sperre")
+def akquise_sperre(ebene: str = Form("adresse"), wert: str = Form(""),
+                   grund: str = Form("widerspruch"), notiz: str = Form(""),
+                   db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    import vertrieb
+    vertrieb.sperren(db, ebene, wert, grund, notiz)
+    return RedirectResponse("/admin/crm/akquise", status_code=303)
+
+
+@router.post("/akquise/{kid}/sperren")
+def akquise_kunde_sperren(kid: int, grund: str = Form("widerspruch"),
+                          db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """„Bitte nie wieder" – sperrt Adresse, Domain und Unternehmen zugleich."""
+    import vertrieb
+    k = db.query(Kunde).filter(Kunde.id == kid).first()
+    if k:
+        vertrieb.sperren_fuer_kunde(db, k, grund)
+        k.pipeline_status = "verloren"
+        db.commit()
+    return RedirectResponse("/admin/crm/akquise", status_code=303)
+
+
+@router.post("/akquise/notaus")
+def akquise_notaus(stoppen: str = Form("1"), db: Session = Depends(get_db),
+                   _=Depends(nur_inhaber)):
+    import vertrieb
+    vertrieb.versand_stoppen(db, stoppen == "1")
+    return RedirectResponse("/admin/crm/akquise", status_code=303)
 
 
 # ── Dashboard (handlungsorientiert) ──────────────────────────────────────────

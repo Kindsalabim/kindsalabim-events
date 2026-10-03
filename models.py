@@ -616,6 +616,14 @@ class Kunde(Base):
     # Vertrieb / Pipeline (Kanban folgt in Stufe 3)
     pipeline_status      = Column(String, default="lead")
     pipeline_reihenfolge = Column(Integer, default=0)
+    # Kaltakquise (04.10.2026): recherchierte Kontakte liegen im selben CRM, sind aber
+    # getrennt sichtbar. Ohne Quelle kein Eintrag – geraten wird nichts.
+    herkunft             = Column(String, default="bestand")   # bestand | akquise
+    akquise_art          = Column(String)   # Veranstalter | Aussteller | Firma
+    quelle               = Column(Text)     # Link, aus dem der Kontakt stammt
+    anlass               = Column(String)   # z. B. „Familientag Gelsenkirchen"
+    ansprachemonat       = Column(Integer)  # 1-12: wann ist der Planungszeitpunkt?
+    kontaktweg           = Column(String)   # Mail | Formular | Telefon
 
     # Profil-Wissen (alles optional – „Kundengedächtnis")
     # Social-Media-Freigabe gilt dauerhaft für diesen Kunden – Stammkunden füllen
@@ -696,6 +704,36 @@ class GeloeschtesObjekt(Base):
     daten_json    = Column(Text, nullable=False)     # vollständiger Snapshot inkl. Verknüpfungen
     geloescht_am  = Column(String)                   # ISO-Datetime
     geloescht_von = Column(String)                   # Admin-E-Mail
+
+
+class VertriebSperre(Base):
+    """Wer nicht (mehr) angesprochen werden darf. Vier Ebenen, weil eine reine
+    E-Mail-Sperre zu kurz greift: Dieselbe Firma meldet sich später über eine andere
+    Adresse, und eine Unterlassungsverpflichtung gilt meist für das Unternehmen.
+    Einträge laufen nie ab. Geprüft wird technisch vor jedem Versand, nie von der KI."""
+    __tablename__ = "vertrieb_sperren"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    ebene       = Column(String, nullable=False)   # adresse | domain | unternehmen | person
+    wert        = Column(String, nullable=False)   # normalisiert (klein, ohne Rechtsform)
+    anzeige     = Column(String)                   # wie eingegeben
+    grund       = Column(String)                   # widerspruch | abmahnung | unterlassung | eigene
+    notiz       = Column(Text)
+    erstellt_am = Column(String)
+
+
+class VertriebKontaktLog(Base):
+    """Protokoll jeder Ansprache: Wer, wann, auf welchem Weg, mit welcher Quelle.
+    Im Streitfall der Nachweis, woher die Adresse stammt und was verschickt wurde."""
+    __tablename__ = "vertrieb_kontakt_log"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    kunde_id    = Column(Integer, ForeignKey("kunden.id"))
+    empfaenger  = Column(String)
+    weg         = Column(String)        # mail | telefon | brief | formular
+    betreff     = Column(String)
+    quelle      = Column(Text)          # Herkunft der Adresse zum Zeitpunkt der Ansprache
+    erstellt_am = Column(String)
 
 
 class KundeAktivitaet(Base):
