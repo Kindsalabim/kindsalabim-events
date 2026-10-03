@@ -820,6 +820,25 @@ def reservierung_edit_save(
     background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
     return RedirectResponse("/admin/reservierungen", status_code=303)
 
+def social_warnung(db, ev) -> str:
+    """Warnhinweis, bevor Eventfotos in die Social-Media-App wandern. Keine Sperre –
+    Aykut entscheidet (02.10.2026). Fehlt die Kundenfreigabe oder hat die Teamleitung
+    bei erkennbaren Kindergesichtern kein „Ja" gesetzt, fragt die App vorher nach."""
+    gruende = []
+    freigabe = ev.cl_foto_freigabe
+    if not freigabe and ev.kunde_id:
+        from models import Kunde
+        kunde = db.query(Kunde).filter(Kunde.id == ev.kunde_id).first()
+        freigabe = kunde.foto_freigabe if kunde else None
+    if freigabe == "Nein":
+        gruende.append("Der Kunde hat der Nutzung widersprochen.")
+    elif not freigabe:
+        gruende.append("Der Kunde wurde nicht nach einer Freigabe gefragt.")
+    if ev.bericht_eltern_ok == "Nein":
+        gruende.append("Die Teamleitung hat keine Zustimmung der Eltern bestätigt.")
+    return " ".join(gruende)
+
+
 def _sparten_text(werte) -> str:
     """Mehrfach angekreuzte Künstler-Sparten als kommagetrennter Text (None = keine).
     Künstler können mehreres können, z. B. Ballon UND Showact (Aykut, 24.09.2026)."""
@@ -1302,6 +1321,7 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
                     doppel_reservierungen=doppel_reservierungen,
+                    social_warnung=social_warnung(db, ev),
                     show_eigener_eintrag=calendar_service.zaubershow_eigener_eintrag(ev),
                     ranked_teamer=ranked_teamer, ranked_kuenstler=ranked_kuenstler,
                     gebucht_map=gebucht_map, planungs_urls=planungs_urls,
@@ -1469,6 +1489,75 @@ def event_update(
     for gid in geschwister_sync:
         background_tasks.add_task(calendar_service.sync_event_async, gid)
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+@router.post("/events/{event_id}/social-fotos")
+def event_social_fotos(event_id: int, background_tasks: BackgroundTasks,
+                       datei_ids: list = Form([]), db: Session = Depends(get_db),
+                       _=Depends(get_admin_user)):
+    """Ausgewählte Eventfotos als Quick-Post an die Social-Media-App übergeben.
+    Beide Apps teilen denselben R2-Speicher – es wandert nur der Schlüssel, kein Bild."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev:
+        raise HTTPException(404)
+    ids = {int(x) for x in datei_ids if str(x).isdigit()}
+    dateien = db.query(EventDatei).filter(
+        EventDatei.event_id == event_id, EventDatei.typ == "bericht_foto",
+        EventDatei.id.in_(ids)).all() if ids else []
+    if not dateien:
+        return RedirectResponse(f"/admin/events/{event_id}?social=keine_auswahl#wf-abschluss",
+                                status_code=303)
+    for d in dateien:
+        background_tasks.add_task(social_quickpost_senden, d.id)
+    return RedirectResponse(f"/admin/events/{event_id}?social={len(dateien)}#wf-abschluss",
+                            status_code=303)
+
+
+def social_quickpost_senden(datei_id: int):
+    """Hintergrund-Versand an die Social-Media-App (eigene DB-Session, Fehler nur ins Log)."""
+    import json
+    import urllib.request
+    from database import SessionLocal
+    cfg = get_config()
+    url, secret = cfg.get("social_api_url"), cfg.get("social_api_secret")
+    db = SessionLocal()
+    try:
+        d = db.query(EventDatei).filter(EventDatei.id == datei_id).first()
+        if not d or not d.event:
+            return
+        if not url or not secret:
+            print("[SOCIAL] social_api_url/social_api_secret fehlen – Quick-Post nicht gesendet")
+            return
+        ev = d.event
+        daten = {
+            "foto": f"r2:{d.r2_key}",
+            "kunde": ev.kunde_firma or "",
+            "ort": _stadt_kurz(ev.veranstaltungsort),
+            "anlass": ev.anlass or "",
+            "datum": ev.datum.isoformat() if ev.datum else "",
+            "aktionen": ev.produkte or "",
+            "marke": ev.marke or "Kindsalabim",
+            "kunde_nennen": (ev.cl_foto_freigabe == "Ja"),
+            "quelle_id": f"event-{ev.id}-datei-{d.id}",
+        }
+        req = urllib.request.Request(
+            url.rstrip("/") + "/api/quickpost",
+            data=json.dumps(daten).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Social-Secret": secret})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+        d.social_gesendet_am = datetime.now().isoformat(timespec="seconds")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[SOCIAL] Quick-Post für Datei {datei_id} fehlgeschlagen: {e}")
+    finally:
+        db.close()
+
+
+def _stadt_kurz(ort: str) -> str:
+    import calendar_service
+    return calendar_service._stadt(ort or "")
+
 
 @router.post("/events/{event_id}/delete")
 def event_delete(event_id: int, background_tasks: BackgroundTasks,

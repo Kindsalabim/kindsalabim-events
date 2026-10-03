@@ -418,6 +418,7 @@ def portal_bericht_save(event_id: int,
                         kinder: str = Form(""), kinder_text: str = Form(""),
                         verlauf: list = Form([]), verlauf_text: str = Form(""),
                         feedback: str = Form(""), feedback_text: str = Form(""),
+                        eltern_ok: str = Form(""),
                         db: Session = Depends(get_db), user=Depends(get_portal_user)):
     did = int(user["sub"])
     ev = db.query(Event).filter(Event.id == event_id).first()
@@ -428,6 +429,8 @@ def portal_bericht_save(event_id: int,
     ev.bericht_kundenfeedback = _bericht_combine(feedback, feedback_text)
     ev.bericht_anzahl_kinder = None   # Bucket ersetzt die Freitext-Zahl
     ev.bericht_probleme = None        # in „Wie gelaufen" aufgegangen
+    if eltern_ok in ("Ja", "Nein"):
+        ev.bericht_eltern_ok = eltern_ok
     ev.bericht_eingereicht_am = date.today().strftime("%d.%m.%Y")
     db.commit()
     # Automatischer Abschluss prüfen

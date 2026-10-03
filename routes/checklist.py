@@ -70,6 +70,7 @@ def checklist_submit(
     teamkleidung:          str = Form("Nein"),
     parkplatz:             str = Form(""),
     weitere_details:       str = Form(""),
+    foto_freigabe:         str = Form(""),
 ):
     ev = db.query(Event).filter(Event.checklist_token == token).first()
     if not ev:
@@ -125,6 +126,14 @@ def checklist_submit(
     elif neu and not alt:
         ev.cl_weitere_details = neu
     # neu leer → vorhandene (interne) Notiz bleibt unverändert
+    if foto_freigabe in ("Ja", "Nein"):
+        ev.cl_foto_freigabe = foto_freigabe
+        # Dauerhaft am Kundenprofil merken: Stammkunden füllen keine Checkliste mehr aus
+        if ev.kunde_id:
+            from models import Kunde
+            kunde = db.query(Kunde).filter(Kunde.id == ev.kunde_id).first()
+            if kunde:
+                kunde.foto_freigabe = foto_freigabe
     ev.cl_eingereicht_am        = datetime.now().strftime("%d.%m.%Y %H:%M")
     db.commit()
     # Status automatisch aktualisieren

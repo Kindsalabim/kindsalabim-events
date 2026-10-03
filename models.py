@@ -107,6 +107,10 @@ class Event(Base):
     cl_parkplatz             = Column(Text)
     cl_weitere_details       = Column(Text)     # Freitext „Weitere Details" (Kunde-Checkliste / Briefing)
     cl_eingereicht_am        = Column(String)
+    # Social-Media: Freigabe des Kunden (Checkliste) und Angabe der Teamleitung zum
+    # Bericht. Beides optional – fehlt es, fragt die App beim Senden nur nach.
+    cl_foto_freigabe         = Column(String)   # "Ja" / "Nein" / None (nicht gefragt)
+    bericht_eltern_ok        = Column(String)   # "Ja" / "Nein" / None (keine Kindergesichter o. ä.)
     checkliste_uebersprungen = Column(Boolean, default=False)  # Stammkunde: keine Kunden-Checkliste nötig
     zaubershow_event = Column(Boolean, default=False)  # Reines Zaubershow-Event: Firma/Ort/Aktion optional, kein Checkliste/Briefing/Bericht
 
@@ -417,6 +421,7 @@ class EventDatei(Base):
     filename    = Column(String, nullable=False)   # Originaldateiname
     typ         = Column(String, nullable=False)   # "planung" oder "bericht_foto"
     uploaded_at = Column(String, nullable=False)   # ISO-Datetime
+    social_gesendet_am = Column(String)            # an die Social-Media-App übergeben (Quick-Post)
 
     event = relationship("Event", back_populates="dateien")
 
@@ -613,6 +618,10 @@ class Kunde(Base):
     pipeline_reihenfolge = Column(Integer, default=0)
 
     # Profil-Wissen (alles optional – „Kundengedächtnis")
+    # Social-Media-Freigabe gilt dauerhaft für diesen Kunden – Stammkunden füllen
+    # keine Checkliste mehr aus, und ein „Nein" (Vorfall: Beratungskonzern) darf
+    # nicht mit der Checkliste verloren gehen.
+    foto_freigabe         = Column(String)   # "Ja" / "Nein" / None (nie gefragt)
     notizen               = Column(Text)   # allgemeine interne Notizen
     kommunikationsstil    = Column(Text)
     besonderheiten        = Column(Text)

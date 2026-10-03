@@ -1168,16 +1168,34 @@
       {# Fotos aus dem Bericht – auch schon, bevor der Bericht abgeschickt ist. #}
       {% if bericht_foto_urls %}
       <p class="text-xs text-gray-500 mt-4 mb-2">Fotos vom Event <span class="text-gray-300">({{ bericht_foto_urls|length }})</span></p>
-      <div class="grid grid-cols-3 gap-2">
-        {% for foto, url in bericht_foto_urls %}
-        {% if url %}
-        <a href="{{ url }}" target="_blank" rel="noopener" title="{{ foto.filename }}"
-           class="block rounded-lg overflow-hidden" style="aspect-ratio: 1;">
-          <img src="{{ url }}" alt="{{ foto.filename }}" class="w-full h-full object-cover">
-        </a>
-        {% endif %}
-        {% endfor %}
-      </div>
+      <form method="post" action="/admin/events/{{ ev.id }}/social-fotos"
+            {% if social_warnung %}onsubmit="return confirm('{{ social_warnung }} Trotzdem senden?');"{% endif %}>
+        <div class="grid grid-cols-3 gap-2">
+          {% for foto, url in bericht_foto_urls %}
+          {% if url %}
+          <label class="block relative rounded-lg overflow-hidden cursor-pointer" style="aspect-ratio: 1;"
+                 title="{{ foto.filename }}{% if foto.social_gesendet_am %} · schon gesendet am {{ foto.social_gesendet_am[:10] }}{% endif %}">
+            <img src="{{ url }}" alt="{{ foto.filename }}" class="w-full h-full object-cover">
+            <input type="checkbox" name="datei_ids" value="{{ foto.id }}"
+                   class="absolute top-1.5 left-1.5 rounded" style="accent-color: var(--brand-primary);">
+            <a href="{{ url }}" target="_blank" rel="noopener"
+               class="absolute bottom-1.5 right-1.5 text-xs px-1.5 py-0.5 rounded"
+               style="background:rgba(255,255,255,.9);color:var(--ink-2);">öffnen</a>
+            {% if foto.social_gesendet_am %}
+            <span class="absolute top-1.5 right-1.5 text-xs px-1.5 py-0.5 rounded"
+                  style="background:var(--c-success-bg);color:var(--c-success);">gesendet</span>
+            {% endif %}
+          </label>
+          {% endif %}
+          {% endfor %}
+        </div>
+        <div class="flex items-center gap-3 mt-2.5">
+          <button type="submit" class="btn-secondary text-xs px-3 py-1.5">An Social-Media-App senden</button>
+          <span class="text-xs" style="color:{% if social_warnung %}var(--c-amber){% else %}var(--ink-4){% endif %};">
+            {% if social_warnung %}{{ social_warnung }}{% else %}Fotos ankreuzen – daraus entsteht dort ein Post-Entwurf.{% endif %}
+          </span>
+        </div>
+      </form>
       {% elif ev.bericht_eingereicht_am and not ev.zaubershow_event %}
       <p class="text-xs text-gray-500 mt-4">Keine Fotos hochgeladen.</p>
       {% endif %}

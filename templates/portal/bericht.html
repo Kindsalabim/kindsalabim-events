@@ -90,6 +90,18 @@
       </div>
       {% endif %}
 
+      <div class="mb-3">
+        <p class="text-xs mb-1.5" style="color: var(--ink-3);">
+          Falls Kindergesichter erkennbar sind: Haben Eltern vor Ort der Veröffentlichung zugestimmt? <span style="color: var(--ink-4);">(optional)</span>
+        </p>
+        <div class="flex gap-2">
+          {% for opt in ['Ja', 'Nein'] %}
+          <label class="choice"><input type="radio" name="eltern_ok" value="{{ opt }}" form="berichtform"
+                 {% if ev.bericht_eltern_ok == opt %}checked{% endif %}><span>{{ opt }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+
       <form method="post" action="/portal/events/{{ ev.id }}/fotos" enctype="multipart/form-data">
         <label class="flex items-center justify-center gap-2 cursor-pointer btn-secondary w-full py-2.5 text-sm">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>

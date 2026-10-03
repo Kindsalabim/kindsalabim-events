@@ -545,6 +545,14 @@ story = [
         "spezielle Rechnungs-Mail/Firmierung nach dem Event.",
         "<b>Automatischer Abschluss:</b> Bericht eingereicht + Rechnung gestellt → Status "
         "&bdquo;Abgeschlossen&ldquo; (Zaubershow: Rechnung allein genügt).",
+        "<b>Fotos in die Social-Media-App:</b> Unter den Berichtsfotos einzelne Bilder ankreuzen und "
+        "mit <b>&bdquo;An Social-Media-App senden&ldquo;</b> als Post-Entwurf übergeben (Kunde, Ort, "
+        "Anlass und Aktionen gehen als Kontext mit). Dort läuft der Entwurf durch die normale Freigabe. "
+        "Die Kunden-Checkliste fragt einmal, ob Fotos verwendet und der Kunde genannt werden darf; die "
+        "Antwort merkt sich auch das Kundenprofil, damit sie bei Stammkunden ohne neue Checkliste "
+        "erhalten bleibt. Die Teamleitung kann im Bericht angeben, ob bei erkennbaren Kindergesichtern "
+        "die Eltern zugestimmt haben. Fehlt eine Freigabe, fragt die App vor dem Senden nach, blockiert "
+        "aber nicht.",
     ]),
 
     Paragraph("10. Reservierungen", H2),

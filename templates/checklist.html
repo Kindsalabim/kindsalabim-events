@@ -259,6 +259,18 @@
       </div>
     </div>
 
+    <!-- Fotos & Referenz (eine Frage, bewusst knapp) -->
+    <div class="card p-6">
+      <p class="section-title">Fotos</p>
+      <div class="field">
+        <label>Dürfen wir Fotos der Aktion für unsere Social-Media-Kanäle verwenden und Sie dabei namentlich nennen?</label>
+        <div class="radio-group">
+          <label><input type="radio" name="foto_freigabe" value="Ja" {% if ev.cl_foto_freigabe == 'Ja' %}checked{% endif %}><span>Ja</span></label>
+          <label><input type="radio" name="foto_freigabe" value="Nein" {% if ev.cl_foto_freigabe == 'Nein' %}checked{% endif %}><span>Nein</span></label>
+        </div>
+      </div>
+    </div>
+
     <!-- Für die Rechnung (alles optional – beugt nachträglichen Adress-Korrekturen vor) -->
     <div class="card p-6">
       <p class="section-title">Für die Rechnung</p>
