@@ -193,6 +193,7 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
     Gesperrte und schon vorhandene Organisationen werden übersprungen."""
     import csv as _csv
     import io
+    import re
     import vertrieb
     roh = (await datei.read()).decode("utf-8-sig", errors="replace")
     trenner = ";" if roh.count(";") >= roh.count(",") else ","
@@ -213,8 +214,11 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
         if not quelle:
             ohne_quelle += 1
             continue
-        mail = hol("mail", "e-mail", "email", "kontaktweg")
-        mail = mail if "@" in mail else ""
+        # Kontaktweg enthält oft Mail UND Telefon in einer Zelle
+        kontakt_roh = hol("mail", "e-mail", "email", "kontaktweg", "weg")
+        treffer = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", kontakt_roh)
+        mail = treffer.group(0).rstrip(".,;") if treffer else ""
+        tel = re.search(r"0[\d/ ()\-]{6,}", kontakt_roh)
         darf, _grund = vertrieb.darf_kontaktieren(db, email=mail, firma=firma)
         if not darf:
             gesperrt += 1
@@ -222,12 +226,16 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
         if db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first():
             uebersprungen += 1
             continue
-        monat = hol("ansprachemonat", "monat")
-        zahl = next((int(m) for m in [monat] if m.isdigit() and 1 <= int(m) <= 12), None)
+        # „3", „März" oder ein Bereich wie „Okt–Dez" (dann zählt der erste Monat)
+        monat = hol("ansprachemonat", "monat").strip()
+        zahl = int(monat) if monat.isdigit() and 1 <= int(monat) <= 12 else None
         if zahl is None:
-            zahl = MONATE.get(monat.strip().lower()[:3])
+            zahl = MONATE.get(monat.lower().replace("ä", "ä")[:3])
         db.add(Kunde(
-            firma=firma, email=mail or None, ort=hol("ort") or None,
+            firma=firma, email=mail or None, telefon=(tel.group(0).strip() if tel else None),
+            ort=hol("ort") or None,
+            branche=hol("typ/spur", "typ", "branche", "spur") or None,
+            quelle_beleg=(hol("beleg", "verlaesslichkeit", "verlässlichkeit") or "").lower() or None,
             herkunft="akquise", pipeline_status="lead",
             akquise_art=hol("art", "typ") or None, quelle=quelle,
             anlass=hol("veranstaltung", "anlass") or None, ansprachemonat=zahl,

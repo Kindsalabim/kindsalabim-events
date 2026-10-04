@@ -83,9 +83,14 @@
         <td class="px-5 py-3">
           <a href="/admin/crm/{{ k.id }}" class="font-medium hover:underline" style="color:var(--ink-1);">{{ k.firma }}</a>
           <div class="text-xs mt-0.5" style="color:var(--ink-4);">
-            {% if k.akquise_art %}{{ k.akquise_art }}{% endif %}{% if k.ort %} · {{ k.ort }}{% endif %}
+            {% if k.branche %}{{ k.branche }} · {% endif %}{% if k.akquise_art %}{{ k.akquise_art }}{% endif %}{% if k.ort %} · {{ k.ort }}{% endif %}
             {% if k.email %} · {{ k.email }}{% endif %}
             {% if k.quelle %} · <a href="{{ k.quelle.split(' ')[0] }}" target="_blank" rel="noopener" class="underline">Quelle</a>{% endif %}
+            {% if k.quelle_beleg and not k.quelle_beleg.startswith('geprüft') %}
+            <span class="ml-1 px-1.5 py-0.5 rounded text-xs" style="background:var(--c-amber-bg);color:var(--c-amber);"
+                  title="Adresse stammt aus dem Suchtreffer, nicht von der Seite selbst – vor dem Versand einmal prüfen">
+              {{ 'Adresse prüfen' if k.quelle_beleg == 'snippet' else 'unbestätigt' }}</span>
+            {% endif %}
           </div>
         </td>
         <td class="px-5 py-3" style="color:var(--ink-3);">{{ k.anlass or '–' }}</td>

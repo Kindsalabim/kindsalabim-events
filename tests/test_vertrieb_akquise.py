@@ -161,3 +161,22 @@ def test_akquise_kontakte_stehen_nicht_in_der_kundenliste(admin, db):
     _import(admin)
     assert "Stadtmarketing Musterstadt" in admin.get("/admin/crm/akquise").text
     assert "Stadtmarketing Musterstadt" not in admin.get("/admin/crm").text
+
+
+ECHT_CSV = """Teil;Organisation;Art;Ort;Kontaktweg;Quelle;Veranstaltung;üblicher Termin;Ansprachemonat;Warum passt das;Beleg;Typ/Spur
+1 Firma/Aussteller;Sparkasse Musterstadt;Aussteller;Musterstadt;info@spk-muster.de · 02324/203-0;https://spk-muster.de/sponsoring;Altstadtfest;Ende Mai;Okt–Dez;Eigener Kinderbereich;Snippet;Sparkasse
+"""
+
+
+def test_import_versteht_das_format_der_recherche_session(admin, db):
+    """Mail und Telefon stehen in einer Zelle, der Monat ist ein Bereich."""
+    _leeren()
+    _import(admin, ECHT_CSV)
+    k = db.query(Kunde).filter(Kunde.firma == "Sparkasse Musterstadt").first()
+    assert k.email == "info@spk-muster.de"          # Telefon nicht mit in die Mailadresse
+    assert k.telefon and k.telefon.startswith("02324")
+    assert k.ansprachemonat == 10                   # „Okt–Dez" → erster Monat
+    assert k.branche == "Sparkasse"
+    assert k.quelle_beleg == "snippet"
+    # Ungeprüfte Adressen sind in der Liste markiert
+    assert "Adresse prüfen" in admin.get("/admin/crm/akquise").text

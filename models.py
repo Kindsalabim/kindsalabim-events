@@ -624,6 +624,8 @@ class Kunde(Base):
     anlass               = Column(String)   # z. B. „Familientag Gelsenkirchen"
     ansprachemonat       = Column(Integer)  # 1-12: wann ist der Planungszeitpunkt?
     kontaktweg           = Column(String)   # Mail | Formular | Telefon
+    branche              = Column(String)   # Sparkasse, Wohnungsgesellschaft, Stadtwerk …
+    quelle_beleg         = Column(String)   # geprüft | snippet | unbestätigt
 
     # Profil-Wissen (alles optional – „Kundengedächtnis")
     # Social-Media-Freigabe gilt dauerhaft für diesen Kunden – Stammkunden füllen
