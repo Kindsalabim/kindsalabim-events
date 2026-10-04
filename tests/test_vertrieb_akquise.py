@@ -296,3 +296,22 @@ def test_tageslimit_laesst_sich_einstellen(admin, db):
     assert vertrieb.tageslimit(db) == 5          # unsinnige Werte ändern nichts
     from notifications import set_setting
     set_setting(db, vertrieb.LIMIT_KEY, ""); db.commit()
+
+
+def test_api_pruefen_haelt_das_tageslimit_ein(admin, db, monkeypatch):
+    """Entwürfe können tagelang liegen bleiben. Ohne diese Prüfung gingen sie später
+    alle auf einmal raus und das Limit wäre wirkungslos."""
+    _leeren()
+    _mit_secret(monkeypatch)
+    from notifications import set_setting
+    set_setting(db, vertrieb.LIMIT_KEY, "1"); db.commit()
+    k = _kontakt(db, "Limitprobe GmbH", "info@limitprobe.example")
+    assert admin.get("/admin/crm/api/vertrieb/pruefen?email=info@limitprobe.example",
+                     headers=GEHEIM).json()["darf"] is True
+    admin.post("/admin/crm/api/vertrieb/gesendet", headers=GEHEIM,
+               json={"kunde_id": k.id, "betreff": "Erste Mail"})
+    antwort = admin.get("/admin/crm/api/vertrieb/pruefen?email=noch@jemand.example",
+                        headers=GEHEIM).json()
+    assert antwort["darf"] is False and "Tageslimit" in antwort["grund"]
+    assert antwort["rest_heute"] == 0
+    set_setting(db, vertrieb.LIMIT_KEY, ""); db.commit()

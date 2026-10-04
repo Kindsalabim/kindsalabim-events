@@ -337,7 +337,13 @@ def api_pruefen(request: Request, email: str = "", firma: str = "",
     if not _assistent_erlaubt(request):
         raise HTTPException(401)
     darf, grund = vertrieb.darf_kontaktieren(db, email=email, firma=firma)
-    return {"darf": darf, "grund": grund, "rest_heute": vertrieb.rest_heute(db)}
+    rest = vertrieb.rest_heute(db)
+    if darf and rest <= 0:
+        # Entwürfe können tagelang liegen bleiben – ohne diese Prüfung gingen sie
+        # später alle auf einmal raus und das Tageslimit wäre wirkungslos.
+        darf, grund = False, (f"Tageslimit erreicht ({vertrieb.tageslimit(db)} Mails). "
+                              "Morgen geht es weiter.")
+    return {"darf": darf, "grund": grund, "rest_heute": rest}
 
 
 @router.post("/api/vertrieb/gesendet")
