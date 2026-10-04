@@ -284,3 +284,15 @@ def test_api_abmahnung_loest_den_notaus_aus(admin, db, monkeypatch):
     assert vertrieb.versand_gestoppt(db) is True
     assert vertrieb.darf_kontaktieren(db, email="ganz@andere.example")[0] is False
     vertrieb.versand_stoppen(db, False)
+
+
+def test_tageslimit_laesst_sich_einstellen(admin, db):
+    """Aufwärmphase einer neuen Absenderadresse: erst 5, dann 10, dann hoch."""
+    _leeren()
+    admin.post("/admin/crm/akquise/limit", data={"limit": "5"}, follow_redirects=False)
+    assert vertrieb.tageslimit(db) == 5
+    assert "Heute noch 5 von 5" in admin.get("/admin/crm/akquise").text
+    admin.post("/admin/crm/akquise/limit", data={"limit": "0"}, follow_redirects=False)
+    assert vertrieb.tageslimit(db) == 5          # unsinnige Werte ändern nichts
+    from notifications import set_setting
+    set_setting(db, vertrieb.LIMIT_KEY, ""); db.commit()

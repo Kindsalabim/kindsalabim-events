@@ -146,6 +146,21 @@
 </div>
 </form>
 
+<div class="card p-5 mb-6">
+  <form method="post" action="/admin/crm/akquise/limit" class="flex flex-wrap items-end gap-3">
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1.5">Mails pro Tag</label>
+      <input type="number" name="limit" min="1" max="500" value="{{ limit_tag }}"
+             class="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    </div>
+    <button type="submit" class="btn-secondary text-sm px-4 py-2">Speichern</button>
+    <span class="text-xs" style="color:var(--ink-4);">
+      Neue Absenderadresse langsam aufwärmen: erste Woche 5, zweite Woche 10, danach hoch.
+      Ein hohes Limit am ersten Tag fällt bei den Mailanbietern auf.
+    </span>
+  </form>
+</div>
+
 <!-- ── Sperrliste ── -->
 <div class="card p-5">
   <h2 class="text-sm font-semibold text-gray-700 mb-1">Sperrliste</h2>

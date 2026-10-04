@@ -409,6 +409,19 @@ def akquise_kunde_sperren(kid: int, grund: str = Form("widerspruch"),
     return RedirectResponse("/admin/crm/akquise", status_code=303)
 
 
+@router.post("/akquise/limit")
+def akquise_limit(limit: str = Form(""), db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """Tageslimit ändern. In der Aufwärmphase einer neuen Absenderadresse klein halten
+    (erste Woche 5, dann 10), sonst fällt die Domain auf."""
+    import vertrieb
+    from notifications import set_setting
+    wert = limit.strip()
+    if wert.isdigit() and 1 <= int(wert) <= 500:
+        set_setting(db, vertrieb.LIMIT_KEY, wert)
+        db.commit()
+    return RedirectResponse("/admin/crm/akquise", status_code=303)
+
+
 @router.post("/akquise/notaus")
 def akquise_notaus(stoppen: str = Form("1"), db: Session = Depends(get_db),
                    _=Depends(nur_inhaber)):
