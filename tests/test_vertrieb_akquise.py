@@ -180,3 +180,107 @@ def test_import_versteht_das_format_der_recherche_session(admin, db):
     assert k.quelle_beleg == "snippet"
     # Ungeprüfte Adressen sind in der Liste markiert
     assert "Adresse prüfen" in admin.get("/admin/crm/akquise").text
+
+
+# ── Übergabe an den E-Mail-Assistenten ──────────────────────────────────────
+
+def _kontakt(db, firma="Übergabe GmbH", email="info@uebergabe.example", status="lead"):
+    k = Kunde(firma=firma, email=email, herkunft="akquise", pipeline_status=status,
+              quelle="https://beispiel.de/liste", branche="Sparkasse")
+    db.add(k); db.commit()
+    return k
+
+
+def test_uebergabe_respektiert_sperre_und_fehlende_mail(admin, db, monkeypatch):
+    _leeren()
+    import routes.crm as crm
+    angefordert = []
+    monkeypatch.setattr(crm, "entwurf_anfordern", lambda kid: angefordert.append(kid))
+    frei = _kontakt(db, "Frei GmbH", "info@frei.example")
+    gesperrt = _kontakt(db, "Gesperrt GmbH", "info@gesperrt.example")
+    ohne = _kontakt(db, "Ohne Mail GmbH", "")
+    vertrieb.sperren(db, "adresse", "info@gesperrt.example", "widerspruch")
+    r = admin.post("/admin/crm/akquise/uebergeben",
+                   data={"kunde_ids": [str(frei.id), str(gesperrt.id), str(ohne.id)]},
+                   follow_redirects=False)
+    ziel = r.headers["location"]
+    assert "uebergeben=1" in ziel and "gesperrt_u=1" in ziel and "ohne_mail=1" in ziel
+    assert angefordert == [frei.id]
+
+
+def test_tageslimit_begrenzt_die_uebergabe(admin, db, monkeypatch):
+    _leeren()
+    import routes.crm as crm
+    from notifications import set_setting
+    angefordert = []
+    monkeypatch.setattr(crm, "entwurf_anfordern", lambda kid: angefordert.append(kid))
+    set_setting(db, vertrieb.LIMIT_KEY, "2"); db.commit()
+    ids = [str(_kontakt(db, f"Limit {i} GmbH", f"info@limit{i}.example").id) for i in range(4)]
+    admin.post("/admin/crm/akquise/uebergeben", data={"kunde_ids": ids}, follow_redirects=False)
+    assert len(angefordert) == 2
+    set_setting(db, vertrieb.LIMIT_KEY, ""); db.commit()
+
+
+# ── Schnittstelle, die der Assistent nutzt ──────────────────────────────────
+
+GEHEIM = {"X-Vertrieb-Secret": "test-geheim"}
+
+
+def _mit_secret(monkeypatch):
+    import routes.crm as crm
+    monkeypatch.setattr(crm, "get_config", lambda: {"assistent_api_secret": "test-geheim"})
+
+
+def test_api_braucht_das_secret(admin, db, monkeypatch):
+    _leeren()
+    _mit_secret(monkeypatch)
+    assert admin.get("/admin/crm/api/vertrieb/pruefen?email=a@b.de").status_code == 401
+    assert admin.get("/admin/crm/api/vertrieb/pruefen?email=a@b.de",
+                     headers={"X-Vertrieb-Secret": "falsch"}).status_code == 401
+    r = admin.get("/admin/crm/api/vertrieb/pruefen?email=a@b.de", headers=GEHEIM)
+    assert r.status_code == 200 and r.json()["darf"] is True
+
+
+def test_api_pruefen_sieht_die_sperre(admin, db, monkeypatch):
+    _leeren()
+    _mit_secret(monkeypatch)
+    vertrieb.sperren(db, "domain", "gesperrt.example", "widerspruch")
+    r = admin.get("/admin/crm/api/vertrieb/pruefen?email=info@gesperrt.example", headers=GEHEIM)
+    assert r.json()["darf"] is False and "gesperrt" in r.json()["grund"]
+
+
+def test_api_gesendet_protokolliert_und_schiebt_die_pipeline(admin, db, monkeypatch):
+    _leeren()
+    _mit_secret(monkeypatch)
+    k = _kontakt(db, "Gesendet GmbH", "info@gesendet.example")
+    r = admin.post("/admin/crm/api/vertrieb/gesendet", headers=GEHEIM,
+                   json={"kunde_id": k.id, "betreff": "Kinderprogramm für Ihr Fest"})
+    assert r.status_code == 200
+    db.expire_all()
+    log = db.query(VertriebKontaktLog).filter(VertriebKontaktLog.kunde_id == k.id).first()
+    assert log.weg == "mail" and log.quelle == "https://beispiel.de/liste"
+    assert db.query(Kunde).filter(Kunde.id == k.id).first().pipeline_status == "kontakt"
+
+
+def test_api_widerspruch_sperrt_alle_ebenen(admin, db, monkeypatch):
+    _leeren()
+    _mit_secret(monkeypatch)
+    k = _kontakt(db, "Widerspruch GmbH", "info@widerspruch.example")
+    admin.post("/admin/crm/api/vertrieb/sperren", headers=GEHEIM,
+               json={"kunde_id": k.id, "grund": "widerspruch"})
+    db.expire_all()
+    assert vertrieb.darf_kontaktieren(db, email="anders@widerspruch.example")[0] is False
+    assert db.query(Kunde).filter(Kunde.id == k.id).first().pipeline_status == "verloren"
+    assert vertrieb.versand_gestoppt(db) is False      # einfacher Widerspruch stoppt nicht alles
+
+
+def test_api_abmahnung_loest_den_notaus_aus(admin, db, monkeypatch):
+    _leeren()
+    _mit_secret(monkeypatch)
+    k = _kontakt(db, "Anwalt GmbH", "info@anwalt.example")
+    admin.post("/admin/crm/api/vertrieb/sperren", headers=GEHEIM,
+               json={"kunde_id": k.id, "grund": "abmahnung", "notiz": "Schreiben vom 05.10."})
+    db.expire_all()
+    assert vertrieb.versand_gestoppt(db) is True
+    assert vertrieb.darf_kontaktieren(db, email="ganz@andere.example")[0] is False
+    vertrieb.versand_stoppen(db, False)

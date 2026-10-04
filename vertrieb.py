@@ -119,6 +119,30 @@ def sperren_fuer_kunde(db, kunde, grund: str = "widerspruch", notiz: str = ""):
     return [e for e in eingetragen if e]
 
 
+LIMIT_KEY = "vertrieb_limit_tag"
+LIMIT_STANDARD = 25
+
+
+def tageslimit(db) -> int:
+    from notifications import get_setting
+    wert = get_setting(db, LIMIT_KEY, "")
+    return int(wert) if wert.isdigit() else LIMIT_STANDARD
+
+
+def heute_verschickt(db) -> int:
+    """Wie viele Vertriebsmails sind heute schon raus? Schützt die Zustellbarkeit
+    und begrenzt den Schaden, falls etwas schiefläuft."""
+    from models import VertriebKontaktLog
+    heute = datetime.now().date().isoformat()
+    return (db.query(VertriebKontaktLog)
+            .filter(VertriebKontaktLog.weg == "mail",
+                    VertriebKontaktLog.erstellt_am.startswith(heute)).count())
+
+
+def rest_heute(db) -> int:
+    return max(0, tageslimit(db) - heute_verschickt(db))
+
+
 def protokollieren(db, kunde, weg: str, betreff: str = "", empfaenger: str = ""):
     """Jede Ansprache festhalten: im Streitfall der Nachweis."""
     from models import VertriebKontaktLog

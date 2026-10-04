@@ -673,6 +673,15 @@ story = [
               "<b>Not-Aus</b> stoppt den gesamten Vertriebsversand, etwa nach Anwaltspost. Geprüft wird "
               "immer technisch vor dem Versand, nie durch die KI. Jede Ansprache wird protokolliert "
               "(Empfänger, Weg, Quelle der Adresse) – im Streitfall der Nachweis.", P),
+    Spacer(1, 4),
+    Paragraph("<b>Versand über den E-Mail-Assistenten:</b> Kontakte ankreuzen und "
+              "<b>&bdquo;An den E-Mail-Assistenten übergeben&ldquo;</b>. Dort entsteht je Kontakt ein "
+              "Entwurf, den du freigibst; verschickt wird über die eigene Vertriebsadresse. Die "
+              "Events-App entscheidet, WER angeschrieben werden darf: Sperrliste, Not-Aus und ein "
+              "<b>Tageslimit</b> (Standard 25 Mails, schützt die Zustellbarkeit). Vor dem Versand fragt "
+              "der Assistent noch einmal nach, damit eine Sperre auch zwischen Entwurf und Versand "
+              "greift. Meldet er einen Widerspruch, wird auf allen Ebenen gesperrt; meldet er "
+              "Anwaltspost, steht der Versand sofort still und du bekommst eine Glocke.", P),
     Spacer(1, 6),
 
     Paragraph("13. Buchhaltung", H2),

@@ -41,6 +41,9 @@ def get_config():
             "DEMO_MODE":                   "demo_mode",
             "ANTHROPIC_API_KEY":           "anthropic_api_key",
             # Quick-Post aus dem Eventbericht an die Social-Media-App
+            # Vertriebsmails laufen über den Anfrage-Assistenten (eigene Absenderadresse)
+            "ASSISTENT_API_URL":           "assistent_api_url",
+            "ASSISTENT_API_SECRET":        "assistent_api_secret",
             "SOCIAL_API_URL":              "social_api_url",
             "SOCIAL_API_SECRET":           "social_api_secret",
             "BAKERROSS_MODEL":             "bakerross_model",

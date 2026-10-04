@@ -4,7 +4,8 @@ Stufe 1: Kundenprofile (Stammdaten, Profil-Wissen, Tags) + Eventhistorie
 inkl. der vom Teamleiter eingereichten Eventberichte. Pipeline-Kanban,
 Aktivitäten und Wiedervorlagen folgen in späteren Stufen.
 """
-from fastapi import APIRouter, Request, Depends, File, Form, HTTPException, UploadFile
+from fastapi import (APIRouter, BackgroundTasks, Depends, File, Form, HTTPException,
+                     Request, UploadFile)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -181,6 +182,7 @@ def akquise(request: Request, db: Session = Depends(get_db), _=Depends(nur_inhab
     return templates.TemplateResponse("admin/crm_akquise.html",
         tpl(request, active="crm", kontakte=kontakte, offen=offen, sperren=sperren,
             gestoppt=vertrieb.versand_gestoppt(db), gruende=vertrieb.GRUENDE,
+            rest_heute=vertrieb.rest_heute(db), limit_tag=vertrieb.tageslimit(db),
             ebenen=vertrieb.EBENEN, spalten=SPALTEN_HILFE,
             monat_namen=["", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
                          "August", "September", "Oktober", "November", "Dezember"]))
@@ -252,6 +254,137 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
 
 MONATE = {"jan": 1, "feb": 2, "mär": 3, "mar": 3, "apr": 4, "mai": 5, "jun": 6,
           "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dez": 12}
+
+
+@router.post("/akquise/uebergeben")
+def akquise_uebergeben(background_tasks: BackgroundTasks, kunde_ids: list = Form([]),
+                       db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """Ausgewählte Kontakte an den E-Mail-Assistenten übergeben, der daraus Entwürfe
+    baut und sie nach Aykuts Freigabe über die eigene Vertriebsadresse verschickt.
+
+    Hier wird entschieden, WER angeschrieben werden darf: Sperrliste, Not-Aus und
+    Tageslimit. Der Assistent fragt vor dem Versand noch einmal nach (siehe
+    /api/vertrieb/pruefen), damit eine Sperre auch zwischen Entwurf und Versand greift."""
+    import vertrieb
+    ids = {int(x) for x in kunde_ids if str(x).isdigit()}
+    kontakte = db.query(Kunde).filter(Kunde.id.in_(ids)).all() if ids else []
+    rest = vertrieb.rest_heute(db)
+    uebergeben = gesperrt = ohne_mail = 0
+    for k in kontakte:
+        if uebergeben >= rest:
+            break
+        if not (k.email or "").strip():
+            ohne_mail += 1
+            continue
+        darf, _grund = vertrieb.darf_kontaktieren(db, email=k.email, firma=k.firma)
+        if not darf:
+            gesperrt += 1
+            continue
+        background_tasks.add_task(entwurf_anfordern, k.id)
+        uebergeben += 1
+    from urllib.parse import urlencode
+    return RedirectResponse("/admin/crm/akquise?" + urlencode(
+        {"uebergeben": uebergeben, "gesperrt_u": gesperrt, "ohne_mail": ohne_mail,
+         "limit": max(0, len(kontakte) - uebergeben - gesperrt - ohne_mail)}), status_code=303)
+
+
+def entwurf_anfordern(kunde_id: int):
+    """Hintergrund: Kontaktdaten an den Assistenten geben, der den Entwurf schreibt."""
+    import json
+    import urllib.request
+    from database import SessionLocal
+    cfg = get_config()
+    url, secret = cfg.get("assistent_api_url"), cfg.get("assistent_api_secret")
+    db = SessionLocal()
+    try:
+        k = db.query(Kunde).filter(Kunde.id == kunde_id).first()
+        if not k:
+            return
+        if not url or not secret:
+            print("[VERTRIEB] assistent_api_url/_secret fehlen – kein Entwurf angefordert")
+            return
+        daten = {"kunde_id": k.id, "firma": k.firma, "email": k.email, "ort": k.ort or "",
+                 "branche": k.branche or "", "art": k.akquise_art or "",
+                 "anlass": k.anlass or "", "quelle": k.quelle or "",
+                 "ansprachemonat": k.ansprachemonat, "notiz": k.notizen or ""}
+        req = urllib.request.Request(
+            url.rstrip("/") + "/api/vertrieb/entwurf",
+            data=json.dumps(daten).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Vertrieb-Secret": secret})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+        import vertrieb
+        vertrieb.protokollieren(db, k, "entwurf", "An den E-Mail-Assistenten übergeben")
+    except Exception as e:
+        print(f"[VERTRIEB] Entwurf für Kunde {kunde_id} fehlgeschlagen: {e}")
+    finally:
+        db.close()
+
+
+# ── Schnittstelle für den E-Mail-Assistenten (Secret im Header) ──────────────
+
+def _assistent_erlaubt(request: Request) -> bool:
+    secret = get_config().get("assistent_api_secret")
+    return bool(secret) and request.headers.get("X-Vertrieb-Secret") == secret
+
+
+@router.get("/api/vertrieb/pruefen")
+def api_pruefen(request: Request, email: str = "", firma: str = "",
+                db: Session = Depends(get_db)):
+    """Der Assistent fragt unmittelbar VOR dem Versand: Darf ich? Antwort ist
+    verbindlich, auch wenn der Entwurf längst geschrieben ist."""
+    import vertrieb
+    if not _assistent_erlaubt(request):
+        raise HTTPException(401)
+    darf, grund = vertrieb.darf_kontaktieren(db, email=email, firma=firma)
+    return {"darf": darf, "grund": grund, "rest_heute": vertrieb.rest_heute(db)}
+
+
+@router.post("/api/vertrieb/gesendet")
+async def api_gesendet(request: Request, db: Session = Depends(get_db)):
+    """Der Assistent meldet: Mail ist raus. Wir protokollieren und rücken die
+    Pipeline eine Stufe weiter."""
+    import vertrieb
+    if not _assistent_erlaubt(request):
+        raise HTTPException(401)
+    daten = await request.json()
+    k = db.query(Kunde).filter(Kunde.id == daten.get("kunde_id")).first()
+    if not k:
+        raise HTTPException(404)
+    vertrieb.protokollieren(db, k, "mail", daten.get("betreff") or "",
+                            daten.get("empfaenger") or k.email or "")
+    if k.pipeline_status == "lead":
+        k.pipeline_status = "kontakt"
+    db.commit()
+    return {"ok": True, "rest_heute": vertrieb.rest_heute(db)}
+
+
+@router.post("/api/vertrieb/sperren")
+async def api_sperren(request: Request, db: Session = Depends(get_db)):
+    """Der Assistent erkennt einen Widerspruch („bitte keine Mails mehr") und meldet
+    ihn. Gesperrt wird auf allen Ebenen, nicht nur die eine Adresse."""
+    import vertrieb
+    if not _assistent_erlaubt(request):
+        raise HTTPException(401)
+    daten = await request.json()
+    grund = daten.get("grund") or "widerspruch"
+    k = (db.query(Kunde).filter(Kunde.id == daten["kunde_id"]).first()
+         if daten.get("kunde_id") else None)
+    if k:
+        vertrieb.sperren_fuer_kunde(db, k, grund, daten.get("notiz") or "")
+        k.pipeline_status = "verloren"
+        db.commit()
+    elif daten.get("email"):
+        vertrieb.sperren(db, "adresse", daten["email"], grund, daten.get("notiz") or "")
+    if grund in ("abmahnung", "unterlassung"):
+        vertrieb.versand_stoppen(db, True)      # Not-Aus bei Anwaltspost
+        from notifications import notify
+        notify(db, "vertrieb_stopp", "Vertriebsversand gestoppt",
+               "Der E-Mail-Assistent hat Anwaltspost gemeldet. Der automatische Versand "
+               "steht still, bis du ihn unter Kunden → Akquise wieder freigibst.",
+               "/admin/crm/akquise")
+        db.commit()
+    return {"ok": True, "gestoppt": vertrieb.versand_gestoppt(db)}
 
 
 @router.post("/akquise/sperre")

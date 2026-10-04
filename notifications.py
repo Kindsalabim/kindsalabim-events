@@ -33,6 +33,7 @@ NOTIF_TYPEN = [
     ("kalender_fehler", "Kalender-Eintrag konnte nicht geschrieben werden", True, True),
     ("reservierung_doppelt", "Reservierung offen, obwohl schon als Event gebucht", True, False),
     ("vorab_wartet", "Dienstleister hält einen Termin frei und wartet auf Bescheid", True, True),
+    ("vertrieb_stopp", "Vertriebsversand gestoppt (Anwaltspost)", True, True),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 
