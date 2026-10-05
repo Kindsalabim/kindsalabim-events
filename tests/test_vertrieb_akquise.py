@@ -184,9 +184,11 @@ def test_import_versteht_das_format_der_recherche_session(admin, db):
 
 # ── Übergabe an den E-Mail-Assistenten ──────────────────────────────────────
 
-def _kontakt(db, firma="Übergabe GmbH", email="info@uebergabe.example", status="lead"):
+def _kontakt(db, firma="Übergabe GmbH", email="info@uebergabe.example", status="lead",
+             anlass="Parkfest Musterstadt"):
+    # Anlass gehört zum Normalfall: Ohne ihn lehnt der Assistent den Entwurf ab.
     k = Kunde(firma=firma, email=email, herkunft="akquise", pipeline_status=status,
-              quelle="https://beispiel.de/liste", branche="Sparkasse")
+              quelle="https://beispiel.de/liste", branche="Sparkasse", anlass=anlass)
     db.add(k); db.commit()
     return k
 
@@ -315,3 +317,54 @@ def test_api_pruefen_haelt_das_tageslimit_ein(admin, db, monkeypatch):
     assert antwort["darf"] is False and "Tageslimit" in antwort["grund"]
     assert antwort["rest_heute"] == 0
     set_setting(db, vertrieb.LIMIT_KEY, ""); db.commit()
+
+
+def test_uebergabe_meldet_fehlenden_anlass(admin, db, monkeypatch):
+    """Der Assistent lehnt Entwürfe ohne Anlass ab – das soll Aykut sofort sehen,
+    nicht erst im Log."""
+    _leeren()
+    import routes.crm as crm
+    angefordert = []
+    monkeypatch.setattr(crm, "entwurf_anfordern", lambda kid: angefordert.append(kid))
+    mit = _kontakt(db, "Mit Anlass GmbH", "info@mit-anlass.example")
+    ohne = _kontakt(db, "Ohne Anlass GmbH", "info@ohne-anlass.example", anlass=None)
+    r = admin.post("/admin/crm/akquise/uebergeben",
+                   data={"kunde_ids": [str(mit.id), str(ohne.id)]}, follow_redirects=False)
+    assert "uebergeben=1" in r.headers["location"]
+    assert "ohne_anlass=1" in r.headers["location"]
+    assert angefordert == [mit.id]
+
+
+def test_ansprechpartner_wird_importiert_und_mitgegeben(admin, db, monkeypatch):
+    """Mit Namen wird aus „Guten Tag ins Team" ein „Hallo Frau Muster"."""
+    _leeren()
+    csv_text = ("Organisation;Ansprechpartner;Kontaktweg;Quelle;Veranstaltung;Ansprachemonat\n"
+                "Muster Stadtwerke;Frau Muster;info@muster-sw.example;https://muster.example/fest;"
+                "Parkfest;10\n")
+    _import(admin, csv_text)
+    k = db.query(Kunde).filter(Kunde.firma == "Muster Stadtwerke").first()
+    assert k.ansprechpartner == "Frau Muster"
+
+    gesendet = {}
+    import routes.crm as crm
+
+    class _Antwort:
+        def read(self):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    import json
+    import urllib.request
+    monkeypatch.setattr(crm, "get_config", lambda: {
+        "assistent_api_url": "https://assistent.example", "assistent_api_secret": "s"})
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda req, timeout=0: (gesendet.update(json.loads(req.data.decode())),
+                                                _Antwort())[1])
+    crm.entwurf_anfordern(k.id)
+    assert gesendet["ansprechpartner"] == "Frau Muster"
+    assert gesendet["anlass"] == "Parkfest"

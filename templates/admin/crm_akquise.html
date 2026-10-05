@@ -19,6 +19,7 @@
   ✓ {{ request.query_params.get('uebergeben') }} Kontakte an den E-Mail-Assistenten übergeben. Die Entwürfe stehen dort zur Freigabe.
   {% if request.query_params.get('gesperrt_u') != '0' %} {{ request.query_params.get('gesperrt_u') }} gesperrt.{% endif %}
   {% if request.query_params.get('ohne_mail') != '0' %} {{ request.query_params.get('ohne_mail') }} ohne Mailadresse.{% endif %}
+  {% if request.query_params.get('ohne_anlass') not in ('0', None) %} {{ request.query_params.get('ohne_anlass') }} ohne Anlass (der Assistent braucht einen Aufhänger).{% endif %}
   {% if request.query_params.get('limit') != '0' %} {{ request.query_params.get('limit') }} wegen Tageslimit nicht.{% endif %}
 </div>
 {% endif %}

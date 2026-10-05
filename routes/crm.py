@@ -235,6 +235,7 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
             zahl = MONATE.get(monat.lower().replace("ä", "ä")[:3])
         db.add(Kunde(
             firma=firma, email=mail or None, telefon=(tel.group(0).strip() if tel else None),
+            ansprechpartner=hol("ansprechpartner", "kontaktperson", "name") or None,
             ort=hol("ort") or None,
             branche=hol("typ/spur", "typ", "branche", "spur") or None,
             quelle_beleg=(hol("beleg", "verlaesslichkeit", "verlässlichkeit") or "").lower() or None,
@@ -269,12 +270,17 @@ def akquise_uebergeben(background_tasks: BackgroundTasks, kunde_ids: list = Form
     ids = {int(x) for x in kunde_ids if str(x).isdigit()}
     kontakte = db.query(Kunde).filter(Kunde.id.in_(ids)).all() if ids else []
     rest = vertrieb.rest_heute(db)
-    uebergeben = gesperrt = ohne_mail = 0
+    uebergeben = gesperrt = ohne_mail = ohne_anlass = 0
     for k in kontakte:
         if uebergeben >= rest:
             break
         if not (k.email or "").strip():
             ohne_mail += 1
+            continue
+        # Der Assistent lehnt Entwürfe ohne Anlass ab (das Anschreiben trägt sich
+        # darüber). Hier gleich melden, statt es still im Hintergrund auflaufen zu lassen.
+        if not (k.anlass or "").strip():
+            ohne_anlass += 1
             continue
         darf, _grund = vertrieb.darf_kontaktieren(db, email=k.email, firma=k.firma)
         if not darf:
@@ -285,7 +291,9 @@ def akquise_uebergeben(background_tasks: BackgroundTasks, kunde_ids: list = Form
     from urllib.parse import urlencode
     return RedirectResponse("/admin/crm/akquise?" + urlencode(
         {"uebergeben": uebergeben, "gesperrt_u": gesperrt, "ohne_mail": ohne_mail,
-         "limit": max(0, len(kontakte) - uebergeben - gesperrt - ohne_mail)}), status_code=303)
+         "ohne_anlass": ohne_anlass,
+         "limit": max(0, len(kontakte) - uebergeben - gesperrt - ohne_mail - ohne_anlass)}),
+        status_code=303)
 
 
 def entwurf_anfordern(kunde_id: int):
@@ -304,6 +312,7 @@ def entwurf_anfordern(kunde_id: int):
             print("[VERTRIEB] assistent_api_url/_secret fehlen – kein Entwurf angefordert")
             return
         daten = {"kunde_id": k.id, "firma": k.firma, "email": k.email, "ort": k.ort or "",
+                 "ansprechpartner": k.ansprechpartner or "",
                  "branche": k.branche or "", "art": k.akquise_art or "",
                  "anlass": k.anlass or "", "quelle": k.quelle or "",
                  "ansprachemonat": k.ansprachemonat, "notiz": k.notizen or ""}
