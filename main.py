@@ -156,6 +156,7 @@ def run_migrations():
     add_column("kunden", "ansprachemonat", "INTEGER")
     add_column("kunden", "kontaktweg", "VARCHAR")
     add_column("kunden", "branche", "VARCHAR")
+    add_column("kunden", "recherche_id", "INTEGER")
     add_column("kunden", "quelle_beleg", "VARCHAR")
     add_column("events", "cl_foto_freigabe", "VARCHAR")
     add_column("events", "bericht_eltern_ok", "VARCHAR")

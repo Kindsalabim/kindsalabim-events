@@ -1,7 +1,7 @@
 import csv
 import io
 import secrets
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, date, time, timedelta
@@ -683,6 +683,23 @@ def send_bericht_erinnerungen(request: Request, secret: str = "", db: Session = 
     if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     return JSONResponse({"bericht_erinnerungen": _run_bericht_erinnerungen(db)})
+
+
+@router.get("/recherche-nachschub")
+def recherche_nachschub(request: Request, background_tasks: BackgroundTasks,
+                        secret: str = "", db: Session = Depends(get_db)):
+    """Füllt den Akquise-Vorrat auf, wenn er unter die Grenze fällt (einmal täglich
+    reicht). Der Lauf selbst läuft im Hintergrund weiter, damit der Cron nicht in
+    einen Timeout läuft. Ohne hinterlegten Dauerauftrag passiert nichts, und es wird
+    nie ein zweiter Lauf angelegt, solange einer offen ist."""
+    if not _check_secret(request, secret):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    import recherche
+    auftrag = recherche.nachschub_pruefen(db)
+    if not auftrag:
+        return JSONResponse({"gestartet": False, "offen": recherche.offene_leads(db)})
+    background_tasks.add_task(recherche.auftrag_ausfuehren, auftrag.id)
+    return JSONResponse({"gestartet": True, "auftrag_id": auftrag.id})
 
 
 # Spalten, die NIE ins Backup-CSV dürfen: aktive Login-Geheimnisse. Ein Magic-Token

@@ -156,6 +156,48 @@ def test_import_ueberspringt_gesperrte_und_doppelte(admin, db):
     assert db.query(Kunde).filter(Kunde.firma == "Wohnbau Musterstadt eG").first() is None
 
 
+# Ergänzungsliste: dieselben Organisationen wie oben, aber nur mit Namen (05.10.2026).
+ERGAENZUNG_CSV = """Organisation;Art;Ort;Kontaktweg;Quelle;Veranstaltung;Ansprachemonat;Ansprechpartner
+Stadtmarketing Musterstadt;Veranstalter;Musterstadt;andere@musterstadt.de;https://musterstadt.de/impressum;Parkfest;1;Rita Giesekus
+Wohnbau Musterstadt eG;Aussteller;Musterstadt;info@wohnbau-muster.de;https://musterstadt.de/team;Parkfest;3;Frau Muster
+"""
+
+
+def test_ergaenzungsliste_traegt_nur_namen_nach(admin, db):
+    """Eine Nachlieferung darf keine Doppelten anlegen und nichts überschreiben."""
+    _leeren()
+    _import(admin)
+    vorher = db.query(Kunde).filter(Kunde.herkunft == "akquise").count()
+    r = _import(admin, ERGAENZUNG_CSV)
+    assert "neu=0" in r.headers["location"] and "ergaenzt=2" in r.headers["location"]
+    assert db.query(Kunde).filter(Kunde.herkunft == "akquise").count() == vorher
+    sm = db.query(Kunde).filter(Kunde.firma == "Stadtmarketing Musterstadt").first()
+    assert sm.ansprechpartner == "Rita Giesekus"
+    # alles andere bleibt, wie es war – auch die abweichende Adresse in der Nachlieferung
+    assert sm.email == "stadtmarketing@musterstadt.de"
+    assert sm.quelle == "https://musterstadt.de/fest" and sm.ansprachemonat == 12
+
+
+def test_ergaenzungsliste_ueberschreibt_vorhandenen_namen_nicht(admin, db):
+    _leeren()
+    _import(admin)
+    sm = db.query(Kunde).filter(Kunde.firma == "Stadtmarketing Musterstadt").first()
+    sm.ansprechpartner = "Herr Schmitz"
+    db.commit()
+    r = _import(admin, ERGAENZUNG_CSV)
+    assert "ergaenzt=1" in r.headers["location"] and "doppelt=1" in r.headers["location"]
+    db.expire_all()
+    assert db.query(Kunde).filter(Kunde.firma == "Stadtmarketing Musterstadt") \
+             .first().ansprechpartner == "Herr Schmitz"
+
+
+def test_zeile_ohne_namen_bleibt_ein_uebersprungener_doppelter(admin, db):
+    _leeren()
+    _import(admin)
+    r = _import(admin)
+    assert "ergaenzt=0" in r.headers["location"] and "doppelt=2" in r.headers["location"]
+
+
 def test_akquise_kontakte_stehen_nicht_in_der_kundenliste(admin, db):
     _leeren()
     _import(admin)

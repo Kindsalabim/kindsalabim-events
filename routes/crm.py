@@ -173,17 +173,30 @@ SPALTEN_HILFE = ("Organisation; Art; Ort; Kontaktweg; Quelle; Veranstaltung; "
 def akquise(request: Request, db: Session = Depends(get_db), _=Depends(nur_inhaber)):
     """Kaltakquise-Kontakte aus der Recherche, getrennt von den Bestandskunden."""
     import vertrieb
-    from models import VertriebSperre
+    import recherche
+    from notifications import get_setting
+    from models import VertriebSperre, Rechercheauftrag
     kontakte = (db.query(Kunde).filter(Kunde.herkunft == "akquise")
                 .order_by(Kunde.ansprachemonat.is_(None), Kunde.ansprachemonat,
                           func.lower(Kunde.firma)).all())
     offen = [k for k in kontakte if k.pipeline_status == "lead"]
     sperren = db.query(VertriebSperre).order_by(VertriebSperre.id.desc()).all()
+    auftraege = (db.query(Rechercheauftrag)
+                 .order_by(Rechercheauftrag.id.desc()).limit(8).all())
+    monat = datetime.now().strftime("%Y-%m")
+    kosten_monat = sum(a.kosten_cent or 0 for a in db.query(Rechercheauftrag)
+                       .filter(Rechercheauftrag.erstellt_am.startswith(monat)).all())
     return templates.TemplateResponse("admin/crm_akquise.html",
         tpl(request, active="crm", kontakte=kontakte, offen=offen, sperren=sperren,
             gestoppt=vertrieb.versand_gestoppt(db), gruende=vertrieb.GRUENDE,
             rest_heute=vertrieb.rest_heute(db), limit_tag=vertrieb.tageslimit(db),
             ebenen=vertrieb.EBENEN, spalten=SPALTEN_HILFE,
+            auftraege=auftraege, kosten_monat=kosten_monat,
+            nachschub_grenze=recherche.NACHSCHUB_GRENZE,
+            dauerauftrag=get_setting(db, recherche.DAUERAUFTRAG_KEY, ""),
+            offene_leads=recherche.offene_leads(db),
+            modelle=[(recherche.MODELL_RECHERCHE, "Günstig (Standard)"),
+                     (recherche.MODELL_EINORDNUNG, "Teuer, dafür gründlicher")],
             monat_namen=["", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
                          "August", "September", "Oktober", "November", "Dezember"]))
 
@@ -192,14 +205,19 @@ def akquise(request: Request, db: Session = Depends(get_db), _=Depends(nur_inhab
 async def akquise_import(request: Request, datei: UploadFile = File(...),
                          db: Session = Depends(get_db), _=Depends(nur_inhaber)):
     """Recherche-Liste als CSV einlesen. Ohne Quelle kein Eintrag – geraten wird nichts.
-    Gesperrte und schon vorhandene Organisationen werden übersprungen."""
+    Gesperrte Organisationen werden übersprungen.
+
+    Dieselbe Datei dient auch als Ergänzungsliste: Kennt die App die Organisation schon,
+    wird nur ein fehlender Ansprechpartner nachgetragen (05.10.2026, Nachlieferung der
+    Recherche-Session). Alles andere bleibt, wie es ist – eine Nachlieferung darf
+    gepflegte Daten nicht überschreiben."""
     import csv as _csv
     import io
     import re
     import vertrieb
     roh = (await datei.read()).decode("utf-8-sig", errors="replace")
     trenner = ";" if roh.count(";") >= roh.count(",") else ","
-    neu = uebersprungen = gesperrt = ohne_quelle = 0
+    neu = uebersprungen = gesperrt = ohne_quelle = ergaenzt = 0
     for zeile in _csv.DictReader(io.StringIO(roh), delimiter=trenner):
         werte = { (k or "").strip().lower(): (v or "").strip() for k, v in zeile.items() }
 
@@ -225,8 +243,14 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
         if not darf:
             gesperrt += 1
             continue
-        if db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first():
-            uebersprungen += 1
+        vorhanden = db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first()
+        if vorhanden:
+            person = hol("ansprechpartner", "kontaktperson")
+            if person and not (vorhanden.ansprechpartner or "").strip():
+                vorhanden.ansprechpartner = person
+                ergaenzt += 1
+            else:
+                uebersprungen += 1
             continue
         # „3", „März" oder ein Bereich wie „Okt–Dez" (dann zählt der erste Monat)
         monat = hol("ansprachemonat", "monat").strip()
@@ -249,12 +273,44 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
     db.commit()
     from urllib.parse import urlencode
     return RedirectResponse("/admin/crm/akquise?" + urlencode(
-        {"neu": neu, "doppelt": uebersprungen, "gesperrt": gesperrt,
+        {"neu": neu, "ergaenzt": ergaenzt, "doppelt": uebersprungen, "gesperrt": gesperrt,
          "ohne_quelle": ohne_quelle}), status_code=303)
 
 
 MONATE = {"jan": 1, "feb": 2, "mär": 3, "mar": 3, "apr": 4, "mai": 5, "jun": 6,
           "jul": 7, "aug": 8, "sep": 9, "okt": 10, "nov": 11, "dez": 12}
+
+
+@router.post("/akquise/recherche")
+def akquise_recherche(background_tasks: BackgroundTasks, auftrag: str = Form(""),
+                      modell: str = Form(""), db: Session = Depends(get_db),
+                      _=Depends(nur_inhaber)):
+    """Einen Rechercheauftrag starten. Läuft im Hintergrund, weil die Websuche
+    je Lauf eine bis mehrere Minuten braucht."""
+    import recherche
+    from urllib.parse import urlencode
+    text = (auftrag or "").strip()
+    if len(text) < 10:
+        return RedirectResponse("/admin/crm/akquise?" + urlencode(
+            {"rfehler": "Bitte beschreibe den Auftrag in einem Satz."}), status_code=303)
+    gewaehlt = modell if modell in (recherche.MODELL_RECHERCHE,
+                                    recherche.MODELL_EINORDNUNG) \
+        else recherche.MODELL_RECHERCHE
+    a = recherche.auftrag_anlegen(db, text, gewaehlt)
+    background_tasks.add_task(recherche.auftrag_ausfuehren, a.id)
+    return RedirectResponse("/admin/crm/akquise?" + urlencode(
+        {"gestartet": 1}), status_code=303)
+
+
+@router.post("/akquise/dauerauftrag")
+def akquise_dauerauftrag(auftrag: str = Form(""), db: Session = Depends(get_db),
+                         _=Depends(nur_inhaber)):
+    """Text für den automatischen Nachschub. Leer = keine automatischen Läufe."""
+    import recherche
+    from notifications import set_setting
+    set_setting(db, recherche.DAUERAUFTRAG_KEY, (auftrag or "").strip())
+    db.commit()
+    return RedirectResponse("/admin/crm/akquise", status_code=303)
 
 
 @router.post("/akquise/uebergeben")

@@ -624,8 +624,8 @@ class Kunde(Base):
     anlass               = Column(String)   # z. B. „Familientag Gelsenkirchen"
     ansprachemonat       = Column(Integer)  # 1-12: wann ist der Planungszeitpunkt?
     kontaktweg           = Column(String)   # Mail | Formular | Telefon
-    branche              = Column(String)   # Sparkasse, Wohnungsgesellschaft, Stadtwerk …
     quelle_beleg         = Column(String)   # geprüft | snippet | unbestätigt
+    recherche_id         = Column(Integer)  # aus welchem Rechercheauftrag stammt der Kontakt
 
     # Profil-Wissen (alles optional – „Kundengedächtnis")
     # Social-Media-Freigabe gilt dauerhaft für diesen Kunden – Stammkunden füllen
@@ -722,6 +722,26 @@ class VertriebSperre(Base):
     grund       = Column(String)                   # widerspruch | abmahnung | unterlassung | eigene
     notiz       = Column(Text)
     erstellt_am = Column(String)
+
+
+class Rechercheauftrag(Base):
+    """Ein Auftrag an die Recherche („Finde Firmen wie …"). Die Suche läuft über das
+    Websuche-Werkzeug der Claude-API, es braucht also keinen eigenen Dienst. Ergebnisse
+    landen direkt als Akquise-Kontakte – ohne Quelle kein Eintrag (Aykut 05.10.2026)."""
+    __tablename__ = "rechercheauftraege"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    auftrag       = Column(Text, nullable=False)
+    status        = Column(String, default="offen")   # offen | laeuft | fertig | fehler
+    anzahl        = Column(Integer, default=0)        # übernommene Kontakte
+    verworfen     = Column(Integer, default=0)        # ohne Quelle, gesperrt oder doppelt
+    modell        = Column(String)
+    suchen        = Column(Integer, default=0)        # Anzahl Websuchen
+    kosten_cent   = Column(Float)                     # geschätzte Modellkosten
+    meldung       = Column(Text)                      # Fehler oder Hinweis
+    automatisch   = Column(Boolean, default=False)    # vom Nachschub-Lauf gestartet
+    erstellt_am   = Column(String)
+    fertig_am     = Column(String)
 
 
 class VertriebKontaktLog(Base):
