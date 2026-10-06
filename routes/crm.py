@@ -170,15 +170,22 @@ SPALTEN_HILFE = ("Organisation; Art; Ort; Kontaktweg; Quelle; Veranstaltung; "
 
 
 @router.get("/akquise", response_class=HTMLResponse)
-def akquise(request: Request, db: Session = Depends(get_db), _=Depends(nur_inhaber)):
-    """Kaltakquise-Kontakte aus der Recherche, getrennt von den Bestandskunden."""
+def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
+            _=Depends(nur_inhaber)):
+    """Kaltakquise-Kontakte aus der Recherche, getrennt von den Bestandskunden.
+
+    `?lauf=<id>` zeigt nur die Kontakte eines Rechercheauftrags. Ohne das war nach einem
+    Lauf nicht zu sehen, was er gebracht hat (Aykut 06.10.2026)."""
     import vertrieb
     import recherche
     from notifications import get_setting
     from models import VertriebSperre, Rechercheauftrag
-    kontakte = (db.query(Kunde).filter(Kunde.herkunft == "akquise")
-                .order_by(Kunde.ansprachemonat.is_(None), Kunde.ansprachemonat,
-                          func.lower(Kunde.firma)).all())
+    q = db.query(Kunde).filter(Kunde.herkunft == "akquise")
+    lauf_id = int(lauf) if lauf.isdigit() else None
+    if lauf_id:
+        q = q.filter(Kunde.recherche_id == lauf_id)
+    kontakte = q.order_by(Kunde.ansprachemonat.is_(None), Kunde.ansprachemonat,
+                          func.lower(Kunde.firma)).all()
     offen = [k for k in kontakte if k.pipeline_status == "lead"]
     sperren = db.query(VertriebSperre).order_by(VertriebSperre.id.desc()).all()
     auftraege = (db.query(Rechercheauftrag)
@@ -191,7 +198,7 @@ def akquise(request: Request, db: Session = Depends(get_db), _=Depends(nur_inhab
             gestoppt=vertrieb.versand_gestoppt(db), gruende=vertrieb.GRUENDE,
             rest_heute=vertrieb.rest_heute(db), limit_tag=vertrieb.tageslimit(db),
             ebenen=vertrieb.EBENEN, spalten=SPALTEN_HILFE,
-            auftraege=auftraege, kosten_monat=kosten_monat,
+            auftraege=auftraege, kosten_monat=kosten_monat, lauf_id=lauf_id,
             nachschub_grenze=recherche.NACHSCHUB_GRENZE,
             dauerauftrag=get_setting(db, recherche.DAUERAUFTRAG_KEY, ""),
             offene_leads=recherche.offene_leads(db),

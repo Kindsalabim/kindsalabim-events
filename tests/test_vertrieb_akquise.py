@@ -252,6 +252,15 @@ def test_loeschen_greift_nur_bei_akquise_kontakten(admin, db):
     db.delete(k); db.commit()
 
 
+def test_kontakt_ohne_mailadresse_ist_markiert(admin, db):
+    """Aus dem ersten Lauf kamen Firmen ohne Postfach. Die Zeile sah unauffällig aus,
+    war aber nicht übergebbar (06.10.2026)."""
+    _leeren()
+    _kontakt(db, "Ohne Postfach GmbH", email=None)
+    html = admin.get("/admin/crm/akquise").text
+    assert "keine Mailadresse" in html
+
+
 def test_akquise_kontakte_stehen_nicht_in_der_kundenliste(admin, db):
     _leeren()
     _import(admin)

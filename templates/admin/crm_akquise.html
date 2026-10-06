@@ -115,7 +115,9 @@
             {% if a.meldung %}<br><span class="text-xs" style="color:var(--c-coral);">{{ a.meldung }}</span>{% endif %}
           </td>
           <td class="py-2 pr-3 text-xs whitespace-nowrap" style="color:var(--ink-4);">
-            {% if a.status == 'fertig' %}{{ a.anzahl }} neu, {{ a.verworfen }} verworfen
+            {% if a.status == 'fertig' %}
+              {% if a.anzahl %}<a href="/admin/crm/akquise?lauf={{ a.id }}" class="font-semibold hover:underline" style="color:var(--brand-primary);">{{ a.anzahl }} neu anzeigen</a>{% else %}0 neu{% endif %},
+              {{ a.verworfen }} verworfen
             {% elif a.status == 'laeuft' %}l&auml;uft gerade
             {% elif a.status == 'fehler' %}fehlgeschlagen
             {% else %}wartet{% endif %}
@@ -163,6 +165,12 @@
   </form>
 </details>
 
+{% if lauf_id %}
+<div class="mb-3 flex items-center gap-3 text-sm">
+  <span style="color:var(--ink-2);">Gefiltert auf Lauf {{ lauf_id }}: <strong>{{ kontakte | length }}</strong> Kontakte.</span>
+  <a href="/admin/crm/akquise" class="hover:underline" style="color:var(--brand-primary);">Alle anzeigen</a>
+</div>
+{% endif %}
 <!-- ── Kontakte ── -->
 <form method="post" action="/admin/crm/akquise/uebergeben">
 <div class="card overflow-hidden mb-3">
@@ -189,7 +197,7 @@
           <a href="/admin/crm/{{ k.id }}" class="font-medium hover:underline" style="color:var(--ink-1);">{{ k.firma }}</a>
           <div class="text-xs mt-0.5" style="color:var(--ink-4);">
             {% if k.branche %}{{ k.branche }} · {% endif %}{% if k.akquise_art %}{{ k.akquise_art }}{% endif %}{% if k.ort %} · {{ k.ort }}{% endif %}
-            {% if k.email %} · {{ k.email }}{% endif %}
+            {% if k.email %} · {{ k.email }}{% else %} · <span class="px-1.5 py-0.5 rounded" style="background:var(--c-coral-bg);color:var(--c-coral);" title="Ohne Postfach lässt sich der Kontakt nicht übergeben">keine Mailadresse</span>{% endif %}
             {% if k.quelle %} · <a href="{{ k.quelle.split(' ')[0] }}" target="_blank" rel="noopener" class="underline">Quelle</a>{% endif %}
             {% if k.quelle_beleg and not k.quelle_beleg.startswith('geprüft') %}
             <span class="ml-1 px-1.5 py-0.5 rounded text-xs" style="background:var(--c-amber-bg);color:var(--c-amber);"

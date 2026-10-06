@@ -84,11 +84,26 @@ def test_bekannte_organisation_wird_uebersprungen(db):
     assert (neu, verworfen) == (0, 1)
 
 
-def test_unbrauchbare_mailadresse_wird_geleert_statt_uebernommen(db):
+def test_ohne_mailadresse_kein_kontakt(db):
+    """Nach dem ersten Lauf (06.10.2026): Firmen ohne Postfach kamen durch, ließen sich
+    aber nicht übergeben und hätten als offene Leads den Nachschub blockiert."""
     _leeren()
-    neu, _ = recherche.uebernehmen(db, [_treffer(email="Kontaktformular")])
+    neu, verworfen = recherche.uebernehmen(db, [
+        _treffer(email=""),
+        _treffer(organisation="Nur Formular GmbH", email="Kontaktformular"),
+        _treffer(organisation="Kaputt GmbH", email="info(at)kaputt.de"),
+    ])
+    assert (neu, verworfen) == (0, 3)
+    assert db.query(Kunde).filter(Kunde.herkunft == "akquise").count() == 0
+
+
+def test_mailadresse_wird_aus_dem_text_gezogen(db):
+    """Manche Antworten liefern „Kontakt: info@firma.de (Zentrale)"."""
+    _leeren()
+    neu, _ = recherche.uebernehmen(db, [_treffer(email="Kontakt: info@beispiel-test.de (Zentrale)")])
     assert neu == 1
-    assert db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first().email is None
+    assert db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG") \
+             .first().email == "info@beispiel-test.de"
 
 
 def test_unsinniger_ansprachemonat_wird_verworfen(db):
@@ -267,6 +282,30 @@ def test_seite_zeigt_auftraege_und_kosten(admin, db):
     html = admin.get("/admin/crm/akquise").text
     assert "Wohnungsgesellschaften mit Mieterfest" in html
     assert "12 neu" in html and "0,23" in html
+
+
+def test_lauf_ansicht_zeigt_nur_die_kontakte_dieses_laufs(admin, db):
+    """Ohne diese Ansicht war nach einem Lauf nicht zu sehen, was er gebracht hat."""
+    _leeren()
+    a = recherche.auftrag_anlegen(db, "Wohnungsgesellschaften mit Mieterfest")
+    recherche.uebernehmen(db, [_treffer()], auftrag_id=a.id)
+    recherche.uebernehmen(db, [_treffer(organisation="Aus anderem Lauf GmbH",
+                                       email="info@anderer-lauf.example")], auftrag_id=a.id + 99)
+    html = admin.get(f"/admin/crm/akquise?lauf={a.id}").text
+    assert "Beispiel Wohnbau eG" in html
+    assert "Aus anderem Lauf GmbH" not in html
+    assert "Gefiltert auf Lauf" in html
+    # ohne Filter stehen beide da
+    alle = admin.get("/admin/crm/akquise").text
+    assert "Beispiel Wohnbau eG" in alle and "Aus anderem Lauf GmbH" in alle
+
+
+def test_fertiger_lauf_verlinkt_seine_treffer(admin, db):
+    _leeren()
+    a = recherche.auftrag_anlegen(db, "Verlinkungstest")
+    a.status, a.anzahl = "fertig", 4
+    db.commit()
+    assert f'href="/admin/crm/akquise?lauf={a.id}"' in admin.get("/admin/crm/akquise").text
 
 
 def test_dauerauftrag_speichern(admin, db):

@@ -49,8 +49,12 @@ Harte Regeln:
 - Jede Zeile braucht einen echten Quelllink, auf dem die Angaben stehen. Ohne Quelle keine Zeile.
 - Erfinde nichts. Kein Name, keine Adresse, keine Telefonnummer, die du nicht belegen kannst.
   Lieber zehn belegte Zeilen als fünfzig geratene.
-- Nur Funktionspostfächer (info@, kontakt@, event@, marketing@). Keine personenbezogenen
-  Mailadressen. Den Namen einer zuständigen Person darfst du nennen, er dient der Anrede.
+- **Ohne Mailadresse keine Zeile.** Schau dafür ausdrücklich auf der Impressum-, Kontakt-
+  oder Presseseite der Organisation nach, dort steht fast immer ein Funktionspostfach.
+  Findest du auch dort keines, lass die Organisation weg, auch wenn der Anlass gut passt.
+- Nur Funktionspostfächer (info@, kontakt@, event@, marketing@, presse@). Keine
+  personenbezogenen Mailadressen. Den Namen einer zuständigen Person darfst du nennen,
+  er dient der Anrede.
 - Nicht aufnehmen: Anwaltskanzleien, Krankenhäuser und Kliniken, Pflegedienste, Parteien und
   politische Gremien, Privatpersonen.
 - Große Arbeitgeber sind ausdrücklich erwünscht, wenn sie ein eigenes Familienfest, ein
@@ -128,8 +132,14 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = 12) -
 def uebernehmen(db, treffer: list, auftrag_id: int = None) -> tuple:
     """Treffer als Akquise-Kontakte anlegen. Rückgabe (neu, verworfen).
 
-    Verworfen wird, was keine Quelle hat, gesperrt ist oder die Organisation schon kennt.
-    Die Sperrliste greift also schon beim Anlegen, nicht erst beim Versand."""
+    Verworfen wird, was keine Quelle oder keine Mailadresse hat, gesperrt ist oder die
+    Organisation schon kennt. Die Sperrliste greift also schon beim Anlegen, nicht erst
+    beim Versand.
+
+    Die Mailadresse ist Pflicht (Aykut 06.10.2026, nach dem ersten Lauf): Ein Kontakt
+    ohne Postfach lässt sich nicht übergeben, verstopft aber die Liste und zählt als
+    offener Lead, wodurch der automatische Nachschub stillstehen würde."""
+    import re as _re
     import vertrieb
     from sqlalchemy import func
     from models import Kunde
@@ -141,8 +151,12 @@ def uebernehmen(db, treffer: list, auftrag_id: int = None) -> tuple:
         if not firma or not quelle.startswith("http"):
             verworfen += 1
             continue
-        if mail and "@" not in mail:
-            mail = ""
+        # Nur was wirklich wie eine Adresse aussieht. „Kontaktformular" zählt nicht.
+        gefunden = _re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", mail)
+        mail = gefunden.group(0).rstrip(".,;") if gefunden else ""
+        if not mail:
+            verworfen += 1
+            continue
         darf, _grund = vertrieb.darf_kontaktieren(db, email=mail, firma=firma)
         if not darf:
             verworfen += 1
