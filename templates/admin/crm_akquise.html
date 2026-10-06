@@ -23,6 +23,11 @@
   {% if request.query_params.get('limit') != '0' %} {{ request.query_params.get('limit') }} wegen Tageslimit nicht.{% endif %}
 </div>
 {% endif %}
+{% if request.query_params.get('ifehler') %}
+<div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-amber-bg);color:var(--c-amber);">
+  {{ request.query_params.get('ifehler') }}
+</div>
+{% endif %}
 {% if request.query_params.get('gestartet') %}
 <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style="background:var(--c-success-bg);color:var(--c-success);">
   ✓ Suche läuft. Das Ergebnis erscheint hier und in der Glocke, sobald sie fertig ist.
@@ -159,8 +164,7 @@
 </details>
 
 <!-- ── Kontakte ── -->
-<form method="post" action="/admin/crm/akquise/uebergeben"
-      onsubmit="return confirm('Ausgewählte Kontakte an den E-Mail-Assistenten übergeben? Dort entstehen Entwürfe, verschickt wird erst nach deiner Freigabe.');">
+<form method="post" action="/admin/crm/akquise/uebergeben">
 <div class="card overflow-hidden mb-3">
   <table class="w-full text-sm">
     <thead>
@@ -204,11 +208,13 @@
             {{ STATUS_LABEL.get(k.pipeline_status, k.pipeline_status) }}
           </span>
         </td>
-        <td class="px-5 py-3 text-right">
-          <form method="post" action="/admin/crm/akquise/{{ k.id }}/sperren"
-                onsubmit="return confirm('Nie wieder kontaktieren? Adresse, Domain und Unternehmen werden gesperrt.');">
-            <button class="text-xs text-gray-500 hover:text-red-600 transition-colors">Nie wieder</button>
-          </form>
+        <td class="px-5 py-3 text-right whitespace-nowrap">
+          <button type="submit" formaction="/admin/crm/akquise/{{ k.id }}/sperren" formnovalidate
+                  class="text-xs text-gray-500 hover:text-red-600 transition-colors"
+                  onclick="return confirm('Nie wieder kontaktieren? Adresse, Domain und Unternehmen werden gesperrt. Das lässt sich nicht zurücknehmen.');">Nie wieder</button>
+          <button type="submit" formaction="/admin/crm/akquise/{{ k.id }}/loeschen" formnovalidate
+                  class="text-xs ml-3 text-gray-500 hover:text-red-600 transition-colors"
+                  onclick="return confirm('„{{ k.firma }}“ löschen? Der Kontakt wandert in den Papierkorb.');">Löschen</button>
         </td>
       </tr>
       {% else %}
@@ -220,7 +226,9 @@
 </div>
 
 <div class="flex flex-wrap items-center gap-3 mb-6">
-  <button type="submit" class="btn-primary text-sm px-4 py-2" {% if gestoppt or rest_heute == 0 %}disabled style="opacity:.5;cursor:not-allowed;"{% endif %}>
+  <button type="submit" class="btn-primary text-sm px-4 py-2"
+          onclick="return confirm('Ausgewählte Kontakte an den E-Mail-Assistenten übergeben? Dort entstehen Entwürfe, verschickt wird erst nach deiner Freigabe.');"
+          {% if gestoppt or rest_heute == 0 %}disabled style="opacity:.5;cursor:not-allowed;"{% endif %}>
     An den E-Mail-Assistenten übergeben
   </button>
   <span class="text-xs" style="color:var(--ink-4);">

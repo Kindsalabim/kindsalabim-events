@@ -198,6 +198,60 @@ def test_zeile_ohne_namen_bleibt_ein_uebersprungener_doppelter(admin, db):
     assert "ergaenzt=0" in r.headers["location"] and "doppelt=2" in r.headers["location"]
 
 
+def test_falsche_datei_meldet_statt_abzustuerzen(admin, db):
+    """Aykut lud am 06.10.2026 versehentlich das Auftragsdokument hoch → 500er.
+    Ursache: Zeilen mit mehr Feldern als Überschriften liefern eine Liste."""
+    _leeren()
+    text = ("# Stufe 1: drei Läufe\n\nEinfach kopieren, Modell wählen, dann starten.\n"
+            "Ein Lauf dauert ein, zwei Minuten, kostet 20 bis 40 Cent.\n")
+    r = _import(admin, text)
+    assert r.status_code == 303 and "ifehler" in r.headers["location"]
+    assert db.query(Kunde).filter(Kunde.herkunft == "akquise").count() == 0
+    assert "Organisation" in admin.get("/admin/crm/akquise" + "?" +
+                                      r.headers["location"].split("?", 1)[1]).text
+
+
+def test_zeile_mit_zuvielen_feldern_sprengt_den_import_nicht(admin, db):
+    """Ein überzähliges Semikolon in einer Zeile darf den ganzen Import nicht killen."""
+    _leeren()
+    text = ("Organisation;Art;Ort;Kontaktweg;Quelle;Veranstaltung;Ansprachemonat\n"
+            "Zuviel GmbH;Aussteller;Essen;info@zuviel.example;https://zuviel.example/x;"
+            "Fest;10;noch ein Feld;und noch eins\n")
+    r = _import(admin, text)
+    assert r.status_code == 303 and "neu=1" in r.headers["location"]
+
+
+def test_zeilen_knoepfe_laufen_nicht_in_die_uebergabe(admin, db):
+    """Die Zeilen-Knöpfe standen in Formularen INNERHALB des Übergabe-Formulars.
+    Verschachtelte Formulare verwirft der Browser nach HTML5 – „Nie wieder" löste
+    dadurch die Übergabe aus (gefunden 06.10.2026). Darum: formaction am Knopf."""
+    _leeren()
+    k = _kontakt(db, "Knopf Test GmbH", "info@knopf.example")
+    html = admin.get("/admin/crm/akquise").text
+    assert f'formaction="/admin/crm/akquise/{k.id}/sperren"' in html
+    assert f'formaction="/admin/crm/akquise/{k.id}/loeschen"' in html
+    # kein verschachteltes Formular mehr
+    assert f'action="/admin/crm/akquise/{k.id}/sperren"' not in html.replace("form" + "action", "x")
+
+
+def test_akquise_kontakt_loeschen(admin, db):
+    _leeren()
+    k = _kontakt(db, "Weg Damit GmbH", "info@wegdamit.example")
+    r = admin.post(f"/admin/crm/akquise/{k.id}/loeschen", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/admin/crm/akquise"
+    assert db.query(Kunde).filter(Kunde.id == k.id).first() is None
+
+
+def test_loeschen_greift_nur_bei_akquise_kontakten(admin, db):
+    """Ein Bestandskunde darf über diesen Weg nicht verschwinden."""
+    _leeren()
+    k = Kunde(firma="Echter Bestandskunde", herkunft="bestand")
+    db.add(k); db.commit()
+    admin.post(f"/admin/crm/akquise/{k.id}/loeschen", follow_redirects=False)
+    assert db.query(Kunde).filter(Kunde.id == k.id).first() is not None
+    db.delete(k); db.commit()
+
+
 def test_akquise_kontakte_stehen_nicht_in_der_kundenliste(admin, db):
     _leeren()
     _import(admin)

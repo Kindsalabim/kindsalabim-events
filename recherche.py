@@ -51,8 +51,11 @@ Harte Regeln:
   Lieber zehn belegte Zeilen als fünfzig geratene.
 - Nur Funktionspostfächer (info@, kontakt@, event@, marketing@). Keine personenbezogenen
   Mailadressen. Den Namen einer zuständigen Person darfst du nennen, er dient der Anrede.
-- Nicht aufnehmen: Anwaltskanzleien, Großkonzerne, Krankenhäuser, Behörden im engeren Sinn.
-- Keine Privatpersonen.
+- Nicht aufnehmen: Anwaltskanzleien, Krankenhäuser und Kliniken, Pflegedienste, Parteien und
+  politische Gremien, Privatpersonen.
+- Große Arbeitgeber sind ausdrücklich erwünscht, wenn sie ein eigenes Familienfest, ein
+  Ferienprogramm oder ein Kinderbetreuungsangebot für Mitarbeiterkinder haben. Dann ist der
+  Anlass dieses eigene Fest, nicht ein Stadtfest.
 
 Antworte ausschließlich mit JSON nach diesem Schema, ohne weiteren Text:
 {"kontakte": [{"organisation": "...", "art": "Veranstalter|Aussteller|Firma",

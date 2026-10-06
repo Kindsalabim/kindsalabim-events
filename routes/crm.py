@@ -215,11 +215,26 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
     import io
     import re
     import vertrieb
+    from urllib.parse import urlencode
     roh = (await datei.read()).decode("utf-8-sig", errors="replace")
     trenner = ";" if roh.count(";") >= roh.count(",") else ","
+    leser = _csv.DictReader(io.StringIO(roh), delimiter=trenner)
+    # Erst prüfen, ob das überhaupt eine Kontaktliste ist. Sonst lief jede andere Datei
+    # (z. B. eine Textdatei) in einen Serverfehler statt in eine Meldung (06.10.2026).
+    spalten = {(s or "").strip().lower() for s in (leser.fieldnames or [])}
+    if not spalten & {"organisation", "firma", "kunde", "name"}:
+        return RedirectResponse("/admin/crm/akquise?" + urlencode(
+            {"ifehler": "Diese Datei hat keine Spalte „Organisation“. Erwartet wird eine "
+                        "CSV-Kontaktliste – kein Text- oder Auftragsdokument."}), status_code=303)
     neu = uebersprungen = gesperrt = ohne_quelle = ergaenzt = 0
-    for zeile in _csv.DictReader(io.StringIO(roh), delimiter=trenner):
-        werte = { (k or "").strip().lower(): (v or "").strip() for k, v in zeile.items() }
+    for zeile in leser:
+        # Hat eine Zeile mehr Felder als Überschriften, liefert DictReader eine LISTE
+        # unter dem Schlüssel None – darauf darf .strip() nicht angewandt werden.
+        werte = {}
+        for k, v in zeile.items():
+            if isinstance(v, list):
+                v = " ".join(x for x in v if x)
+            werte[(k or "").strip().lower()] = (v or "").strip()
 
         def hol(*namen):
             for n in namen:
@@ -271,7 +286,6 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
             erstellt_am=datetime.now().isoformat(timespec="seconds")))
         neu += 1
     db.commit()
-    from urllib.parse import urlencode
     return RedirectResponse("/admin/crm/akquise?" + urlencode(
         {"neu": neu, "ergaenzt": ergaenzt, "doppelt": uebersprungen, "gesperrt": gesperrt,
          "ohne_quelle": ohne_quelle}), status_code=303)
@@ -476,6 +490,19 @@ def akquise_kunde_sperren(kid: int, grund: str = Form("widerspruch"),
     if k:
         vertrieb.sperren_fuer_kunde(db, k, grund)
         k.pipeline_status = "verloren"
+        db.commit()
+    return RedirectResponse("/admin/crm/akquise", status_code=303)
+
+
+@router.post("/akquise/{kid}/loeschen")
+def akquise_kunde_loeschen(kid: int, db: Session = Depends(get_db), user=Depends(nur_inhaber)):
+    """Akquise-Kontakt entfernen (Testkontakte, Fehltreffer). Wandert über den
+    Papierkorb, ist also zurückholbar, und landet wieder in der Akquise-Liste."""
+    k = db.query(Kunde).filter(Kunde.id == kid, Kunde.herkunft == "akquise").first()
+    if k:
+        from papierkorb import archive_kunde
+        archive_kunde(db, k, user.get("sub") or user.get("email"))
+        db.delete(k)
         db.commit()
     return RedirectResponse("/admin/crm/akquise", status_code=303)
 
