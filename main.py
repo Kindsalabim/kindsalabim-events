@@ -158,6 +158,7 @@ def run_migrations():
     add_column("kunden", "branche", "VARCHAR")
     add_column("kunden", "recherche_id", "INTEGER")
     add_column("kunden", "quelle_beleg", "VARCHAR")
+    add_column("kunden", "mail_art", "VARCHAR")
     add_column("events", "cl_foto_freigabe", "VARCHAR")
     add_column("events", "bericht_eltern_ok", "VARCHAR")
     add_column("kunden", "foto_freigabe", "VARCHAR")

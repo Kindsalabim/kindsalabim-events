@@ -198,7 +198,7 @@
           <a href="/admin/crm/{{ k.id }}" class="font-medium hover:underline" style="color:var(--ink-1);">{{ k.firma }}</a>
           <div class="text-xs mt-0.5" style="color:var(--ink-4);">
             {% if k.branche %}{{ k.branche }} · {% endif %}{% if k.akquise_art %}{{ k.akquise_art }}{% endif %}{% if k.ort %} · {{ k.ort }}{% endif %}
-            {% if k.email %} · {{ k.email }}{% else %} · <span class="px-1.5 py-0.5 rounded" style="background:var(--c-coral-bg);color:var(--c-coral);" title="Ohne Postfach lässt sich der Kontakt nicht übergeben">keine Mailadresse</span>{% endif %}
+            {% if k.email %} · {{ k.email }}{% if k.mail_art == 'person' %} <span title="Persönliche Adresse, persönliche Anrede">✉</span>{% endif %}{% else %} · <span class="px-1.5 py-0.5 rounded" style="background:var(--c-coral-bg);color:var(--c-coral);" title="Ohne Postfach lässt sich der Kontakt nicht übergeben">keine Mailadresse</span>{% endif %}
             {% if k.quelle %} · <a href="{{ k.quelle.split(' ')[0] }}" target="_blank" rel="noopener" class="underline">Quelle</a>{% endif %}
             {% if k.quelle_beleg and not k.quelle_beleg.startswith('geprüft') %}
             <span class="ml-1 px-1.5 py-0.5 rounded text-xs" style="background:var(--c-amber-bg);color:var(--c-amber);"

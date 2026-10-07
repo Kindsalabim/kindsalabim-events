@@ -625,6 +625,10 @@ class Kunde(Base):
     ansprachemonat       = Column(Integer)  # 1-12: wann ist der Planungszeitpunkt?
     kontaktweg           = Column(String)   # Mail | Formular | Telefon
     quelle_beleg         = Column(String)   # geprüft | snippet | unbestätigt
+    # person = persönliche Adresse einer zuständigen Person, funktion = info@/event@.
+    # Entscheidet die Anrede: „Guten Tag Herr Schmidt" an info@firma.de wirkt falsch,
+    # weil dort zwanzig Schmidts arbeiten (Aykut 07.10.2026).
+    mail_art             = Column(String)
     recherche_id         = Column(Integer)  # aus welchem Rechercheauftrag stammt der Kontakt
 
     # Profil-Wissen (alles optional – „Kundengedächtnis")

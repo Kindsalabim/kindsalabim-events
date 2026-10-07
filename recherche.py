@@ -49,12 +49,22 @@ Harte Regeln:
 - Jede Zeile braucht einen echten Quelllink, auf dem die Angaben stehen. Ohne Quelle keine Zeile.
 - Erfinde nichts. Kein Name, keine Adresse, keine Telefonnummer, die du nicht belegen kannst.
   Lieber zehn belegte Zeilen als fünfzig geratene.
-- **Ohne Mailadresse keine Zeile.** Schau dafür ausdrücklich auf der Impressum-, Kontakt-
-  oder Presseseite der Organisation nach, dort steht fast immer ein Funktionspostfach.
-  Findest du auch dort keines, lass die Organisation weg, auch wenn der Anlass gut passt.
-- Nur Funktionspostfächer (info@, kontakt@, event@, marketing@, presse@). Keine
-  personenbezogenen Mailadressen. Den Namen einer zuständigen Person darfst du nennen,
-  er dient der Anrede.
+- **Ohne Mailadresse keine Zeile.** Schau auf der Impressum-, Kontakt-, Presse-, Team-
+  oder Ansprechpartner-Seite nach. Findest du nirgends eine Adresse, lass die
+  Organisation weg, auch wenn der Anlass gut passt.
+- **Suche bevorzugt die persönliche Adresse der zuständigen Person** (Marketing,
+  Kommunikation, Veranstaltungen, Presse oder Personal). Eine Mail an info@ landet in
+  einem Servicepostfach und erreicht die Person meist nicht. Setze dann
+  "mail_art": "person" und trage den Namen in "ansprechpartner" ein.
+- **Nur Adressen, die wörtlich auf einer Seite stehen.** Bilde niemals eine Adresse aus
+  einem Muster wie vorname.nachname@firma.de, auch wenn andere Adressen der Firma so
+  aussehen. Eine geratene Adresse ist ein Rückläufer und schadet uns.
+- **Name und Adresse müssen von derselben Seite stammen.** Sonst steht der Name der
+  einen Person neben der Adresse einer anderen.
+- Findest du keine persönliche Adresse, nimm ein Funktionspostfach (info@, kontakt@,
+  event@, marketing@, presse@), setze "mail_art": "funktion" und lass
+  "ansprechpartner" dann **leer**. An ein Sammelpostfach wird niemand mit Namen
+  angesprochen.
 - Nicht aufnehmen: Anwaltskanzleien, Krankenhäuser und Kliniken, Pflegedienste, Parteien und
   politische Gremien, Privatpersonen.
 - Große Arbeitgeber sind ausdrücklich erwünscht, wenn sie ein eigenes Familienfest, ein
@@ -63,9 +73,13 @@ Harte Regeln:
 
 Antworte ausschließlich mit JSON nach diesem Schema, ohne weiteren Text:
 {"kontakte": [{"organisation": "...", "art": "Veranstalter|Aussteller|Firma",
-"ort": "...", "email": "...", "ansprechpartner": "", "quelle": "https://...",
+"ort": "...", "email": "...", "mail_art": "person|funktion", "ansprechpartner": "",
+"funktion": "", "quelle": "https://...", "quelle_mail": "https://...",
 "anlass": "...", "ansprachemonat": 1-12, "branche": "...", "beleg": "geprüft|snippet",
-"warum": "ein Satz"}]}"""
+"warum": "ein Satz"}]}
+
+"quelle_mail" ist die Seite, auf der die Mailadresse steht. "funktion" ist die Rolle der
+Person laut Quelle, zum Beispiel „Leiterin Unternehmenskommunikation"."""
 
 
 def _kosten_cent(modell: str, usage: dict) -> float:
@@ -211,6 +225,34 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = 12,
     return ergebnis
 
 
+# Postfächer, hinter denen keine einzelne Person steckt. Eine Namensanrede an so eine
+# Adresse verrät sofort die Maschine: bei der Bogestra arbeiten zwanzig Schmidts.
+_SAMMELPOSTFACH = ("info", "kontakt", "contact", "office", "mail", "email", "service",
+                   "zentrale", "verwaltung", "presse", "pressestelle", "marketing",
+                   "event", "events", "veranstaltungen", "kommunikation", "team",
+                   "sekretariat", "empfang", "anfrage", "anfragen", "post", "buero",
+                   "hello", "moin", "willkommen", "bewerbung", "personal", "hr",
+                   "stadtmarketing", "tourismus", "noreply", "no-reply")
+
+
+def _adresse_einordnen(mail: str, treffer: dict) -> tuple:
+    """Entscheidet (mail_art, ansprechpartner) und hält beides konsistent.
+
+    Die Regel ist eine Kopplung, keine Vorliebe (Aykut 07.10.2026): persönliche Adresse
+    heißt persönliche Anrede, Sammelpostfach heißt keine Namensanrede. Was das Modell
+    behauptet, wird dabei an der Adresse selbst geprüft."""
+    person = (treffer.get("ansprechpartner") or "").strip()
+    lokal = mail.split("@", 1)[0].lower()
+    ist_sammel = (lokal in _SAMMELPOSTFACH
+                  or any(lokal.startswith(p + "-") or lokal.startswith(p + ".")
+                         for p in _SAMMELPOSTFACH))
+    behauptet = (treffer.get("mail_art") or "").strip().lower()
+    if ist_sammel or behauptet == "funktion" or not person:
+        # Kein Name an ein Sammelpostfach, auch wenn das Modell einen mitgeliefert hat.
+        return "funktion", ""
+    return "person", person
+
+
 def uebernehmen(db, treffer: list, auftrag_id: int = None) -> tuple:
     """Treffer als Akquise-Kontakte anlegen. Rückgabe (neu, verworfen).
 
@@ -247,16 +289,25 @@ def uebernehmen(db, treffer: list, auftrag_id: int = None) -> tuple:
             verworfen += 1
             continue
         monat = t.get("ansprachemonat")
+        art, person = _adresse_einordnen(mail, t)
+        notiz = (t.get("warum") or "").strip()
+        quelle_mail = (t.get("quelle_mail") or "").strip()
+        if art == "person" and quelle_mail.startswith("http"):
+            # Woher die Adresse stammt, gehört ins Anschreiben (Informationspflicht)
+            # und in die Akte, falls jemand nachfragt.
+            notiz = (notiz + f"\nAdresse gefunden auf: {quelle_mail}").strip()
+        if (t.get("funktion") or "").strip() and art == "person":
+            notiz = (notiz + f"\nRolle laut Quelle: {t['funktion'].strip()}").strip()
         db.add(Kunde(
             firma=firma, email=mail or None, ort=(t.get("ort") or "").strip() or None,
-            ansprechpartner=(t.get("ansprechpartner") or "").strip() or None,
+            ansprechpartner=person or None, mail_art=art,
             herkunft="akquise", pipeline_status="lead",
             akquise_art=(t.get("art") or "").strip() or None,
             quelle=quelle, anlass=(t.get("anlass") or "").strip() or None,
             ansprachemonat=monat if isinstance(monat, int) and 1 <= monat <= 12 else None,
             branche=(t.get("branche") or "").strip() or None,
             quelle_beleg=(t.get("beleg") or "").strip().lower() or None,
-            notizen=(t.get("warum") or "").strip() or None,
+            notizen=notiz or None,
             recherche_id=auftrag_id,
             erstellt_am=datetime.now().isoformat(timespec="seconds")))
         neu += 1

@@ -390,6 +390,9 @@ def entwurf_anfordern(kunde_id: int):
             return
         daten = {"kunde_id": k.id, "firma": k.firma, "email": k.email, "ort": k.ort or "",
                  "ansprechpartner": k.ansprechpartner or "",
+                 # person = persönliche Adresse, funktion = Sammelpostfach. Entscheidet
+                 # die Anrede; bei „funktion" ist kein Name mitzusenden.
+                 "mail_art": k.mail_art or "funktion",
                  "branche": k.branche or "", "art": k.akquise_art or "",
                  "anlass": k.anlass or "", "quelle": k.quelle or "",
                  "ansprachemonat": k.ansprachemonat, "notiz": k.notizen or ""}

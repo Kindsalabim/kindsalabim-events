@@ -44,6 +44,84 @@ def _treffer(**abweichend):
     return daten
 
 
+# ── Adressart und Anrede gehören zusammen ───────────────────────────────────
+
+def test_sammelpostfach_bekommt_keinen_namen(db):
+    """„Guten Tag Herr Schmidt" an info@ wirkt falsch: dort arbeiten zwanzig Schmidts.
+    Der Name wird verworfen, auch wenn das Modell ihn mitliefert (Aykut 07.10.2026)."""
+    _leeren()
+    recherche.uebernehmen(db, [_treffer(email="info@beispiel-test.de",
+                                        ansprechpartner="Herr Schmidt",
+                                        mail_art="person")])
+    k = db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first()
+    assert k.mail_art == "funktion" and not k.ansprechpartner
+
+
+def test_persoenliche_adresse_behaelt_den_namen(db):
+    _leeren()
+    recherche.uebernehmen(db, [_treffer(
+        email="a.schmidt@beispiel-test.de", ansprechpartner="Herr Schmidt",
+        mail_art="person", funktion="Leiter Unternehmenskommunikation",
+        quelle_mail="https://beispiel-test.de/ansprechpartner")])
+    k = db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first()
+    assert k.mail_art == "person" and k.ansprechpartner == "Herr Schmidt"
+    # Herkunft der Adresse und Rolle landen in der Notiz, fürs Anschreiben und die Akte
+    assert "beispiel-test.de/ansprechpartner" in k.notizen
+    assert "Leiter Unternehmenskommunikation" in k.notizen
+
+
+def test_persoenliche_adresse_ohne_namen_gilt_als_funktion(db):
+    """Ohne Namen keine persönliche Anrede, egal was das Modell behauptet."""
+    _leeren()
+    recherche.uebernehmen(db, [_treffer(email="a.schmidt@beispiel-test.de",
+                                        ansprechpartner="", mail_art="person")])
+    k = db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first()
+    assert k.mail_art == "funktion"
+
+
+def test_weitere_sammelpostfaecher_werden_erkannt(db):
+    for adresse in ("presse@x-test.de", "marketing@x-test.de", "event@x-test.de",
+                    "info-ruhr@x-test.de", "kontakt.essen@x-test.de"):
+        art, person = recherche._adresse_einordnen(adresse,
+                                                   {"ansprechpartner": "Herr Schmidt",
+                                                    "mail_art": "person"})
+        assert (art, person) == ("funktion", ""), adresse
+
+
+def test_adressart_geht_an_den_assistenten(db, monkeypatch):
+    """Der Assistent baut die Anrede, er muss die Art der Adresse kennen."""
+    _leeren()
+    recherche.uebernehmen(db, [_treffer(
+        email="a.schmidt@beispiel-test.de", ansprechpartner="Herr Schmidt",
+        mail_art="person", quelle_mail="https://beispiel-test.de/team")])
+    k = db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first()
+
+    import routes.crm as crm
+    gesendet = {}
+
+    class _Antwort:
+        def read(self):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def _urlopen(req, timeout=None):
+        gesendet.update(json.loads(req.data.decode("utf-8")))
+        return _Antwort()
+
+    monkeypatch.setattr(crm, "get_config", lambda: {
+        "assistent_api_url": "https://assistent.example", "assistent_api_secret": "s"})
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", _urlopen)
+    crm.entwurf_anfordern(k.id)
+    assert gesendet["mail_art"] == "person"
+    assert gesendet["ansprechpartner"] == "Herr Schmidt"
+
+
 # ── Übernahme: die Regeln, die Geld oder Ansehen kosten ─────────────────────
 
 def test_treffer_wird_als_akquise_kontakt_angelegt(db):
@@ -53,7 +131,9 @@ def test_treffer_wird_als_akquise_kontakt_angelegt(db):
     k = db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first()
     assert k.herkunft == "akquise" and k.pipeline_status == "lead"
     assert k.quelle.startswith("https://") and k.recherche_id == 7
-    assert k.ansprechpartner == "Frau Muster" and k.ansprachemonat == 4
+    assert k.ansprachemonat == 4
+    # info@ ist ein Sammelpostfach: kein Name, also auch keine Namensanrede
+    assert k.mail_art == "funktion" and not k.ansprechpartner
 
 
 def test_ohne_quelle_kein_kontakt(db):
