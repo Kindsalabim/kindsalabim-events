@@ -124,8 +124,11 @@ def test_text_um_das_json_herum_stoert_nicht():
     assert recherche._json_aus_text(roh) == {"kontakte": []}
 
 
-def test_kaputte_antwort_liefert_leere_liste():
-    assert recherche._json_aus_text("Leider nichts gefunden.")["kontakte"] == []
+def test_kaputte_antwort_ist_unterscheidbar_von_leer():
+    """None heißt „nicht lesbar", {} heißt „gelesen, nichts drin". Vorher sah beides
+    gleich aus, deshalb war ein Lauf ohne Treffer nicht zu deuten."""
+    assert recherche._json_aus_text("Leider nichts gefunden.") is None
+    assert recherche._json_aus_text('{"kontakte": []}') == {"kontakte": []}
 
 
 def test_ohne_schluessel_kein_api_aufruf(monkeypatch):
@@ -159,6 +162,111 @@ def test_antwort_wird_zu_kontakten_und_kosten(monkeypatch):
     assert ergebnis["kosten_cent"] == 7.0 and ergebnis["meldung"] == ""
 
 
+class _Antwort:
+    """Minimale Nachbildung einer API-Antwort."""
+
+    def __init__(self, daten):
+        self._daten = daten
+        self.status_code = 200
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self._daten
+
+
+def _rohantwort(text="", stop="end_turn", ein=1000, aus=500, suchen=2, inhalt=None):
+    bloecke = list(inhalt or [])
+    if text:
+        bloecke.append({"type": "text", "text": text})
+    return {"content": bloecke, "stop_reason": stop,
+            "usage": {"input_tokens": ein, "output_tokens": aus,
+                      "server_tool_use": {"web_search_requests": suchen}}}
+
+
+def test_pausierte_suche_wird_fortgesetzt(monkeypatch):
+    """Die Websuche läuft serverseitig und pausiert nach zehn Durchläufen. Ohne
+    Fortsetzung kam gar kein Text an: Aykuts Lauf meldete „0 neu, 0 verworfen"."""
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    runden = []
+
+    def _post(*_a, **k):
+        runden.append(k["json"]["messages"])
+        if len(runden) < 3:
+            return _Antwort(_rohantwort(stop="pause_turn", inhalt=[
+                {"type": "server_tool_use", "name": "web_search"}]))
+        return _Antwort(_rohantwort(json.dumps({"kontakte": [_treffer()]})))
+
+    monkeypatch.setattr(recherche.httpx, "post", _post)
+    ergebnis = recherche.suchen("Zehn Firmen prüfen")
+    assert len(ergebnis["kontakte"]) == 1 and ergebnis["meldung"] == ""
+    # jede Fortsetzung schickt die Antwort zurück, ohne ein zusätzliches „Weiter"
+    assert len(runden) == 3 and len(runden[-1]) == 3
+    assert [n["role"] for n in runden[-1]] == ["user", "assistant", "assistant"]
+    # Kosten und Suchen werden über alle Runden summiert
+    assert ergebnis["suchen"] == 6
+
+
+def test_dauerhafte_pause_wird_gemeldet(monkeypatch):
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    monkeypatch.setattr(recherche.httpx, "post",
+                        lambda *_a, **_k: _Antwort(_rohantwort(stop="pause_turn")))
+    ergebnis = recherche.suchen("Zu viele Firmen", max_fortsetzungen=2)
+    assert ergebnis["fehler"] is True and "weniger Firmen" in ergebnis["meldung"]
+
+
+def test_abgeschnittene_antwort_wird_gemeldet(monkeypatch):
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    monkeypatch.setattr(recherche.httpx, "post",
+                        lambda *_a, **_k: _Antwort(_rohantwort('{"kontakte": [{"orga',
+                                                              stop="max_tokens")))
+    ergebnis = recherche.suchen("Egal")
+    assert ergebnis["fehler"] is True and "abgeschnitten" in ergebnis["meldung"]
+
+
+def test_leeres_ergebnis_ist_kein_fehler_aber_bekommt_eine_meldung(monkeypatch):
+    """„0 neu, 0 verworfen" ohne jeden Hinweis war der eigentliche Mangel."""
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    monkeypatch.setattr(recherche.httpx, "post",
+                        lambda *_a, **_k: _Antwort(_rohantwort('{"kontakte": []}')))
+    ergebnis = recherche.suchen("Egal")
+    assert ergebnis["fehler"] is False and ergebnis["kontakte"] == []
+    assert "keine Organisation aufgenommen" in ergebnis["meldung"]
+
+
+def test_unlesbare_antwort_zeigt_den_anfang(monkeypatch):
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    monkeypatch.setattr(recherche.httpx, "post", lambda *_a, **_k: _Antwort(
+        _rohantwort("Ich konnte zu diesen Firmen nichts Belastbares finden.")))
+    ergebnis = recherche.suchen("Egal")
+    assert ergebnis["fehler"] is True
+    assert "nicht Belastbares" in ergebnis["meldung"] or "nichts Belastbares" in ergebnis["meldung"]
+
+
+def test_fehler_des_suchwerkzeugs_wird_sichtbar(monkeypatch):
+    """Suchfehler kommen mit HTTP 200 als Ergebnisblock, lösen also nichts aus."""
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    monkeypatch.setattr(recherche.httpx, "post", lambda *_a, **_k: _Antwort(_rohantwort(
+        inhalt=[{"type": "web_search_tool_result",
+                 "content": {"error_code": "max_uses_exceeded"}}])))
+    ergebnis = recherche.suchen("Egal")
+    assert ergebnis["fehler"] is True and "max_uses_exceeded" in ergebnis["meldung"]
+
+
+def test_leerer_lauf_gilt_nicht_als_fehlgeschlagen(db, monkeypatch):
+    """Status „fehler" nur bei echten Fehlern, sonst sieht jeder leere Lauf kaputt aus."""
+    _leeren()
+    a = recherche.auftrag_anlegen(db, "Lauf ohne Treffer")
+    monkeypatch.setattr(recherche, "suchen", lambda *_a, **_k: {
+        "kontakte": [], "suchen": 4, "kosten_cent": 12.0, "fehler": False,
+        "meldung": "Das Modell hat keine Organisation aufgenommen."})
+    recherche.auftrag_ausfuehren(a.id)
+    db.expire_all()
+    a = db.query(Rechercheauftrag).filter(Rechercheauftrag.id == a.id).first()
+    assert a.status == "fertig" and a.meldung and a.kosten_cent == 12.0
+
+
 def test_api_fehler_wird_gemeldet_statt_geworfen(monkeypatch):
     monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
 
@@ -189,7 +297,8 @@ def test_fehler_wird_am_auftrag_vermerkt(db, monkeypatch):
     _leeren()
     a = recherche.auftrag_anlegen(db, "Irgendwas suchen")
     monkeypatch.setattr(recherche, "suchen", lambda *_a, **_k: {
-        "kontakte": [], "suchen": 0, "kosten_cent": 0.0, "meldung": "Recherche fehlgeschlagen: 529"})
+        "kontakte": [], "suchen": 0, "kosten_cent": 0.0, "fehler": True,
+        "meldung": "Recherche fehlgeschlagen: 529"})
     recherche.auftrag_ausfuehren(a.id)
     db.expire_all()
     a = db.query(Rechercheauftrag).filter(Rechercheauftrag.id == a.id).first()

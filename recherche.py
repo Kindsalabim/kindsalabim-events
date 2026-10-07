@@ -79,8 +79,12 @@ def _suchen_gezaehlt(usage: dict) -> int:
     return (usage.get("server_tool_use") or {}).get("web_search_requests") or 0
 
 
-def _json_aus_text(text: str) -> dict:
-    """Das Modell antwortet mit JSON, manchmal in einem Codeblock."""
+def _json_aus_text(text: str):
+    """JSON aus der Modellantwort lösen, manchmal steckt es in einem Codeblock.
+
+    Gibt None zurück, wenn sich nichts lesen lässt. Das ist wichtig: ein leeres
+    Ergebnis und eine unlesbare Antwort sahen vorher gleich aus (Aykut 07.10.2026,
+    ein Lauf meldete „0 neu, 0 verworfen" ohne Hinweis auf die Ursache)."""
     text = (text or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```[a-z]*\n?|```$", "", text).strip()
@@ -93,40 +97,118 @@ def _json_aus_text(text: str) -> dict:
                 return json.loads(text[start:ende + 1])
             except ValueError:
                 pass
-    return {"kontakte": []}
+    return None
 
 
-def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = 12) -> dict:
-    """Einen Rechercheauftrag ausführen. Rückgabe: kontakte, suchen, kosten_cent, meldung."""
+def _such_fehler(inhalt: list) -> list:
+    """Fehler des Websuche-Werkzeugs. Die kommen mit HTTP 200 als Ergebnisblock
+    zurück, lösen also keine Ausnahme aus und wären sonst unsichtbar."""
+    fehler = []
+    for b in inhalt or []:
+        if b.get("type") != "web_search_tool_result":
+            continue
+        c = b.get("content")
+        if isinstance(c, dict) and c.get("error_code"):
+            fehler.append(c["error_code"])
+    return fehler
+
+
+def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = 12,
+           max_fortsetzungen: int = 5) -> dict:
+    """Einen Rechercheauftrag ausführen. Rückgabe: kontakte, suchen, kosten_cent, meldung.
+
+    Die Websuche läuft serverseitig in einer eigenen Schleife. Nach zehn Durchläufen
+    hält die API mit `stop_reason: "pause_turn"` an und erwartet, dass wir die Antwort
+    zurückschicken und weitermachen. Ohne das kam bei zehn Firmen gar kein Text und
+    damit kein Kontakt an (Aykut 07.10.2026, Lauf meldete „0 neu, 0 verworfen")."""
     key = get_config().get("anthropic_api_key")
     if not key:
-        return {"kontakte": [], "suchen": 0, "kosten_cent": 0.0,
+        return {"kontakte": [], "suchen": 0, "kosten_cent": 0.0, "fehler": True,
                 "meldung": "Kein Anthropic-Schlüssel hinterlegt (ANTHROPIC_API_KEY)."}
-    try:
-        r = httpx.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                     "content-type": "application/json"},
-            json={"model": modell, "max_tokens": 16000, "system": SYSTEM,
-                  "tools": [{"type": "web_search_20260209", "name": "web_search",
-                             "max_uses": max_suchen}],
-                  "messages": [{"role": "user", "content": auftrag}]},
-            timeout=600,   # Websuche über mehrere Seiten braucht Minuten
-        )
-        r.raise_for_status()
-        daten_roh = r.json()
-    except Exception as e:
-        return {"kontakte": [], "suchen": 0, "kosten_cent": 0.0,
-                "meldung": f"Recherche fehlgeschlagen: {str(e)[:200]}"}
 
-    text = "".join(b.get("text", "") for b in daten_roh.get("content", [])
-                   if b.get("type") == "text")
-    usage = daten_roh.get("usage") or {}
-    daten = _json_aus_text(text)
-    return {"kontakte": daten.get("kontakte") or [],
-            "suchen": _suchen_gezaehlt(usage),
-            "kosten_cent": _kosten_cent(modell, usage),
-            "meldung": ""}
+    nachrichten = [{"role": "user", "content": auftrag}]
+    ein = aus = anzahl_suchen = 0
+    text = letzter_text = ""
+    ende = ""
+    such_fehler = []
+    for _runde in range(max_fortsetzungen + 1):
+        try:
+            r = httpx.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                         "content-type": "application/json"},
+                json={"model": modell, "max_tokens": 16000, "system": SYSTEM,
+                      "tools": [{"type": "web_search_20260209", "name": "web_search",
+                                 "max_uses": max_suchen}],
+                      "messages": nachrichten},
+                timeout=600,   # Websuche über mehrere Seiten braucht Minuten
+            )
+            r.raise_for_status()
+            daten_roh = r.json()
+        except Exception as e:
+            return {"kontakte": [], "suchen": anzahl_suchen,
+                    "kosten_cent": _kosten_cent(modell, {"input_tokens": ein,
+                                                         "output_tokens": aus}),
+                    "fehler": True,
+                    "meldung": f"Recherche fehlgeschlagen: {str(e)[:200]}"}
+
+        inhalt = daten_roh.get("content") or []
+        usage = daten_roh.get("usage") or {}
+        ein += usage.get("input_tokens") or 0
+        aus += usage.get("output_tokens") or 0
+        anzahl_suchen += _suchen_gezaehlt(usage)
+        such_fehler += _such_fehler(inhalt)
+        letzter_text = "".join(b.get("text", "") for b in inhalt if b.get("type") == "text")
+        text += letzter_text
+        ende = daten_roh.get("stop_reason") or ""
+        if ende != "pause_turn":
+            break
+        # Antwort unverändert zurückschicken, der Server macht von selbst weiter.
+        # Kein zusätzliches „Weiter" dazwischen, das würde die Fortsetzung stören.
+        nachrichten.append({"role": "assistant", "content": inhalt})
+
+    ergebnis = {"kontakte": [], "suchen": anzahl_suchen, "meldung": "", "fehler": False,
+                "kosten_cent": _kosten_cent(modell, {"input_tokens": ein,
+                                                     "output_tokens": aus})}
+    hinweis_suche = (" Das Suchwerkzeug meldete: " + ", ".join(sorted(set(such_fehler)))
+                     if such_fehler else "")
+
+    if ende == "pause_turn":
+        ergebnis["meldung"] = ("Die Suche war auch nach "
+                               f"{max_fortsetzungen} Fortsetzungen nicht fertig. Nimm "
+                               "weniger Firmen pro Lauf, etwa fünf." + hinweis_suche)
+        ergebnis["fehler"] = True
+        return ergebnis
+
+    # Jeder Fall bekommt eine eigene Meldung, sonst sucht man im Dunkeln.
+    if ende == "max_tokens":
+        ergebnis["meldung"] = ("Die Antwort wurde abgeschnitten (Längenlimit). Nimm weniger "
+                              "Firmen pro Lauf, etwa fünf." + hinweis_suche)
+        ergebnis["fehler"] = True
+        return ergebnis
+    if not text.strip():
+        ergebnis["meldung"] = (f"Das Modell hat keinen Text geliefert (Abbruchgrund: "
+                               f"{ende or 'unbekannt'})." + hinweis_suche)
+        ergebnis["fehler"] = True
+        return ergebnis
+
+    # Das JSON steht in der letzten Runde; die früheren enthalten nur Zwischentext.
+    daten = _json_aus_text(letzter_text) or _json_aus_text(text)
+    if daten is None:
+        ergebnis["meldung"] = ("Die Antwort war kein lesbares JSON. Anfang der Antwort: "
+                               + " ".join(text.split())[:300] + hinweis_suche)
+        ergebnis["fehler"] = True
+        return ergebnis
+
+    ergebnis["kontakte"] = daten.get("kontakte") or []
+    if not ergebnis["kontakte"]:
+        # Kein Fehler, aber auch kein stilles Nichts: oft hat das Modell eine
+        # Begründung mitgeschickt, warum keine Firma die Regeln erfüllt.
+        begruendung = (daten.get("hinweis") or daten.get("meldung") or "").strip()
+        ergebnis["meldung"] = ("Das Modell hat keine Organisation aufgenommen. "
+                               + (begruendung[:300] if begruendung else
+                                  "Vermutlich fand es weder Anlass noch Postfach belegt."))
+    return ergebnis
 
 
 def uebernehmen(db, treffer: list, auftrag_id: int = None) -> tuple:
@@ -235,16 +317,21 @@ def auftrag_ausfuehren(auftrag_id: int):
         a.anzahl, a.verworfen = neu, verworfen
         a.suchen, a.kosten_cent = ergebnis["suchen"], ergebnis["kosten_cent"]
         a.meldung = ergebnis["meldung"] or None
-        a.status = "fehler" if ergebnis["meldung"] else "fertig"
+        # Eine Meldung allein ist kein Fehler: „keine Organisation aufgenommen" ist ein
+        # gültiges Ergebnis und soll nicht als fehlgeschlagen dastehen.
+        a.status = "fehler" if ergebnis.get("fehler") else "fertig"
         a.fertig_am = datetime.now().isoformat(timespec="seconds")
         db.commit()
-        if a.status == "fertig":
-            from notifications import notify
-            notify(db, "recherche_fertig", f"Recherche fertig: {neu} neue Kontakte",
-                   f"Auftrag: {a.auftrag[:120]} / {neu} neue Kontakte, "
-                   f"{verworfen} verworfen, {a.suchen} Suchen, "
-                   f"{a.kosten_cent:.0f} Cent.", "/admin/crm/akquise")
-            db.commit()
+        # Immer melden, auch bei null Treffern oder Fehler: Aykut wartet auf das
+        # Ergebnis und soll nicht selbst nachsehen müssen.
+        from notifications import notify
+        titel = (f"Recherche fehlgeschlagen" if a.status == "fehler"
+                 else f"Recherche fertig: {neu} neue Kontakte")
+        notify(db, "recherche_fertig", titel,
+               f"Auftrag: {a.auftrag[:120]} / {neu} neu, {verworfen} verworfen, "
+               f"{a.suchen} Suchen, {a.kosten_cent:.0f} Cent."
+               + (f" {a.meldung}" if a.meldung else ""), "/admin/crm/akquise")
+        db.commit()
     except Exception as e:
         db.rollback()
         print(f"[RECHERCHE] Auftrag {auftrag_id} fehlgeschlagen: {e}")

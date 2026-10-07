@@ -87,7 +87,8 @@
   </div>
   <p class="text-xs mb-3" style="color:var(--ink-4);">
     Beschreibe in einem Satz, wen du suchst. Die Suche l&auml;uft im Hintergrund und braucht
-    ein bis zwei Minuten; du bekommst eine Meldung in der Glocke. &Uuml;bernommen wird nur, was
+    ein bis zwei Minuten; du bekommst eine Meldung in der Glocke. Nennst du Firmen namentlich,
+    nimm <strong>etwa f&uuml;nf pro Lauf</strong>: bei mehr reicht die Suchtiefe oft nicht. &Uuml;bernommen wird nur, was
     einen Quelllink hat, noch nicht im CRM steht und nicht gesperrt ist.
   </p>
   <form method="post" action="/admin/crm/akquise/recherche" class="space-y-3">
@@ -112,7 +113,7 @@
           <td class="py-2 pr-3">
             <span class="truncate inline-block max-w-md align-middle" style="color:var(--ink-2);">{{ a.auftrag }}</span>
             {% if a.automatisch %}<span class="text-xs ml-1" style="color:var(--ink-4);">(Nachschub)</span>{% endif %}
-            {% if a.meldung %}<br><span class="text-xs" style="color:var(--c-coral);">{{ a.meldung }}</span>{% endif %}
+            {% if a.meldung %}<br><span class="text-xs" style="color:{% if a.status == 'fehler' %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ a.meldung }}</span>{% endif %}
           </td>
           <td class="py-2 pr-3 text-xs whitespace-nowrap" style="color:var(--ink-4);">
             {% if a.status == 'fertig' %}
