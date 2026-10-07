@@ -164,6 +164,71 @@ def test_bekannte_organisation_wird_uebersprungen(db):
     assert (neu, verworfen) == (0, 1)
 
 
+def test_verworfene_zeilen_bekommen_einen_grund(db):
+    """„1 verworfen" ohne Grund war nicht zu deuten (Aykut 07.10.2026, Lauf 1)."""
+    _leeren()
+    vertrieb.sperren(db, "unternehmen", "Gesperrte GmbH", "widerspruch")
+    db.add(Kunde(firma="Schon Bekannt GmbH", herkunft="bestand",
+                 erstellt_am=datetime.now().isoformat(timespec="seconds")))
+    db.commit()
+    protokoll = []
+    recherche.uebernehmen(db, [
+        _treffer(organisation="Ohne Quelle GmbH", quelle=""),
+        _treffer(organisation="Ohne Mail GmbH", email="Kontaktformular"),
+        _treffer(organisation="Gesperrte GmbH", email="info@gesperrt-test.de"),
+        _treffer(organisation="Schon Bekannt GmbH", email="info@bekannt-test.de"),
+    ], protokoll=protokoll)
+    text = " / ".join(protokoll)
+    assert "Ohne Quelle GmbH: kein Quelllink" in text
+    assert "Ohne Mail GmbH: keine Mailadresse gefunden" in text
+    assert "Kontaktformular" in text          # was das Modell geliefert hat
+    assert "Gesperrte GmbH" in text and "gesperrt" in text.lower()
+    assert "Schon Bekannt GmbH: steht schon im CRM" in text
+
+
+def test_grund_steht_am_auftrag(db, monkeypatch):
+    _leeren()
+    a = recherche.auftrag_anlegen(db, "Fünf Firmen prüfen")
+    monkeypatch.setattr(recherche, "suchen", lambda *_a, **_k: {
+        "kontakte": [_treffer(organisation="Ohne Mail GmbH", email="")],
+        "nicht_aufgenommen": [{"organisation": "BARMER", "grund": "kein eigenes Fest belegt"}],
+        "suchen": 8, "kosten_cent": 30.0, "fehler": False, "meldung": ""})
+    recherche.auftrag_ausfuehren(a.id)
+    db.expire_all()
+    a = db.query(Rechercheauftrag).filter(Rechercheauftrag.id == a.id).first()
+    assert a.status == "fertig" and a.verworfen == 1
+    assert "Ohne Mail GmbH" in a.meldung and "keine Mailadresse" in a.meldung
+
+
+def test_nicht_vorgeschlagene_firmen_werden_begruendet(db, monkeypatch):
+    """Von fünf genannten Firmen kam nur eine zurück, ohne jede Erklärung."""
+    _leeren()
+    a = recherche.auftrag_anlegen(db, "Fünf Firmen prüfen")
+    monkeypatch.setattr(recherche, "suchen", lambda *_a, **_k: {
+        "kontakte": [], "suchen": 9, "kosten_cent": 28.0, "fehler": False,
+        "nicht_aufgenommen": [
+            {"organisation": "BARMER", "grund": "nur Sponsoring, kein eigenes Fest"},
+            {"organisation": "Vonovia SE", "grund": "Fest belegt, keine Adresse gefunden"}],
+        "meldung": "Das Modell hat keine Organisation aufgenommen. BARMER: nur Sponsoring, "
+                   "kein eigenes Fest; Vonovia SE: Fest belegt, keine Adresse gefunden"})
+    recherche.auftrag_ausfuehren(a.id)
+    db.expire_all()
+    a = db.query(Rechercheauftrag).filter(Rechercheauftrag.id == a.id).first()
+    assert "BARMER" in a.meldung and "Vonovia" in a.meldung and a.status == "fertig"
+
+
+def test_begruendungen_landen_im_ergebnis(monkeypatch):
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    antwort = json.dumps({"kontakte": [],
+                          "nicht_aufgenommen": [{"organisation": "TEDi",
+                                                 "grund": "kein Fest gefunden"}]})
+    monkeypatch.setattr(recherche.httpx, "post",
+                        lambda *_a, **_k: _Antwort(_rohantwort(antwort)))
+    ergebnis = recherche.suchen("Fünf Firmen")
+    assert ergebnis["nicht_aufgenommen"] == ["TEDi: kein Fest gefunden"]
+    assert "TEDi" in ergebnis["meldung"] and ergebnis["fehler"] is False
+
+
 def test_ohne_mailadresse_kein_kontakt(db):
     """Nach dem ersten Lauf (06.10.2026): Firmen ohne Postfach kamen durch, ließen sich
     aber nicht übergeben und hätten als offene Leads den Nachschub blockiert."""

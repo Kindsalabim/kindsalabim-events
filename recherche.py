@@ -76,10 +76,17 @@ Antworte ausschließlich mit JSON nach diesem Schema, ohne weiteren Text:
 "ort": "...", "email": "...", "mail_art": "person|funktion", "ansprechpartner": "",
 "funktion": "", "quelle": "https://...", "quelle_mail": "https://...",
 "anlass": "...", "ansprachemonat": 1-12, "branche": "...", "beleg": "geprüft|snippet",
-"warum": "ein Satz"}]}
+"warum": "ein Satz"}],
+"nicht_aufgenommen": [{"organisation": "...", "grund": "ein Satz"}]}
 
 "quelle_mail" ist die Seite, auf der die Mailadresse steht. "funktion" ist die Rolle der
-Person laut Quelle, zum Beispiel „Leiterin Unternehmenskommunikation"."""
+Person laut Quelle, zum Beispiel „Leiterin Unternehmenskommunikation".
+
+**"nicht_aufgenommen" ist Pflicht, wenn im Auftrag Organisationen namentlich genannt
+sind.** Jede genannte Organisation, die nicht in "kontakte" steht, braucht dort eine
+Zeile mit dem konkreten Grund, zum Beispiel „kein eigenes Familienfest belegt, nur
+Sponsoring" oder „Fest belegt, aber keine Mailadresse auf der Seite gefunden". Nenne
+den Grund, der tatsächlich ausschlaggebend war, nicht eine allgemeine Floskel."""
 
 
 def _kosten_cent(modell: str, usage: dict) -> float:
@@ -215,12 +222,17 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = 12,
         return ergebnis
 
     ergebnis["kontakte"] = daten.get("kontakte") or []
+    # Warum eine genannte Firma nicht dabei ist, ist die wichtigste Information eines
+    # Laufs: sie unterscheidet „schlechte Liste" von „schlechter Auftrag".
+    abgelehnt = [f"{(z.get('organisation') or '?').strip()}: "
+                 f"{(z.get('grund') or 'ohne Grund').strip()}"
+                 for z in (daten.get("nicht_aufgenommen") or [])
+                 if isinstance(z, dict)]
+    ergebnis["nicht_aufgenommen"] = abgelehnt
     if not ergebnis["kontakte"]:
-        # Kein Fehler, aber auch kein stilles Nichts: oft hat das Modell eine
-        # Begründung mitgeschickt, warum keine Firma die Regeln erfüllt.
-        begruendung = (daten.get("hinweis") or daten.get("meldung") or "").strip()
+        begruendung = "; ".join(abgelehnt) or (daten.get("hinweis") or "").strip()
         ergebnis["meldung"] = ("Das Modell hat keine Organisation aufgenommen. "
-                               + (begruendung[:300] if begruendung else
+                               + (begruendung[:600] if begruendung else
                                   "Vermutlich fand es weder Anlass noch Postfach belegt."))
     return ergebnis
 
@@ -253,7 +265,7 @@ def _adresse_einordnen(mail: str, treffer: dict) -> tuple:
     return "person", person
 
 
-def uebernehmen(db, treffer: list, auftrag_id: int = None) -> tuple:
+def uebernehmen(db, treffer: list, auftrag_id: int = None, protokoll: list = None) -> tuple:
     """Treffer als Akquise-Kontakte anlegen. Rückgabe (neu, verworfen).
 
     Verworfen wird, was keine Quelle oder keine Mailadresse hat, gesperrt ist oder die
@@ -262,31 +274,45 @@ def uebernehmen(db, treffer: list, auftrag_id: int = None) -> tuple:
 
     Die Mailadresse ist Pflicht (Aykut 06.10.2026, nach dem ersten Lauf): Ein Kontakt
     ohne Postfach lässt sich nicht übergeben, verstopft aber die Liste und zählt als
-    offener Lead, wodurch der automatische Nachschub stillstehen würde."""
+    offener Lead, wodurch der automatische Nachschub stillstehen würde.
+
+    In `protokoll` landet je verworfener Zeile ein Satz mit dem Grund. Ohne das stand in
+    der Oberfläche nur „1 verworfen" und niemand wusste, woran es lag (07.10.2026)."""
     import re as _re
     import vertrieb
     from sqlalchemy import func
     from models import Kunde
+    protokoll = protokoll if protokoll is not None else []
     neu = verworfen = 0
+
+    def ablehnen(name, grund):
+        nonlocal verworfen
+        verworfen += 1
+        protokoll.append(f"{name or 'Ohne Namen'}: {grund}")
+
     for t in treffer:
         firma = (t.get("organisation") or "").strip()
         quelle = (t.get("quelle") or "").strip()
         mail = (t.get("email") or "").strip()
-        if not firma or not quelle.startswith("http"):
-            verworfen += 1
+        if not firma:
+            ablehnen("", "keine Organisation genannt")
+            continue
+        if not quelle.startswith("http"):
+            ablehnen(firma, "kein Quelllink")
             continue
         # Nur was wirklich wie eine Adresse aussieht. „Kontaktformular" zählt nicht.
         gefunden = _re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", mail)
         mail = gefunden.group(0).rstrip(".,;") if gefunden else ""
         if not mail:
-            verworfen += 1
+            ablehnen(firma, "keine Mailadresse gefunden"
+                     + (f" (geliefert: {t['email'][:60]})" if t.get("email") else ""))
             continue
-        darf, _grund = vertrieb.darf_kontaktieren(db, email=mail, firma=firma)
+        darf, grund = vertrieb.darf_kontaktieren(db, email=mail, firma=firma)
         if not darf:
-            verworfen += 1
+            ablehnen(firma, grund or "gesperrt")
             continue
         if db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first():
-            verworfen += 1
+            ablehnen(firma, "steht schon im CRM")
             continue
         monat = t.get("ansprachemonat")
         art, person = _adresse_einordnen(mail, t)
@@ -364,10 +390,19 @@ def auftrag_ausfuehren(auftrag_id: int):
         a.status = "laeuft"
         db.commit()
         ergebnis = suchen(a.auftrag, a.modell or MODELL_RECHERCHE)
-        neu, verworfen = uebernehmen(db, ergebnis["kontakte"], a.id)
+        protokoll = []
+        neu, verworfen = uebernehmen(db, ergebnis["kontakte"], a.id, protokoll)
         a.anzahl, a.verworfen = neu, verworfen
         a.suchen, a.kosten_cent = ergebnis["suchen"], ergebnis["kosten_cent"]
-        a.meldung = ergebnis["meldung"] or None
+        # Die Meldung soll beides erklären: was die App verworfen hat und welche der
+        # genannten Firmen das Modell gar nicht vorgeschlagen hat.
+        teile = [ergebnis["meldung"]] if ergebnis["meldung"] else []
+        if protokoll:
+            teile.append("Verworfen: " + "; ".join(protokoll))
+        if neu and ergebnis.get("nicht_aufgenommen"):
+            teile.append("Nicht vorgeschlagen: "
+                         + "; ".join(ergebnis["nicht_aufgenommen"]))
+        a.meldung = (" | ".join(teile))[:2000] or None
         # Eine Meldung allein ist kein Fehler: „keine Organisation aufgenommen" ist ein
         # gültiges Ergebnis und soll nicht als fehlgeschlagen dastehen.
         a.status = "fehler" if ergebnis.get("fehler") else "fertig"
