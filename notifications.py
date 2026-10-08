@@ -35,6 +35,7 @@ NOTIF_TYPEN = [
     ("vorab_wartet", "Dienstleister hält einen Termin frei und wartet auf Bescheid", True, True),
     ("vertrieb_stopp", "Vertriebsversand gestoppt (Anwaltspost)", True, True),
     ("recherche_fertig", "Kontakt-Recherche fertig", True, False),
+    ("vertrieb_antwort", "Akquise-Kontakt hat auf die Erstmail geantwortet", True, False),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 

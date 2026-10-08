@@ -169,6 +169,10 @@ SPALTEN_HILFE = ("Organisation; Art; Ort; Kontaktweg; Quelle; Veranstaltung; "
                  "Ansprachemonat; Notiz")
 
 
+WEG_LABEL = {"entwurf": "An den Assistenten übergeben", "mail": "Erstmail verschickt",
+             "antwort": "Hat geantwortet", "angebot": "Angebot verschickt"}
+
+
 @router.get("/akquise", response_class=HTMLResponse)
 def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
             _=Depends(nur_inhaber)):
@@ -187,6 +191,16 @@ def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
     kontakte = q.order_by(Kunde.ansprachemonat.is_(None), Kunde.ansprachemonat,
                           func.lower(Kunde.firma)).all()
     offen = [k for k in kontakte if k.pipeline_status == "lead"]
+    # Letzter Protokolleintrag je Kontakt. Zeigt, ob die Meldung des Assistenten
+    # („Mail ist raus") überhaupt angekommen ist (Aykut 08.10.2026: alle Karten
+    # blieben auf „Neuer Lead", obwohl verschickt wurde).
+    from models import VertriebKontaktLog
+    letzte = {}
+    if kontakte:
+        for e in (db.query(VertriebKontaktLog)
+                  .filter(VertriebKontaktLog.kunde_id.in_([k.id for k in kontakte]))
+                  .order_by(VertriebKontaktLog.id).all()):
+            letzte[e.kunde_id] = e
     sperren = db.query(VertriebSperre).order_by(VertriebSperre.id.desc()).all()
     auftraege = (db.query(Rechercheauftrag)
                  .order_by(Rechercheauftrag.id.desc()).limit(8).all())
@@ -195,6 +209,7 @@ def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
                        .filter(Rechercheauftrag.erstellt_am.startswith(monat)).all())
     return templates.TemplateResponse("admin/crm_akquise.html",
         tpl(request, active="crm", kontakte=kontakte, offen=offen, sperren=sperren,
+            letzte=letzte, WEG_LABEL=WEG_LABEL,
             gestoppt=vertrieb.versand_gestoppt(db), gruende=vertrieb.GRUENDE,
             rest_heute=vertrieb.rest_heute(db), limit_tag=vertrieb.tageslimit(db),
             ebenen=vertrieb.EBENEN, spalten=SPALTEN_HILFE,
@@ -304,8 +319,8 @@ MONATE = {"jan": 1, "feb": 2, "mär": 3, "mar": 3, "apr": 4, "mai": 5, "jun": 6,
 
 @router.post("/akquise/recherche")
 def akquise_recherche(background_tasks: BackgroundTasks, auftrag: str = Form(""),
-                      modell: str = Form(""), db: Session = Depends(get_db),
-                      _=Depends(nur_inhaber)):
+                      modell: str = Form(""), netzwerk: str = Form(""),
+                      db: Session = Depends(get_db), _=Depends(nur_inhaber)):
     """Einen Rechercheauftrag starten. Läuft im Hintergrund, weil die Websuche
     je Lauf eine bis mehrere Minuten braucht."""
     import recherche
@@ -317,6 +332,8 @@ def akquise_recherche(background_tasks: BackgroundTasks, auftrag: str = Form("")
     gewaehlt = modell if modell in (recherche.MODELL_RECHERCHE,
                                     recherche.MODELL_EINORDNUNG) \
         else recherche.MODELL_RECHERCHE
+    if netzwerk and not text.startswith(recherche.NETZWERK_MARKER):
+        text = recherche.NETZWERK_MARKER + text
     a = recherche.auftrag_anlegen(db, text, gewaehlt)
     background_tasks.add_task(recherche.auftrag_ausfuehren, a.id)
     return RedirectResponse("/admin/crm/akquise?" + urlencode(
@@ -443,15 +460,98 @@ async def api_gesendet(request: Request, db: Session = Depends(get_db)):
     if not _assistent_erlaubt(request):
         raise HTTPException(401)
     daten = await request.json()
-    k = db.query(Kunde).filter(Kunde.id == daten.get("kunde_id")).first()
+    k = _akquise_kunde(db, daten)
     if not k:
         raise HTTPException(404)
     vertrieb.protokollieren(db, k, "mail", daten.get("betreff") or "",
-                            daten.get("empfaenger") or k.email or "")
-    if k.pipeline_status == "lead":
-        k.pipeline_status = "kontakt"
+                            daten.get("empfaenger") or k.email or "",
+                            _iso_zeitpunkt(daten.get("gesendet_am")))
+    _pipeline_vor(k, "kontakt")
     db.commit()
     return {"ok": True, "rest_heute": vertrieb.rest_heute(db)}
+
+
+# Reihenfolge der Pipeline. Rückmeldungen schieben nur VORWÄRTS: eine späte Meldung
+# „Antwort eingegangen" darf ein gebuchtes Event nicht wieder auf „Bedarf" setzen.
+_PIPELINE_REIHE = ["lead", "kontakt", "bedarf", "angebot", "gebucht"]
+
+
+def _iso_zeitpunkt(wert) -> str:
+    """Versandzeitpunkt einer Nachmeldung prüfen. Nur Vergangenes gilt: ein Datum in
+    der Zukunft würde das Tageslimit an jenem Tag verfälschen."""
+    try:
+        t = datetime.fromisoformat(str(wert or "").replace("Z", "")[:19])
+    except ValueError:
+        return ""
+    return t.isoformat(timespec="seconds") if t <= datetime.now() else ""
+
+
+def _pipeline_vor(k, ziel: str):
+    jetzt = k.pipeline_status or "lead"
+    if jetzt == "verloren" or jetzt not in _PIPELINE_REIHE:
+        return
+    if _PIPELINE_REIHE.index(ziel) > _PIPELINE_REIHE.index(jetzt):
+        k.pipeline_status = ziel
+        k.aktualisiert_am = datetime.now().isoformat(timespec="seconds")
+
+
+def _akquise_kunde(db, daten: dict):
+    """Kontakt zu einer Meldung des Assistenten finden: über die übergebene ID, sonst
+    über die Mailadresse. Die ID kommt dort als Text an ("123"), deshalb umwandeln."""
+    roh = str(daten.get("kunde_id") or "").strip()
+    if roh.isdigit():
+        k = db.query(Kunde).filter(Kunde.id == int(roh)).first()
+        if k:
+            return k
+    for feld in ("empfaenger", "email"):
+        mail = (daten.get(feld) or "").strip().lower()
+        if "@" in mail:
+            k = (db.query(Kunde).filter(func.lower(Kunde.email) == mail)
+                 .order_by(Kunde.id.desc()).first())
+            if k:
+                return k
+    return None
+
+
+@router.post("/api/vertrieb/antwort")
+async def api_antwort(request: Request, db: Session = Depends(get_db)):
+    """Der Assistent meldet: Ein angeschriebener Kontakt hat geantwortet, und zwar
+    nicht mit „bitte keine Mails" (dafür gibt es /sperren). Die Karte rückt auf
+    „Bedarf geklärt", die Glocke sagt Bescheid."""
+    import vertrieb
+    from notifications import notify
+    if not _assistent_erlaubt(request):
+        raise HTTPException(401)
+    daten = await request.json()
+    k = _akquise_kunde(db, daten)
+    if not k:
+        raise HTTPException(404)
+    vertrieb.protokollieren(db, k, "antwort", daten.get("betreff") or "",
+                            daten.get("email") or k.email or "")
+    _pipeline_vor(k, "bedarf")
+    notify(db, "vertrieb_antwort", f"{k.firma} hat geantwortet",
+           "Die Antwort liegt im E-Mail-Assistenten. Die Karte steht jetzt auf "
+           "„Bedarf geklärt“.", f"/admin/crm/{k.id}")
+    db.commit()
+    return {"ok": True, "status": k.pipeline_status}
+
+
+@router.post("/api/vertrieb/angebot")
+async def api_angebot(request: Request, db: Session = Depends(get_db)):
+    """Der Assistent meldet: Eine Mail mit Angebot im Anhang ist an diesen Kontakt
+    raus. Die Karte rückt auf „Angebot versendet"."""
+    import vertrieb
+    if not _assistent_erlaubt(request):
+        raise HTTPException(401)
+    daten = await request.json()
+    k = _akquise_kunde(db, daten)
+    if not k:
+        raise HTTPException(404)
+    vertrieb.protokollieren(db, k, "angebot", daten.get("betreff") or "",
+                            daten.get("empfaenger") or k.email or "")
+    _pipeline_vor(k, "angebot")
+    db.commit()
+    return {"ok": True, "status": k.pipeline_status}
 
 
 @router.post("/api/vertrieb/sperren")

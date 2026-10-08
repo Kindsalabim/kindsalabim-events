@@ -172,6 +172,24 @@ def _adresse_in_profil(k, adresse) -> bool:
     return True
 
 
+def _akquise_kontakt_zur_mail(db, email):
+    """Akquise-Kontakt zur Mailadresse des Events. Der Firmenname im Event ist oft
+    anders geschrieben als in der Recherche („Stadt Essen" vs. „Stadtverwaltung
+    Essen"), die Adresse oder wenigstens die Firmen-Domain stimmt aber."""
+    import vertrieb
+    mail = (email or "").strip().lower()
+    if "@" not in mail:
+        return None
+    akquise = db.query(Kunde).filter(Kunde.herkunft == "akquise")
+    k = akquise.filter(func.lower(Kunde.email) == mail).first()
+    if k:
+        return k
+    domain = vertrieb.domain_von(mail)
+    if not domain or vertrieb.ist_freemail(domain):
+        return None
+    return akquise.filter(func.lower(Kunde.email).like(f"%@{domain}")).first()
+
+
 def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
     """Verknüpft das Event mit einem CRM-Kunden (Match über Firma, sonst neu anlegen).
     Füllt dabei LEERE Profilfelder (Adresse/Kontakt/Telefon/Mail) aus dem Event nach –
@@ -183,9 +201,17 @@ def link_kunde(db, ev, firma, kontakt, telefon, email, marke):
     jetzt = datetime.now().isoformat(timespec="seconds")
     k = db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first()
     if not k:
+        k = _akquise_kontakt_zur_mail(db, email)
+    if not k:
         k = Kunde(firma=firma, marke=marke or "Kindsalabim", pipeline_status="gebucht",
                   erstellt_am=jetzt, aktualisiert_am=jetzt)
         db.add(k)
+    if k.herkunft == "akquise":
+        # Aus der Kaltakquise wird ein echter Kunde: raus aus dem Akquise-Reiter,
+        # rein in die Kundenliste, Karte auf „Gebucht".
+        k.herkunft = "bestand"
+        k.pipeline_status = "gebucht"
+        k.aktualisiert_am = jetzt
     geaendert = _adresse_in_profil(k, ev.kunde_adresse)
     for attr, wert in (("ansprechpartner", kontakt), ("telefon", telefon), ("email", email)):
         wert = (wert or "").strip()

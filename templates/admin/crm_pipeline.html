@@ -1,5 +1,6 @@
 {% extends "admin_base.html" %}
 {% block title %}Pipeline – {{ cfg.app_name }}{% endblock %}
+{% block content_width %}max-w-none{% endblock %}
 
 {% set status_farben = {
   'lead':'#b07d1a','kontakt':'#3D7DBC','bedarf':'#0e7490',
@@ -26,7 +27,7 @@
 
 <div class="kanban-scroll flex gap-3 overflow-x-auto pb-4" style="scroll-snap-type:x mandatory;">
   {% for s in STATUS %}
-  <div class="kanban-col flex-shrink-0" style="width:270px;scroll-snap-align:start;">
+  <div class="kanban-col" style="scroll-snap-align:start;">
     <div class="flex items-center gap-2 mb-2 px-1">
       <span class="w-2.5 h-2.5 rounded-full" style="background:{{ status_farben[s] }};"></span>
       <span class="text-xs font-bold uppercase tracking-wide text-gray-600">{{ STATUS_LABEL[s] }}</span>
@@ -58,6 +59,12 @@
 </div>
 
 <style>
+/* Desktop: alle sechs Spalten teilen sich die Breite, jede Spalte scrollt für sich.
+   Sonst liegt die Querscroll-Leiste unter der längsten Spalte (111 Leads) und ist
+   nicht zu sehen, die rechten Spalten wirken abgeschnitten (Aykut 08.10.2026). */
+.kanban-col{flex:1 1 0;min-width:180px;}
+.kanban-drop{max-height:calc(100vh - 270px);overflow-y:auto;}
+@media (max-width:767px){.kanban-col{flex:0 0 270px;}.kanban-drop{max-height:none;}}
 .kunde-card{cursor:grab;}
 .kunde-card.dragging{opacity:.4;}
 .kanban-drop.over{background:#eef4fb !important;border-color:var(--brand-primary) !important;}

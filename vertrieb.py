@@ -44,6 +44,14 @@ def domain_von(email: str) -> str:
     return teil[1] if len(teil) == 2 else ""
 
 
+FREEMAIL = ("gmail.com", "gmx.de", "web.de", "t-online.de", "outlook.com",
+            "hotmail.com", "yahoo.de", "icloud.com")
+
+
+def ist_freemail(domain: str) -> bool:
+    return any((domain or "").endswith(frei) for frei in FREEMAIL)
+
+
 def _sperren(db):
     from models import VertriebSperre
     return db.query(VertriebSperre).all()
@@ -110,9 +118,7 @@ def sperren_fuer_kunde(db, kunde, grund: str = "widerspruch", notiz: str = ""):
     if kunde.email:
         eingetragen.append(sperren(db, "adresse", kunde.email, grund, notiz))
         d = domain_von(kunde.email)
-        if d and not any(d.endswith(frei) for frei in
-                         ("gmail.com", "gmx.de", "web.de", "t-online.de", "outlook.com",
-                          "hotmail.com", "yahoo.de", "icloud.com")):
+        if d and not ist_freemail(d):
             eingetragen.append(sperren(db, "domain", d, grund, notiz))
     if kunde.firma:
         eingetragen.append(sperren(db, "unternehmen", kunde.firma, grund, notiz))
@@ -143,15 +149,17 @@ def rest_heute(db) -> int:
     return max(0, tageslimit(db) - heute_verschickt(db))
 
 
-def protokollieren(db, kunde, weg: str, betreff: str = "", empfaenger: str = ""):
-    """Jede Ansprache festhalten: im Streitfall der Nachweis."""
+def protokollieren(db, kunde, weg: str, betreff: str = "", empfaenger: str = "",
+                   zeitpunkt: str = ""):
+    """Jede Ansprache festhalten: im Streitfall der Nachweis. `zeitpunkt` (ISO) nur
+    beim Nachmelden älterer Mails, sonst zählte die Nachmeldung aufs heutige Limit."""
     from models import VertriebKontaktLog
     eintrag = VertriebKontaktLog(
         kunde_id=getattr(kunde, "id", None),
         empfaenger=empfaenger or getattr(kunde, "email", "") or "",
         weg=weg, betreff=betreff or None,
         quelle=getattr(kunde, "quelle", None),
-        erstellt_am=datetime.now().isoformat(timespec="seconds"))
+        erstellt_am=zeitpunkt or datetime.now().isoformat(timespec="seconds"))
     db.add(eintrag)
     db.commit()
     return eintrag

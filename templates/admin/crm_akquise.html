@@ -95,6 +95,11 @@
     <textarea name="auftrag" rows="2" required minlength="10"
               class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring"
               placeholder="Wohnungsgesellschaften im Ruhrgebiet, die eigene Mieterfeste veranstalten"></textarea>
+    <label class="flex items-start gap-2 text-sm" style="color:var(--ink-2);">
+      <input type="checkbox" name="netzwerk" value="1" class="rounded mt-0.5" style="accent-color: var(--brand-primary);">
+      <span>Die Firmen sind Mitglied bei <strong>Erfolgsfaktor Familie</strong>.
+        <span class="text-xs block" style="color:var(--ink-4);">Dann ist die Mitgliedschaft der Anlass. Die Suche muss kein Familienfest mehr belegen, sondern sucht nur noch die zuständige Person mit Mailadresse.</span></span>
+    </label>
     <div class="flex flex-wrap items-center gap-3">
       <select name="modell" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
         {% for wert, bez in modelle %}<option value="{{ wert }}">{{ bez }}</option>{% endfor %}
@@ -222,6 +227,12 @@
                 style="background:{% if k.pipeline_status == 'verloren' %}#f1f5f9;color:#475569{% elif k.pipeline_status == 'lead' %}var(--c-amber-bg);color:var(--c-amber){% else %}var(--c-success-bg);color:var(--c-success){% endif %};">
             {{ STATUS_LABEL.get(k.pipeline_status, k.pipeline_status) }}
           </span>
+          {% set e = letzte.get(k.id) %}
+          {% if e %}
+          <div class="text-xs mt-1" style="color:var(--ink-4);">
+            {{ WEG_LABEL.get(e.weg, e.weg) }}{% if e.erstellt_am %}, {{ e.erstellt_am[8:10] }}.{{ e.erstellt_am[5:7] }}.{% endif %}
+          </div>
+          {% endif %}
         </td>
         <td class="px-5 py-3 text-right whitespace-nowrap">
           <button type="submit" formaction="/admin/crm/akquise/{{ k.id }}/sperren" formnovalidate

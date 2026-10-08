@@ -99,6 +99,37 @@ Sponsoring" oder „Fest belegt, aber keine Mailadresse auf der Seite gefunden".
 den Grund, der tatsächlich ausschlaggebend war, nicht eine allgemeine Floskel."""
 
 
+# Läufe zu Mitgliedern des Netzwerks „Erfolgsfaktor Familie" (Aykut 08.10.2026). Bei
+# großen Firmen scheiterte die Suche nach einem öffentlich belegten Familienfest fast
+# immer (vier von fünf), weil Mitarbeiterfeste selten öffentlich stehen. Die
+# Mitgliedschaft selbst ist aber schon der Aufhänger. Der Marker steht vorn im
+# gespeicherten Auftrag, damit man ihn in der Liste der Läufe sieht.
+NETZWERK_MARKER = "[Erfolgsfaktor Familie] "
+NETZWERK_REGEL = """
+
+Besonderheit dieses Auftrags: Alle genannten Organisationen sind Mitglied im
+Unternehmensnetzwerk „Erfolgsfaktor Familie". Diese Mitgliedschaft ist bereits der
+Anlass der Ansprache. Du musst kein eigenes Familienfest belegen, und keine Organisation
+darf fehlen, nur weil kein Fest zu finden ist.
+- Setze "anlass" auf „Mitglied im Netzwerk Erfolgsfaktor Familie". Findest du zusätzlich
+  ein eigenes Familienfest, Sommerfest, eine Weihnachtsfeier mit Kindern oder ein
+  Ferienprogramm, hänge es an, zum Beispiel „Mitglied im Netzwerk Erfolgsfaktor Familie,
+  Familienfest im Juni".
+- "ansprachemonat" nur setzen, wenn ein konkretes Fest mit Monat belegt ist, sonst null.
+- Verwende deine Suchen für die richtige Person und ihre Adresse: Personalabteilung,
+  Familienbeauftragte oder Familienservice, Personalentwicklung, Betriebliches
+  Gesundheitsmanagement, sonst Unternehmenskommunikation.
+- Gründe für "nicht_aufgenommen" sind jetzt nur noch: keine Mailadresse gefunden, oder
+  die Organisation gehört zu den ausgeschlossenen Arten."""
+
+
+def nachricht_fuer(auftrag: str) -> str:
+    """Text, der ans Modell geht: bei Netzwerk-Läufen mit der Sonderregel."""
+    if (auftrag or "").startswith(NETZWERK_MARKER):
+        return auftrag[len(NETZWERK_MARKER):] + NETZWERK_REGEL
+    return auftrag
+
+
 def _kosten_cent(modell: str, usage: dict) -> float:
     ein, aus = PREISE.get(modell, PREISE[MODELL_RECHERCHE])
     i = usage.get("input_tokens") or 0
@@ -157,7 +188,7 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = MAX_S
         return {"kontakte": [], "suchen": 0, "kosten_cent": 0.0, "fehler": True,
                 "meldung": "Kein Anthropic-Schlüssel hinterlegt (ANTHROPIC_API_KEY)."}
 
-    nachrichten = [{"role": "user", "content": auftrag}]
+    nachrichten = [{"role": "user", "content": nachricht_fuer(auftrag)}]
     ein = aus = anzahl_suchen = 0
     text = letzter_text = ""
     ende = ""
