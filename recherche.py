@@ -321,11 +321,24 @@ def uebernehmen(db, treffer: list, auftrag_id: int = None, protokoll: list = Non
         if not darf:
             ablehnen(firma, grund or "gesperrt")
             continue
-        if db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first():
-            ablehnen(firma, "steht schon im CRM")
-            continue
         monat = t.get("ansprachemonat")
         art, person = _adresse_einordnen(mail, t)
+        vorhanden = db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first()
+        if vorhanden:
+            # Leichen aus der Zeit vor der Mailpflicht (ERGO, 07.10.2026) blockierten
+            # sonst dauerhaft die bessere Version derselben Firma. Ergänzt wird nur,
+            # was fehlt; gepflegte Angaben bleiben unangetastet.
+            if vorhanden.herkunft == "akquise" and not (vorhanden.email or "").strip():
+                vorhanden.email, vorhanden.mail_art = mail, art
+                vorhanden.ansprechpartner = person or vorhanden.ansprechpartner
+                vorhanden.anlass = vorhanden.anlass or (t.get("anlass") or "").strip() or None
+                vorhanden.quelle = vorhanden.quelle or quelle
+                vorhanden.recherche_id = auftrag_id
+                protokoll.append(f"{firma}: Mailadresse zu vorhandenem Kontakt nachgetragen")
+                neu += 1
+                continue
+            ablehnen(firma, "steht schon im CRM")
+            continue
         notiz = (t.get("warum") or "").strip()
         quelle_mail = (t.get("quelle_mail") or "").strip()
         if art == "person" and quelle_mail.startswith("http"):

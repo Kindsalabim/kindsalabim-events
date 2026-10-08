@@ -155,6 +155,50 @@ def test_gesperrte_firma_wird_nicht_wieder_eingesammelt(db):
     assert (neu, verworfen) == (0, 1)
 
 
+def test_vorhandener_kontakt_ohne_mail_wird_ergaenzt(db):
+    """ERGO lag ohne Mailadresse im CRM (aus der Zeit vor der Mailpflicht) und
+    blockierte die bessere Version derselben Firma (Aykut 07.10.2026)."""
+    _leeren()
+    db.add(Kunde(firma="Beispiel Wohnbau eG", herkunft="akquise", pipeline_status="lead",
+                 quelle="https://alt-test.de/liste",
+                 erstellt_am=datetime.now().isoformat(timespec="seconds")))
+    db.commit()
+    protokoll = []
+    neu, verworfen = recherche.uebernehmen(db, [_treffer(
+        email="a.schmidt@beispiel-test.de", ansprechpartner="Herr Schmidt",
+        mail_art="person")], auftrag_id=5, protokoll=protokoll)
+    assert (neu, verworfen) == (1, 0)
+    assert db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").count() == 1
+    k = db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first()
+    assert k.email == "a.schmidt@beispiel-test.de" and k.mail_art == "person"
+    assert k.ansprechpartner == "Herr Schmidt" and k.recherche_id == 5
+    assert k.quelle == "https://alt-test.de/liste"   # Gepflegtes bleibt unangetastet
+    assert "nachgetragen" in " ".join(protokoll)
+
+
+def test_vorhandener_kontakt_mit_mail_bleibt_unangetastet(db):
+    _leeren()
+    db.add(Kunde(firma="Beispiel Wohnbau eG", herkunft="akquise", pipeline_status="lead",
+                 email="gepflegt@beispiel-test.de",
+                 erstellt_am=datetime.now().isoformat(timespec="seconds")))
+    db.commit()
+    neu, verworfen = recherche.uebernehmen(db, [_treffer(email="neu@beispiel-test.de")])
+    assert (neu, verworfen) == (0, 1)
+    assert db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG") \
+             .first().email == "gepflegt@beispiel-test.de"
+
+
+def test_bestandskunde_wird_nicht_ueberschrieben(db):
+    """Nur Akquise-Leichen werden ergänzt, echte Kunden nie."""
+    _leeren()
+    db.add(Kunde(firma="Beispiel Wohnbau eG", herkunft="bestand",
+                 erstellt_am=datetime.now().isoformat(timespec="seconds")))
+    db.commit()
+    neu, verworfen = recherche.uebernehmen(db, [_treffer()])
+    assert (neu, verworfen) == (0, 1)
+    assert db.query(Kunde).filter(Kunde.firma == "Beispiel Wohnbau eG").first().email is None
+
+
 def test_bekannte_organisation_wird_uebersprungen(db):
     _leeren()
     db.add(Kunde(firma="Beispiel Wohnbau eG", herkunft="bestand",

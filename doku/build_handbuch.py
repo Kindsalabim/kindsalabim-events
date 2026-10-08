@@ -686,7 +686,22 @@ story = [
               "verworfene Zeilen und die <b>Kosten</b> (ein Lauf liegt bei etwa 10 bis 40 Cent, oben "
               "siehst du die Summe des Monats). Das Modell ist wählbar: &bdquo;Günstig&ldquo; für die "
               "normale Suche, &bdquo;Teuer&ldquo; nur wenn ein Auftrag mehr Urteilsvermögen braucht. "
-              "<b>Automatischer Nachschub:</b> Trägst du dort einen Dauerauftrag ein, sucht die App "
+              "<b>Was die App aussortiert:</b> Ohne Quelllink und ohne Mailadresse wird eine Firma "
+              "nicht übernommen, ebenso Gesperrte und schon Bekannte. Unter jedem Lauf steht, "
+              "<b>warum</b> eine Zeile verworfen wurde und welche der genannten Firmen das "
+              "Modell gar nicht vorgeschlagen hat. Mit &bdquo;X neu anzeigen&ldquo; siehst du "
+              "genau die Kontakte dieses Laufs. Nennst du Firmen namentlich, nimm etwa fünf "
+              "pro Lauf. ", P),
+    Spacer(1, 4),
+    Paragraph("<b>Persönliche Adresse oder Sammelpostfach:</b> Die Recherche sucht zuerst die "
+              "persönliche Adresse der zuständigen Person; ein Funktionspostfach (info@, "
+              "presse@) ist nur der Rückfall. Persönliche Adressen sind in der Liste mit einem "
+              "Briefsymbol markiert. Die Anrede hängt daran: an eine persönliche Adresse "
+              "schreibt der Assistent &bdquo;Guten Tag Herr Schmidt&ldquo;, an ein Sammelpostfach "
+              "nie mit Namen. Einen Kontakt löschst du direkt in seiner Zeile, er wandert in den "
+              "Papierkorb. ", P),
+    Spacer(1, 4),
+    Paragraph("<b>Automatischer Nachschub:</b> Trägst du dort einen Dauerauftrag ein, sucht die App "
               "einmal täglich von selbst, sobald weniger als 20 Kontakte offen sind; leeres Feld "
               "heißt keine automatischen Läufe, und solange ein Lauf offen ist, wird kein zweiter "
               "gestartet.", P),
