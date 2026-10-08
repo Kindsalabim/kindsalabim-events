@@ -113,7 +113,6 @@
           <td class="py-2 pr-3">
             <span class="truncate inline-block max-w-md align-middle" style="color:var(--ink-2);">{{ a.auftrag }}</span>
             {% if a.automatisch %}<span class="text-xs ml-1" style="color:var(--ink-4);">(Nachschub)</span>{% endif %}
-            {% if a.meldung %}<br><span class="text-xs" style="color:{% if a.status == 'fehler' %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ a.meldung }}</span>{% endif %}
           </td>
           <td class="py-2 pr-3 text-xs whitespace-nowrap" style="color:var(--ink-4);">
             {% if a.status == 'fertig' %}
@@ -127,6 +126,13 @@
             {% if a.kosten_cent %}{{ ('%.2f'|format(a.kosten_cent / 100))|replace('.', ',') }} &euro;{% endif %}
           </td>
         </tr>
+        {% if a.meldung %}
+        <tr>
+          <td colspan="3" class="pb-3 pr-3">
+            <p class="text-xs leading-relaxed" style="white-space:pre-wrap;word-break:break-word;color:{% if a.status == 'fehler' %}var(--c-coral){% else %}var(--c-amber){% endif %};">{{ a.meldung }}</p>
+          </td>
+        </tr>
+        {% endif %}
       {% endfor %}
       </tbody>
     </table>

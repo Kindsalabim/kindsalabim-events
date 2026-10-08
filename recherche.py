@@ -30,6 +30,12 @@ MODELL_EINORDNUNG = "claude-opus-5-5"      # nur wenn ausdrücklich gewünscht
 NACHSCHUB_GRENZE = 20
 DAUERAUFTRAG_KEY = "recherche_dauerauftrag"
 
+# Obergrenze für Websuchen je Lauf. Mit 12 verbrauchte das Modell am 07.10.2026 fast
+# alles für die erste von fünf Firmen, die übrigen vier blieben „nicht geprüft".
+# Eine Firma braucht realistisch drei bis vier Suchen (Anlass, Impressum, Ansprech-
+# partner). Eine Suche kostet rund einen Cent, die Grenze begrenzt also auch die Kosten.
+MAX_SUCHEN = 45
+
 # Preise je 1 Mio. Token (Stand 10/2026). Nur zur Kostenanzeige; die Gebühren für die
 # Websuche selbst kommen zusätzlich und stehen nicht in der Antwort.
 PREISE = {
@@ -46,6 +52,10 @@ Freizeiteinrichtungen, und vor allem Firmen, die mit einem Stand auf solchen Fes
 Krankenkassen) oder selbst Familienfeste für ihre Mitarbeitenden ausrichten.
 
 Harte Regeln:
+- **Teile deine Suchen ein.** Du hast nur begrenzt viele Websuchen. Sind im Auftrag
+  Organisationen namentlich genannt, arbeite sie der Reihe nach ab und gib keiner mehr
+  als drei bis vier Suchen. Lieber alle einmal ordentlich geprüft als die erste
+  erschöpfend und der Rest gar nicht.
 - Jede Zeile braucht einen echten Quelllink, auf dem die Angaben stehen. Ohne Quelle keine Zeile.
 - Erfinde nichts. Kein Name, keine Adresse, keine Telefonnummer, die du nicht belegen kannst.
   Lieber zehn belegte Zeilen als fünfzig geratene.
@@ -134,7 +144,7 @@ def _such_fehler(inhalt: list) -> list:
     return fehler
 
 
-def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = 12,
+def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = MAX_SUCHEN,
            max_fortsetzungen: int = 5) -> dict:
     """Einen Rechercheauftrag ausführen. Rückgabe: kontakte, suchen, kosten_cent, meldung.
 

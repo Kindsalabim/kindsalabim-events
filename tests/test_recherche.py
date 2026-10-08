@@ -217,6 +217,22 @@ def test_nicht_vorgeschlagene_firmen_werden_begruendet(db, monkeypatch):
     assert "BARMER" in a.meldung and "Vonovia" in a.meldung and a.status == "fertig"
 
 
+def test_suchlimit_reicht_fuer_mehrere_firmen(monkeypatch):
+    """Mit 12 Suchen verbrauchte das Modell fast alles für die erste von fünf Firmen,
+    die übrigen vier blieben „nicht geprüft" (07.10.2026)."""
+    assert recherche.MAX_SUCHEN >= 20
+    gesendet = {}
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    monkeypatch.setattr(recherche.httpx, "post", lambda *_a, **k: (
+        gesendet.update(k["json"]) or _Antwort(_rohantwort('{"kontakte": []}'))))
+    recherche.suchen("Fünf Firmen prüfen")
+    assert gesendet["tools"][0]["max_uses"] == recherche.MAX_SUCHEN
+
+
+def test_auftrag_mahnt_die_sucheinteilung_an():
+    assert "Teile deine Suchen ein" in recherche.SYSTEM
+
+
 def test_begruendungen_landen_im_ergebnis(monkeypatch):
     monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
     antwort = json.dumps({"kontakte": [],
