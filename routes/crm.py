@@ -491,6 +491,18 @@ def akquise_sperre(ebene: str = Form("adresse"), wert: str = Form(""),
     return RedirectResponse("/admin/crm/akquise", status_code=303)
 
 
+@router.post("/akquise/sperre/{sid}/loeschen")
+def akquise_sperre_loeschen(sid: int, db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """Einen Sperrlisten-Eintrag aufheben (Tippfehler, Fehlklick). Die anderen Ebenen
+    derselben Firma bleiben bestehen."""
+    from models import VertriebSperre
+    s = db.query(VertriebSperre).filter(VertriebSperre.id == sid).first()
+    if s:
+        db.delete(s)
+        db.commit()
+    return RedirectResponse("/admin/crm/akquise", status_code=303)
+
+
 @router.post("/akquise/{kid}/sperren")
 def akquise_kunde_sperren(kid: int, grund: str = Form("widerspruch"),
                           db: Session = Depends(get_db), _=Depends(nur_inhaber)):

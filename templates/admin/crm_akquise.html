@@ -226,7 +226,7 @@
         <td class="px-5 py-3 text-right whitespace-nowrap">
           <button type="submit" formaction="/admin/crm/akquise/{{ k.id }}/sperren" formnovalidate
                   class="text-xs text-gray-500 hover:text-red-600 transition-colors"
-                  onclick="return confirm('Nie wieder kontaktieren? Adresse, Domain und Unternehmen werden gesperrt. Das lässt sich nicht zurücknehmen.');">Nie wieder</button>
+                  onclick="return confirm('Nie wieder kontaktieren? Adresse, Domain und Unternehmen werden gesperrt. Aufheben kannst du das unten in der Sperrliste.');">Nie wieder</button>
           <button type="submit" formaction="/admin/crm/akquise/{{ k.id }}/loeschen" formnovalidate
                   class="text-xs ml-3 text-gray-500 hover:text-red-600 transition-colors"
                   onclick="return confirm('„{{ k.firma }}“ löschen? Der Kontakt wandert in den Papierkorb.');">Löschen</button>
@@ -285,6 +285,15 @@
       <span class="ml-auto text-xs shrink-0" style="color:var(--ink-4);">
         {{ s.grund }}{% if s.erstellt_am %} · {{ s.erstellt_am[8:10] }}.{{ s.erstellt_am[5:7] }}.{{ s.erstellt_am[:4] }}{% endif %}
       </span>
+      <form method="post" action="/admin/crm/akquise/sperre/{{ s.id }}/loeschen" class="shrink-0">
+        {% if s.grund in ('widerspruch', 'abmahnung', 'unterlassung') %}
+        {% set frage = 'Achtung: Diese Sperre schützt dich rechtlich (' ~ s.grund ~ '). Wenn du sie aufhebst, kann „' ~ (s.anzeige or s.wert) ~ '“ beim nächsten Recherche-Lauf wieder eingesammelt und angeschrieben werden. Wirklich aufheben?' %}
+        {% else %}
+        {% set frage = 'Sperre für „' ~ (s.anzeige or s.wert) ~ '“ aufheben?' %}
+        {% endif %}
+        <button type="submit" data-frage="{{ frage }}" onclick="return confirm(this.dataset.frage);"
+                class="text-xs text-gray-500 hover:text-red-600 transition-colors">Aufheben</button>
+      </form>
     </li>
     {% endfor %}
   </ul>

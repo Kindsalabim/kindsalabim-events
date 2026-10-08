@@ -473,3 +473,73 @@ def test_ansprechpartner_wird_importiert_und_mitgegeben(admin, db, monkeypatch):
     crm.entwurf_anfordern(k.id)
     assert gesendet["ansprechpartner"] == "Frau Muster"
     assert gesendet["anlass"] == "Parkfest"
+
+
+# ── Sperre aufheben (Aykut 08.10.2026) ──────────────────────────────────────
+
+def _sperre_id(db, ebene, wert):
+    db.expire_all()
+    s = db.query(VertriebSperre).filter(VertriebSperre.ebene == ebene,
+                                        VertriebSperre.wert == wert).first()
+    return s.id if s else None
+
+
+def test_sperre_aufheben_gibt_den_kontakt_wieder_frei(admin, db):
+    _leeren()
+    vertrieb.sperren(db, "adresse", "info@aufheben.example", "eigene")
+    assert vertrieb.darf_kontaktieren(db, email="info@aufheben.example")[0] is False
+    sid = _sperre_id(db, "adresse", "info@aufheben.example")
+    r = admin.post(f"/admin/crm/akquise/sperre/{sid}/loeschen", follow_redirects=False)
+    assert r.status_code == 303
+    db.expire_all()
+    assert vertrieb.darf_kontaktieren(db, email="info@aufheben.example")[0] is True
+
+
+def test_andere_ebene_derselben_firma_bleibt_gesperrt(admin, db):
+    _leeren()
+    vertrieb.sperren(db, "adresse", "info@ebenen.example", "widerspruch")
+    vertrieb.sperren(db, "domain", "ebenen.example", "widerspruch")
+    admin.post(f"/admin/crm/akquise/sperre/{_sperre_id(db, 'adresse', 'info@ebenen.example')}/loeschen",
+               follow_redirects=False)
+    db.expire_all()
+    assert _sperre_id(db, "adresse", "info@ebenen.example") is None
+    assert _sperre_id(db, "domain", "ebenen.example") is not None
+    assert vertrieb.darf_kontaktieren(db, email="info@ebenen.example")[0] is False
+
+
+def test_buero_darf_sperre_nicht_aufheben(client, db):
+    from auth import create_token
+    from models import Admin
+    _leeren()
+    vertrieb.sperren(db, "adresse", "info@buero.example", "abmahnung")
+    sid = _sperre_id(db, "adresse", "info@buero.example")
+    mail = "buero.sperre@example.de"
+    a = db.query(Admin).filter(Admin.email == mail).first()
+    if not a:
+        a = Admin(email=mail, name="Bürokraft", password_hash="x", aktiv=True)
+        db.add(a)
+    a.rolle = "buero"
+    db.commit()
+    client.cookies.set("admin_token",
+                       create_token({"sub": mail, "role": "admin"}, expires_minutes=60))
+    assert client.post(f"/admin/crm/akquise/sperre/{sid}/loeschen").status_code == 403
+    assert _sperre_id(db, "adresse", "info@buero.example") == sid
+
+
+def test_seite_zeigt_je_sperre_einen_knopf(admin, db):
+    _leeren()
+    vertrieb.sperren(db, "domain", "knopf.example", "unterlassung")
+    vertrieb.sperren(db, "person", "Erika Knopf", "eigene")
+    db.add(Kunde(firma="Knopf Testfirma", email="info@knopf-test.example",
+                 herkunft="akquise", pipeline_status="lead"))
+    db.commit()
+    html = admin.get("/admin/crm/akquise").text
+    for ebene, wert in (("domain", "knopf.example"), ("person", "erika knopf")):
+        sid = _sperre_id(db, ebene, wert)
+        assert sid is not None
+        assert f'action="/admin/crm/akquise/sperre/{sid}/loeschen"' in html
+    # rechtliche Sperre warnt deutlich, eigene fragt nur nach
+    assert "wieder eingesammelt und angeschrieben" in html
+    assert "Sperre für „Erika Knopf“ aufheben?" in html
+    assert "Aufheben kannst du das unten in der Sperrliste" in html
+    assert "Das lässt sich nicht zurücknehmen" not in html
