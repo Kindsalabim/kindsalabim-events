@@ -497,7 +497,9 @@ def _pipeline_vor(k, ziel: str):
 
 def _akquise_kunde(db, daten: dict):
     """Kontakt zu einer Meldung des Assistenten finden: über die übergebene ID, sonst
-    über die Mailadresse. Die ID kommt dort als Text an ("123"), deshalb umwandeln."""
+    über die Mailadresse. Die ID kommt dort als Text an ("123"), deshalb umwandeln:
+    Postgres lehnt `kunden.id = '123'::VARCHAR` mit einem Fehler ab, SQLite nicht.
+    Genau daran scheiterten bis 08.10.2026 alle Versandmeldungen mit HTTP 500."""
     roh = str(daten.get("kunde_id") or "").strip()
     if roh.isdigit():
         k = db.query(Kunde).filter(Kunde.id == int(roh)).first()
@@ -563,8 +565,7 @@ async def api_sperren(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401)
     daten = await request.json()
     grund = daten.get("grund") or "widerspruch"
-    k = (db.query(Kunde).filter(Kunde.id == daten["kunde_id"]).first()
-         if daten.get("kunde_id") else None)
+    k = _akquise_kunde(db, {"kunde_id": daten.get("kunde_id")})
     if k:
         vertrieb.sperren_fuer_kunde(db, k, grund, daten.get("notiz") or "")
         k.pipeline_status = "verloren"

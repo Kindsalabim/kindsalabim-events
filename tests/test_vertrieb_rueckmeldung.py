@@ -205,3 +205,38 @@ def test_zeitpunkt_in_der_zukunft_zaehlt_als_jetzt(admin, db, monkeypatch):
                json={"kunde_id": k.id, "gesendet_am": "2099-01-01T00:00:00"})
     e = db.query(VertriebKontaktLog).filter(VertriebKontaktLog.kunde_id == k.id).one()
     assert not e.erstellt_am.startswith("2099")
+
+
+# ── Postgres: keine Text-ID gegen die Zahlenspalte ──────────────────────────
+# SQLite vergleicht 123 und "123" klaglos, Postgres bricht mit HTTP 500 ab
+# („operator does not exist: integer = character varying"). So scheiterten bis
+# 08.10.2026 alle Versandmeldungen des Assistenten, ohne dass ein Test es sah.
+# Deshalb wird hier jede Abfrage so übersetzt, wie Postgres sie bekäme.
+
+def _postgres_sql(db, monkeypatch):
+    from sqlalchemy import event
+    from sqlalchemy.dialects.postgresql import psycopg
+    import database
+    gesehen = []
+
+    def _merken(ctx):
+        gesehen.append(str(ctx.statement.compile(dialect=psycopg.dialect())))
+    event.listen(database.SessionLocal, "do_orm_execute", _merken)
+    return gesehen, lambda: event.remove(database.SessionLocal, "do_orm_execute", _merken)
+
+
+def test_meldungen_vergleichen_die_id_als_zahl(admin, db, monkeypatch):
+    _mit_secret(monkeypatch)
+    k = _kontakt(db, "Postgres Typ GmbH", "info@pg-typ.example")
+    gesehen, aufraeumen = _postgres_sql(db, monkeypatch)
+    try:
+        for pfad in ("gesendet", "antwort", "angebot", "sperren"):
+            r = admin.post(f"/admin/crm/api/vertrieb/{pfad}", headers=GEHEIM,
+                           json={"kunde_id": str(k.id), "betreff": "x", "grund": "eigene"})
+            assert r.status_code == 200, pfad
+    finally:
+        aufraeumen()
+    ids = [q for q in gesehen if "kunden.id =" in q]
+    assert ids, "Die Abfrage nach der Kunden-ID wurde nicht gesehen"
+    for q in ids:
+        assert "kunden.id = %(id_1)s::VARCHAR" not in q, q
