@@ -111,14 +111,24 @@ Besonderheit dieses Auftrags: Alle genannten Organisationen sind Mitglied im
 Unternehmensnetzwerk „Erfolgsfaktor Familie". Diese Mitgliedschaft ist bereits der
 Anlass der Ansprache. Du musst kein eigenes Familienfest belegen, und keine Organisation
 darf fehlen, nur weil kein Fest zu finden ist.
-- Setze "anlass" auf „Mitglied im Netzwerk Erfolgsfaktor Familie". Findest du zusätzlich
-  ein eigenes Familienfest, Sommerfest, eine Weihnachtsfeier mit Kindern oder ein
-  Ferienprogramm, hänge es an, zum Beispiel „Mitglied im Netzwerk Erfolgsfaktor Familie,
-  Familienfest im Juni".
+- Setze "anlass" auf „Mitglied im Netzwerk Erfolgsfaktor Familie" und hänge jeden
+  weiteren Beleg für Familienfreundlichkeit an, den du auf einer Seite findest. Daraus
+  schreibt der Assistent den Einstieg der Mail, ein konkreter Beleg wirkt viel stärker
+  als die Mitgliedschaft allein. Beispiele: Zertifikat „audit berufundfamilie" (mit
+  Anzahl der Zertifizierungen, wenn genannt), Auszeichnung als familienfreundlicher
+  Arbeitgeber, eigenes Familienfest, Sommerfest, Weihnachtsfeier mit Kindern,
+  Ferienbetreuung für Mitarbeiterkinder. Etwa: „Mitglied im Netzwerk Erfolgsfaktor
+  Familie, zum achten Mal mit dem audit berufundfamilie zertifiziert". Nur Belegtes,
+  nichts Vermutetes.
 - "ansprachemonat" nur setzen, wenn ein konkretes Fest mit Monat belegt ist, sonst null.
-- Verwende deine Suchen für die richtige Person und ihre Adresse: Personalabteilung,
-  Familienbeauftragte oder Familienservice, Personalentwicklung, Betriebliches
-  Gesundheitsmanagement, sonst Unternehmenskommunikation.
+- Verwende deine Suchen für die richtige Person und ihre Adresse, in dieser Reihenfolge:
+  1. Leitung Personal, Familienbeauftragte oder Familienservice, Personalentwicklung,
+     Betriebliches Gesundheitsmanagement (persönliche Adresse bevorzugt).
+  2. Ein Postfach dieser Bereiche (personal@, personalmarketing@, familienservice@).
+  3. Das allgemeine Postfach (info@, kontakt@).
+  **Keine Pressestelle** (presse@, pressestelle@, Pressesprecher). Die leitet eine
+  Angebotsmail nicht weiter. Nur wenn es gar keine andere Adresse gibt, und dann im
+  Feld "warum" ausdrücklich „nur Pressestelle gefunden" vermerken.
 - Gründe für "nicht_aufgenommen" sind jetzt nur noch: keine Mailadresse gefunden, oder
   die Organisation gehört zu den ausgeschlossenen Arten."""
 

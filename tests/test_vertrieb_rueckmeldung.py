@@ -174,7 +174,10 @@ def test_netzwerk_haekchen_setzt_marker_und_regel(admin, db, monkeypatch):
     text = recherche.nachricht_fuer(a.auftrag)
     assert not text.startswith("[")
     assert "Mitglied im Netzwerk Erfolgsfaktor Familie" in text
-    assert "kein eigenes Familienfest belegen" in " ".join(text.split())
+    flach = " ".join(text.split())
+    assert "kein eigenes Familienfest belegen" in flach
+    assert "audit berufundfamilie" in flach          # Zusatzbelege in den Anlass
+    assert "Keine Pressestelle" in flach
 
 
 def test_ohne_haekchen_bleibt_der_auftrag_unveraendert():
