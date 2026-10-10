@@ -178,6 +178,8 @@ def test_netzwerk_haekchen_setzt_marker_und_regel(admin, db, monkeypatch):
     assert "kein eigenes Familienfest belegen" in flach
     assert "audit berufundfamilie" in flach          # Zusatzbelege in den Anlass
     assert "Keine Pressestelle" in flach
+    assert "bewerbung@" in flach                     # Bewerbungspostfach ist tabu
+    assert "nicht der Monat des Festes" in flach     # Ansprachemonat = Planungszeit
 
 
 def test_ohne_haekchen_bleibt_der_auftrag_unveraendert():

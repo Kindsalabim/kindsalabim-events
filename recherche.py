@@ -120,14 +120,18 @@ darf fehlen, nur weil kein Fest zu finden ist.
   Ferienbetreuung für Mitarbeiterkinder. Etwa: „Mitglied im Netzwerk Erfolgsfaktor
   Familie, zum achten Mal mit dem audit berufundfamilie zertifiziert". Nur Belegtes,
   nichts Vermutetes.
-- "ansprachemonat" nur setzen, wenn ein konkretes Fest mit Monat belegt ist, sonst null.
+- "ansprachemonat" ist der Monat, in dem WIR anschreiben, nicht der Monat des Festes:
+  rund vier Monate vor dem Fest, wenn dort geplant wird (Fest im September →
+  Mai, Weihnachtsfeier im Dezember → August). Nur setzen, wenn ein konkretes Fest mit
+  Monat belegt ist, sonst null.
 - Verwende deine Suchen für die richtige Person und ihre Adresse, in dieser Reihenfolge:
   1. Leitung Personal, Familienbeauftragte oder Familienservice, Personalentwicklung,
      Betriebliches Gesundheitsmanagement (persönliche Adresse bevorzugt).
   2. Ein Postfach dieser Bereiche (personal@, personalmarketing@, familienservice@).
   3. Das allgemeine Postfach (info@, kontakt@).
-  **Keine Pressestelle** (presse@, pressestelle@, Pressesprecher). Die leitet eine
-  Angebotsmail nicht weiter. Nur wenn es gar keine andere Adresse gibt, und dann im
+  **Keine Pressestelle** (presse@, pressestelle@, Pressesprecher) und **kein
+  Bewerbungs- oder Nachwuchspostfach** (bewerbung@, karriere@, jobs@, ausbildung@,
+  personalwerbung@). Die leiten eine Angebotsmail nicht weiter. Nur wenn es gar keine andere Adresse gibt, und dann im
   Feld "warum" ausdrücklich „nur Pressestelle gefunden" vermerken.
 - Gründe für "nicht_aufgenommen" sind jetzt nur noch: keine Mailadresse gefunden, oder
   die Organisation gehört zu den ausgeschlossenen Arten."""
