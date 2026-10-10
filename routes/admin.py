@@ -2077,17 +2077,24 @@ def send_checklist(
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     if not ev.kunde_email:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_email", status_code=303)
-    if not ev.checklist_token:
-        ev.checklist_token = str(uuid.uuid4())
-    # (Erneut) senden öffnet die Checkliste wieder: Der Kunde soll ausfüllen bzw.
-    # abgleichen können. Vorhandene Angaben (z. B. vorab „selbst ausgefüllt") bleiben
-    # erhalten und stehen im Kundenformular vorbefüllt.
-    ev.cl_eingereicht_am = None
+    # Serie: EINE Checkliste für alle Termintage. Jeder Tag bekommt einen eigenen,
+    # gleichwertigen Link (die Statusanzeige je Tag hängt daran), verschickt wird
+    # eine Mail mit allen Terminen.
+    from routes.checklist import serie_von
+    serie = serie_von(db, ev)
+    for tag in (serie or [ev]):
+        if not tag.checklist_token:
+            tag.checklist_token = str(uuid.uuid4())
+        # (Erneut) senden öffnet die Checkliste wieder: Der Kunde soll ausfüllen bzw.
+        # abgleichen können. Vorhandene Angaben (z. B. vorab „selbst ausgefüllt")
+        # bleiben erhalten und stehen im Kundenformular vorbefüllt.
+        tag.cl_eingereicht_am = None
     db.commit()
     base_url = str(request.base_url).rstrip("/")
     from email_service import send_checklist_email
-    send_checklist_email(ev, base_url)
-    ev.status = auto_status(ev, db)
+    send_checklist_email(ev, base_url, serie=serie or None)
+    for tag in (serie or [ev]):
+        tag.status = auto_status(tag, db)
     db.commit()
     return RedirectResponse(f"/admin/events/{event_id}?checklist_sent=1", status_code=303)
 

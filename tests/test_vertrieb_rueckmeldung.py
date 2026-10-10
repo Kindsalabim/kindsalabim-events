@@ -245,3 +245,39 @@ def test_meldungen_vergleichen_die_id_als_zahl(admin, db, monkeypatch):
     assert ids, "Die Abfrage nach der Kunden-ID wurde nicht gesehen"
     for q in ids:
         assert "kunden.id = %(id_1)s::VARCHAR" not in q, q
+
+
+# ── Anlass und Ansprachemonat bearbeiten (Aykut 10.10.2026) ─────────────────
+# Die Vertriebs-Session empfahl, den Anlass zu korrigieren, das Formular hatte
+# dafür aber kein Feld.
+
+def test_anlass_und_monat_im_formular_bearbeitbar(admin, db):
+    k = _kontakt(db, "Anlass Bearbeiten GmbH", "info@anlass-edit.example")
+    k.anlass = "Mitglied im Netzwerk Erfolgsfaktor Familie"
+    db.commit()
+    h = admin.get(f"/admin/crm/{k.id}/edit").text
+    assert 'name="anlass"' in h and 'name="ansprachemonat"' in h
+    r = admin.post(f"/admin/crm/{k.id}/edit", follow_redirects=False, data={
+        "firma": "Anlass Bearbeiten GmbH", "email": "info@anlass-edit.example",
+        "pipeline_status": "lead", "anlass": "Eigenes Sommerfest für Beschäftigte",
+        "ansprachemonat": "2"})
+    assert r.status_code == 303
+    db.expire_all()
+    k = db.query(Kunde).filter(Kunde.id == k.id).first()
+    assert k.anlass == "Eigenes Sommerfest für Beschäftigte"
+    assert k.ansprachemonat == 2
+
+
+def test_bestandskunde_ohne_akquisefelder_behaelt_den_anlass(admin, db):
+    """Das Formular eines Bestandskunden hat die Felder nicht. Speichern darf einen
+    vorhandenen Anlass (z. B. aus einer früheren Akquise) nicht löschen."""
+    k = Kunde(firma="Bestand Anlass AG", herkunft="bestand", pipeline_status="gebucht",
+              anlass="Alter Anlass", ansprachemonat=5)
+    db.add(k); db.commit()
+    h = admin.get(f"/admin/crm/{k.id}/edit").text
+    assert 'name="anlass"' not in h
+    admin.post(f"/admin/crm/{k.id}/edit", follow_redirects=False,
+               data={"firma": "Bestand Anlass AG", "pipeline_status": "gebucht"})
+    db.expire_all()
+    k = db.query(Kunde).filter(Kunde.id == k.id).first()
+    assert (k.anlass, k.ansprachemonat) == ("Alter Anlass", 5)

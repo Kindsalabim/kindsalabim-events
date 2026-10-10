@@ -149,6 +149,25 @@
           class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         <p class="text-xs text-gray-500 mt-1">Mehrere Tags mit Komma trennen – neue werden automatisch angelegt.</p>
       </div>
+      {% if kunde and kunde.herkunft == 'akquise' %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Anlass der Ansprache</label>
+        <textarea name="anlass" rows="3" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring"
+          placeholder="z. B. Mitglied im Netzwerk Erfolgsfaktor Familie, eigenes Sommerfest für Beschäftigte">{{ kunde.anlass or '' }}</textarea>
+        <p class="text-xs text-gray-500 mt-1">Daraus schreibt der E-Mail-Assistent den Einstieg der Erstmail. Nur Belegtes eintragen.</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Ansprechen im Monat</label>
+        {% set monate = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"] %}
+        <select name="ansprachemonat" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring">
+          <option value="">Kein bestimmter Monat</option>
+          {% for m in monate %}
+          <option value="{{ loop.index }}" {% if kunde.ansprachemonat == loop.index %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-gray-500 mt-1">Wann wir anschreiben, rund vier Monate vor dem Fest.</p>
+      </div>
+      {% endif %}
     </div>
 
     <!-- Profil-Wissen -->

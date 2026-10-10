@@ -701,7 +701,8 @@ def send_teamleiter_info(event):
     tl = event.teamleiter
     tl_name = f"{tl.vorname} {tl.nachname}" if tl else ""
     tl_tel = (tl.telefon or "").strip() if tl else ""
-    anrede = f"Hallo {event.kunde_kontakt}," if event.kunde_kontakt else "Guten Tag,"
+    from anrede import kunden_anrede
+    anrede = _esc(kunden_anrede(event.kunde_kontakt))
 
     tel_row = _info_row('Telefon', tl_tel) if tl_tel else ""
     content = f"""
@@ -851,12 +852,23 @@ def send_material_bereit(event, logistiker):
     _send(logistiker.email, subject, _wrap(content, color, cfg))
 
 
-def send_checklist_email(event, base_url: str):
+def send_checklist_email(event, base_url: str, serie=None):
+    """Checkliste an den Kunden. Bei einer Serie (`serie` = alle Termintage) eine Mail
+    für alle Tage: Der Kunde füllt einmal aus, nicht je Tag."""
     cfg = get_config()
     color = _brand_color(event.marke)
     url = f"{base_url}/checklist/{event.checklist_token}"
+    from anrede import kunden_anrede
+    anrede = _esc(kunden_anrede(event.kunde_kontakt))
+    if serie:
+        termin_zeilen = "".join(
+            _info_row(f"Termin {i}", f"{de_date(t.datum)}, {t.startzeit} – {t.endzeit} Uhr")
+            for i, t in enumerate(serie, 1))
+    else:
+        termin_zeilen = (_info_row('Datum', de_date(event.datum))
+                         + _info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr"))
     content = f"""
-    <p style="margin:0 0 8px;font-size:16px;color:#111827;">Guten Tag,</p>
+    <p style="margin:0 0 8px;font-size:16px;color:#111827;">{anrede}</p>
     <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
       vielen Dank für Ihre Buchung. Damit wir Ihr Event optimal vorbereiten können,
       bitten wir Sie, die folgende Checkliste auszufüllen.
@@ -865,8 +877,7 @@ def send_checklist_email(event, base_url: str):
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', event.anlass)}
-        {_info_row('Datum', de_date(event.datum))}
-        {_info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")}
+        {termin_zeilen}
       </table>
     </div>
 
@@ -881,7 +892,11 @@ def send_checklist_email(event, base_url: str):
       <a href="{url}" style="color:#6b7280;">{url}</a>
     </p>"""
 
-    subject = f"Checkliste: {event.anlass} am {de_date(event.datum)} – bitte ausfüllen"
+    if serie:
+        subject = (f"Bitte ausfüllen: Checkliste für {event.anlass}, {len(serie)} Termine "
+                   f"ab {de_date(serie[0].datum)}")
+    else:
+        subject = f"Checkliste: {event.anlass} am {de_date(event.datum)} – bitte ausfüllen"
     _send(event.kunde_email, subject, _wrap(content, color, cfg))
 
 

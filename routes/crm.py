@@ -110,6 +110,9 @@ def _kunde_form_echo(raw, bestehend=None):
         besonderheiten=g("besonderheiten"),
         bevorzugte_eventarten=g("bevorzugte_eventarten"),
         typische_budgets=g("typische_budgets"),
+        herkunft=getattr(bestehend, "herkunft", None),
+        anlass=g("anlass"),
+        ansprachemonat=int(g("ansprachemonat")) if g("ansprachemonat").isdigit() else None,
         weitere_ansprechpartner=weitere_ap_json(raw.getlist("kap_name"),
                                                 raw.getlist("kap_telefon"),
                                                 raw.getlist("kap_email")),
@@ -137,6 +140,13 @@ def _apply_form(db, k: Kunde, f: dict):
     k.besonderheiten = g("besonderheiten") or None
     k.bevorzugte_eventarten = g("bevorzugte_eventarten") or None
     k.typische_budgets = g("typische_budgets") or None
+    # Nur Akquise-Kontakte haben diese Felder im Formular. Fehlen sie, nichts
+    # anfassen, sonst löschte das Speichern eines Bestandskunden den Anlass.
+    if "anlass" in f:
+        k.anlass = g("anlass") or None
+    if "ansprachemonat" in f:
+        monat = g("ansprachemonat")
+        k.ansprachemonat = int(monat) if monat.isdigit() and 1 <= int(monat) <= 12 else None
     _apply_tags(db, k, f.get("tags", ""))
     k.aktualisiert_am = _now()
 

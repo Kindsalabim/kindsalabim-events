@@ -62,12 +62,24 @@
       <img src="/static/img/logo-kindsalabim.png" alt="KindSalabim" style="height:52px;width:auto;margin:0 auto 1rem;display:block;">
     {% endif %}
     <h1 class="text-xl font-bold" style="color: var(--ink-1);">Veranstaltungs-Checkliste</h1>
+    {% set wtage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] %}
+    {% if serie %}
+    <p class="text-sm mt-1" style="color: var(--ink-3);">{{ ev.anlass }} · {{ serie|length }} Termine</p>
+    {% else %}
     <p class="text-sm mt-1" style="color: var(--ink-3);">{{ ev.anlass }} · {{ ev.datum | de_date }}</p>
+    {% endif %}
     {% if not already_submitted %}
     <p class="text-sm mt-3 text-left" style="color: var(--ink-2); line-height: 1.6;">
+      {% if serie %}
+      Damit wir unsere Leistungen an Ihren <strong>{{ serie|length }} Terminen</strong>
+      bestmöglich durchführen können, benötigen wir noch einige Informationen.
+      Sie füllen diese Checkliste <strong>einmal für alle Termine</strong> aus, nur die Zeiten
+      geben Sie je Tag an. <strong>Dauer: ca. 3 Minuten</strong>.
+      {% else %}
       Damit wir unsere Leistungen auf Ihrem Event am <strong>{{ ev.datum | de_date }}</strong>
       bestmöglich durchführen können, benötigen wir noch einige Informationen.
       Bitte prüfen und vervollständigen Sie die Checkliste. <strong>Dauer: ca. 2 Minuten</strong>.
+      {% endif %}
     </p>
     {% endif %}
   </div>
@@ -99,6 +111,8 @@
   <!-- Formular – vorhandene Angaben (z. B. vom Büro vorab eingetragen) sind vorbefüllt,
        der Kunde ergänzt/korrigiert nur noch. -->
   {% set orte = (ev.cl_aufbauort or '').split(', ') %}
+  {% set erster = serie[0] if serie else ev %}
+  {% set letzter = serie[-1] if serie else ev %}
   <form method="post" class="space-y-5">
 
     <!-- Ansprechpartner -->
@@ -119,6 +133,9 @@
     <!-- Veranstaltungsanschrift -->
     <div class="card p-6">
       <p class="section-title">Veranstaltungsanschrift</p>
+      {% if serie %}
+      <p class="text-sm -mt-2 mb-4" style="color: var(--ink-3);">Gilt für alle Termine. Ist es an einem Tag eine andere Adresse, können Sie das unten beim jeweiligen Tag angeben.</p>
+      {% endif %}
       <div class="space-y-4">
         <div class="field">
           <label>Firma / Name</label>
@@ -137,8 +154,57 @@
 
     <!-- Auf- und Abbau -->
     <div class="card p-6">
-      <p class="section-title">Aufbau- und Abbauzeitraum</p>
+      <p class="section-title">{% if serie %}Termine, Aufbau und Abbau{% else %}Aufbau- und Abbauzeitraum{% endif %}</p>
       <div class="space-y-4">
+        {% if serie %}
+        {% for t in serie %}
+        <div class="{% if not loop.first %}pt-4{% endif %}" {% if not loop.first %}style="border-top: 1px dashed var(--line);"{% endif %}>
+          <p class="text-sm font-semibold" style="color: var(--ink-1);">{{ wtage[t.datum.weekday()] }}, {{ t.datum | de_date }}</p>
+          {% if t.startzeit %}
+          <p class="text-xs mb-3" style="color: var(--ink-3);">Unsere Aktion: {{ t.startzeit }}{% if t.endzeit %} bis {{ t.endzeit }}{% endif %} Uhr</p>
+          {% endif %}
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field">
+              <label>Aufbau von</label>
+              {{ time_select('aufbau_von_' ~ t.id, t.cl_aufbau_von) }}
+            </div>
+            <div class="field">
+              <label>Aufbau bis</label>
+              {{ time_select('aufbau_bis_' ~ t.id, t.cl_aufbau_bis) }}
+            </div>
+            <div class="field">
+              <label>Abbau von</label>
+              {{ time_select('abbau_von_' ~ t.id, t.cl_abbau_von) }}
+            </div>
+            <div class="field">
+              <label>Abbau bis</label>
+              {{ time_select('abbau_bis_' ~ t.id, t.cl_abbau_bis) }}
+            </div>
+          </div>
+          {% set abweichend = t.cl_strasse and t.cl_strasse != ev.cl_strasse %}
+          <label class="flex items-center gap-2.5 text-sm cursor-pointer mt-3" style="color: var(--ink-2);">
+            <input type="checkbox" name="andere_adresse_{{ t.id }}" value="Ja" style="accent-color: var(--brand);"
+                   onchange="document.getElementById('adr-{{ t.id }}').style.display = this.checked ? '' : 'none'"
+                   {% if abweichend %}checked{% endif %}>
+            An diesem Tag ist es eine andere Adresse
+          </label>
+          <div id="adr-{{ t.id }}" class="space-y-3 mt-3" {% if not abweichend %}style="display:none;"{% endif %}>
+            <div class="field">
+              <label>Firma / Name</label>
+              <input type="text" name="firma_name_{{ t.id }}" value="{{ t.cl_firma_name or '' if abweichend else '' }}">
+            </div>
+            <div class="field">
+              <label>Straße &amp; Hausnummer</label>
+              <input type="text" name="strasse_{{ t.id }}" value="{{ t.cl_strasse or '' if abweichend else '' }}">
+            </div>
+            <div class="field">
+              <label>PLZ &amp; Ort</label>
+              <input type="text" name="plz_ort_{{ t.id }}" value="{{ t.cl_plz_ort or '' if abweichend else '' }}">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
         <div class="grid grid-cols-2 gap-3">
           <div class="field">
             <label>Aufbau von</label>
@@ -159,23 +225,24 @@
             {{ time_select('abbau_bis', ev.cl_abbau_bis) }}
           </div>
         </div>
+        {% endif %}
 
         <div class="pt-4 space-y-4" style="border-top: 1px dashed var(--line);">
           <div>
             <label class="flex items-center gap-2.5 text-sm cursor-pointer" style="color: var(--ink-2); font-weight: 600;">
               <input type="checkbox" name="anlieferung_vortag" value="Ja" style="accent-color: var(--brand);"
                      onchange="document.getElementById('anl-zeiten').style.display = this.checked ? '' : 'none'"
-                     {% if ev.cl_anlieferung_vortag %}checked{% endif %}>
-              Anlieferung am Vortag möglich
+                     {% if erster.cl_anlieferung_vortag %}checked{% endif %}>
+              Anlieferung am Vortag möglich{% if serie %} (vor dem ersten Termin){% endif %}
             </label>
-            <div id="anl-zeiten" class="grid grid-cols-2 gap-3 mt-3" {% if not ev.cl_anlieferung_vortag %}style="display:none;"{% endif %}>
+            <div id="anl-zeiten" class="grid grid-cols-2 gap-3 mt-3" {% if not erster.cl_anlieferung_vortag %}style="display:none;"{% endif %}>
               <div class="field">
                 <label>von</label>
-                {{ time_select('anlieferung_von', ev.cl_anlieferung_von) }}
+                {{ time_select('anlieferung_von', erster.cl_anlieferung_von) }}
               </div>
               <div class="field">
                 <label>bis</label>
-                {{ time_select('anlieferung_bis', ev.cl_anlieferung_bis) }}
+                {{ time_select('anlieferung_bis', erster.cl_anlieferung_bis) }}
               </div>
             </div>
           </div>
@@ -183,17 +250,17 @@
             <label class="flex items-center gap-2.5 text-sm cursor-pointer" style="color: var(--ink-2); font-weight: 600;">
               <input type="checkbox" name="abholung_folgetag" value="Ja" style="accent-color: var(--brand);"
                      onchange="document.getElementById('abh-zeiten').style.display = this.checked ? '' : 'none'"
-                     {% if ev.cl_abholung_folgetag %}checked{% endif %}>
-              Abholung am Folgetag oder am Montag möglich
+                     {% if letzter.cl_abholung_folgetag %}checked{% endif %}>
+              Abholung am Folgetag oder am Montag möglich{% if serie %} (nach dem letzten Termin){% endif %}
             </label>
-            <div id="abh-zeiten" class="grid grid-cols-2 gap-3 mt-3" {% if not ev.cl_abholung_folgetag %}style="display:none;"{% endif %}>
+            <div id="abh-zeiten" class="grid grid-cols-2 gap-3 mt-3" {% if not letzter.cl_abholung_folgetag %}style="display:none;"{% endif %}>
               <div class="field">
                 <label>von</label>
-                {{ time_select('abholung_von', ev.cl_abholung_von) }}
+                {{ time_select('abholung_von', letzter.cl_abholung_von) }}
               </div>
               <div class="field">
                 <label>bis</label>
-                {{ time_select('abholung_bis', ev.cl_abholung_bis) }}
+                {{ time_select('abholung_bis', letzter.cl_abholung_bis) }}
               </div>
             </div>
           </div>
