@@ -1,0 +1,70 @@
+{% extends "admin_base.html" %}
+{% block title %}Verbindungen – {{ cfg.app_name }}{% endblock %}
+
+{% set farben = {'gruen': '#1f9d55', 'rot': '#dc2626', 'grau': '#9ca3af'} %}
+{% macro zeit(iso) -%}
+{%- if iso %}{{ iso[8:10] }}.{{ iso[5:7] }}. {{ iso[11:16] }}{% else %}–{% endif -%}
+{%- endmacro %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-900 mb-1">Verbindungen</h1>
+<p class="text-sm mb-6" style="color:var(--ink-3);">
+  Was die Events-App mit dem E-Mail-Assistenten und der Social-App austauscht.
+  Rot heißt: Der letzte Aufruf ist gescheitert. Grau heißt: Bisher kein Aufruf.
+  Bei einem Fehler meldet sich die Glocke, einmal am Tag je Verbindung.
+</p>
+
+<div class="card mb-6" style="overflow-x:auto;">
+  <table class="w-full text-sm" style="min-width:420px;">
+    <thead>
+      <tr style="border-bottom:1px solid #f3f4f6;background:#fafafa;">
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Verbindung</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Letzter Aufruf</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Zuletzt OK</th>
+        <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Fehler heute</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for z in zeilen %}
+      <tr style="border-bottom:1px solid #f9fafb;" data-ampel="{{ z.ampel }}">
+        <td class="px-5 py-3">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:{{ farben[z.ampel] }};margin-right:8px;vertical-align:middle;"></span>
+          <span style="color:var(--ink-1);">{{ z.name }}</span>
+          <div class="text-xs" style="color:var(--ink-4);margin-left:18px;">{{ 'eingehend' if z.richtung == 'ein' else 'ausgehend' }} · {{ z.schluessel }}</div>
+          {% if z.letzter and not z.letzter.ok %}
+          <div class="text-xs mt-1" style="color:#dc2626;margin-left:18px;">{{ z.letzter.fehler or 'Fehler' }}</div>
+          {% endif %}
+        </td>
+        <td class="px-5 py-3 whitespace-nowrap" style="color:var(--ink-3);">{{ zeit(z.letzter.erstellt_am if z.letzter else None) }}</td>
+        <td class="px-5 py-3 whitespace-nowrap" style="color:var(--ink-3);">{{ zeit(z.letzter_ok.erstellt_am if z.letzter_ok else None) }}</td>
+        <td class="px-5 py-3" style="color:{{ '#dc2626' if z.fehler_heute else 'var(--ink-3)' }};">{{ z.fehler_heute }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="text-sm font-semibold text-gray-700 mb-2">Letzte Aufrufe</h2>
+<p class="text-xs mb-3" style="color:var(--ink-4);">Die letzten 50. Einträge werden nach {{ tage }} Tagen gelöscht.</p>
+<div class="card overflow-hidden">
+  {% if letzte %}
+  <table class="w-full text-sm">
+    <tbody>
+      {% for e in letzte %}
+      <tr style="border-bottom:1px solid #f9fafb;">
+        <td class="px-5 py-2 whitespace-nowrap" style="color:var(--ink-3);">{{ zeit(e.erstellt_am) }}</td>
+        <td class="px-5 py-2"><span style="color:{{ '#1f9d55' if e.ok else '#dc2626' }};font-weight:600;">{{ 'OK' if e.ok else 'Fehler' }}</span></td>
+        <td class="px-5 py-2" style="color:var(--ink-1);">
+          {{ namen.get(e.schnittstelle, (e.schnittstelle,))[0] }}
+          {% if e.bezug %}<span class="text-xs" style="color:var(--ink-4);"> · {{ e.bezug }}</span>{% endif %}
+          {% if not e.ok and e.fehler %}<div class="text-xs" style="color:#dc2626;">{{ e.fehler }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="px-5 py-6 text-sm text-center" style="color:var(--ink-4);">Noch keine Aufrufe protokolliert.</p>
+  {% endif %}
+</div>
+{% endblock %}

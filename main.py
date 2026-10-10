@@ -639,6 +639,30 @@ async def same_origin_guard(request, call_next):
     return await call_next(request)
 
 
+# ── Verbindungs-Monitor: eingehende Aufrufe anderer Apps protokollieren ─────────
+# Jeder Aufruf des E-Mail-Assistenten landet mit Ergebnis im Verbindungslog, auch
+# ein Absturz. Vorher scheiterten Meldungen tagelang unbemerkt mit HTTP 500.
+@app.middleware("http")
+async def verbindungen_protokollieren(request, call_next):
+    import verbindungen
+    pfad = request.url.path
+    if not pfad.startswith(verbindungen.EINGANG_PRAEFIX):
+        return await call_next(request)
+    from starlette.concurrency import run_in_threadpool
+    schluessel = "assistent." + pfad[len(verbindungen.EINGANG_PRAEFIX):].strip("/")
+    try:
+        antwort = await call_next(request)
+    except Exception as e:
+        await run_in_threadpool(verbindungen.protokollieren, schluessel, False, 500,
+                                f"{verbindungen.fehlertext(500)} {str(e)[:200]}")
+        raise
+    ok = antwort.status_code < 400
+    await run_in_threadpool(verbindungen.protokollieren, schluessel, ok,
+                            antwort.status_code,
+                            "" if ok else verbindungen.fehlertext(antwort.status_code))
+    return antwort
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin_router)
 app.include_router(portal_router)

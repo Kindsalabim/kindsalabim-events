@@ -1553,6 +1553,7 @@ def social_quickpost_senden(datei_id: int):
     """Hintergrund-Versand an die Social-Media-App (eigene DB-Session, Fehler nur ins Log)."""
     import json
     import urllib.request
+    import verbindungen
     from database import SessionLocal
     cfg = get_config()
     url, secret = cfg.get("social_api_url"), cfg.get("social_api_secret")
@@ -1563,6 +1564,10 @@ def social_quickpost_senden(datei_id: int):
             return
         if not url or not secret:
             print("[SOCIAL] social_api_url/social_api_secret fehlen – Quick-Post nicht gesendet")
+            verbindungen.protokollieren(
+                "social.quickpost", False, None,
+                "SOCIAL_API_URL oder SOCIAL_API_SECRET fehlt in Render.",
+                f"event-{d.event_id}")
             return
         ev = d.event
         daten = {
@@ -1582,11 +1587,17 @@ def social_quickpost_senden(datei_id: int):
             headers={"Content-Type": "application/json", "X-Social-Secret": secret})
         with urllib.request.urlopen(req, timeout=30) as resp:
             resp.read()
+            status = getattr(resp, "status", None)
         d.social_gesendet_am = datetime.now().isoformat(timespec="seconds")
         db.commit()
+        verbindungen.protokollieren("social.quickpost", True, status, "",
+                                    f"event-{ev.id}")
     except Exception as e:
         db.rollback()
         print(f"[SOCIAL] Quick-Post für Datei {datei_id} fehlgeschlagen: {e}")
+        verbindungen.protokollieren("social.quickpost", False, getattr(e, "code", None),
+                                    f"Foto nicht angekommen: {str(e)[:200]}",
+                                    f"datei-{datei_id}")
     finally:
         db.close()
 

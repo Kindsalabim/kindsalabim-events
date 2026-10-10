@@ -61,3 +61,16 @@ async def einstellungen_speichern(request: Request, db: Session = Depends(get_db
     set_setting(db, "briefing_regeln", (form.get("briefing_regeln") or "").strip())
     db.commit()
     return RedirectResponse("/admin/einstellungen?ok=1", status_code=303)
+
+
+@router.get("/verbindungen", response_class=HTMLResponse)
+def verbindungen_seite(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
+    """Verbindungs-Monitor: je Schnittstelle zu den anderen Apps eine Ampel, darunter
+    die letzten Aufrufe (Aykut 10.10.2026)."""
+    import verbindungen
+    from models import Verbindungslog
+    letzte = (db.query(Verbindungslog).order_by(Verbindungslog.id.desc()).limit(50).all())
+    return templates.TemplateResponse("admin/verbindungen.html",
+        tpl_context(request, active="verbindungen", zeilen=verbindungen.uebersicht(db),
+                    letzte=letzte, namen=verbindungen.SCHNITTSTELLEN,
+                    tage=verbindungen.AUFBEWAHRUNG_TAGE))

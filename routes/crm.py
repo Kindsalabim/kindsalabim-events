@@ -404,6 +404,7 @@ def entwurf_anfordern(kunde_id: int):
     """Hintergrund: Kontaktdaten an den Assistenten geben, der den Entwurf schreibt."""
     import json
     import urllib.request
+    import verbindungen
     from database import SessionLocal
     cfg = get_config()
     url, secret = cfg.get("assistent_api_url"), cfg.get("assistent_api_secret")
@@ -414,6 +415,10 @@ def entwurf_anfordern(kunde_id: int):
             return
         if not url or not secret:
             print("[VERTRIEB] assistent_api_url/_secret fehlen – kein Entwurf angefordert")
+            verbindungen.protokollieren(
+                "assistent.entwurf", False, None,
+                "ASSISTENT_API_URL oder ASSISTENT_API_SECRET fehlt in Render.",
+                f"kunde-{kunde_id}")
             return
         daten = {"kunde_id": k.id, "firma": k.firma, "email": k.email, "ort": k.ort or "",
                  "ansprechpartner": k.ansprechpartner or "",
@@ -429,10 +434,16 @@ def entwurf_anfordern(kunde_id: int):
             headers={"Content-Type": "application/json", "X-Vertrieb-Secret": secret})
         with urllib.request.urlopen(req, timeout=30) as resp:
             resp.read()
+            status = getattr(resp, "status", None)
+        verbindungen.protokollieren("assistent.entwurf", True, status, "",
+                                    f"kunde-{kunde_id}")
         import vertrieb
         vertrieb.protokollieren(db, k, "entwurf", "An den E-Mail-Assistenten übergeben")
     except Exception as e:
         print(f"[VERTRIEB] Entwurf für Kunde {kunde_id} fehlgeschlagen: {e}")
+        verbindungen.protokollieren("assistent.entwurf", False, getattr(e, "code", None),
+                                    f"Übergabe fehlgeschlagen: {str(e)[:200]}",
+                                    f"kunde-{kunde_id}")
     finally:
         db.close()
 

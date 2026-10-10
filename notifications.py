@@ -36,6 +36,7 @@ NOTIF_TYPEN = [
     ("vertrieb_stopp", "Vertriebsversand gestoppt (Anwaltspost)", True, True),
     ("recherche_fertig", "Kontakt-Recherche fertig", True, False),
     ("vertrieb_antwort", "Akquise-Kontakt hat auf die Erstmail geantwortet", True, False),
+    ("verbindung_fehler", "Verbindung zwischen den Apps gestört", True, False),
 ]
 _TYP_INFO = {t[0]: t for t in NOTIF_TYPEN}
 

@@ -784,3 +784,20 @@ class KundeWiedervorlage(Base):
     erstellt_am = Column(String)
     erledigt_am = Column(String)
     kunde = relationship("Kunde", back_populates="wiedervorlagen")
+
+
+class Verbindungslog(Base):
+    """Jeder Aufruf zwischen den Apps (E-Mail-Assistent, Social-App), eingehend und
+    ausgehend. Grundlage der Seite „Verbindungen" (Aykut 10.10.2026). Anlass: Die
+    Versandmeldungen des Assistenten scheiterten tagelang mit HTTP 500, und niemand
+    sah es. Einträge werden nach 30 Tagen gelöscht."""
+    __tablename__ = "verbindungslog"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    erstellt_am   = Column(String, index=True)      # ISO, Ortszeit
+    schnittstelle = Column(String, index=True)      # z. B. "assistent.gesendet"
+    richtung      = Column(String)                  # ein | aus
+    ok            = Column(Boolean)
+    status_code   = Column(Integer)
+    fehler        = Column(String)                  # Klartext für die Oberfläche
+    bezug         = Column(String)                  # z. B. "kunde-12", "event-5"
