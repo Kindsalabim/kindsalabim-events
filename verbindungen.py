@@ -21,12 +21,15 @@ SCHNITTSTELLEN = {
     "assistent.antwort":  ("Assistent meldet: Kunde hat geantwortet", "ein"),
     "assistent.angebot":  ("Assistent meldet: Angebot verschickt", "ein"),
     "assistent.sperren":  ("Assistent meldet: bitte keine Mails mehr", "ein"),
+    "assistent.ab":       ("Assistent meldet: Auftragsbestätigung verschickt", "ein"),
     "assistent.entwurf":  ("Events-App übergibt Kontakt an den Assistenten", "aus"),
     "social.quickpost":   ("Events-App schickt Eventfoto an die Social-App", "aus"),
 }
 
-# Eingehende Pfade → Schlüssel (für die Middleware in main.py)
-EINGANG_PRAEFIX = "/admin/crm/api/vertrieb/"
+# Eingehende Aufrufe des Assistenten (für die Middleware in main.py). Der Schlüssel ist
+# der letzte Pfadteil: /admin/crm/api/vertrieb/gesendet → assistent.gesendet,
+# /admin/crm/api/buchung/ab → assistent.ab.
+EINGANG_PRAEFIX = "/admin/crm/api/"
 
 _STATUS_TEXT = {
     401: "Secret falsch oder fehlt. Render-Variablen beider Apps prüfen.",

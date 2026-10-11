@@ -917,6 +917,15 @@ def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
     r = db.query(Reservierung).filter(Reservierung.id == res_id).first()
     if not r:
         return RedirectResponse("/admin/reservierungen", status_code=303)
+    ziel_ev = reservierung_buchen(db, r, background_tasks)
+    # Zum Bearbeiten öffnen – Uhrzeiten/Details vervollständigen
+    return RedirectResponse(f"/admin/events/{ziel_ev.id}/edit", status_code=303)
+
+
+def reservierung_buchen(db, r, background_tasks):
+    """Reservierung (bei einer Serie alle Tage) in gebuchte Events umwandeln. Genutzt
+    vom Knopf „In Buchung umwandeln“ und von der Meldung „AB verschickt“ des
+    Assistenten (Aykut 11.10.2026). Gibt das Event zur angeklickten Reservierung zurück."""
     # Mehrtägige Reservierung: alle Termine der Serie werden gemeinsam zu einer
     # Termin-Serie (verknüpfte Events). Tage, die der Kunde nicht bucht, vorher löschen.
     gruppe = [r]
@@ -953,22 +962,56 @@ def reservierung_umwandeln(res_id: int, background_tasks: BackgroundTasks,
                                              event_id=(ziel_ev.id if ziel_ev else None)):
             background_tasks.add_task(entwarnung_senden, aid, True)
         db.delete(res)
+    # Kunde im CRM verknüpfen: Aus einem Akquise-Kontakt wird so ein gebuchter Kunde,
+    # die Pipeline-Karte springt auf „Gebucht“ (wie beim Anlegen eines Events).
+    for ev in events:
+        link_kunde(db, ev, ev.kunde_firma, ev.kunde_kontakt, ev.kunde_telefon,
+                   ev.kunde_email, ev.marke)
     db.commit()
     for ev in events:
         db.refresh(ev)
         background_tasks.add_task(calendar_service.sync_event_async, ev.id)
-    # Zum Bearbeiten öffnen – Uhrzeiten/Details vervollständigen
-    return RedirectResponse(f"/admin/events/{ziel_ev.id}/edit", status_code=303)
+    return ziel_ev
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────
 
+# Art-Kürzel aus Reservierung/Assistent → Aktionen im Event-Formular. Nur ein Vorschlag,
+# Aykut prüft das Formular vor dem Speichern.
+_ART_PRODUKTE = {"Z": ["Zaubershow"], "B": ["Ballonmodellage"],
+                 "ZB": ["Zaubershow + Ballonmodellage"], "WORKSHOP": ["Zauberworkshop"],
+                 "Z+DIV.": ["Zaubershow"], "ZB+DIV.": ["Zaubershow + Ballonmodellage"]}
+
+
+def _event_vorlage(q):
+    """„Neues Event“ per Link vorbefüllen (Meldung „AB verschickt“ des Assistenten bei
+    Privatkunden oder ohne passende Reservierung). Gespeichert wird erst auf Aykuts
+    Klick, wie bei der Reservierungs-Vorlage."""
+    def g(name):
+        return (q.get(name) or "").strip()
+    zeiten = set(ZEITEN)
+    start, ende = g("startzeit"), g("endzeit")
+    marke = g("marke").capitalize()
+    hinweis = f"Aus der Auftragsbestätigung {g('ab_nummer')}".strip() if g("ab_nummer") else ""
+    return _event_form_echo(
+        None, g("datum"), g("anlass"), start if start in zeiten else "",
+        ende if ende in zeiten else "", g("veranstaltungsort"), g("kunde_firma"),
+        g("kunde_kontakt"), g("kunde_telefon"), g("kunde_email"),
+        _ART_PRODUKTE.get(g("art").upper(), []), 0, 0, hinweis, False,
+        marke if marke in ("Kindsalabim", "Knallfrosch") else "Kindsalabim", "Gebucht",
+        privatkunde=(g("privat") == "1"))
+
+
 @router.get("/events/new", response_class=HTMLResponse)
 def event_new(request: Request, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
+    q = request.query_params
+    vorlage = _event_vorlage(q) if q.get("vorlage") else None
     return templates.TemplateResponse("admin/event_form.html",
-        tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
-                    kunden=kunden, error=None))
+        tpl_context(request, event=vorlage, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
+                    kunden=kunden, error=None,
+                    vorlage_hinweis=("Vorausgefüllt aus der Auftragsbestätigung. Bitte kurz "
+                                     "prüfen und dann speichern.") if vorlage else None))
 
 
 @router.get("/events/{event_id}/kopieren", response_class=HTMLResponse)

@@ -649,7 +649,7 @@ async def verbindungen_protokollieren(request, call_next):
     if not pfad.startswith(verbindungen.EINGANG_PRAEFIX):
         return await call_next(request)
     from starlette.concurrency import run_in_threadpool
-    schluessel = "assistent." + pfad[len(verbindungen.EINGANG_PRAEFIX):].strip("/")
+    schluessel = "assistent." + pfad.rstrip("/").rsplit("/", 1)[-1]
     try:
         antwort = await call_next(request)
     except Exception as e:

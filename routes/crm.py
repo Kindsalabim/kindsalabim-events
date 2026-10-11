@@ -614,6 +614,93 @@ async def api_sperren(request: Request, db: Session = Depends(get_db)):
     return {"ok": True, "gestoppt": vertrieb.versand_gestoppt(db)}
 
 
+@router.post("/api/buchung/ab")
+async def api_ab_verschickt(request: Request, background_tasks: BackgroundTasks,
+                            db: Session = Depends(get_db)):
+    """Der Assistent meldet: Eine Auftragsbestätigung (Belegnummer AB…) ist raus.
+    Wo eine AB rausgeht, gehört ein Event in die App (Aykut 11.10.2026):
+
+    - genau eine passende Reservierung (bei einer Serie: eine Serie) → automatisch
+      in eine Buchung umwandeln, Glocke mit Link zum Ergänzen;
+    - keine Reservierung, aber schon ein Event an dem Tag → nichts tun (kein Doppel);
+    - sonst (Privatkunde, Reservierung fehlt) → Glocke mit vorausgefülltem
+      „Neues Event“, Aykut prüft und speichert;
+    - mehrere passende Reservierungen → nichts raten, Glocke fragt.
+    Antwortet immer mit 200, das Ergebnis steht in "ergebnis"."""
+    import vertrieb
+    from urllib.parse import urlencode
+    from models import Reservierung
+    from notifications import notify
+    from routes.admin import reservierung_buchen
+    if not _assistent_erlaubt(request):
+        raise HTTPException(401)
+    d = await request.json()
+    try:
+        tag = date.fromisoformat(str(d.get("datum") or "")[:10])
+    except ValueError:
+        raise HTTPException(422, "datum fehlt oder ist kein ISO-Datum (YYYY-MM-DD).")
+    nr = str(d.get("ab_nummer") or "").strip()
+    mail = str(d.get("empfaenger") or "").strip().lower()
+    firma = str(d.get("firma") or "").strip()
+    domain = vertrieb.domain_von(mail)
+    if vertrieb.ist_freemail(domain):
+        domain = ""
+
+    def passt(email_feld, firma_feld) -> int:
+        """3 = gleiche Adresse, 2 = gleiche Firmen-Domain, 1 = gleicher Firmenname."""
+        e = (email_feld or "").strip().lower()
+        if mail and e == mail:
+            return 3
+        if domain and e.endswith("@" + domain):
+            return 2
+        if firma and vertrieb.normalisieren(firma_feld) == vertrieb.normalisieren(firma):
+            return 1
+        return 0
+
+    kandidaten = db.query(Reservierung).filter(Reservierung.datum == tag).all()
+    bewertet = [(passt(r.kunde_email, r.kunde_firma), r) for r in kandidaten]
+    beste = max((p for p, _ in bewertet), default=0)
+    treffer = [r for p, r in bewertet if p and p == beste]
+    gruppen = {r.serien_id or f"res-{r.id}" for r in treffer}
+    datum_txt = tag.strftime("%d.%m.%Y")
+    ab_txt = f"Die AB {nr}" if nr else "Die Auftragsbestätigung"
+
+    if len(gruppen) == 1:
+        ev = reservierung_buchen(db, treffer[0], background_tasks)
+        notify(db, "ab_verschickt", f"Gebucht: {ev.kunde_firma}",
+               f"{ab_txt} ist raus, die Reservierung vom {datum_txt} ist jetzt eine "
+               "Buchung. Bitte die Details ergänzen.", f"/admin/events/{ev.id}/edit",
+               marke=ev.marke)
+        db.commit()
+        return {"ok": True, "ergebnis": "umgewandelt", "event_id": ev.id}
+    if len(gruppen) > 1:
+        notify(db, "ab_verschickt", f"AB verschickt: {firma or mail}",
+               f"{ab_txt} ist raus, aber am {datum_txt} passen mehrere Reservierungen. "
+               "Bitte die richtige von Hand in eine Buchung umwandeln.",
+               f"/admin/reservierungen?datum={tag.isoformat()}")
+        db.commit()
+        return {"ok": True, "ergebnis": "mehrdeutig"}
+
+    vorhanden = [ev for ev in db.query(Event).filter(Event.datum == tag).all()
+                 if passt(ev.kunde_email, ev.kunde_firma)]
+    if vorhanden:
+        return {"ok": True, "ergebnis": "schon_gebucht", "event_id": vorhanden[0].id}
+
+    werte = {"vorlage": "1", "datum": tag.isoformat(), "ab_nummer": nr,
+             "kunde_firma": firma, "kunde_kontakt": d.get("kontakt") or "",
+             "kunde_email": mail, "kunde_telefon": d.get("telefon") or "",
+             "startzeit": d.get("startzeit") or "", "endzeit": d.get("endzeit") or "",
+             "veranstaltungsort": d.get("ort") or "", "anlass": d.get("anlass") or "",
+             "art": d.get("art") or "", "marke": d.get("marke") or "",
+             "privat": "1" if d.get("privat") else ""}
+    link = "/admin/events/new?" + urlencode({k: str(v) for k, v in werte.items() if v})
+    notify(db, "ab_verschickt", f"AB verschickt: {firma or d.get('kontakt') or mail}",
+           f"{ab_txt} für den {datum_txt} ist raus, eine Reservierung dazu gibt es in der "
+           "Events-App nicht. Das Event ist vorausgefüllt, bitte prüfen und speichern.", link)
+    db.commit()
+    return {"ok": True, "ergebnis": "vorlage"}
+
+
 @router.post("/akquise/sperre")
 def akquise_sperre(ebene: str = Form("adresse"), wert: str = Form(""),
                    grund: str = Form("widerspruch"), notiz: str = Form(""),

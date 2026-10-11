@@ -15,6 +15,9 @@
   {% if error %}
   <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--brand-accent-light); color: var(--brand-accent);">{{ error }}</div>
   {% endif %}
+  {% if vorlage_hinweis %}
+  <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--c-amber-bg); color: var(--c-amber);">{{ vorlage_hinweis }}</div>
+  {% endif %}
 
   <form method="post" action="{% if event and event.id %}/admin/events/{{ event.id }}/edit{% else %}/admin/events/new{% endif %}" class="space-y-4"
         onsubmit="return checkEventForm(this);">
