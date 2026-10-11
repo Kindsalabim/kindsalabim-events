@@ -420,8 +420,12 @@ def entwurf_anfordern(kunde_id: int):
                 "ASSISTENT_API_URL oder ASSISTENT_API_SECRET fehlt in Render.",
                 f"kunde-{kunde_id}")
             return
+        # Der Assistent liest mail_art nicht, er erkennt ein Sammelpostfach allein am
+        # leeren Ansprechpartner (Vertrag 2.1). Also bei "funktion" keinen Namen
+        # mitschicken, sonst hieße es „Guten Tag Herr Schmidt“ an info@.
+        name = "" if k.mail_art == "funktion" else (k.ansprechpartner or "")
         daten = {"kunde_id": k.id, "firma": k.firma, "email": k.email, "ort": k.ort or "",
-                 "ansprechpartner": k.ansprechpartner or "",
+                 "ansprechpartner": name,
                  # person = persönliche Adresse, funktion = Sammelpostfach. Entscheidet
                  # die Anrede; bei „funktion" ist kein Name mitzusenden.
                  "mail_art": k.mail_art or "funktion",
@@ -593,6 +597,7 @@ async def api_sperren(request: Request, db: Session = Depends(get_db)):
         db.commit()
     elif daten.get("email"):
         vertrieb.sperren(db, "adresse", daten["email"], grund, daten.get("notiz") or "")
+    gesperrt = bool(k or daten.get("email"))
     if grund in ("abmahnung", "unterlassung"):
         vertrieb.versand_stoppen(db, True)      # Not-Aus bei Anwaltspost
         from notifications import notify
@@ -601,6 +606,11 @@ async def api_sperren(request: Request, db: Session = Depends(get_db)):
                "steht still, bis du ihn unter Kunden → Akquise wieder freigibst.",
                "/admin/crm/akquise")
         db.commit()
+    if not gesperrt:
+        # Nichts gesperrt: Das darf nicht als Erfolg zurückgehen, sonst hält der
+        # Assistent einen Widerspruch für erledigt (stiller Fehler, Vertrag Regel 5).
+        # Der Not-Aus bei Anwaltspost ist dann trotzdem schon gesetzt.
+        raise HTTPException(404, "Kontakt nicht gefunden, nichts gesperrt.")
     return {"ok": True, "gestoppt": vertrieb.versand_gestoppt(db)}
 
 

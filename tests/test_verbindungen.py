@@ -187,3 +187,76 @@ def test_tabelle_laesst_sich_in_postgres_anlegen():
     ddl = str(CreateTable(Verbindungslog.__table__).compile(dialect=psycopg.dialect()))
     assert "CREATE TABLE verbindungslog" in ddl
     assert "ok BOOLEAN" in ddl and "DEFAULT" not in ddl
+
+
+# ── Abgleich mit dem Schnittstellen-Vertrag (11.10.2026) ────────────────────
+
+def _uebergabe_abfangen(monkeypatch):
+    import json
+    import routes.crm as crm
+    monkeypatch.setattr(crm, "get_config", lambda: {
+        "assistent_api_url": "http://assistent.invalid", "assistent_api_secret": "x"})
+    gesendet = {}
+
+    class _Antwort:
+        status = 200
+        def read(self): return b"{}"
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def _urlopen(req, timeout=0):
+        gesendet.update(json.loads(req.data.decode("utf-8")))
+        return _Antwort()
+    monkeypatch.setattr(urllib.request, "urlopen", _urlopen)
+    return crm, gesendet
+
+
+def test_sammelpostfach_geht_ohne_namen_an_den_assistenten(db, monkeypatch):
+    """Der Assistent liest mail_art nicht und erkennt ein Sammelpostfach nur am leeren
+    Ansprechpartner (Vertrag 2.1)."""
+    crm, gesendet = _uebergabe_abfangen(monkeypatch)
+    k = Kunde(firma="Sammel GmbH", email="info@sammel.example", herkunft="akquise",
+              ansprechpartner="Max Schmidt", mail_art="funktion", anlass="Test")
+    db.add(k); db.commit()
+    crm.entwurf_anfordern(k.id)
+    assert gesendet["ansprechpartner"] == "" and gesendet["mail_art"] == "funktion"
+
+
+def test_persoenliche_adresse_behaelt_den_namen(db, monkeypatch):
+    crm, gesendet = _uebergabe_abfangen(monkeypatch)
+    k = Kunde(firma="Person GmbH", email="m.schmidt@person.example", herkunft="akquise",
+              ansprechpartner="Max Schmidt", mail_art="person", anlass="Test")
+    db.add(k); db.commit()
+    crm.entwurf_anfordern(k.id)
+    assert gesendet["ansprechpartner"] == "Max Schmidt"
+
+
+def test_alle_meldungen_antworten_mit_genau_200(admin, db, monkeypatch):
+    """Der Assistent wertet nur HTTP 200 als Erfolg (Vertrag 2.2). 201 oder 204 hielte
+    er für gescheitert."""
+    _mit_secret(monkeypatch)
+    k = Kunde(firma="Status 200 GmbH", email="info@status200.example", herkunft="akquise",
+              pipeline_status="lead")
+    db.add(k); db.commit()
+    assert admin.get("/admin/crm/api/vertrieb/pruefen?email=x@y.example",
+                     headers=GEHEIM).status_code == 200
+    for pfad in ("gesendet", "antwort", "angebot", "sperren"):
+        r = admin.post(f"/admin/crm/api/vertrieb/{pfad}", headers=GEHEIM,
+                       json={"kunde_id": str(k.id), "betreff": "x", "grund": "eigene"})
+        assert r.status_code == 200, pfad
+
+
+def test_sperren_ohne_treffer_ist_kein_erfolg(admin, db, monkeypatch):
+    """Findet die Events-App den Kontakt nicht, darf sie nicht 200 melden: Der
+    Assistent hielte den Widerspruch sonst für erledigt."""
+    import vertrieb
+    _mit_secret(monkeypatch)
+    r = admin.post("/admin/crm/api/vertrieb/sperren", headers=GEHEIM,
+                   json={"kunde_id": "999999", "grund": "widerspruch", "notiz": "x"})
+    assert r.status_code == 404
+    # Anwaltspost ohne Treffer: Not-Aus greift trotzdem, die Antwort zeigt aber den Fehler
+    r = admin.post("/admin/crm/api/vertrieb/sperren", headers=GEHEIM,
+                   json={"kunde_id": "999999", "grund": "abmahnung", "notiz": "x"})
+    assert r.status_code == 404
+    assert vertrieb.versand_gestoppt(db)
+    vertrieb.versand_stoppen(db, False)

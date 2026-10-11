@@ -1585,7 +1585,9 @@ def social_quickpost_senden(datei_id: int):
             url.rstrip("/") + "/api/quickpost",
             data=json.dumps(daten).encode("utf-8"),
             headers={"Content-Type": "application/json", "X-Social-Secret": secret})
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        # Die Social-App lässt ihrer KI bis zu 60 s für den Text (Vertrag 3.3). Mit 30 s
+        # brach die Events-App vorher ab und hielt ein angekommenes Foto für gescheitert.
+        with urllib.request.urlopen(req, timeout=90) as resp:
             resp.read()
             status = getattr(resp, "status", None)
         d.social_gesendet_am = datetime.now().isoformat(timespec="seconds")
