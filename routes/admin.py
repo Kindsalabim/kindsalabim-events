@@ -58,7 +58,8 @@ BRIEFING_HINWEIS_TAGE = 7
 PRODUKTE_GRUPPEN = [
     ("Künstler-Aktionen", [
         "Zaubershow", "Zaubershow + Ballonmodellage", "Kinderschminken",
-        "Airbrush-Tattoos", "Ballonmodellage", "Walkact", "Zauberworkshop"]),
+        "Airbrush-Tattoos", "Ballonmodellage", "Walkact", "Zauberworkshop",
+        "Mini-Workshop"]),
     ("Weitere Aktionen", [
         "Glitzertattoos", "Spieleland", "Mitmachzirkus", "Mini Mitmachzirkus",
         "Bastelaktion", "Bunter Bastelspaß", "Fotoaktion", "Buttonmaschine",
@@ -690,7 +691,9 @@ def reservierungen_list(request: Request, kopie: int = None, datum: str = None,
 _RES_ARTEN = {"Z": "Z", "B": "B", "ZB": "ZB", "WORKSHOP": "WORKSHOP",
               "DIV.": "Div.", "DIV": "Div.",
               "Z+DIV.": "Z+Div.", "Z+DIV": "Z+Div.",
-              "ZB+DIV.": "ZB+Div.", "ZB+DIV": "ZB+Div."}
+              "ZB+DIV.": "ZB+Div.", "ZB+DIV": "ZB+Div.",
+              # 45 Min. Zaubershow + 15 Min. Mini-Workshop (Programm des Assistenten)
+              "Z+MINI-WORKSHOP": "Z+Mini-Workshop", "Z+MINI WORKSHOP": "Z+Mini-Workshop"}
 
 
 def _reservierung_vorlage(q):
@@ -980,7 +983,9 @@ def reservierung_buchen(db, r, background_tasks):
 # Aykut prüft das Formular vor dem Speichern.
 _ART_PRODUKTE = {"Z": ["Zaubershow"], "B": ["Ballonmodellage"],
                  "ZB": ["Zaubershow + Ballonmodellage"], "WORKSHOP": ["Zauberworkshop"],
-                 "Z+DIV.": ["Zaubershow"], "ZB+DIV.": ["Zaubershow + Ballonmodellage"]}
+                 "Z+DIV.": ["Zaubershow"], "ZB+DIV.": ["Zaubershow + Ballonmodellage"],
+                 "Z+MINI-WORKSHOP": ["Zaubershow", "Mini-Workshop"],
+                 "Z+MINI WORKSHOP": ["Zaubershow", "Mini-Workshop"]}
 
 
 def _event_vorlage(q):

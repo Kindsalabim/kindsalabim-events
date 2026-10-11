@@ -102,6 +102,7 @@ PRODUKT_SPARTE = {
     "Ballonmodellage":              {"Ballonkünstler"},
     "Zaubershow":                   {"Showact"},
     "Zauberworkshop":               {"Showact"},
+    "Mini-Workshop":                {"Showact"},
     "Zaubershow + Ballonmodellage": {"Showact"},
     "Walkact":                      {"Walkact"},
 }

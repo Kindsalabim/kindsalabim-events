@@ -273,6 +273,15 @@ def _event_art(ev) -> str:
                                   getattr(ev, "produkte_freitext", None) or ""]))
     produkte = [p.strip().lower() for p in roh.split(",") if p.strip()]
     aktiv = [p for p in produkte if p != "kein material"]   # Marker, keine Aktivität
+    # Mini-Workshop (45 Min. Show + 15 Min. Workshop, Aykut 11.10.2026): eigenes Kürzel
+    # wie bei der Reservierung, „(Z+Mini-Workshop)“. Ein voller Zauberworkshop am
+    # selben Tag dominiert. Der Assistent erkennt Aykuts Auftritt an „workshop“.
+    mini = [p for p in aktiv if "mini-workshop" in p]
+    aktiv_ohne_mini = [p for p in aktiv if "mini-workshop" not in p]
+    if mini and not any("workshop" in p for p in aktiv_ohne_mini):
+        rk = _kurz_von(aktiv_ohne_mini) if aktiv_ohne_mini else ""
+        return f"{rk}+Mini-Workshop" if rk and rk != "div." else "Mini-Workshop"
+    aktiv = aktiv_ohne_mini
     workshops = [p for p in aktiv if "workshop" in p]
     rest = [p for p in aktiv if "workshop" not in p]
     if workshops:
