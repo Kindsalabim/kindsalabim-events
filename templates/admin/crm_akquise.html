@@ -82,7 +82,7 @@
     <h2 class="font-semibold" style="color:var(--ink-1);">Kontakte recherchieren</h2>
     <span class="text-xs" style="color:var(--ink-4);">
       {{ offene_leads }} noch nicht angesprochen
-      {% if kosten_monat %}&middot; {{ ('%.2f'|format(kosten_monat / 100))|replace('.', ',') }} &euro; diesen Monat{% endif %}
+      {% if kosten_monat %}&middot; {{ ('%.2f'|format(kosten_monat / 100))|replace('.', ',') }} $ diesen Monat{% endif %}
     </span>
   </div>
   <p class="text-xs mb-3" style="color:var(--ink-4);">
@@ -105,7 +105,7 @@
         {% for wert, bez in modelle %}<option value="{{ wert }}">{{ bez }}</option>{% endfor %}
       </select>
       <button type="submit" class="btn-primary text-sm px-4 py-2">Suche starten</button>
-      <span class="text-xs" style="color:var(--ink-4);">Ein Lauf kostet ungef&auml;hr 10 bis 40 Cent.</span>
+      <span class="text-xs" style="color:var(--ink-4);">Was ein Lauf gekostet hat, steht danach daneben, in Dollar wie in der Anthropic-Konsole.</span>
     </div>
   </form>
 
@@ -128,7 +128,7 @@
             {% else %}wartet{% endif %}
           </td>
           <td class="py-2 text-xs text-right whitespace-nowrap" style="color:var(--ink-4);">
-            {% if a.kosten_cent %}{{ ('%.2f'|format(a.kosten_cent / 100))|replace('.', ',') }} &euro;{% endif %}
+            {% if a.kosten_cent %}{{ ('%.2f'|format(a.kosten_cent / 100))|replace('.', ',') }} ${% endif %}
           </td>
         </tr>
         {% if a.meldung %}
@@ -180,7 +180,7 @@
       <p><strong>{{ liste.erledigt + liste.uebersprungen + liste.fehlgeschlagen }} von {{ liste.gesamt }}</strong> Firmen bearbeitet
         &middot; diese Woche {{ liste.woche }} von {{ liste.limit }} Paketen
         &middot; {{ liste.kontakte }} Kontakte
-        {% if liste.kosten_cent %}&middot; {{ ('%.2f'|format(liste.kosten_cent / 100))|replace('.', ',') }} &euro;{% endif %}</p>
+        {% if liste.kosten_cent %}&middot; {{ ('%.2f'|format(liste.kosten_cent / 100))|replace('.', ',') }} ${% endif %}</p>
       {% if liste.im_lauf %}<p class="text-xs" style="color:var(--ink-4);">Ein Paket l&auml;uft gerade.</p>{% endif %}
       {% if liste.uebersprungen or liste.fehlgeschlagen %}
       <p class="text-xs" style="color:var(--ink-4);">{{ liste.uebersprungen }} &uuml;bersprungen (schon im CRM){% if liste.fehlgeschlagen %}, {{ liste.fehlgeschlagen }} zweimal fehlgeschlagen{% endif %}</p>

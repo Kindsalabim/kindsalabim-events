@@ -36,8 +36,11 @@ DAUERAUFTRAG_KEY = "recherche_dauerauftrag"
 # partner). Eine Suche kostet rund einen Cent, die Grenze begrenzt also auch die Kosten.
 MAX_SUCHEN = 45
 
-# Preise je 1 Mio. Token (Stand 10/2026). Nur zur Kostenanzeige; die Gebühren für die
-# Websuche selbst kommen zusätzlich und stehen nicht in der Antwort.
+# Preise je 1 Mio. Token in Dollar (Stand 10/2026), wie in der Anthropic-Konsole.
+# Dazu kommen die Websuche (10 $ je 1.000 Suchen) und der Cache: Schreiben kostet das
+# 1,25-Fache, Lesen ein Zehntel des Eingabepreises. Bis 14.10.2026 fehlten Suchen und
+# Cache, die Anzeige lag dadurch deutlich unter der echten Rechnung.
+SUCHE_CENT = 1.0
 PREISE = {
     "claude-sonnet-5-5": (2.00, 10.00),
     "claude-opus-5-5": (4.00, 20.00),
@@ -144,11 +147,19 @@ def nachricht_fuer(auftrag: str) -> str:
     return auftrag
 
 
-def _kosten_cent(modell: str, usage: dict) -> float:
+_USAGE_FELDER = ("input_tokens", "output_tokens", "cache_creation_input_tokens",
+                 "cache_read_input_tokens")
+
+
+def _kosten_cent(modell: str, usage: dict, suchen: int = 0) -> float:
+    """Kosten in Dollar-Cent: Token (inklusive Cache) plus Suchgebühren."""
     ein, aus = PREISE.get(modell, PREISE[MODELL_RECHERCHE])
-    i = usage.get("input_tokens") or 0
+    eingabe = ((usage.get("input_tokens") or 0)
+               + 1.25 * (usage.get("cache_creation_input_tokens") or 0)
+               + 0.1 * (usage.get("cache_read_input_tokens") or 0))
     o = usage.get("output_tokens") or 0
-    return round((i / 1_000_000 * ein + o / 1_000_000 * aus) * 100, 2)
+    return round((eingabe / 1_000_000 * ein + o / 1_000_000 * aus) * 100
+                 + suchen * SUCHE_CENT, 2)
 
 
 def _suchen_gezaehlt(usage: dict) -> int:
@@ -203,7 +214,8 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = MAX_S
                 "meldung": "Kein Anthropic-Schlüssel hinterlegt (ANTHROPIC_API_KEY)."}
 
     nachrichten = [{"role": "user", "content": nachricht_fuer(auftrag)}]
-    ein = aus = anzahl_suchen = 0
+    summe = dict.fromkeys(_USAGE_FELDER, 0)
+    anzahl_suchen = 0
     text = letzter_text = ""
     ende = ""
     such_fehler = []
@@ -223,15 +235,14 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = MAX_S
             daten_roh = r.json()
         except Exception as e:
             return {"kontakte": [], "suchen": anzahl_suchen,
-                    "kosten_cent": _kosten_cent(modell, {"input_tokens": ein,
-                                                         "output_tokens": aus}),
+                    "kosten_cent": _kosten_cent(modell, summe, anzahl_suchen),
                     "fehler": True,
                     "meldung": f"Recherche fehlgeschlagen: {str(e)[:200]}"}
 
         inhalt = daten_roh.get("content") or []
         usage = daten_roh.get("usage") or {}
-        ein += usage.get("input_tokens") or 0
-        aus += usage.get("output_tokens") or 0
+        for feld in _USAGE_FELDER:
+            summe[feld] += usage.get(feld) or 0
         anzahl_suchen += _suchen_gezaehlt(usage)
         such_fehler += _such_fehler(inhalt)
         letzter_text = "".join(b.get("text", "") for b in inhalt if b.get("type") == "text")
@@ -244,8 +255,7 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = MAX_S
         nachrichten.append({"role": "assistant", "content": inhalt})
 
     ergebnis = {"kontakte": [], "suchen": anzahl_suchen, "meldung": "", "fehler": False,
-                "kosten_cent": _kosten_cent(modell, {"input_tokens": ein,
-                                                     "output_tokens": aus})}
+                "kosten_cent": _kosten_cent(modell, summe, anzahl_suchen)}
     hinweis_suche = (" Das Suchwerkzeug meldete: " + ", ".join(sorted(set(such_fehler)))
                      if such_fehler else "")
 
@@ -646,9 +656,10 @@ def auftrag_ausfuehren(auftrag_id: int):
         from notifications import notify
         titel = (f"Recherche fehlgeschlagen" if a.status == "fehler"
                  else f"Recherche fertig: {neu} neue Kontakte")
+        dollar = f"{(a.kosten_cent or 0) / 100:.2f}".replace(".", ",")
         notify(db, "recherche_fertig", titel,
                f"Auftrag: {a.auftrag[:120]} / {neu} neu, {verworfen} verworfen, "
-               f"{a.suchen} Suchen, {a.kosten_cent:.0f} Cent."
+               f"{a.suchen} Suchen, {dollar} $."
                + (f" {a.meldung}" if a.meldung else ""), "/admin/crm/akquise")
         db.commit()
     except Exception as e:

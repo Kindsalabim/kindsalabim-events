@@ -363,8 +363,16 @@ def test_antwort_wird_zu_kontakten_und_kosten(monkeypatch):
     monkeypatch.setattr(recherche.httpx, "post", lambda *a, **k: _Antwort())
     ergebnis = recherche.suchen("Wohnungsgesellschaften im Ruhrgebiet")
     assert len(ergebnis["kontakte"]) == 1 and ergebnis["suchen"] == 6
-    # 20.000 Eingabe- und 3.000 Ausgabe-Token bei Sonnet: 4 + 3 Cent
-    assert ergebnis["kosten_cent"] == 7.0 and ergebnis["meldung"] == ""
+    # 20.000 Eingabe- und 3.000 Ausgabe-Token bei Sonnet: 4 + 3 Cent, dazu 6 Suchen à 1 Cent
+    assert ergebnis["kosten_cent"] == 13.0 and ergebnis["meldung"] == ""
+
+
+def test_kosten_mit_cache_und_suchen():
+    """Cache schreiben = 1,25-facher, lesen = ein Zehntel des Eingabepreises (Sonnet 2 $)."""
+    usage = {"input_tokens": 0, "output_tokens": 0,
+             "cache_creation_input_tokens": 100_000, "cache_read_input_tokens": 1_000_000}
+    # 100.000 × 1,25 × 2 $ / 1 Mio = 25 Cent; 1 Mio × 0,1 × 2 $ = 20 Cent; 10 Suchen = 10 Cent
+    assert recherche._kosten_cent(recherche.MODELL_RECHERCHE, usage, 10) == 55.0
 
 
 class _Antwort:
