@@ -40,15 +40,33 @@ def _de(betrag: float) -> str:
     return f"{betrag:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def _stunden(ev):
-    """Aktionszeit in Stunden aus den Event-Zeiten (None, wenn nicht berechenbar)."""
+def _stunden(ev, a=None):
+    """Aktionszeit in Stunden (None, wenn nicht berechenbar). Hat die Person eine eigene
+    Aktionszeit (Show 15–16 Uhr in einem Event von 12–18 Uhr), zählt die; ohne eigenes
+    Ende läuft sie bis zum Event-Ende."""
+    von = getattr(a, "einsatz_von", None) if a else None
+    bis = (getattr(a, "einsatz_bis", None) if von else None) or ev.endzeit
     try:
-        sh, sm = map(int, (ev.startzeit or "").split(":"))
-        eh, em = map(int, (ev.endzeit or "").split(":"))
+        sh, sm = map(int, (von or ev.startzeit or "").split(":"))
+        eh, em = map(int, (bis or "").split(":"))
         h = (eh * 60 + em - sh * 60 - sm) / 60
         return h if h > 0 else None
     except (ValueError, AttributeError):
         return None
+
+
+def arbeitszeit(a, ev):
+    """(Aktion, Aufbau, Abbau) in Stunden; None, wenn die Aktionszeit fehlt.
+    Auf- und Abbau zählen als Arbeitszeit (ankunft.aufbau_minuten, ABBAU_MINUTEN)."""
+    import ankunft
+    h = _stunden(ev, a)
+    if not h:
+        return None
+    return h, ankunft.aufbau_minuten(ev) / 60, ankunft.ABBAU_MINUTEN / 60
+
+
+def _std(h: float) -> str:
+    return f"{h:g}".replace(".", ",")
 
 
 def verguetungs_positionen(a, ev, d):
@@ -73,17 +91,19 @@ def verguetungs_positionen(a, ev, d):
         ]
     else:
         satz = d.stundensatz_kuenstler if a.rolle_anfrage == "Künstler" else d.stundensatz_teamer
-        h = _stunden(ev)
-        if not satz or not h:
+        teile = arbeitszeit(a, ev)
+        if not satz or not teile:
             return None, []
+        aktion, aufbau, abbau = teile
+        h = aktion + aufbau + abbau
         est = round(h * satz)
-        h_txt = f"{h:g}".replace(".", ",")
-        haupt = (f"ca. {est} € für die kalkulierte Aktionszeit "
-                 f"(ca. {h_txt} Std. à {_de(satz)} €/Std.). Diese Angabe ist eine "
+        haupt = (f"ca. {est} € für die kalkulierte Arbeitszeit "
+                 f"(ca. {_std(h)} Std.: {_std(aktion)} Std. Aktion, {_std(aufbau)} Std. Aufbau, "
+                 f"{_std(abbau)} Std. Abbau, à {_de(satz)} €/Std.). Diese Angabe ist eine "
                  f"Kalkulationsgrundlage – abgerechnet wird der tatsächliche Aufwand.")
         zusatz = [
-            f"Auf- und Abbauzeiten sowie eine vor Ort mit dem Kunden vereinbarte längere "
-            f"Aktionszeit oder frühere Anwesenheit: nach tatsächlichem Aufwand zu "
+            f"Längere Auf- und Abbauzeiten sowie eine vor Ort mit dem Kunden vereinbarte "
+            f"längere Aktionszeit oder frühere Anwesenheit: nach tatsächlichem Aufwand zu "
             f"{_de(satz)} €/Std.",
             f"Fahrzeit: {_de(FAHRZEIT_SATZ)} €/Std. (Nettofahrzeit laut Routenplaner, ohne Stau).",
             "Auftragsbezogene Nebenkosten wie Fahrtkosten, Park- und Mautgebühren: "

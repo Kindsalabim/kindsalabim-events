@@ -29,6 +29,11 @@ VORLAUF = {
 
 DEFAULT_TREFFPUNKT = "vor dem Haupteingang"
 
+# Auf- und Abbau zählen beim Teamer als Arbeitszeit (Aykut 14.10.2026): Aufbau = Vorlauf
+# der Ankunft, ohne Ankunftszeit in Minuten pauschal 30 Min; Abbau immer pauschal 30 Min.
+AUFBAU_STANDARD_MINUTEN = 30
+ABBAU_MINUTEN = 30
+
 
 def _produkte_liste(produkte) -> list:
     return [p.strip() for p in (produkte or "").split(",") if p.strip()]
@@ -91,6 +96,18 @@ def ankunft_fuer(ev, anfrage=None) -> str:
                             material_mitnahme=getattr(ev, "material_mitnahme", None),
                             startzeit=von)
     return ankunft_anzeige(eigen)
+
+
+def ankunft_anfrage(ev, anfrage=None) -> str:
+    """Ankunft für die Job-Anfrage (Mail, Portal); leer, wenn nichts Belastbares dasteht
+    (Sonderfall ohne Text). So plant niemand mit der Aktionszeit als Ankunft."""
+    txt = ankunft_fuer(ev, anfrage)
+    return "" if txt == "—" else txt
+
+
+def aufbau_minuten(ev) -> int:
+    """Aufbauzeit in Minuten für die Vergütung: der Vorlauf, sonst pauschal 30 Min."""
+    return vorlauf_minuten(ev) or AUFBAU_STANDARD_MINUTEN
 
 
 def treffpunkt_anzeige(ev) -> str:

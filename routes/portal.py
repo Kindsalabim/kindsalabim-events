@@ -18,6 +18,8 @@ templates.env.filters["de_month"] = de_month
 templates.env.filters["plz_ort"] = plz_ort
 templates.env.globals["anfrage_ort"] = anfrage_ort
 templates.env.filters["de_euro"] = de_euro
+import ankunft as _ankunft
+templates.env.globals["ankunft_anfrage"] = _ankunft.ankunft_anfrage
 
 def tpl_context(request: Request, **kwargs):
     return {"request": request, "cfg": get_config(), **kwargs}

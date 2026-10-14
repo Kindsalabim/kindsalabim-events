@@ -63,8 +63,8 @@ def _d_ns(st=None, sk=None):
 def test_verguetung_teamer_mit_stundensatz():
     from bestellung import verguetungs_positionen
     haupt, zusatz = verguetungs_positionen(_a_ns(), _ev_ns(), _d_ns(st=20.0))
-    assert haupt.startswith("ca. 80 €")            # 4 Std. × 20 €
-    assert "4 Std. à 20,00 €/Std." in haupt and "Kalkulationsgrundlage" in haupt
+    assert haupt.startswith("ca. 100 €")           # (4 Std. + 0,5 Aufbau + 0,5 Abbau) × 20 €
+    assert "à 20,00 €/Std." in haupt and "Kalkulationsgrundlage" in haupt
     text = " ".join(zusatz)
     # Verlängerung/frühere Anwesenheit, Fahrzeit und Nebenkosten sind mitbestellt
     assert "längere Aktionszeit oder frühere Anwesenheit" in text and "20,00 €/Std." in text
@@ -86,7 +86,7 @@ def test_verguetung_kuenstler_pauschal_mit_nebenkosten():
 def test_verguetung_kuenstler_stundensatz_fallback():
     from bestellung import verguetungs_positionen
     haupt, _ = verguetungs_positionen(_a_ns("Künstler"), _ev_ns(), _d_ns(sk=60.0))
-    assert haupt.startswith("ca. 240 €")             # 4 Std. × 60 €
+    assert haupt.startswith("ca. 300 €")             # (4 + 0,5 + 0,5) Std. × 60 €
 
 
 def test_verguetung_logistiker_zusatzposition():

@@ -1845,7 +1845,7 @@ def send_anfragen(
                                             rolle=rolle, anfrage=a)
             else:
                 send_serie_anfrage(d, [ze for ze, a in neue], base_url, magic_url=magic_url,
-                                   budget=budget_val, rolle=rolle)
+                                   budget=budget_val, rolle=rolle, anfragen=[a for ze, a in neue])
             db.commit()
             gesendet += 1
         except Exception as e:

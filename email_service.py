@@ -971,6 +971,14 @@ def _einsatzzeit_rows(event, anfrage) -> str:
             + _info_row('Veranstaltung', f"{event.startzeit} – {event.endzeit} Uhr"))
 
 
+def _ankunft_row(event, anfrage) -> str:
+    """Ankunft schon in der Anfrage, rot wie im Briefing: Bei zwei Stunden Aufbau plant
+    sonst jeder mit der Aktionszeit. Ohne belastbare Angabe keine Zeile."""
+    import ankunft as _ankunft
+    txt = _ankunft.ankunft_anfrage(event, anfrage)
+    return _info_row_rot('Ankunft', txt) if txt else ""
+
+
 def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url: str,
                                 magic_url: str = "", als_logistiker: bool = False,
                                 budget=None, rolle: str = "Künstler", anfrage=None):
@@ -1004,6 +1012,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
         {_info_row('Anlass', event.anlass)}
         {_info_row('Datum', de_date(event.datum))}
         {_einsatzzeit_rows(event, anfrage)}
+        {_ankunft_row(event, anfrage)}
         {_info_row('Ort', anfrage_ort(event.veranstaltungsort, rolle))}
         {_info_row('Produkte', event.produkte)}
         {_budget_row(budget)}
@@ -1030,18 +1039,33 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
 
 
 def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = "",
-                       budget=None, rolle: str = "Künstler"):
+                       budget=None, rolle: str = "Künstler", anfragen=None):
     """Kombinierte Anfrage für ein mehrtägiges Event (mehrere Termintage).
-    Eine Mail listet alle Tage; der Dienstleister kann im Portal jeden Tag einzeln zusagen."""
+    Eine Mail listet alle Tage; der Dienstleister kann im Portal jeden Tag einzeln zusagen.
+    `anfragen` (gleiche Reihenfolge wie `events`) liefert die eigene Aktionszeit je Tag."""
+    import ankunft as _ankunft
     cfg = get_config()
     leit = events[0]
     color = _brand_color(leit.marke)
     portal_url = magic_url or f"{base_url}/portal/login"
 
     tage_rows = ""
-    for ev in events:
-        zeit = f"{ev.startzeit} – {ev.endzeit} Uhr" if ev.startzeit and ev.endzeit else ""
-        tage_rows += _info_row(de_date(ev.datum), zeit)
+    for i, ev in enumerate(events):
+        a = anfragen[i] if anfragen and i < len(anfragen) else None
+        von = getattr(a, "einsatz_von", None) if a else None
+        if von:
+            bis = getattr(a, "einsatz_bis", None)
+            zeit = f"deine Aktionszeit {von} – {bis} Uhr" if bis else f"deine Aktionszeit ab {von} Uhr"
+        else:
+            zeit = f"{ev.startzeit} – {ev.endzeit} Uhr" if ev.startzeit and ev.endzeit else ""
+        ank = _ankunft.ankunft_anfrage(ev, a)
+        ank_html = (f'<br><span style="color:{_ROT};font-weight:700;">Ankunft: {_esc(ank)}</span>'
+                    if ank else "")
+        tage_rows += f"""
+    <tr>
+      <td style="padding:8px 16px 8px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">{de_date(ev.datum)}</td>
+      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{_esc(zeit) or '–'}{ank_html}</td>
+    </tr>"""
 
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>

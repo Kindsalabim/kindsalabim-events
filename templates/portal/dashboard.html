@@ -160,6 +160,10 @@
             {% if a.einsatz_von %}
             <p class="flex items-center gap-2 font-semibold" style="color: var(--ink-1);">{{ ic('clock', 14) }} Deine Aktionszeit: {{ a.einsatz_von }}{% if a.einsatz_bis %}–{{ a.einsatz_bis }}{% endif %} Uhr</p>
             {% endif %}
+            {% set ank = ankunft_anfrage(a.event, a) %}
+            {% if ank %}
+            <p class="flex items-center gap-2 font-semibold" style="color: var(--c-danger);">{{ ic('clock', 14) }} Ankunft: {{ ank }}</p>
+            {% endif %}
             <p class="flex items-center gap-2">{{ ic('pin', 14) }} {{ anfrage_ort(a.event.veranstaltungsort, a.rolle_anfrage) }}</p>
             {% if a.event.produkte %}
             <p class="flex items-center gap-2" style="color: var(--ink-3);">{{ ic('check', 14) }} {{ a.event.produkte }}</p>
@@ -292,6 +296,10 @@
             <p class="flex items-center gap-2">{{ ic('clock', 14) }} {{ a.event.datum | de_date }} · {{ a.event.startzeit }}–{{ a.event.endzeit }} Uhr</p>
             {% if a.einsatz_von %}
             <p class="flex items-center gap-2 font-semibold" style="color: var(--ink-1);">{{ ic('clock', 14) }} Deine Aktionszeit: {{ a.einsatz_von }}{% if a.einsatz_bis %}–{{ a.einsatz_bis }}{% endif %} Uhr</p>
+            {% endif %}
+            {% set ank = ankunft_anfrage(a.event, a) %}
+            {% if ank %}
+            <p class="flex items-center gap-2 font-semibold" style="color: var(--c-danger);">{{ ic('clock', 14) }} Ankunft: {{ ank }}</p>
             {% endif %}
             {% if a.budget %}
             <p class="flex items-center gap-2 font-semibold" style="color: var(--ink-1);">{{ ic('star', 14) }} Budget: {{ a.budget | de_euro }} € pauschal <span class="font-normal" style="color: var(--ink-3);">(inkl. Fahrtkosten)</span></p>

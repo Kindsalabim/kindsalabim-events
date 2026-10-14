@@ -24,8 +24,8 @@ from sqlalchemy import func
 
 from models import EventHonorar, Verfuegbarkeitsanfrage
 
-# Zuschläge auf die reine Aktionszeit (mit Aykut abgestimmt, 03.09.2026)
-AUFBAU_STUNDEN = 1.0     # Auf- und Abbau, früheres Eintreffen
+# Zuschläge auf die reine Aktionszeit (mit Aykut abgestimmt, 03.09.2026); Auf- und
+# Abbau kommen seit 14.10.2026 aus bestellung.arbeitszeit (wie in der Bestellung)
 UMWEG_FAKTOR = 1.3       # Luftlinie → gefahrene Strecke
 TEMPO_KMH = 50.0         # Mischung aus Stadt und Landstraße
 FAHRZEIT_SATZ = 10.0     # €/Std. Nettofahrzeit (wie in der Bestellung)
@@ -58,16 +58,16 @@ def schaetzung(a, ev, d, faktor: float = 1.0):
     Künstler mit Pauschalbudget: Budget + Nebenkosten-Anteil über den Faktor.
     Sonst: (Aktionszeit + Auf-/Abbau) × Stundensatz + Fahrzeit × Fahrzeitsatz.
     """
-    from bestellung import _stunden
+    from bestellung import arbeitszeit
     logistik = bool(getattr(a, "als_logistiker", False))
     if a.rolle_anfrage == "Künstler" and a.budget:
         basis = float(a.budget)             # Pauschale inkl. Fahrt (siehe Bestellung)
     else:
         satz = d.stundensatz_kuenstler if a.rolle_anfrage == "Künstler" else d.stundensatz_teamer
-        h = _stunden(ev)
-        if not satz or not h:
+        teile = arbeitszeit(a, ev)
+        if not satz or not teile:
             return None
-        basis = (h + AUFBAU_STUNDEN) * satz + fahrzeit_stunden(ev, d) * FAHRZEIT_SATZ
+        basis = sum(teile) * satz + fahrzeit_stunden(ev, d) * FAHRZEIT_SATZ
     if logistik:
         # Gesondert beauftragte Transportleistung: Abholung + Rücklieferung
         basis += 2 * FAHRZEIT_SATZ

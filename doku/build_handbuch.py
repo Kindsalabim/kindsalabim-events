@@ -448,6 +448,13 @@ story = [
         "und fließen automatisch ins Briefing. Die Rechnungs-Mail wandert in die Kundenkartei.",
         "Für Stammkunden: Häkchen &bdquo;Keine Kunden-Checkliste nötig&ldquo; im Event-Formular überspringt "
         "den Schritt komplett.",
+        "<b>Mehrtägige Aufträge (Serie):</b> &bdquo;Checkliste senden&ldquo; an irgendeinem Tag der Serie "
+        "schickt <b>eine</b> Mail mit allen Terminen. Der Kunde füllt die gemeinsamen Angaben einmal "
+        "aus, Auf- und Abbau je Tag; ist es an einem Tag eine andere Adresse, hakt er das beim Tag an. "
+        "Die Antworten landen auf allen Tagen, jedes Tages-Briefing trägt seine Zeit und Adresse.",
+        "<b>Anrede:</b> Mails an Kunden sprechen mit &bdquo;Hallo Frau Schero,&ldquo; bzw. &bdquo;Hallo Herr "
+        "Blade,&ldquo; an, wenn der Vorname eindeutig ist. Bei Namen, die es für beide Geschlechter gibt, "
+        "steht der volle Name. Geraten wird nie.",
     ]),
     *shots("checkliste", 95, "Die öffentliche Kunden-Checkliste (Handy-Ansicht) – unten die Karte „Für die Rechnung“."),
 
@@ -581,7 +588,14 @@ story = [
         "seinen eigenen Kalender-Block; die Karten tragen die Markierung &bdquo;Serie&ldquo;.",
         "<b>In Buchung umwandeln</b> macht mit einem Klick ein echtes Event daraus – bei einer Serie werden "
         "alle Tage zusammen zu einer Termin-Serie (nicht gebuchte Tage vorher löschen). Ist der reservierte "
-        "Tag vorbei, löscht die App den Eintrag automatisch (der Kalender-Block bleibt).",
+        "Tag vorbei, löscht die App den Eintrag automatisch (der Kalender-Block bleibt). Der Kunde wird "
+        "dabei im CRM verknüpft und steht in der Pipeline auf &bdquo;Gebucht&ldquo;.",
+        "<b>Automatisch bei Auftragsbestätigung:</b> Verschickst du über den E-Mail-Assistenten eine "
+        "Mail mit Auftragsbestätigung (Belegnummer AB…), sucht die App die passende Reservierung "
+        "(gleicher Tag, gleiche Mailadresse oder Firma) und wandelt sie selbst um; die Glocke meldet "
+        "&bdquo;Gebucht: …&ldquo; mit Link zum Ergänzen. Ohne Reservierung (typisch Privatkunden) "
+        "bringt die Glocke ein <b>vorausgefülltes &bdquo;Neues Event&ldquo;</b>: kurz prüfen, speichern. "
+        "Passen mehrere Reservierungen, wird nichts geraten. Ohne AB passiert nichts.",
         "<b>Kopieren</b> an der Karte befüllt das Neu-Formular mit allen Daten der Reservierung vor – "
         "nur der Termin bleibt leer.",
         "<b>Aus dem Anfrage-Assistenten:</b> Bei Geschäftskunden öffnet dessen Knopf &bdquo;Als Reservierung "
@@ -670,9 +684,13 @@ story = [
               "<b>fehlender Ansprechpartner</b> nachgetragen – so lassen sich Ergänzungslisten mit "
               "derselben Datei einlesen, ohne Doppelte anzulegen; vorhandene Angaben werden nie "
               "überschrieben. Jeder Kontakt hat einen "
-              "<b>Ansprachemonat</b>, also den Planungszeitpunkt der Veranstaltung. Die <b>Sperrliste</b> "
-              "wirkt auf vier Ebenen (Adresse, Domain, Unternehmen, Person) und läuft nie ab; "
-              "<b>&bdquo;Nie wieder&ldquo;</b> an einem Kontakt sperrt alle drei auf einmal. Der "
+              "<b>Ansprachemonat</b>, also den Planungszeitpunkt der Veranstaltung. Anlass und "
+              "Ansprachemonat lassen sich im Kontakt unter &bdquo;Bearbeiten&ldquo; ändern. Die "
+              "<b>Sperrliste</b> wirkt auf vier Ebenen (Adresse, Domain, Unternehmen, Person) und läuft "
+              "nie ab; <b>&bdquo;Nie wieder&ldquo;</b> an einem Kontakt sperrt Adresse, Domain und "
+              "Unternehmen auf einmal. Ein Eintrag lässt sich mit <b>&bdquo;Aufheben&ldquo;</b> zurücknehmen; "
+              "bei Widerspruch oder Anwaltspost warnt die App deutlich, weil die Firma danach wieder "
+              "angeschrieben werden kann. Der "
               "<b>Not-Aus</b> stoppt den gesamten Vertriebsversand, etwa nach Anwaltspost. Geprüft wird "
               "immer technisch vor dem Versand, nie durch die KI. Jede Ansprache wird protokolliert "
               "(Empfänger, Weg, Quelle der Adresse) – im Streitfall der Nachweis.", P),
@@ -701,6 +719,13 @@ story = [
               "nie mit Namen. Einen Kontakt löschst du direkt in seiner Zeile, er wandert in den "
               "Papierkorb. ", P),
     Spacer(1, 4),
+    Paragraph("<b>Mitglieder bei &bdquo;Erfolgsfaktor Familie&ldquo;:</b> Setzt du beim Recherche-Auftrag "
+              "dieses Häkchen, gilt die Mitgliedschaft im Netzwerk schon als Anlass. Die Suche muss "
+              "dann kein Familienfest mehr belegen, sondern sucht nur die zuständige Person in Personal "
+              "oder Familienservice. Findet sie zusätzlich Belege (Zertifikat audit berufundfamilie, "
+              "eigenes Familienfest), stehen die im Anlass. Presse- und Bewerbungspostfächer nimmt sie "
+              "nicht.", P),
+    Spacer(1, 4),
     Paragraph("<b>Automatischer Nachschub:</b> Trägst du dort einen Dauerauftrag ein, sucht die App "
               "einmal täglich von selbst, sobald weniger als 20 Kontakte offen sind; leeres Feld "
               "heißt keine automatischen Läufe, und solange ein Lauf offen ist, wird kein zweiter "
@@ -713,7 +738,11 @@ story = [
               "<b>Tageslimit</b> (Standard 25 Mails, schützt die Zustellbarkeit). Vor dem Versand fragt "
               "der Assistent noch einmal nach, damit eine Sperre auch zwischen Entwurf und Versand "
               "greift. Meldet er einen Widerspruch, wird auf allen Ebenen gesperrt; meldet er "
-              "Anwaltspost, steht der Versand sofort still und du bekommst eine Glocke.", P),
+              "Anwaltspost, steht der Versand sofort still und du bekommst eine Glocke. "
+              "<b>Die Pipeline läuft von selbst:</b> Erstmail verschickt → &bdquo;Kontakt aufgenommen&ldquo;, "
+              "Antwort des Kontakts → &bdquo;Bedarf geklärt&ldquo; (mit Glocke), Angebot verschickt → "
+              "&bdquo;Angebot versendet&ldquo;, Event angelegt → &bdquo;Gebucht&ldquo;. Unter dem Status jedes "
+              "Kontakts steht der letzte Schritt mit Datum.", P),
     Spacer(1, 6),
 
     Paragraph("13. Buchhaltung", H2),
@@ -792,6 +821,9 @@ story = [
         ["Jährlich", "Erinnerung, das Scheinselbstständigkeits-Scoring der Dienstleister zu aktualisieren"],
         ["Am Geburtstag", "Glocke, wenn ein aktiver Dienstleister Geburtstag hat (nur wenn er sein Geburtsdatum angegeben hat)"],
         ["Montags", "Baker-Ross-Katalog aktualisieren + CSV-Backup-Mail (Events, Dienstleister, Rechnungen, Kunden)"],
+        ["AB über den Assistenten", "Passende Reservierung wird zur Buchung; ohne Reservierung vorausgefülltes Event in der Glocke"],
+        ["Meldung des Assistenten", "Pipeline des Akquise-Kontakts rückt weiter (Kontakt, Bedarf, Angebot)"],
+        ["Verbindung gestört", "Glocke einmal am Tag je Verbindung, Grund auf der Seite „Verbindungen“"],
     ], breiten=[48*mm, None]),
     Spacer(1, 6),
     Paragraph("Alle Meldungen erscheinen als <b>Glocke</b> in der App; die meisten zusätzlich als Mail "
@@ -808,6 +840,10 @@ story = [
         "Dienstkonto), listet fehlende Einträge und Kalender-Blöcke, deren Löschen gescheitert ist. "
         "<b>Jetzt in den Kalender nachtragen</b> holt beides nach und nennt bei Fehlern den Grund. "
         "Fällt der Kalender aus, meldet die Glocke das einmal am Tag.",
+        "<b>Verbindungen</b> (Seitenleiste): zeigt, was die Events-App mit dem E-Mail-Assistenten und "
+        "der Social-App austauscht. Je Verbindung eine Ampel: grün = letzter Aufruf hat geklappt, rot = "
+        "gescheitert (der Grund steht in Klartext daneben, z. B. falsches Secret in Render), grau = "
+        "noch kein Aufruf. Darunter die letzten 50 Aufrufe.",
     ]),
     *shots("benachricht", 150, "Benachrichtigungs-Verlauf (Glocke)."),
 
