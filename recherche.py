@@ -446,6 +446,171 @@ def nachschub_pruefen(db):
     return auftrag_anlegen(db, dauerauftrag, MODELL_RECHERCHE, automatisch=True)
 
 
+# ── Firmenliste in Wochen-Paketen (Aykut 14.10.2026) ─────────────────────────
+# Aykut lädt eine Firmenliste einmal hoch; die App recherchiert sie in Paketen zu fünf,
+# fest drei Pakete pro Woche (rund 15 Kontakte). Eine Bremse über „offene Kontakte"
+# taugt hier nicht: viele Kontakte sind erst im nächsten Jahr dran und bleiben lange
+# offen. Den Anstoß gibt der ohnehin laufende Ping von cron-job.org (alle zwei Stunden,
+# /cron/bericht-erinnerung); je Ping startet höchstens ein Paket, nie zwei gleichzeitig.
+LISTE_PAKET = 5
+LISTE_WOCHE_KEY = "recherche_liste_woche"        # Pakete pro Woche, Standard 3
+LISTE_WOCHE_STANDARD = 3
+LISTE_PAUSE_KEY = "recherche_liste_pause"        # "1" = angehalten
+LISTE_NETZWERK_KEY = "recherche_liste_netzwerk"  # "1" = Erfolgsfaktor Familie
+LISTE_KENNUNG = "Liste, Paket "                  # im Auftragstext, zählt die Woche
+LISTE_MAX_VERSUCHE = 2
+# Ein Lauf, der so lange auf „läuft" steht, ist abgebrochen (Neustart beim Deploy) und
+# würde sonst jeden weiteren Lauf blockieren. Ein echter Lauf braucht wenige Minuten.
+LAUF_ABGEBROCHEN_MIN = 90
+
+
+def liste_einlesen(db, inhalt: bytes) -> tuple:
+    """CSV mit den Spalten name (oder firma/organisation) und optional ort einlesen.
+    Rückgabe (neu, doppelt). Was schon in der Liste steht, kommt nicht zweimal hinein."""
+    import csv
+    import io
+    from models import RechercheListenFirma
+    text = inhalt.decode("utf-8-sig", errors="replace")
+    trenner = ";" if text.split("\n", 1)[0].count(";") >= text.split("\n", 1)[0].count(",") else ","
+    zeilen = list(csv.DictReader(io.StringIO(text), delimiter=trenner))
+    vorhanden = {(f.name or "").strip().lower()
+                 for f in db.query(RechercheListenFirma.name).all()}
+    pos = (db.query(RechercheListenFirma).count() or 0)
+    neu = doppelt = 0
+    jetzt = datetime.now().isoformat(timespec="seconds")
+    for z in zeilen:
+        z = {(k or "").strip().lower(): (v or "").strip() for k, v in z.items()}
+        name = z.get("name") or z.get("firma") or z.get("organisation") or ""
+        if not name:
+            continue
+        if name.lower() in vorhanden:
+            doppelt += 1
+            continue
+        vorhanden.add(name.lower())
+        pos += 1
+        db.add(RechercheListenFirma(position=pos, name=name, ort=z.get("ort") or None,
+                                    status="offen", erstellt_am=jetzt))
+        neu += 1
+    db.commit()
+    return neu, doppelt
+
+
+def _wochenstart(jetzt: datetime) -> datetime:
+    """Montag 7 Uhr der laufenden Woche; vor Montag 7 Uhr zählt noch die Vorwoche."""
+    from datetime import timedelta
+    start = (jetzt - timedelta(days=jetzt.weekday())).replace(hour=7, minute=0,
+                                                              second=0, microsecond=0)
+    return start if jetzt >= start else start - timedelta(days=7)
+
+
+def liste_pakete_diese_woche(db, jetzt: datetime = None) -> int:
+    from models import Rechercheauftrag
+    jetzt = jetzt or datetime.now()
+    ab = _wochenstart(jetzt).isoformat(timespec="seconds")
+    return (db.query(Rechercheauftrag)
+            .filter(Rechercheauftrag.auftrag.contains(LISTE_KENNUNG),
+                    Rechercheauftrag.erstellt_am >= ab).count())
+
+
+def liste_wochenlimit(db) -> int:
+    from notifications import get_setting
+    wert = (get_setting(db, LISTE_WOCHE_KEY, "") or "").strip()
+    return int(wert) if wert.isdigit() else LISTE_WOCHE_STANDARD
+
+
+def _liste_aufraeumen(db, jetzt: datetime = None):
+    """Abgebrochene Läufe beenden und den Stand der Listenfirmen nachziehen.
+
+    Bewusst Serverzeit (datetime.now), nicht deutsche Zeit: erstellt_am der Aufträge
+    ist Serverzeit, auf Render also UTC. Mit deutscher Zeit sähe ein frischer Lauf zwei
+    Stunden alt aus und würde sofort als abgebrochen markiert."""
+    jetzt = jetzt or datetime.now()
+    from datetime import timedelta
+    from models import Rechercheauftrag, RechercheListenFirma
+    grenze = (jetzt - timedelta(minutes=LAUF_ABGEBROCHEN_MIN)).isoformat(timespec="seconds")
+    for a in (db.query(Rechercheauftrag)
+              .filter(Rechercheauftrag.status.in_(("offen", "laeuft")),
+                      Rechercheauftrag.erstellt_am < grenze).all()):
+        a.status = "fehler"
+        a.meldung = ((a.meldung + " | ") if a.meldung else "") + \
+            "Abgebrochen, vermutlich durch einen Neustart der App."
+    for f in db.query(RechercheListenFirma).filter(RechercheListenFirma.status == "im_lauf").all():
+        a = db.query(Rechercheauftrag).filter(Rechercheauftrag.id == f.auftrag_id).first()
+        if a is None or a.status == "fehler":
+            # Noch einmal versuchen, beim zweiten Fehlschlag aufgeben (sonst kostet
+            # dieselbe kaputte Firma jede Woche wieder Geld).
+            f.status = "fehlgeschlagen" if (f.versuche or 0) >= LISTE_MAX_VERSUCHE else "offen"
+        elif a.status == "fertig":
+            f.status = "erledigt"
+    db.commit()
+
+
+def liste_tick(db, jetzt: datetime = None):
+    """Vom Cron-Ping aufgerufen: startet höchstens ein Paket. Rückgabe: der neue
+    Rechercheauftrag oder None. Startet nichts, wenn die Liste pausiert oder leer ist,
+    ein Lauf noch offen ist oder die Wochenmenge erreicht ist."""
+    from sqlalchemy import func
+    from models import Kunde, Rechercheauftrag, RechercheListenFirma
+    from notifications import get_setting
+    jetzt = jetzt or datetime.now()
+    _liste_aufraeumen(db, jetzt)
+    if (get_setting(db, LISTE_PAUSE_KEY, "") or "") == "1":
+        return None
+    if db.query(Rechercheauftrag).filter(Rechercheauftrag.status.in_(("offen", "laeuft"))).first():
+        return None
+    if liste_pakete_diese_woche(db, jetzt) >= liste_wochenlimit(db):
+        return None
+    paket = []
+    for f in (db.query(RechercheListenFirma).filter(RechercheListenFirma.status == "offen")
+              .order_by(RechercheListenFirma.position).all()):
+        if db.query(Kunde).filter(func.lower(Kunde.firma) == f.name.lower()).first():
+            f.status, f.notiz = "uebersprungen", "steht schon im CRM"
+            continue
+        paket.append(f)
+        if len(paket) >= LISTE_PAKET:
+            break
+    if not paket:
+        db.commit()
+        return None
+    nr = (db.query(Rechercheauftrag)
+          .filter(Rechercheauftrag.auftrag.contains(LISTE_KENNUNG)).count()) + 1
+    firmen = ", ".join(f"{f.name} ({f.ort})" if f.ort else f.name for f in paket)
+    text = f"{LISTE_KENNUNG}{nr}: {firmen}"
+    if (get_setting(db, LISTE_NETZWERK_KEY, "") or "") != "0":
+        text = NETZWERK_MARKER + text
+    a = auftrag_anlegen(db, text, MODELL_RECHERCHE, automatisch=True)
+    for f in paket:
+        f.status, f.auftrag_id = "im_lauf", a.id
+        f.versuche = (f.versuche or 0) + 1
+    db.commit()
+    return a
+
+
+def liste_stand(db, jetzt: datetime = None) -> dict:
+    """Zahlen für die Anzeige auf der Akquise-Seite."""
+    from models import Rechercheauftrag, RechercheListenFirma
+    from notifications import get_setting
+    firmen = db.query(RechercheListenFirma).order_by(RechercheListenFirma.position).all()
+    zaehl = {}
+    for f in firmen:
+        zaehl[f.status] = zaehl.get(f.status, 0) + 1
+    auftrag_ids = {f.auftrag_id for f in firmen if f.auftrag_id}
+    auftraege = (db.query(Rechercheauftrag).filter(Rechercheauftrag.id.in_(auftrag_ids)).all()
+                 if auftrag_ids else [])
+    return {
+        "gesamt": len(firmen), "offen": zaehl.get("offen", 0),
+        "im_lauf": zaehl.get("im_lauf", 0), "erledigt": zaehl.get("erledigt", 0),
+        "uebersprungen": zaehl.get("uebersprungen", 0),
+        "fehlgeschlagen": zaehl.get("fehlgeschlagen", 0),
+        "kontakte": sum(a.anzahl or 0 for a in auftraege),
+        "kosten_cent": sum(a.kosten_cent or 0 for a in auftraege),
+        "woche": liste_pakete_diese_woche(db, jetzt), "limit": liste_wochenlimit(db),
+        "pausiert": (get_setting(db, LISTE_PAUSE_KEY, "") or "") == "1",
+        "netzwerk": (get_setting(db, LISTE_NETZWERK_KEY, "") or "") != "0",
+        "naechste": [f.name for f in firmen if f.status == "offen"][:LISTE_PAKET],
+    }
+
+
 def auftrag_ausfuehren(auftrag_id: int):
     """Hintergrund-Lauf: sucht, übernimmt, schreibt Ergebnis und Kosten an den Auftrag."""
     from database import SessionLocal

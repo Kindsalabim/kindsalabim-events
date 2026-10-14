@@ -748,6 +748,22 @@ class Rechercheauftrag(Base):
     fertig_am     = Column(String)
 
 
+class RechercheListenFirma(Base):
+    """Eine Firma aus einer hochgeladenen Liste. Die App recherchiert sie in Paketen zu
+    fünf, höchstens drei Pakete pro Woche (Aykut 14.10.2026, recherche.liste_tick)."""
+    __tablename__ = "recherche_liste"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    position      = Column(Integer)                   # Reihenfolge der Datei
+    name          = Column(String, nullable=False)
+    ort           = Column(String)
+    status        = Column(String, default="offen")   # offen | im_lauf | erledigt | uebersprungen | fehlgeschlagen
+    auftrag_id    = Column(Integer)                   # Rechercheauftrag des Pakets
+    versuche      = Column(Integer, default=0)
+    notiz         = Column(String)
+    erstellt_am   = Column(String)
+
+
 class VertriebKontaktLog(Base):
     """Protokoll jeder Ansprache: Wer, wann, auf welchem Weg, mit welcher Quelle.
     Im Streitfall der Nachweis, woher die Adresse stammt und was verschickt wurde."""

@@ -214,6 +214,8 @@ def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
     sperren = db.query(VertriebSperre).order_by(VertriebSperre.id.desc()).all()
     auftraege = (db.query(Rechercheauftrag)
                  .order_by(Rechercheauftrag.id.desc()).limit(8).all())
+    recherche._liste_aufraeumen(db)
+    liste = recherche.liste_stand(db)
     monat = datetime.now().strftime("%Y-%m")
     kosten_monat = sum(a.kosten_cent or 0 for a in db.query(Rechercheauftrag)
                        .filter(Rechercheauftrag.erstellt_am.startswith(monat)).all())
@@ -226,7 +228,8 @@ def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
             auftraege=auftraege, kosten_monat=kosten_monat, lauf_id=lauf_id,
             nachschub_grenze=recherche.NACHSCHUB_GRENZE,
             dauerauftrag=get_setting(db, recherche.DAUERAUFTRAG_KEY, ""),
-            offene_leads=recherche.offene_leads(db),
+            offene_leads=recherche.offene_leads(db), liste=liste,
+            liste_meldung=request.query_params.get("liste", ""),
             modelle=[(recherche.MODELL_RECHERCHE, "Günstig (Standard)"),
                      (recherche.MODELL_EINORDNUNG, "Teuer, dafür gründlicher")],
             monat_namen=["", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
@@ -359,6 +362,45 @@ def akquise_dauerauftrag(auftrag: str = Form(""), db: Session = Depends(get_db),
     set_setting(db, recherche.DAUERAUFTRAG_KEY, (auftrag or "").strip())
     db.commit()
     return RedirectResponse("/admin/crm/akquise", status_code=303)
+
+
+@router.post("/akquise/liste")
+async def akquise_liste(datei: UploadFile = File(...), netzwerk: str = Form(""),
+                        db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """Firmenliste hochladen. Die App recherchiert sie selbst in Wochen-Paketen
+    (recherche.liste_tick); hier wird nur eingelesen, gestartet wird nichts."""
+    import recherche
+    from urllib.parse import urlencode
+    from notifications import set_setting
+    neu, doppelt = recherche.liste_einlesen(db, await datei.read())
+    set_setting(db, recherche.LISTE_NETZWERK_KEY, "1" if netzwerk else "0")
+    db.commit()
+    text = f"{neu} Firmen in die Liste übernommen"
+    if doppelt:
+        text += f", {doppelt} standen schon drin"
+    return RedirectResponse("/admin/crm/akquise?" + urlencode({"liste": text}) + "#liste",
+                            status_code=303)
+
+
+@router.post("/akquise/liste/einstellen")
+def akquise_liste_einstellen(aktion: str = Form(""), woche: str = Form(""),
+                             db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """Pausieren, fortsetzen, Wochenmenge ändern oder die offenen Firmen entfernen."""
+    import recherche
+    from models import RechercheListenFirma
+    from notifications import set_setting
+    if aktion == "pause":
+        set_setting(db, recherche.LISTE_PAUSE_KEY, "1")
+    elif aktion == "weiter":
+        set_setting(db, recherche.LISTE_PAUSE_KEY, "")
+    elif aktion == "woche" and woche.strip().isdigit():
+        set_setting(db, recherche.LISTE_WOCHE_KEY, str(min(int(woche), 10)))
+    elif aktion == "entfernen":
+        # Nur, was noch nicht recherchiert ist; der Verlauf bleibt nachvollziehbar.
+        (db.query(RechercheListenFirma)
+         .filter(RechercheListenFirma.status == "offen").delete())
+    db.commit()
+    return RedirectResponse("/admin/crm/akquise#liste", status_code=303)
 
 
 @router.post("/akquise/uebergeben")

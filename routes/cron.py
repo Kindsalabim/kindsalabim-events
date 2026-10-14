@@ -674,15 +674,36 @@ def send_einsatz_erinnerungen(request: Request, secret: str = "", db: Session = 
     return JSONResponse(_run_einsatz_erinnerungen(db))
 
 
+def _liste_anstossen(db: Session, background_tasks: BackgroundTasks):
+    """Nächstes Paket der Recherche-Liste starten, falls diese Woche noch dran.
+    Ein Fehler hier darf den eigentlichen Cron-Zweck nie kippen."""
+    try:
+        import recherche
+        auftrag = recherche.liste_tick(db)   # Serverzeit, siehe _liste_aufraeumen
+        if auftrag:
+            background_tasks.add_task(recherche.auftrag_ausfuehren, auftrag.id)
+            return auftrag.id
+    except Exception as e:
+        db.rollback()
+        print(f"[RECHERCHE-LISTE] Anstoß fehlgeschlagen: {e}")
+    return None
+
+
 @router.get("/bericht-erinnerung")
-def send_bericht_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
+def send_bericht_erinnerungen(request: Request, background_tasks: BackgroundTasks,
+                              secret: str = "", db: Session = Depends(get_db)):
     """Schlanker, zeitkritischer Endpunkt – NUR die Bericht-Erinnerung an den Teamleiter.
     Gedacht für einen häufigen Ping (z. B. stündlich via cron-job.org), damit die
     Erinnerung noch am selben Abend rausgeht. Idempotent (2h-Sperre + 3-Tage-Takt),
-    läuft zusätzlich im täglichen /cron/erinnerung als Fallback."""
+    läuft zusätzlich im täglichen /cron/erinnerung als Fallback.
+
+    Derselbe Ping stößt die Recherche-Liste an (drei Pakete pro Woche ab Montagmorgen),
+    damit Aykut dafür keinen eigenen Cron anlegen muss (14.10.2026)."""
     if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-    return JSONResponse({"bericht_erinnerungen": _run_bericht_erinnerungen(db)})
+    anzahl = _run_bericht_erinnerungen(db)
+    return JSONResponse({"bericht_erinnerungen": anzahl,
+                         "recherche_liste": _liste_anstossen(db, background_tasks)})
 
 
 @router.get("/recherche-nachschub")
@@ -695,6 +716,9 @@ def recherche_nachschub(request: Request, background_tasks: BackgroundTasks,
     if not _check_secret(request, secret):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     import recherche
+    listen_auftrag = _liste_anstossen(db, background_tasks)
+    if listen_auftrag:
+        return JSONResponse({"gestartet": True, "auftrag_id": listen_auftrag})
     auftrag = recherche.nachschub_pruefen(db)
     if not auftrag:
         return JSONResponse({"gestartet": False, "offen": recherche.offene_leads(db)})
