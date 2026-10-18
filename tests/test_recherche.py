@@ -652,3 +652,48 @@ def test_cron_nachschub_startet_lauf(client, db, monkeypatch):
     r = client.get("/cron/recherche-nachschub",
                    headers={"X-Cron-Secret": get_config().get("cron_secret", "")})
     assert r.status_code == 200 and r.json()["gestartet"] is True
+
+
+def test_api_ablehnung_nennt_den_grund(monkeypatch):
+    """„400 Bad Request“ allein half nicht weiter (Hattingen, 14.10.2026)."""
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+    anfrage = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    antwort = httpx.Response(400, request=anfrage,
+                             text='{"error":{"message":"You have reached your spend limit"}}')
+
+    def _post(*_a, **_k):
+        raise httpx.HTTPStatusError("Client error '400 Bad Request'\nmehr",
+                                    request=anfrage, response=antwort)
+    monkeypatch.setattr(recherche.httpx, "post", _post)
+    ergebnis = recherche.suchen("Fünf Firmen")
+    assert ergebnis["fehler"] and "spend limit" in ergebnis["meldung"]
+    assert "mehr" not in ergebnis["meldung"]
+
+
+def test_laeufe_lassen_sich_zuklappen(admin, db):
+    from models import Rechercheauftrag
+    for a in db.query(Rechercheauftrag).filter(Rechercheauftrag.status.in_(("offen", "laeuft"))):
+        a.status = "fertig"
+    db.add(Rechercheauftrag(auftrag="Testlauf Zuklappen", status="fertig", anzahl=1,
+                            erstellt_am="2026-10-14T10:00:00"))
+    db.commit()
+    h = admin.get("/admin/crm/akquise").text
+    assert "Letzte L&auml;ufe" in h and "Fertige Kontaktliste einlesen" in h
+
+
+def test_sperrliste_zeigt_notiz(admin, db):
+    import vertrieb
+    vertrieb.sperren(db, "adresse", "notiztest@beispiel-sperre.de", "widerspruch",
+                     "AW: Testbetreff aus dem Assistenten")
+    db.commit()
+    assert "AW: Testbetreff aus dem Assistenten" in admin.get("/admin/crm/akquise").text
+
+
+def test_fehler_ohne_text_stuerzt_nicht_ab(monkeypatch):
+    monkeypatch.setattr(recherche, "get_config", lambda: {"anthropic_api_key": "test"})
+
+    def _post(*_a, **_k):
+        raise httpx.ReadTimeout("")
+    monkeypatch.setattr(recherche.httpx, "post", _post)
+    ergebnis = recherche.suchen("Fünf Firmen")
+    assert ergebnis["fehler"] and "ReadTimeout" in ergebnis["meldung"]

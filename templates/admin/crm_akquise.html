@@ -110,8 +110,12 @@
   </form>
 
   {% if auftraege %}
-  <div class="mt-4 pt-4" style="border-top:1px solid #f3f4f6;">
-    <table class="w-full text-sm">
+  {% set laeuft_einer = auftraege|selectattr('status', 'in', ['offen', 'laeuft'])|list %}
+  <details class="mt-4 pt-4" style="border-top:1px solid #f3f4f6;" {% if laeuft_einer or request.query_params.get('gestartet') %}open{% endif %}>
+    <summary class="text-sm font-semibold cursor-pointer select-none" style="color:var(--brand-primary);">
+      Letzte L&auml;ufe ({{ auftraege|length }}){% if laeuft_einer %}, einer l&auml;uft gerade{% endif %}
+    </summary>
+    <table class="w-full text-sm mt-3">
       <tbody>
       {% for a in auftraege %}
         <tr style="border-top:{{ '0' if loop.first else '1px' }} solid #f9fafb;">
@@ -141,7 +145,7 @@
       {% endfor %}
       </tbody>
     </table>
-  </div>
+  </details>
   {% endif %}
 
   <details class="mt-4 pt-4" style="border-top:1px solid #f3f4f6;">
@@ -233,9 +237,11 @@
 
 <!-- ── Liste einlesen ── -->
 <details class="card p-5 mb-4">
-  <summary class="text-sm font-semibold cursor-pointer select-none" style="color:var(--brand-primary);">+ Recherche-Liste einlesen (CSV)</summary>
+  <summary class="text-sm font-semibold cursor-pointer select-none" style="color:var(--brand-primary);">+ Fertige Kontaktliste einlesen (CSV)</summary>
   <form method="post" action="/admin/crm/akquise/import" enctype="multipart/form-data" class="mt-4 pt-4 space-y-3" style="border-top:1px solid #f3f4f6;">
     <p class="text-xs" style="color:var(--ink-4);">
+      F&uuml;r Kontakte, die schon recherchiert sind (mit Mailadresse und Quelle). Eine reine
+      Firmenliste zum Recherchieren l&auml;dst du oben unter <b>Firmenliste abarbeiten</b> hoch.<br>
       Spalten: <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;">{{ spalten }}</code><br>
       Ohne Spalte „Quelle“ wird eine Zeile nicht übernommen, Gesperrte werden übersprungen.<br>
       Kennt die App eine Organisation schon, wird nur ein <b>fehlender Ansprechpartner</b> nachgetragen –
@@ -315,7 +321,7 @@
       </tr>
       {% else %}
       <tr><td colspan="6" class="px-5 py-6 text-sm text-center" style="color:var(--ink-4);">
-        Noch keine Kontakte. Oben eine Recherche-Liste einlesen.</td></tr>
+        Noch keine Kontakte. Oben Kontakte recherchieren oder eine Firmenliste hochladen.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -362,7 +368,10 @@
     {% for s in sperren %}
     <li class="flex items-center gap-3 py-2" style="border-bottom:1px solid var(--line);">
       <span class="text-xs px-2 py-0.5 rounded-full shrink-0" style="background:#f1f5f9;color:#475569;">{{ s.ebene }}</span>
-      <span class="min-w-0 truncate" style="color:var(--ink-1);">{{ s.anzeige or s.wert }}</span>
+      <span class="min-w-0">
+        <span class="block truncate" style="color:var(--ink-1);">{{ s.anzeige or s.wert }}</span>
+        {% if s.notiz %}<span class="block text-xs truncate" style="color:var(--ink-4);" title="{{ s.notiz }}">{{ s.notiz }}</span>{% endif %}
+      </span>
       <span class="ml-auto text-xs shrink-0" style="color:var(--ink-4);">
         {{ s.grund }}{% if s.erstellt_am %} · {{ s.erstellt_am[8:10] }}.{{ s.erstellt_am[5:7] }}.{{ s.erstellt_am[:4] }}{% endif %}
       </span>

@@ -234,10 +234,14 @@ def suchen(auftrag: str, modell: str = MODELL_RECHERCHE, max_suchen: int = MAX_S
             r.raise_for_status()
             daten_roh = r.json()
         except Exception as e:
+            # Bei einer Ablehnung steht der Grund im Antworttext (z. B. Ausgabenlimit
+            # erreicht); ohne ihn stand nur „400 Bad Request" da (Hattingen, 14.10.2026).
+            antwort = getattr(getattr(e, "response", None), "text", "") or ""
             return {"kontakte": [], "suchen": anzahl_suchen,
                     "kosten_cent": _kosten_cent(modell, summe, anzahl_suchen),
                     "fehler": True,
-                    "meldung": f"Recherche fehlgeschlagen: {str(e)[:200]}"}
+                    "meldung": f"Recherche fehlgeschlagen: {(str(e).splitlines() or [type(e).__name__])[0][:150]}"
+                               + (f" Antwort der API: {antwort[:300]}" if antwort else "")}
 
         inhalt = daten_roh.get("content") or []
         usage = daten_roh.get("usage") or {}
