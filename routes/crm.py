@@ -183,9 +183,37 @@ WEG_LABEL = {"entwurf": "An den Assistenten übergeben", "mail": "Erstmail versc
              "antwort": "Hat geantwortet", "angebot": "Angebot verschickt"}
 
 
+AKQUISE_ANSICHTEN = [("jetzt", "Jetzt dran"), ("spaeter", "Später"),
+                     ("angeschrieben", "Angeschrieben"), ("abgeschlossen", "Abgeschlossen")]
+
+
+def _akquise_ansicht(k, monat_jetzt: int) -> tuple:
+    """(Reiter, Sortierschlüssel) eines Akquise-Kontakts (Aykut 20.10.2026: die erledigten
+    standen zwischen den anzuschreibenden, er musste eine Minute scrollen).
+
+    Der Ansprachemonat hat kein Jahr, deshalb wird im Kreis gerechnet: Abstand 0 ist
+    dieser Monat, 10 und 11 sind die zwei verpassten Monate davor (noch „jetzt dran“),
+    alles andere liegt vorn und kommt in „Später“, nächster Monat zuerst."""
+    status = k.pipeline_status or "lead"
+    name = (k.firma or "").lower()
+    if status in ("gebucht", "verloren"):
+        return "abgeschlossen", (name,)
+    if status != "lead":
+        return "angeschrieben", (name,)
+    m = k.ansprachemonat
+    if not m:
+        return "jetzt", (2, 0, name)
+    abstand = (m - monat_jetzt) % 12
+    if abstand == 0:
+        return "jetzt", (1, 0, name)
+    if abstand >= 10:
+        return "jetzt", (0, abstand, name)          # verpasst, älteste zuerst
+    return "spaeter", (abstand, name)
+
+
 @router.get("/akquise", response_class=HTMLResponse)
-def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
-            _=Depends(nur_inhaber)):
+def akquise(request: Request, lauf: str = "", ansicht: str = "jetzt",
+            db: Session = Depends(get_db), _=Depends(nur_inhaber)):
     """Kaltakquise-Kontakte aus der Recherche, getrennt von den Bestandskunden.
 
     `?lauf=<id>` zeigt nur die Kontakte eines Rechercheauftrags. Ohne das war nach einem
@@ -211,6 +239,23 @@ def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
                   .filter(VertriebKontaktLog.kunde_id.in_([k.id for k in kontakte]))
                   .order_by(VertriebKontaktLog.id).all()):
             letzte[e.kunde_id] = e
+    # Reiter: beim Filter auf einen Lauf alle Kontakte des Laufs, sonst nur der gewählte
+    monat_jetzt = datetime.now().month
+    gruppen = {key: [] for key, _ in AKQUISE_ANSICHTEN}
+    for k in kontakte:
+        reiter, schluessel = _akquise_ansicht(k, monat_jetzt)
+        gruppen[reiter].append((schluessel, k))
+    ansicht = ansicht if ansicht in gruppen else "jetzt"
+    zaehler = {key: len(v) for key, v in gruppen.items()}
+    if not lauf_id:
+        if ansicht == "angeschrieben":
+            # Zuletzt angeschrieben zuerst; ohne Protokoll ans Ende
+            reihe = sorted(gruppen[ansicht], key=lambda t: t[0])
+            reihe.sort(key=lambda t: (letzte[t[1].id].erstellt_am or "") if t[1].id in letzte else "",
+                       reverse=True)
+        else:
+            reihe = sorted(gruppen[ansicht], key=lambda t: t[0])
+        kontakte = [k for _, k in reihe]
     sperren = db.query(VertriebSperre).order_by(VertriebSperre.id.desc()).all()
     auftraege = (db.query(Rechercheauftrag)
                  .order_by(Rechercheauftrag.id.desc()).limit(8).all())
@@ -229,6 +274,7 @@ def akquise(request: Request, lauf: str = "", db: Session = Depends(get_db),
             nachschub_grenze=recherche.NACHSCHUB_GRENZE,
             dauerauftrag=get_setting(db, recherche.DAUERAUFTRAG_KEY, ""),
             offene_leads=recherche.offene_leads(db), liste=liste,
+            ansicht=ansicht, ansichten=AKQUISE_ANSICHTEN, zaehler=zaehler,
             liste_meldung=request.query_params.get("liste", ""),
             modelle=[(recherche.MODELL_RECHERCHE, "Günstig (Standard)"),
                      (recherche.MODELL_EINORDNUNG, "Teuer, dafür gründlicher")],

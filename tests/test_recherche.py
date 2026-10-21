@@ -617,8 +617,8 @@ def test_lauf_ansicht_zeigt_nur_die_kontakte_dieses_laufs(admin, db):
     assert "Beispiel Wohnbau eG" in html
     assert "Aus anderem Lauf GmbH" not in html
     assert "Gefiltert auf Lauf" in html
-    # ohne Filter stehen beide da
-    alle = admin.get("/admin/crm/akquise").text
+    # ohne Filter stehen beide da (verteilt auf die Reiter)
+    alle = "".join(admin.get(f"/admin/crm/akquise?ansicht={ans}").text for ans in ("jetzt", "spaeter", "angeschrieben", "abgeschlossen"))
     assert "Beispiel Wohnbau eG" in alle and "Aus anderem Lauf GmbH" in alle
 
 

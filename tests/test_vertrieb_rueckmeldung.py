@@ -105,11 +105,11 @@ def test_neue_endpunkte_brauchen_das_secret(admin, db, monkeypatch):
 def test_akquise_seite_zeigt_den_letzten_schritt(admin, db, monkeypatch):
     _mit_secret(monkeypatch)
     k = _kontakt(db, "Rueckmeldung Anzeige GmbH", "info@rm-anzeige.example")
-    html = admin.get("/admin/crm/akquise").text
+    html = "".join(admin.get(f"/admin/crm/akquise?ansicht={a}").text for a in ("jetzt", "spaeter", "angeschrieben", "abgeschlossen"))
     assert "Erstmail verschickt" not in html.split("Rueckmeldung Anzeige GmbH", 1)[1][:1500]
     admin.post("/admin/crm/api/vertrieb/gesendet", headers=GEHEIM,
                json={"kunde_id": k.id, "betreff": "Hallo"})
-    html = admin.get("/admin/crm/akquise").text
+    html = admin.get("/admin/crm/akquise?ansicht=angeschrieben").text   # rückt nach dem Versand dorthin
     assert "Erstmail verschickt" in html.split("Rueckmeldung Anzeige GmbH", 1)[1][:1500]
 
 

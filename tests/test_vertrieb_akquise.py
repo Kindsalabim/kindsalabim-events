@@ -264,7 +264,8 @@ def test_kontakt_ohne_mailadresse_ist_markiert(admin, db):
 def test_akquise_kontakte_stehen_nicht_in_der_kundenliste(admin, db):
     _leeren()
     _import(admin)
-    assert "Stadtmarketing Musterstadt" in admin.get("/admin/crm/akquise").text
+    alle = "".join(admin.get(f"/admin/crm/akquise?ansicht={a}").text for a in ("jetzt", "spaeter", "angeschrieben", "abgeschlossen"))
+    assert "Stadtmarketing Musterstadt" in alle
     assert "Stadtmarketing Musterstadt" not in admin.get("/admin/crm").text
 
 
