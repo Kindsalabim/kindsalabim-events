@@ -617,6 +617,8 @@ def _reservierung_body(r) -> dict:
     if r.frist:         lines.append(f"Rückmeldung bis: {r.frist.strftime('%d.%m.%Y')}")
     if r.notiz:         lines.append(f"Notiz: {r.notiz}")
     lines.append("")
+    # Schnittstelle: Der Assistent erkennt Reservierungen der Events-App an genau diesem
+    # Satz. Nicht ändern, ohne vorher SCHNITTSTELLEN.md anzupassen.
     lines.append("Unverbindliche Reservierung (Kindsalabim-App)")
     heute = datetime.now(ZoneInfo("Europe/Berlin")).date()
     abgelaufen = bool(r.frist and r.frist < heute)

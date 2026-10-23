@@ -289,6 +289,18 @@ def _run_reservierung_farben(db: Session) -> int:
             continue
         if calendar_service.sync_reservierung_async(r.id):
             r.kalender_abgelaufen_markiert = True
+            # Der Termin bleibt bewusst „Beschäftigt“: Der Assistent legt Anfragen auf eine
+            # abgelaufene Reservierung Aykut vor, statt zu- oder abzusagen, und muss den
+            # Eintrag dafür sehen (Aykut 23.10.2026). Die Glocke ist nur der Hinweis.
+            # Nur frisch abgelaufene melden: ein späteres Bearbeiten setzt das Flag zurück
+            # und soll keine alte Meldung wiederholen.
+            if r.frist >= heute - timedelta(days=3):
+                notify(db, "reservierung_abgelaufen",
+                       f"Reservierung abgelaufen: {r.kunde_firma}",
+                       f"Die Reservierung für {r.kunde_firma} am {r.datum.strftime('%d.%m.%Y')} "
+                       f"ist seit dem {r.frist.strftime('%d.%m.%Y')} abgelaufen. Der Termin bleibt "
+                       f"im Kalender belegt. Frist verlängern, wenn der Kunde noch will, sonst "
+                       f"freigeben.", "/admin/reservierungen", marke=r.marke)
             db.commit()
             count += 1
     return count

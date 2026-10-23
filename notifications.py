@@ -32,6 +32,7 @@ NOTIF_TYPEN = [
     ("geburtstag", "Geburtstag eines Dienstleisters", True, False),
     ("kalender_fehler", "Kalender-Eintrag konnte nicht geschrieben werden", True, True),
     ("reservierung_doppelt", "Reservierung offen, obwohl schon als Event gebucht", True, False),
+    ("reservierung_abgelaufen", "Reservierungs-Frist abgelaufen: verlängern oder freigeben", True, False),
     ("vorab_wartet", "Dienstleister hält einen Termin frei und wartet auf Bescheid", True, True),
     ("vertrieb_stopp", "Vertriebsversand gestoppt (Anwaltspost)", True, True),
     ("recherche_fertig", "Kontakt-Recherche fertig", True, False),

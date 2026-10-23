@@ -115,3 +115,67 @@ def test_cron_loescht_reservierung_nach_termin(monkeypatch):
     assert reload(Reservierung, heute_res) is not None  # heutiger Termin bleibt
     assert reload(Reservierung, zukunft) is not None
     assert geloescht == []                              # Kalender-Eintrag bleibt stehen
+
+
+# ── Glocke beim Fristablauf (Aykut 23.10.2026) ───────────────────────────────────
+# Der Termin bleibt im Kalender „Beschäftigt“: Der Assistent legt Anfragen auf eine
+# abgelaufene Reservierung Aykut vor und muss den Eintrag dafür sehen.
+
+def _glocken(firma):
+    from models import Benachrichtigung
+    s = SessionLocal()
+    try:
+        return s.query(Benachrichtigung).filter(
+            Benachrichtigung.typ == "reservierung_abgelaufen",
+            Benachrichtigung.titel.contains(firma)).count()
+    finally:
+        s.close()
+
+
+def test_glocke_beim_fristablauf_einmal(monkeypatch):
+    rid = _make_res(kunde_firma="GlockeAblaufGmbH", frist=GESTERN,
+                    datum=date.today() + timedelta(days=50))
+    _set_kalender_id(rid)
+    monkeypatch.setattr(calendar_service, "sync_reservierung_async", lambda i: True)
+    s = SessionLocal()
+    try:
+        _run_reservierung_farben(s)
+        _run_reservierung_farben(s)
+    finally:
+        s.close()
+    assert _glocken("GlockeAblaufGmbH") == 1
+
+
+def test_alte_abgelaufene_reservierung_ohne_glocke(monkeypatch):
+    """Ein späteres Bearbeiten setzt das Flag zurück; das soll keine alte Meldung
+    wiederholen."""
+    rid = _make_res(kunde_firma="GlockeAltGmbH", frist=date.today() - timedelta(days=30),
+                    datum=date.today() + timedelta(days=50))
+    _set_kalender_id(rid)
+    monkeypatch.setattr(calendar_service, "sync_reservierung_async", lambda i: True)
+    s = SessionLocal()
+    try:
+        _run_reservierung_farben(s)
+    finally:
+        s.close()
+    assert _glocken("GlockeAltGmbH") == 0
+
+
+def test_keine_glocke_wenn_kalender_nicht_erreichbar(monkeypatch):
+    rid = _make_res(kunde_firma="GlockeFehlerGmbH", frist=GESTERN,
+                    datum=date.today() + timedelta(days=50))
+    _set_kalender_id(rid)
+    monkeypatch.setattr(calendar_service, "sync_reservierung_async", lambda i: False)
+    s = SessionLocal()
+    try:
+        _run_reservierung_farben(s)
+    finally:
+        s.close()
+    assert _glocken("GlockeFehlerGmbH") == 0
+
+
+def test_abgelaufene_reservierung_bleibt_beschaeftigt():
+    rid = _make_res(frist=GESTERN)
+    body = calendar_service._reservierung_body(reload(Reservierung, rid))
+    assert body.get("transparency", "opaque") == "opaque"
+    assert "Unverbindliche Reservierung (Kindsalabim-App)" in body["description"]
