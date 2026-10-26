@@ -80,3 +80,14 @@ def test_angebot_erstellen_ohne_seiten_400(admin):
         "foto_index": "[]", "custom_foto_urls": "[]",
     })
     assert r.status_code == 400
+
+
+def test_team_seite_ist_vorausgewaehlt(admin):
+    """Die Team-Seite gehört standardmäßig ans Ende jedes Angebots (Aykut 26.10.2026);
+    abwählen bleibt möglich, die anderen Aktionen sind nicht vorausgewählt."""
+    import re
+    h = admin.get("/admin/angebot").text
+    team = re.search(r'<input type="checkbox" name="aktionen_keys" value="team"[^>]*>', h)
+    assert team and "checked" in team.group(0)
+    zauber = re.search(r'<input type="checkbox" name="aktionen_keys" value="zaubershow"[^>]*>', h)
+    assert zauber and "checked" not in zauber.group(0)
