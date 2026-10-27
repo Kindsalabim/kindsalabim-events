@@ -167,6 +167,13 @@
         </select>
         <p class="text-xs text-gray-500 mt-1">Wann wir anschreiben, rund vier Monate vor dem Fest.</p>
       </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Ich war zuletzt … <span class="font-normal text-gray-500">(nur Schulen, bei denen wir schon waren)</span></label>
+        <input type="text" name="zuletzt_bei_uns" value="{{ kunde.zuletzt_bei_uns or '' }}"
+          placeholder="am 23.10.2026 mit unseren Zaubershows bei Ihnen in der OGS"
+          class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        <p class="text-xs text-gray-500 mt-1">Steht so in der Mail: „Ich war zuletzt …“ und dann dein Text. Leer lassen, wenn die Schule uns noch nicht kennt.</p>
+      </div>
       {% endif %}
     </div>
 

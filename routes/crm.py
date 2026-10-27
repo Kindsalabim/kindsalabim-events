@@ -113,6 +113,7 @@ def _kunde_form_echo(raw, bestehend=None):
         herkunft=getattr(bestehend, "herkunft", None),
         anlass=g("anlass"),
         ansprachemonat=int(g("ansprachemonat")) if g("ansprachemonat").isdigit() else None,
+        zuletzt_bei_uns=g("zuletzt_bei_uns"),
         weitere_ansprechpartner=weitere_ap_json(raw.getlist("kap_name"),
                                                 raw.getlist("kap_telefon"),
                                                 raw.getlist("kap_email")),
@@ -147,6 +148,8 @@ def _apply_form(db, k: Kunde, f: dict):
     if "ansprachemonat" in f:
         monat = g("ansprachemonat")
         k.ansprachemonat = int(monat) if monat.isdigit() and 1 <= int(monat) <= 12 else None
+    if "zuletzt_bei_uns" in f:
+        k.zuletzt_bei_uns = g("zuletzt_bei_uns") or None
     _apply_tags(db, k, f.get("tags", ""))
     k.aktualisiert_am = _now()
 
@@ -339,11 +342,18 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
         if not darf:
             gesperrt += 1
             continue
+        zuletzt = hol("zuletzt", "zuletzt bei uns", "ich war zuletzt")
         vorhanden = db.query(Kunde).filter(func.lower(Kunde.firma) == firma.lower()).first()
         if vorhanden:
             person = hol("ansprechpartner", "kontaktperson")
+            neu_ergaenzt = False
             if person and not (vorhanden.ansprechpartner or "").strip():
                 vorhanden.ansprechpartner = person
+                neu_ergaenzt = True
+            if zuletzt and not (vorhanden.zuletzt_bei_uns or "").strip():
+                vorhanden.zuletzt_bei_uns = zuletzt
+                neu_ergaenzt = True
+            if neu_ergaenzt:
                 ergaenzt += 1
             else:
                 uebersprungen += 1
@@ -364,6 +374,7 @@ async def akquise_import(request: Request, datei: UploadFile = File(...),
             anlass=hol("veranstaltung", "anlass") or None, ansprachemonat=zahl,
             kontaktweg=hol("kontaktweg", "weg") or None,
             notizen=hol("warum passt das", "notiz", "begruendung") or None,
+            zuletzt_bei_uns=zuletzt or None,
             erstellt_am=datetime.now().isoformat(timespec="seconds")))
         neu += 1
     db.commit()
@@ -519,7 +530,10 @@ def entwurf_anfordern(kunde_id: int):
                  "mail_art": k.mail_art or "funktion",
                  "branche": k.branche or "", "art": k.akquise_art or "",
                  "anlass": k.anlass or "", "quelle": k.quelle or "",
-                 "ansprachemonat": k.ansprachemonat, "notiz": k.notizen or ""}
+                 "ansprachemonat": k.ansprachemonat, "notiz": k.notizen or "",
+                 # Schul-Kampagne (Vertrag 1.2): feste Schul-Bausteine statt Firmen-Erstkontakt
+                 "vorlage": "schule" if (k.akquise_art or "").strip().lower() == "grundschule" else "",
+                 "zuletzt": k.zuletzt_bei_uns or ""}
         req = urllib.request.Request(
             url.rstrip("/") + "/api/vertrieb/entwurf",
             data=json.dumps(daten).encode("utf-8"),

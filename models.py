@@ -623,6 +623,9 @@ class Kunde(Base):
     quelle               = Column(Text)     # Link, aus dem der Kontakt stammt
     anlass               = Column(String)   # z. B. „Familientag Gelsenkirchen"
     ansprachemonat       = Column(Integer)  # 1-12: wann ist der Planungszeitpunkt?
+    # Schul-Kampagne (27.10.2026): Ende des Satzes „Ich war zuletzt …“, z. B. „am 23.10.2026
+    # mit unseren Zaubershows bei Ihnen in der OGS“. Leer = die Schule kennt uns noch nicht.
+    zuletzt_bei_uns      = Column(String)
     kontaktweg           = Column(String)   # Mail | Formular | Telefon
     quelle_beleg         = Column(String)   # geprüft | snippet | unbestätigt
     # person = persönliche Adresse einer zuständigen Person, funktion = info@/event@.

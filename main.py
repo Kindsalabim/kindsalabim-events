@@ -325,6 +325,8 @@ def run_migrations():
     # Kundenschutz aus Agenturverträgen: Sperre mit Ablaufdatum, Glocke 30 Tage vorher
     add_column("vertrieb_sperren", "gilt_bis", "DATE")
     add_column("vertrieb_sperren", "ablauf_erinnert_am", "DATE")
+    # Schul-Kampagne: „Ich war zuletzt …“ für Schulen, bei denen Aykut schon war
+    add_column("kunden", "zuletzt_bei_uns", "VARCHAR")
 
     # Status-Modell vereinheitlicht: "Entwurf"/"Bestätigt" gibt es nicht mehr → "Gebucht".
     with engine.connect() as conn:

@@ -302,7 +302,9 @@
             {% endif %}
           </div>
         </td>
-        <td class="px-5 py-3" style="color:var(--ink-3);">{{ k.anlass or '–' }}</td>
+        <td class="px-5 py-3" style="color:var(--ink-3);">{{ k.anlass or '–' }}
+          {% if k.zuletzt_bei_uns %}<div class="text-xs mt-1" style="color:var(--ink-4);">Ich war zuletzt {{ k.zuletzt_bei_uns }}</div>{% endif %}
+        </td>
         <td class="px-5 py-3" style="color:var(--ink-3);">
           {% if k.ansprachemonat %}{{ monat_namen[k.ansprachemonat] }}{% else %}–{% endif %}
         </td>
