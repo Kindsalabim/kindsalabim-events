@@ -20,7 +20,42 @@
   .bh-edit:hover { background: var(--c-sky-bg) !important; box-shadow: inset 0 -2px 0 var(--c-sky); }
   .bh-edit input { width: 6.5rem; text-align: right; font-size: 0.8rem; padding: 2px 6px;
     border: 1.5px solid var(--brand-primary); border-radius: 6px; outline: none; }
+  /* Rechnungszeilen: wiederkehrende Formate einmal hier statt style="…" in jeder Zelle */
+  .bh-z { border-bottom: 1px solid #f9fafb; transition: background-color .15s; }
+  .bh-z:hover { background: #f9fafb; }
+  .bh-z > td { padding: 0.625rem 0.75rem; }
+  .bh-akt { display: block; padding: 0.375rem; border-radius: 0.5rem; transition: background-color .15s; }
+  .bh-akt:hover { background: #f3f4f6; }
+  .bh-akt.bh-minus:hover { background: #fef2f2; }
+  .bh-n { text-align: right; font-size: 0.75rem; line-height: 1rem; white-space: nowrap; }
+  .bh-n.bh-l { text-align: left; }
+  .bh-k1 { color: var(--ink-1); }
+  .bh-k2 { color: var(--ink-2); }
+  .bh-k3 { color: var(--ink-3); }
+  .bh-amber { color: var(--c-amber); }
+  .bh-sky { color: var(--c-sky); }
+  .bh-plus { color: var(--c-green); }
+  .bh-minus { color: var(--c-coral); }
+  .bh-marke { color: var(--brand-primary); }
+  .bh-weg { opacity: 0.35; text-decoration: line-through; }
+  .bh-knopf { width: 1.75rem; height: 1.75rem; border-radius: 9999px; display: flex;
+    align-items: center; justify-content: center; margin: 0 auto;
+    background: #f3f4f6; color: var(--ink-4); transition: background-color .15s, color .15s; }
+  .bh-knopf.ja { background: var(--c-green-bg); color: var(--c-green); }
+  .bh-i { width: 13px; height: 13px; }
 </style>
+
+{# Symbole der Rechnungszeilen, einmal je Seite; die Zeilen verweisen per <use> darauf #}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="bh-ok" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="3"/></symbol>
+  <symbol id="bh-offen" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="bh-stift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></g></symbol>
+  <symbol id="bh-eimer" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></g></symbol>
+</svg>
 
 <!-- ── Header ── -->
 <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
@@ -195,104 +230,32 @@
         </tr>
       </thead>
       <tbody>
-        {% for row in g.rows %}
-        {% set r = row.r %}
-        <tr class="border-b border-gray-50 hover:bg-gray-50 transition {% if r.bezahlt %}opacity-60{% endif %}">
-          <td class="kunde px-3 py-2.5 font-medium whitespace-nowrap" style="color:var(--ink-1);" title="{{ r.kunde or '' }}">{{ r.kunde or "–" }}
-            {% if marken_filter == 'beide' and r.marke == 'Knallfrosch' %}
-            <span class="brand-tag-knallfrosch" title="Knallfrosch-Rechnung">KF</span>
-            {% endif %}
-            {% if rechnung_ueberfaellig(r) %}
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style="background:#fee2e2;color:#b91c1c;"
-                  title="Fällig seit {{ rechnung_faellig_am(r) | de_date }} (14 Werktage) – noch nicht bezahlt">überfällig</span>
-            {% endif %}
-          </td>
-          <td class="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style="color:var(--ink-3);">{{ r.rgnr or "–" }}</td>
-          <td class="px-3 py-2.5 text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ r.datum | de_date }}</td>
-          <td class="bh-edit px-3 py-2.5 text-right font-semibold whitespace-nowrap" style="color:var(--ink-1);"
-              data-rid="{{ r.id }}" data-feld="brutto" data-wert="{{ '%.2f'|format(r.brutto or 0)|replace('.', ',') }}"
-              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.brutto or 0) | de_euro }} €</td>
-          <td class="px-3 py-2.5 text-center">
-            <form method="post" action="/admin/buchhaltung/{{ r.id }}/bezahlt">
-              <button type="submit" title="{{ 'Bezahlt – klicken zum Rückgängig machen' if r.bezahlt else 'Als bezahlt markieren' }}"
-                      class="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition"
-                      style="background:{% if r.bezahlt %}var(--c-green-bg){% else %}#f3f4f6{% endif %};
-                             color:{% if r.bezahlt %}var(--c-green){% else %}var(--ink-4){% endif %};">
-                {% if r.bezahlt %}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                {% else %}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
-                {% endif %}
-              </button>
-            </form>
-          </td>
-          {% if row.hat_honorare %}
-          {# Aufgeschlüsselt: Klick öffnet die Zeilen je Dienstleister (statt sie in die Tabelle zu quetschen) #}
-          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap">
-            <button type="button" onclick="bhHonorare('{{ r.id }}')"
-                    class="hover:underline" style="color:var(--brand-primary);"
-                    title="Aufschlüsselung je Dienstleister anzeigen">
-              {{ (r.fremdleistungen or 0) | de_euro }} €
-              {% if row.offen_honorare %}<span class="ml-1 font-semibold" style="color:var(--c-amber);" title="{{ row.offen_honorare }} Rechnung(en) stehen noch aus">⏳{{ row.offen_honorare }}</span>{% endif %}
-            </button>
-          </td>
-          {% else %}
-          <td class="bh-edit px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);"
-              data-rid="{{ r.id }}" data-feld="fremdleistungen" data-wert="{{ '%.2f'|format(r.fremdleistungen or 0)|replace('.', ',') }}"
-              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.fremdleistungen or 0) | de_euro }} €</td>
-          {% endif %}
-          <td class="bh-edit px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);"
-              data-rid="{{ r.id }}" data-feld="materialkosten" data-wert="{{ '%.2f'|format(r.materialkosten or 0)|replace('.', ',') }}"
-              title="Klicken zum Ändern · Enter = speichern, Esc = abbrechen">{{ (r.materialkosten or 0) | de_euro }} €</td>
-          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-3);">{{ row.mwst | de_euro }} €</td>
-          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap" style="color:var(--ink-2);">{{ row.netto | de_euro }} €</td>
-          <td class="px-3 py-2.5 text-right text-xs font-semibold whitespace-nowrap"
-              style="color:{% if row.nettogewinn >= 0 %}var(--c-green){% else %}var(--c-coral){% endif %};">
-            {{ row.nettogewinn | de_euro }} €
-          </td>
-          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
-              style="color:var(--c-amber);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
-            {{ row.steuer | de_euro }} €
-          </td>
-          <td class="px-3 py-2.5 text-right text-xs whitespace-nowrap transition"
-              style="color:var(--c-sky);{% if r.steuer_erledigt %}opacity:0.35;text-decoration:line-through;{% endif %}">
-            {{ row.invest | de_euro }} €
-          </td>
-          <td class="px-3 py-2.5 text-center">
-            <form method="post" action="/admin/buchhaltung/{{ r.id }}/steuer">
-              <button type="submit"
-                      title="{{ 'Rücklage erledigt – klicken zum Rückgängig' if r.steuer_erledigt else 'Rücklage als überwiesen markieren' }}"
-                      class="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition"
-                      style="background:{% if r.steuer_erledigt %}var(--c-green-bg){% else %}#f3f4f6{% endif %};
-                             color:{% if r.steuer_erledigt %}var(--c-green){% else %}var(--ink-4){% endif %};">
-                {% if r.steuer_erledigt %}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                {% else %}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
-                {% endif %}
-              </button>
-            </form>
-          </td>
-          <td class="px-3 py-2.5">
-            <div class="flex items-center gap-1 justify-end">
-              <a href="/admin/buchhaltung/{{ r.id }}/edit"
-                 class="p-1.5 rounded-lg hover:bg-gray-100 transition" title="Bearbeiten" style="color:var(--ink-3);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </a>
-              <form method="post" action="/admin/buchhaltung/{{ r.id }}/loeschen"
-                    onsubmit="return confirm('Rechnung wirklich löschen?')">
-                <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 transition" title="Löschen" style="color:var(--c-coral);">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                  </svg>
-                </button>
-              </form>
-            </div>
-          </td>
+        {#- Rechnungszeile bewusst kompakt: Formate als Klassen (oben im <style>), Symbole
+            per <use> aus dem Sprite, eine Zelle je Zeile. Bei 120 Rechnungen zählt jedes Byte. #}
+        {%- for row in g.rows %}
+        {%- set r = row.r %}
+        <tr class="bh-z{% if r.bezahlt %} opacity-60{% endif %}">
+          <td class="kunde font-medium whitespace-nowrap bh-k1" title="{{ r.kunde or '' }}">{{ r.kunde or "–" }}
+          {%- if marken_filter == 'beide' and r.marke == 'Knallfrosch' %} <span class="brand-tag-knallfrosch" title="Knallfrosch-Rechnung">KF</span>{% endif %}
+          {%- if rechnung_ueberfaellig(r) %} <span class="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style="background:#fee2e2;color:#b91c1c;" title="Fällig seit {{ rechnung_faellig_am(r) | de_date }} (14 Werktage) – noch nicht bezahlt">überfällig</span>{% endif %}</td>
+          <td class="bh-n bh-l font-mono bh-k3">{{ r.rgnr or "–" }}</td>
+          <td class="bh-n bh-l bh-k3">{{ r.datum | de_date }}</td>
+          <td class="bh-edit text-right font-semibold whitespace-nowrap bh-k1" data-rid="{{ r.id }}" data-feld="brutto" data-wert="{{ '%.2f'|format(r.brutto or 0)|replace('.', ',') }}">{{ (r.brutto or 0) | de_euro }} €</td>
+          <td><form method="post" action="/admin/buchhaltung/{{ r.id }}/bezahlt"><button type="submit" class="bh-knopf{% if r.bezahlt %} ja{% endif %}" title="{{ 'Bezahlt – klicken zum Rückgängig machen' if r.bezahlt else 'Als bezahlt markieren' }}"><svg class="bh-i"><use href="#{{ 'bh-ok' if r.bezahlt else 'bh-offen' }}"/></svg></button></form></td>
+          {%- if row.hat_honorare %}
+          {#- Aufgeschlüsselt: Klick öffnet die Zeilen je Dienstleister (statt sie in die Tabelle zu quetschen) #}
+          <td class="bh-n"><button type="button" onclick="bhHonorare('{{ r.id }}')" class="hover:underline bh-marke" title="Aufschlüsselung je Dienstleister anzeigen">{{ (r.fremdleistungen or 0) | de_euro }} €{% if row.offen_honorare %} <span class="ml-1 font-semibold bh-amber" title="{{ row.offen_honorare }} Rechnung(en) stehen noch aus">⏳{{ row.offen_honorare }}</span>{% endif %}</button></td>
+          {%- else %}
+          <td class="bh-edit bh-n bh-k3" data-rid="{{ r.id }}" data-feld="fremdleistungen" data-wert="{{ '%.2f'|format(r.fremdleistungen or 0)|replace('.', ',') }}">{{ (r.fremdleistungen or 0) | de_euro }} €</td>
+          {%- endif %}
+          <td class="bh-edit bh-n bh-k3" data-rid="{{ r.id }}" data-feld="materialkosten" data-wert="{{ '%.2f'|format(r.materialkosten or 0)|replace('.', ',') }}">{{ (r.materialkosten or 0) | de_euro }} €</td>
+          <td class="bh-n bh-k3">{{ row.mwst | de_euro }} €</td>
+          <td class="bh-n bh-k2">{{ row.netto | de_euro }} €</td>
+          <td class="bh-n font-semibold {{ 'bh-plus' if row.nettogewinn >= 0 else 'bh-minus' }}">{{ row.nettogewinn | de_euro }} €</td>
+          <td class="bh-n bh-amber{% if r.steuer_erledigt %} bh-weg{% endif %}">{{ row.steuer | de_euro }} €</td>
+          <td class="bh-n bh-sky{% if r.steuer_erledigt %} bh-weg{% endif %}">{{ row.invest | de_euro }} €</td>
+          <td><form method="post" action="/admin/buchhaltung/{{ r.id }}/steuer"><button type="submit" class="bh-knopf{% if r.steuer_erledigt %} ja{% endif %}" title="{{ 'Rücklage erledigt – klicken zum Rückgängig' if r.steuer_erledigt else 'Rücklage als überwiesen markieren' }}"><svg class="bh-i"><use href="#{{ 'bh-ok' if r.steuer_erledigt else 'bh-offen' }}"/></svg></button></form></td>
+          <td><div class="flex items-center gap-1 justify-end"><a href="/admin/buchhaltung/{{ r.id }}/edit" class="bh-akt bh-k3" title="Bearbeiten"><svg class="bh-i"><use href="#bh-stift"/></svg></a><form method="post" action="/admin/buchhaltung/{{ r.id }}/loeschen" onsubmit="return confirm('Rechnung wirklich löschen?')"><button type="submit" class="bh-akt bh-minus" title="Löschen"><svg class="bh-i"><use href="#bh-eimer"/></svg></button></form></div></td>
         </tr>
         {% if row.hat_honorare %}
         {# Leere Hülle – der Inhalt wird beim ersten Aufklappen nachgeladen, damit
@@ -375,6 +338,7 @@
 
   // ── Inline-Editieren (Excel-artig): Klick auf Brutto/Fremdleistungen/Material ──
   document.querySelectorAll('.bh-edit').forEach(function(td){
+    td.title = 'Klicken zum Ändern · Enter = speichern, Esc = abbrechen';   // einmal hier statt in jeder Zelle
     td.addEventListener('click', function(){
       if (td.querySelector('input')) return;           // schon im Bearbeiten-Modus
       var anzeige = td.textContent;

@@ -123,3 +123,15 @@ def test_kunde_spalte_gekuerzt_mit_tooltip(admin):
     html = admin.get("/admin/buchhaltung?jahr=2099").text
     assert f'title="{lang}"' in html          # voller Name als Maus-Tooltip
     assert "text-overflow: ellipsis" in html  # Spalte wird gekürzt statt zu wachsen
+
+
+def test_zeilen_schlank_symbole_aus_sprite(admin):
+    # Die Seite war bei 120 Rechnungen ~950 KB, weil jede Zeile ihre Symbole und
+    # Farben selbst mitbrachte. Symbole stehen jetzt einmal im Sprite, Zeilen verweisen.
+    for i in range(3):
+        _neu(admin, f"2093-03-0{i + 1}", f"Sprite-Kunde {i}", f"RE-2093-07{i}", bezahlt=(i == 0))
+    html = admin.get("/admin/buchhaltung?jahr=2093").text
+    assert html.count('<symbol id="bh-eimer"') == 1         # Mülleimer-Grafik genau einmal
+    assert html.count('<use href="#bh-eimer"') == 3          # je Zeile nur ein Verweis
+    assert html.count('<use href="#bh-ok"') == 1             # die bezahlte Rechnung
+    assert 'style="color:var(--ink-3);"' not in html.split("<tbody>")[1].split("</tbody>")[0]
