@@ -836,8 +836,9 @@ def akquise_kunde_loeschen(kid: int, db: Session = Depends(get_db), user=Depends
     Papierkorb, ist also zurückholbar, und landet wieder in der Akquise-Liste."""
     k = db.query(Kunde).filter(Kunde.id == kid, Kunde.herkunft == "akquise").first()
     if k:
-        from papierkorb import archive_kunde
+        from papierkorb import archive_kunde, kunde_verweise_loesen
         archive_kunde(db, k, user.get("sub") or user.get("email"))
+        kunde_verweise_loesen(db, k)
         db.delete(k)
         db.commit()
     return RedirectResponse("/admin/crm/akquise", status_code=303)
@@ -1016,11 +1017,10 @@ async def kunde_update(request: Request, kid: int, db: Session = Depends(get_db)
 def kunde_delete(kid: int, db: Session = Depends(get_db), user=Depends(nur_inhaber)):
     k = db.query(Kunde).filter(Kunde.id == kid).first()
     if k:
-        from papierkorb import archive_kunde
+        from papierkorb import archive_kunde, kunde_verweise_loesen
         archive_kunde(db, k, user.get("sub") or user.get("email"))  # Notfall-Sicherung (inkl. Aktivitäten/Wiedervorlagen)
-        # Events bleiben erhalten, nur die Verknüpfung wird gelöst.
-        for ev in db.query(Event).filter(Event.kunde_id == kid).all():
-            ev.kunde_id = None
+        # Events und Kontaktprotokoll bleiben erhalten, nur die Verknüpfung wird gelöst.
+        kunde_verweise_loesen(db, k)
         db.delete(k); db.commit()
     return RedirectResponse("/admin/crm", status_code=303)
 

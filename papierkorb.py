@@ -17,7 +17,7 @@ from sqlalchemy import Date as SA_Date, DateTime as SA_DateTime, Time as SA_Time
 from models import (GeloeschtesObjekt, Event, Dienstleister, Kunde, KundeTag,
                     Verfuegbarkeitsanfrage, EventDatei, Bastelvorschlag,
                     DienstleisterSperrzeit, KundeAktivitaet, KundeWiedervorlage,
-                    ExternerTeamer)
+                    ExternerTeamer, VertriebKontaktLog)
 
 
 def _row(obj) -> dict:
@@ -65,6 +65,10 @@ def _snapshot_kunde(db, k) -> dict:
         "wiedervorlagen": [_row(w) for w in db.query(KundeWiedervorlage).filter(
             KundeWiedervorlage.kunde_id == k.id).all()],
         "tags": [t.name for t in k.tags],
+        # Das Kontaktprotokoll bleibt beim Löschen stehen (Nachweis), nur der Verweis
+        # wird gelöst; beim Wiederherstellen hängen wir es über die IDs wieder an.
+        "kontakt_log_ids": [e.id for e in db.query(VertriebKontaktLog).filter(
+            VertriebKontaktLog.kunde_id == k.id).all()],
     }
 
 
@@ -92,6 +96,18 @@ def archive_dienstleister(db, dl, admin_email):
 
 def archive_kunde(db, k, admin_email):
     _archiviere(db, "kunde", k.id, k.firma or "Kunde", _snapshot_kunde(db, k), admin_email)
+
+
+def kunde_verweise_loesen(db, k):
+    """Vor db.delete(k): Zeilen, die auf den Kunden zeigen und bleiben sollen, lösen.
+    Events bleiben erhalten, das Kontaktprotokoll auch (Nachweis im Streitfall).
+    Ohne das bricht Postgres das Löschen am Fremdschlüssel ab (HTTP 500, 27.10.2026);
+    SQLite in den Tests prüft Fremdschlüssel nicht und merkt davon nichts."""
+    for ev in db.query(Event).filter(Event.kunde_id == k.id).all():
+        ev.kunde_id = None
+    for e in db.query(VertriebKontaktLog).filter(VertriebKontaktLog.kunde_id == k.id).all():
+        e.kunde_id = None
+    db.flush()
 
 
 # ── Wiederherstellen (Phase 2) ───────────────────────────────────────────────────
@@ -186,6 +202,11 @@ def _restore_kunde(db, daten):
         if not tag:
             tag = KundeTag(name=tagname); db.add(tag); db.flush()
         k.tags.append(tag)
+    for log_id in daten.get("kontakt_log_ids", []):
+        e = db.query(VertriebKontaktLog).filter(VertriebKontaktLog.id == int(log_id),
+                                                VertriebKontaktLog.kunde_id == None).first()  # noqa: E711
+        if e:
+            e.kunde_id = k.id
     db.flush()
     return None, None
 
