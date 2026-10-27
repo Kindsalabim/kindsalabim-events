@@ -370,23 +370,30 @@
 <div class="card p-5">
   <h2 class="text-sm font-semibold text-gray-700 mb-1">Sperrliste</h2>
   <p class="text-xs mb-3" style="color:var(--ink-4);">
-    Wer hier steht, wird nie wieder angeschrieben. Geprüft wird vor jedem Versand, auf allen vier Ebenen.
-    Einträge laufen nicht ab.
+    Wer hier steht, wird nicht angeschrieben. Geprüft wird vor jedem Versand, auf allen vier Ebenen.
+    Einträge gelten für immer, außer du trägst bei „Gilt bis“ ein Datum ein (z. B. Kundenschutz aus
+    einem Agenturvertrag). 30 Tage vor dem Ende meldet sich die Glocke.
   </p>
   {% if sperren %}
   <ul class="text-sm mb-4" style="border-top:1px solid var(--line);">
     {% for s in sperren %}
-    <li class="flex items-center gap-3 py-2" style="border-bottom:1px solid var(--line);">
+    {% set abgelaufen = s.gilt_bis and s.gilt_bis < sperre_heute %}
+    <li class="flex items-center gap-3 py-2{% if abgelaufen %} opacity-60{% endif %}" style="border-bottom:1px solid var(--line);">
       <span class="text-xs px-2 py-0.5 rounded-full shrink-0" style="background:#f1f5f9;color:#475569;">{{ s.ebene }}</span>
       <span class="min-w-0">
         <span class="block truncate" style="color:var(--ink-1);">{{ s.anzeige or s.wert }}</span>
         {% if s.notiz %}<span class="block text-xs truncate" style="color:var(--ink-4);" title="{{ s.notiz }}">{{ s.notiz }}</span>{% endif %}
       </span>
-      <span class="ml-auto text-xs shrink-0" style="color:var(--ink-4);">
+      <span class="ml-auto text-xs shrink-0 text-right" style="color:var(--ink-4);">
         {{ s.grund }}{% if s.erstellt_am %} · {{ s.erstellt_am[8:10] }}.{{ s.erstellt_am[5:7] }}.{{ s.erstellt_am[:4] }}{% endif %}
+        {% if s.gilt_bis %}
+        <span class="block font-semibold" style="color:{% if abgelaufen %}var(--ink-4){% else %}var(--c-amber){% endif %};">
+          {% if abgelaufen %}abgelaufen am {{ s.gilt_bis | de_date }}, gilt nicht mehr{% else %}gilt bis {{ s.gilt_bis | de_date }}{% endif %}
+        </span>
+        {% endif %}
       </span>
       <form method="post" action="/admin/crm/akquise/sperre/{{ s.id }}/loeschen" class="shrink-0">
-        {% if s.grund in ('widerspruch', 'abmahnung', 'unterlassung') %}
+        {% if s.grund in ('widerspruch', 'abmahnung', 'unterlassung', 'kundenschutz') and not abgelaufen %}
         {% set frage = 'Achtung: Diese Sperre schützt dich rechtlich (' ~ s.grund ~ '). Wenn du sie aufhebst, kann „' ~ (s.anzeige or s.wert) ~ '“ beim nächsten Recherche-Lauf wieder eingesammelt und angeschrieben werden. Wirklich aufheben?' %}
         {% else %}
         {% set frage = 'Sperre für „' ~ (s.anzeige or s.wert) ~ '“ aufheben?' %}
@@ -415,8 +422,22 @@
         {% for wert, label in gruende %}<option value="{{ wert }}">{{ label }}</option>{% endfor %}
       </select>
     </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-700 mb-1.5">Gilt bis (optional)</label>
+      <input type="date" name="gilt_bis" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring"
+             title="Letzter Tag der Sperre. Leer lassen, wenn sie für immer gelten soll.">
+    </div>
+    <div class="flex-1 min-w-48">
+      <label class="block text-xs font-medium text-gray-700 mb-1.5">Notiz (optional)</label>
+      <input type="text" name="notiz" placeholder="z. B. Kundenschutz Agentur Muster, Vertrag vom 27.10.2026"
+             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    </div>
     <button type="submit" class="btn-secondary text-sm px-4 py-2">Sperren</button>
   </form>
+  <p class="text-xs mt-2" style="color:var(--ink-4);">
+    Tipp für Kundenschutz: die Firma einmal als „unternehmen“ und ihre Mail-Domain einmal als „domain“ eintragen,
+    beide mit demselben Datum. Zum Verlängern denselben Eintrag mit dem neuen Datum noch einmal speichern.
+  </p>
 </div>
 
 {% endblock %}

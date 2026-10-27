@@ -322,6 +322,9 @@ def run_migrations():
                 conn.rollback()
     # Rechnung ↔ Event: Grundlage der Fremdleistungs-Aufschlüsselung je Dienstleister
     add_column("rechnungen", "event_id", "INTEGER")
+    # Kundenschutz aus Agenturverträgen: Sperre mit Ablaufdatum, Glocke 30 Tage vorher
+    add_column("vertrieb_sperren", "gilt_bis", "DATE")
+    add_column("vertrieb_sperren", "ablauf_erinnert_am", "DATE")
 
     # Status-Modell vereinheitlicht: "Entwurf"/"Bestätigt" gibt es nicht mehr → "Gebucht".
     with engine.connect() as conn:

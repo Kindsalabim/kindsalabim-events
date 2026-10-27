@@ -269,7 +269,7 @@ def akquise(request: Request, lauf: str = "", ansicht: str = "jetzt",
             letzte=letzte, WEG_LABEL=WEG_LABEL,
             gestoppt=vertrieb.versand_gestoppt(db), gruende=vertrieb.GRUENDE,
             rest_heute=vertrieb.rest_heute(db), limit_tag=vertrieb.tageslimit(db),
-            ebenen=vertrieb.EBENEN, spalten=SPALTEN_HILFE,
+            ebenen=vertrieb.EBENEN, spalten=SPALTEN_HILFE, sperre_heute=vertrieb.heute(),
             auftraege=auftraege, kosten_monat=kosten_monat, lauf_id=lauf_id,
             nachschub_grenze=recherche.NACHSCHUB_GRENZE,
             dauerauftrag=get_setting(db, recherche.DAUERAUFTRAG_KEY, ""),
@@ -792,9 +792,16 @@ async def api_ab_verschickt(request: Request, background_tasks: BackgroundTasks,
 @router.post("/akquise/sperre")
 def akquise_sperre(ebene: str = Form("adresse"), wert: str = Form(""),
                    grund: str = Form("widerspruch"), notiz: str = Form(""),
+                   gilt_bis: str = Form(""),
                    db: Session = Depends(get_db), _=Depends(nur_inhaber)):
+    """`gilt_bis` (optional, letzter Tag) befristet die Sperre, z. B. Kundenschutz aus
+    einem Agenturvertrag. Ohne Datum gilt sie wie bisher für immer."""
     import vertrieb
-    vertrieb.sperren(db, ebene, wert, grund, notiz)
+    try:
+        bis = date.fromisoformat(gilt_bis.strip()) if gilt_bis.strip() else None
+    except ValueError:
+        bis = None
+    vertrieb.sperren(db, ebene, wert, grund, notiz.strip(), gilt_bis=bis)
     return RedirectResponse("/admin/crm/akquise", status_code=303)
 
 

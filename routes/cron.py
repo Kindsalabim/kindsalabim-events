@@ -526,6 +526,40 @@ def _run_geburtstage(db: Session) -> int:
     return len(kinder)
 
 
+KUNDENSCHUTZ_VORLAUF_TAGE = 30
+
+
+def _run_kundenschutz_ablauf(db: Session) -> int:
+    """Glocke, wenn eine befristete Sperre (Kundenschutz) in 30 Tagen endet: Zeit, um zu
+    prüfen, ob der Agenturvertrag verlängert wurde. Eine Sammelmeldung; jede Sperre
+    meldet sich je Datum nur einmal (ein neues Datum setzt den Merker zurück)."""
+    from models import VertriebSperre
+    from notifications import notify
+    heute = _heute()
+    grenze = heute + timedelta(days=KUNDENSCHUTZ_VORLAUF_TAGE)
+    faellig = db.query(VertriebSperre).filter(
+        VertriebSperre.gilt_bis != None,                 # noqa: E711
+        VertriebSperre.gilt_bis >= heute,
+        VertriebSperre.gilt_bis <= grenze,
+        VertriebSperre.ablauf_erinnert_am == None,       # noqa: E711
+    ).order_by(VertriebSperre.gilt_bis).all()
+    if not faellig:
+        return 0
+    namen = ", ".join(f"{s.anzeige or s.wert} (bis {s.gilt_bis.strftime('%d.%m.%Y')})"
+                      for s in faellig)
+    erster = faellig[0].anzeige or faellig[0].wert
+    notify(db, "kundenschutz_endet",
+           f"Kundenschutz endet bald: {erster}" + (f" +{len(faellig) - 1}" if len(faellig) > 1 else ""),
+           f"Diese Sperren laufen ab: {namen}. Danach darf die Akquise sie wieder anschreiben. "
+           "Wurde der Vertrag verlängert, trag die Sperre in der Sperrliste mit dem neuen "
+           "Datum noch einmal ein.",
+           "/admin/crm/akquise")
+    for s in faellig:
+        s.ablauf_erinnert_am = heute
+    db.commit()
+    return len(faellig)
+
+
 @router.get("/erinnerung")
 def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(get_db)):
     """Wird täglich von Render Cron aufgerufen. Sendet Erinnerungen 24h vor Fristablauf."""
@@ -649,6 +683,9 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # Geburtstage des Tages
     geburtstage = _run_geburtstage(db)
 
+    # Kundenschutz-Sperren, die in 30 Tagen enden
+    kundenschutz = _run_kundenschutz_ablauf(db)
+
     # Baker-Ross-Katalog wöchentlich (montags) aus der Sitemap auffrischen.
     katalog = "übersprungen"
     if today.weekday() == 0:
@@ -673,6 +710,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
                          "gewerbeschein_erinnerungen": gewerbeschein_erinnerungen,
                          "scoring_erinnerungen": scoring_erinnerungen,
                          "geburtstage": geburtstage,
+                         "kundenschutz_endet": kundenschutz,
                          "bakerross_katalog": katalog,
                          "datum": morgen.strftime("%d.%m.%Y")})
 

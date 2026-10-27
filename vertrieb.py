@@ -15,12 +15,14 @@ Deshalb gilt:
 import re
 import unicodedata
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 NOTAUS_KEY = "vertrieb_versand_gestoppt"
 EBENEN = ("adresse", "domain", "unternehmen", "person")
 GRUENDE = [("widerspruch", "Widerspruch des Empfängers"),
            ("abmahnung", "Abmahnung / Anwaltsschreiben"),
            ("unterlassung", "Unterlassungsvertrag"),
+           ("kundenschutz", "Kundenschutz (Vertrag mit Agentur)"),
            ("eigene", "Eigene Entscheidung")]
 
 _RECHTSFORM = re.compile(
@@ -52,9 +54,20 @@ def ist_freemail(domain: str) -> bool:
     return any((domain or "").endswith(frei) for frei in FREEMAIL)
 
 
+def heute():
+    """Deutsches Datum: `gilt_bis` ist ein Kalendertag aus einem Vertrag, kein Serverzeitpunkt."""
+    return datetime.now(ZoneInfo("Europe/Berlin")).date()
+
+
+def sperre_aktiv(s, tag=None) -> bool:
+    """Unbefristet oder bis einschließlich `gilt_bis`."""
+    return s.gilt_bis is None or s.gilt_bis >= (tag or heute())
+
+
 def _sperren(db):
     from models import VertriebSperre
-    return db.query(VertriebSperre).all()
+    tag = heute()
+    return [s for s in db.query(VertriebSperre).all() if sperre_aktiv(s, tag)]
 
 
 def versand_gestoppt(db) -> bool:
@@ -94,8 +107,13 @@ def darf_kontaktieren(db, email: str = "", firma: str = "", person: str = "") ->
     return True, ""
 
 
-def sperren(db, ebene: str, wert: str, grund: str = "widerspruch", notiz: str = ""):
-    """Sperre eintragen. Doppelte Einträge werden still übersprungen."""
+def sperren(db, ebene: str, wert: str, grund: str = "widerspruch", notiz: str = "",
+            gilt_bis=None):
+    """Sperre eintragen. Doppelte Einträge werden still übersprungen.
+
+    Ausnahme: Ist die vorhandene Sperre befristet, gilt der neue Eintrag (verlängerter
+    Kundenschutz, oder eine abgelaufene Sperre wird wieder nötig). Eine unbefristete
+    Sperre wird nie durch eine befristete ersetzt."""
     from models import VertriebSperre
     if ebene not in EBENEN or not (wert or "").strip():
         return None
@@ -103,9 +121,14 @@ def sperren(db, ebene: str, wert: str, grund: str = "widerspruch", notiz: str = 
     vorhanden = db.query(VertriebSperre).filter(VertriebSperre.ebene == ebene,
                                                 VertriebSperre.wert == norm).first()
     if vorhanden:
+        if vorhanden.gilt_bis is not None:
+            vorhanden.grund, vorhanden.gilt_bis = grund, gilt_bis
+            vorhanden.notiz = notiz or vorhanden.notiz
+            vorhanden.ablauf_erinnert_am = None
+            db.commit()
         return vorhanden
     s = VertriebSperre(ebene=ebene, wert=norm, anzeige=wert.strip(), grund=grund,
-                       notiz=notiz or None,
+                       notiz=notiz or None, gilt_bis=gilt_bis,
                        erstellt_am=datetime.now().isoformat(timespec="seconds"))
     db.add(s)
     db.commit()

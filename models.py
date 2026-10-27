@@ -716,16 +716,19 @@ class VertriebSperre(Base):
     """Wer nicht (mehr) angesprochen werden darf. Vier Ebenen, weil eine reine
     E-Mail-Sperre zu kurz greift: Dieselbe Firma meldet sich später über eine andere
     Adresse, und eine Unterlassungsverpflichtung gilt meist für das Unternehmen.
-    Einträge laufen nie ab. Geprüft wird technisch vor jedem Versand, nie von der KI."""
+    Einträge laufen nur ab, wenn `gilt_bis` gesetzt ist (Kundenschutz aus einem
+    Agenturvertrag, Aykut 27.10.2026). Geprüft wird technisch vor jedem Versand, nie von der KI."""
     __tablename__ = "vertrieb_sperren"
 
     id          = Column(Integer, primary_key=True, index=True)
     ebene       = Column(String, nullable=False)   # adresse | domain | unternehmen | person
     wert        = Column(String, nullable=False)   # normalisiert (klein, ohne Rechtsform)
     anzeige     = Column(String)                   # wie eingegeben
-    grund       = Column(String)                   # widerspruch | abmahnung | unterlassung | eigene
+    grund       = Column(String)                   # widerspruch | abmahnung | unterlassung | kundenschutz | eigene
     notiz       = Column(Text)
     erstellt_am = Column(String)
+    gilt_bis    = Column(Date)                     # letzter Tag der Sperre (deutsches Datum); leer = unbefristet
+    ablauf_erinnert_am = Column(Date)              # Glocke „endet bald“ schon gezeigt (einmal je Datum)
 
 
 class Rechercheauftrag(Base):
