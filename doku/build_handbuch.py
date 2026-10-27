@@ -476,6 +476,9 @@ story = [
         "dann in Mail, Portal und Briefing <b>ihre</b> Zeit (die Veranstaltungszeit bleibt als Rahmen "
         "sichtbar), und die <b>Ankunft</b> rechnet ab ihrem Beginn. Leer = die Zeiten des Events gelten. "
         "Nachträglich änderbar über &bdquo;Anfrage ändern&ldquo;.",
+        "<b>Ankunft schon in der Anfrage:</b> Anfrage-Mail, Serien-Anfrage und Portal zeigen die "
+        "Ankunftszeit je Person rot hervorgehoben, nicht erst das Briefing. So plant niemand mit der "
+        "Aktionszeit, wenn vorher zwei Stunden Aufbau anstehen.",
         "<b>Direkt eintragen</b> (ohne Mail) für telefonisch Vereinbartes; <b>Einmal-Teamer (extern)</b> "
         "beim Briefing für Agentur-Personal.",
         "Zugesagte erscheinen mit Häkchen; dort <b>Teamleitung</b> und (bei Material) <b>Logistiker</b> "
@@ -582,7 +585,9 @@ story = [
         "Kunden-Autofill wie im Event-Formular.",
         "Im Google-Kalender: <b>anthraziter</b> Block; nach Fristablauf färbt er sich automatisch "
         "<b>flamingo</b> und die Reservierung wandert in der App ins Dropdown &bdquo;Abgelaufene "
-        "Reservierungen&ldquo;.",
+        "Reservierungen&ldquo;. Dazu kommt einmal eine <b>Glocke</b>: Frist verlängern oder freigeben. "
+        "Der Termin bleibt im Kalender bewusst <b>belegt</b>, damit der E-Mail-Assistent Anfragen auf "
+        "diesen Tag dir vorlegt, statt ihn zu vergeben.",
         "<b>Mehrtägige Reservierung:</b> Im Neu-Formular unter &bdquo;Weitere Termintage&ldquo; beliebig "
         "viele Tage ergänzen (jeder mit eigener Uhrzeit, sonst gilt die des Haupttags). Jeder Tag bekommt "
         "seinen eigenen Kalender-Block; die Karten tragen die Markierung &bdquo;Serie&ldquo;.",
@@ -677,8 +682,11 @@ story = [
     ]),
 
     Paragraph("<b>Akquise</b> (Reiter im CRM, nur für Inhaber): Hier liegen <b>recherchierte</b> "
-              "Kontakte, getrennt von den Bestandskunden. Eine <b>Recherche-Liste</b> kommt als CSV "
-              "herein (Spalten: Organisation, Art, Ort, Kontaktweg, Quelle, Veranstaltung, "
+              "Kontakte, getrennt von den Bestandskunden. Die Liste hat vier <b>Reiter</b>: "
+              "<b>&bdquo;Jetzt dran&ldquo;</b> (Standard: wer diesen Monat anzuschreiben ist, dazu die "
+              "zwei verpassten Monate davor und Kontakte ohne Monat), &bdquo;Später&ldquo;, "
+              "&bdquo;Angeschrieben&ldquo; und &bdquo;Abgeschlossen&ldquo;. Eine <b>fertige "
+              "Kontaktliste</b> kommt als CSV herein (Spalten: Organisation, Art, Ort, Kontaktweg, Quelle, Veranstaltung, "
               "Ansprachemonat, Notiz); <b>ohne Quelle wird eine Zeile abgelehnt</b> und Gesperrte "
               "werden übersprungen. Kennt die App eine Organisation schon, wird nur ein "
               "<b>fehlender Ansprechpartner</b> nachgetragen – so lassen sich Ergänzungslisten mit "
@@ -686,8 +694,14 @@ story = [
               "überschrieben. Jeder Kontakt hat einen "
               "<b>Ansprachemonat</b>, also den Planungszeitpunkt der Veranstaltung. Anlass und "
               "Ansprachemonat lassen sich im Kontakt unter &bdquo;Bearbeiten&ldquo; ändern. Die "
-              "<b>Sperrliste</b> wirkt auf vier Ebenen (Adresse, Domain, Unternehmen, Person) und läuft "
-              "nie ab; <b>&bdquo;Nie wieder&ldquo;</b> an einem Kontakt sperrt Adresse, Domain und "
+              "<b>Sperrliste</b> wirkt auf vier Ebenen (Adresse, Domain, Unternehmen, Person) und gilt "
+              "für immer, außer du trägst bei <b>&bdquo;Gilt bis&ldquo;</b> ein Datum ein: gedacht für "
+              "<b>Kundenschutz</b> aus einem Agenturvertrag (Firma als &bdquo;unternehmen&ldquo; und ihre "
+              "Domain als &bdquo;domain&ldquo;, beide mit demselben Datum). Bis einschließlich zu diesem Tag "
+              "wird die Firma nicht angeschrieben, 30 Tage vorher meldet sich die Glocke, danach ist sie "
+              "wieder frei; zum Verlängern denselben Eintrag mit neuem Datum speichern. Unter jedem "
+              "Eintrag steht seine Notiz (Sperren aus dem Assistenten tragen den "
+              "Mail-Betreff &bdquo;AW: &hellip;&ldquo;). <b>&bdquo;Nie wieder&ldquo;</b> an einem Kontakt sperrt Adresse, Domain und "
               "Unternehmen auf einmal. Ein Eintrag lässt sich mit <b>&bdquo;Aufheben&ldquo;</b> zurücknehmen; "
               "bei Widerspruch oder Anwaltspost warnt die App deutlich, weil die Firma danach wieder "
               "angeschrieben werden kann. Der "
@@ -701,8 +715,10 @@ story = [
               "Akquise-Kontakte an; das dauert ein bis zwei Minuten, die Meldung kommt in die Glocke. "
               "Übernommen wird nur, was einen <b>Quelllink</b> hat, nicht gesperrt ist und noch nicht im "
               "CRM steht – alles andere zählt als verworfen. Unter jedem Lauf stehen Treffer, "
-              "verworfene Zeilen und die <b>Kosten</b> (ein Lauf liegt bei etwa 10 bis 40 Cent, oben "
-              "siehst du die Summe des Monats). Das Modell ist wählbar: &bdquo;Günstig&ldquo; für die "
+              "verworfene Zeilen und die <b>Kosten in Dollar</b>, "
+              "Suchgebühren eingerechnet, wie in der Anthropic-Konsole (oben die Summe des Monats). "
+              "Die letzten Läufe sind zugeklappt; schlägt einer fehl, steht der Grund der Schnittstelle "
+              "dabei. Das Modell ist wählbar: &bdquo;Günstig&ldquo; für die "
               "normale Suche, &bdquo;Teuer&ldquo; nur wenn ein Auftrag mehr Urteilsvermögen braucht. "
               "<b>Was die App aussortiert:</b> Ohne Quelllink und ohne Mailadresse wird eine Firma "
               "nicht übernommen, ebenso Gesperrte und schon Bekannte. Unter jedem Lauf steht, "
@@ -725,6 +741,14 @@ story = [
               "oder Familienservice. Findet sie zusätzlich Belege (Zertifikat audit berufundfamilie, "
               "eigenes Familienfest), stehen die im Anlass. Presse- und Bewerbungspostfächer nimmt sie "
               "nicht.", P),
+    Spacer(1, 4),
+    Paragraph("<b>Firmenliste abarbeiten:</b> Eine reine Firmenliste (CSV mit Spalte "
+              "&bdquo;name&ldquo;, gern &bdquo;ort&ldquo;, z. B. die Stufenliste aus dem Vertriebsordner) "
+              "lädst du einmal hoch. Die App recherchiert sie von selbst in Paketen zu fünf Firmen, "
+              "<b>drei Pakete pro Woche</b> ab Montagmorgen, immer eins nach dem anderen. Firmen, die "
+              "schon im CRM stehen, überspringt sie. Mit &bdquo;Pausieren&ldquo; hältst du an, die "
+              "Wochenmenge ist einstellbar, &bdquo;Offene Firmen entfernen&ldquo; wirft den Rest weg. "
+              "Jedes fertige Paket meldet sich in der Glocke.", P),
     Spacer(1, 4),
     Paragraph("<b>Automatischer Nachschub:</b> Trägst du dort einen Dauerauftrag ein, sucht die App "
               "einmal täglich von selbst, sobald weniger als 20 Kontakte offen sind; leeres Feld "
@@ -761,8 +785,9 @@ story = [
         "Honorarzeilen, wird ihre Summe übernommen.",
         "<b>Aufschlüsselung je Dienstleister</b> (erscheint nur bei zugeordnetem Event): "
         "Sagt jemand zu, legt die App automatisch eine "
-        "Honorarzeile mit einer <b>Schätzung</b> an (Aktionszeit + Auf-/Abbau + Fahrzeit; beim "
-        "Künstler das Pauschalbudget). Die Zeile bleibt ein offener Posten, bis die Rechnung des "
+        "Honorarzeile mit einer <b>Schätzung</b> an (Aktionszeit der Person + Aufbau laut "
+        "Ankunftszeit, sonst 30 Min. + 30 Min. Abbau + Fahrzeit; beim Künstler das Pauschalbudget). "
+        "Dieselbe Arbeitszeit steht in der automatischen Bestellung. Die Zeile bleibt ein offener Posten, bis die Rechnung des "
         "Dienstleisters eintrifft – die Liste bleibt trotzdem eine Zeile pro Rechnung: Ein Klick auf "
         "den Fremdleistungs-Betrag klappt die Personen darunter auf. Dort den echten Betrag "
         "eintippen; die Summe oben zieht automatisch nach, auch Wochen später.",
@@ -786,7 +811,8 @@ story = [
     bullets([
         "<b>Angebot PDF:</b> baut in Minuten ein Bildmaterial-Angebot – Marke wählen, Aktionen ankreuzen, "
         "individuelle Seiten mit Titel + Fotos ergänzen, fertig ist das mailbare PDF (wird automatisch "
-        "verkleinert). Aus einem Event heraus geöffnet, sind angedockte Bastelsets schon vorbefüllt.",
+        "verkleinert). Die <b>Team-Seite</b> ist vorausgewählt und kommt immer als letzte Seite; "
+        "bei Bedarf abwählen. Aus einem Event heraus geöffnet, sind angedockte Bastelsets schon vorbefüllt.",
         "<b>Bastel-Recherche:</b> Motto eingeben (z. B. &bdquo;Herbst&ldquo;) → passende Baker-Ross-Bastelsets "
         "mit BR-Preis und kalkuliertem Kundenpreis (Aufschlag einstellbar). Katalog aktualisiert "
         "sich montags automatisch.",
@@ -815,11 +841,12 @@ story = [
         ["2 h nach Event-Ende", "Bericht-Erinnerung an den Teamleiter (danach alle 3 Tage)"],
         ["Tag nach dem Event", "Erinnerung bei spezieller Rechnungs-Mail/Firmierung des Kunden"],
         ["Zahlungsziel überschritten", "Rechnung-überfällig-Meldung, wöchentlich bis „bezahlt“"],
-        ["Täglich", "Abgelaufene Reservierungen: Kalender → flamingo; vergangene werden aufgeräumt"],
+        ["Täglich", "Abgelaufene Reservierungen: Kalender → flamingo (bleibt belegt) + Glocke; vergangene werden aufgeräumt"],
         ["Wöchentlich", "Gewerbeschein-Erinnerung an neue Dienstleister, bis der Schein hochgeladen ist"],
         ["Bei jeder Zusage", "Automatische „Bestellung“ (PDF nach Anwaltsvorlage) an den Dienstleister – nur wenn Stundensatz/Budget hinterlegt, sonst Hinweis-Glocke"],
         ["Jährlich", "Erinnerung, das Scheinselbstständigkeits-Scoring der Dienstleister zu aktualisieren"],
         ["Am Geburtstag", "Glocke, wenn ein aktiver Dienstleister Geburtstag hat (nur wenn er sein Geburtsdatum angegeben hat)"],
+        ["Montagmorgen bis Mittwoch", "Firmenliste: höchstens drei Recherche-Pakete pro Woche, je fünf Firmen"],
         ["Montags", "Baker-Ross-Katalog aktualisieren + CSV-Backup-Mail (Events, Dienstleister, Rechnungen, Kunden)"],
         ["AB über den Assistenten", "Passende Reservierung wird zur Buchung; ohne Reservierung vorausgefülltes Event in der Glocke"],
         ["Meldung des Assistenten", "Pipeline des Akquise-Kontakts rückt weiter (Kontakt, Bedarf, Angebot)"],
