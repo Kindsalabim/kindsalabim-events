@@ -574,6 +574,9 @@ class Rechnung(Base):
     # Verknüpfung zum Event (über „Aus Event übernehmen") – Grundlage der
     # Fremdleistungs-Aufschlüsselung je Dienstleister.
     event_id         = Column(Integer, ForeignKey("events.id"), index=True)
+    # Mehrtägiges Event (Serie): die Rechnung gilt für alle Termintage – außer hier
+    # steht True (Tag einzeln abgerechnet) oder ein anderer Tag hat eine eigene Rechnung.
+    nur_tag          = Column(Boolean, default=False)
     notiz            = Column(Text)
 
 

@@ -327,6 +327,8 @@ def run_migrations():
     add_column("vertrieb_sperren", "ablauf_erinnert_am", "DATE")
     # Schul-Kampagne: „Ich war zuletzt …“ für Schulen, bei denen Aykut schon war
     add_column("kunden", "zuletzt_bei_uns", "VARCHAR")
+    # Mehrtägige Events: Rechnung gilt für die ganze Serie, außer bewusst nur für einen Tag
+    add_column("rechnungen", "nur_tag", "BOOLEAN DEFAULT 0")
 
     # Status-Modell vereinheitlicht: "Entwurf"/"Bestätigt" gibt es nicht mehr → "Gebucht".
     with engine.connect() as conn:

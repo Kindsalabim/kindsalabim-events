@@ -132,11 +132,12 @@ def buchhaltung_list(request: Request, jahr: int = 0,
     # werden erst beim Aufklappen nachgeladen – vorher steckten sie für jede Rechnung
     # im HTML, auch ungeöffnet, und die Seite wurde über ein Megabyte groß.
     zaehler = _honorar_zaehler(db)
+    abdeckung = _abdeckungen(db, rechnungen)
     for g in monatsgruppen:
         for row in g["rows"]:
-            gesamt, offen = zaehler.get(row["r"].event_id, (0, 0))
-            row["hat_honorare"] = gesamt > 0
-            row["offen_honorare"] = offen
+            je_tag = [zaehler.get(eid, (0, 0)) for eid in abdeckung.get(row["r"].id, [])]
+            row["hat_honorare"] = sum(n for n, _ in je_tag) > 0
+            row["offen_honorare"] = sum(o for _, o in je_tag)
 
     today_iso = date.today().strftime("%Y-%m-%d")
     return templates.TemplateResponse("admin/buchhaltung.html", tpl_context(
@@ -159,6 +160,60 @@ def _honorar_zaehler(db):
     return {eid: (int(n or 0), int(offen or 0)) for eid, n, offen in rows}
 
 
+# ── Mehrtägige Events: eine Rechnung gilt für die ganze Serie ─────────────────
+
+def _abdeckungen(db, rechnungen) -> dict:
+    """{rechnung_id: [event_ids]} – welche Termintage eine Rechnung abdeckt.
+
+    Ein mehrtägiges Event sind mehrere Events mit gemeinsamer `serien_id`, die
+    Rechnung hängt aber an einem davon. Sie gilt für alle Tage der Serie, außer
+    sie ist ausdrücklich nur für ihren Tag (`nur_tag`) oder ein anderer Tag der
+    Serie hat eine eigene Rechnung (getrennte Rechnungen je Aktionstag)."""
+    from models import Event
+    eids = {r.event_id for r in rechnungen if r.event_id}
+    if not eids:
+        return {}
+    serie_von = dict(db.query(Event.id, Event.serien_id).filter(Event.id.in_(eids)).all())
+    sids = {s for s in serie_von.values() if s}
+    tage, belegt = {}, {}
+    if sids:
+        for eid, sid in (db.query(Event.id, Event.serien_id)
+                         .filter(Event.serien_id.in_(sids))
+                         .order_by(Event.datum, Event.id).all()):
+            tage.setdefault(sid, []).append(eid)
+        for rid, sid in (db.query(Rechnung.id, Event.serien_id)
+                         .join(Event, Event.id == Rechnung.event_id)
+                         .filter(Event.serien_id.in_(sids)).all()):
+            belegt.setdefault(sid, set()).add(rid)
+    out = {}
+    for r in rechnungen:
+        if not r.event_id:
+            continue
+        sid = serie_von.get(r.event_id)
+        if sid and not r.nur_tag and belegt.get(sid, set()) <= {r.id}:
+            out[r.id] = tage[sid]
+        else:
+            out[r.id] = [r.event_id]
+    return out
+
+
+def _abdeckung(db, r) -> list:
+    return _abdeckungen(db, [r]).get(r.id, [])
+
+
+def _rechnungen_fuer_event(db, event_id) -> list:
+    """Alle Rechnungen, die diesen Termintag abdecken – direkt oder über die Serie."""
+    from models import Event
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev:
+        return []
+    tag_ids = ([e for (e,) in db.query(Event.id).filter(Event.serien_id == ev.serien_id).all()]
+               if ev.serien_id else [ev.id])
+    kandidaten = db.query(Rechnung).filter(Rechnung.event_id.in_(tag_ids)).all()
+    abd = _abdeckungen(db, kandidaten)
+    return [r for r in kandidaten if event_id in abd.get(r.id, [])]
+
+
 def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
     """Events für „Aus Event übernehmen": Material aus den Bestellungen,
     Fremdleistungen aus den Honorarzeilen.
@@ -166,6 +221,10 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
     Ausgeblendet werden Events, die bereits eine Rechnung haben – an ein
     abgerechnetes Event lässt sich keine zweite Rechnung hängen. Beim Bearbeiten
     bleibt das eigene Event natürlich in der Liste (`aktuelle_rechnung`).
+
+    Ein mehrtägiges Event (Serie) steht einmal als Ganzes in der Liste, Kosten
+    aller Tage zusammengezählt; darunter die einzelnen Tage für getrennte
+    Rechnungen je Aktionstag (Wert „<id>-tag").
     """
     from models import Event, EventBestellung, EventHonorar
     from marken import query_filter
@@ -173,9 +232,9 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
     from datetime import timedelta
     heute = date.today()
     grenze = heute - timedelta(days=365)
-    schon_abgerechnet = {
-        r.event_id for r in db.query(Rechnung).filter(Rechnung.event_id != None).all()  # noqa: E711
-        if r.id != aktuelle_rechnung}
+    andere = [r for r in db.query(Rechnung).filter(Rechnung.event_id != None).all()  # noqa: E711
+              if r.id != aktuelle_rechnung]
+    schon_abgerechnet = {eid for tage in _abdeckungen(db, andere).values() for eid in tage}
     # Alle noch nicht abgerechneten Events – auch ohne erfasste Kosten. Die Auswahl
     # stellt die Verknüpfung her (Voraussetzung für die Aufschlüsselung), nicht nur
     # das Vorbefüllen; ein Event ohne Bestellungen braucht sie genauso.
@@ -196,18 +255,41 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
         summe, offen = honorare_je_event.get(eid, (0.0, 0))
         honorare_je_event[eid] = (summe + (ist if ist is not None else (gesch or 0.0)),
                                   offen + (1 if ist is None else 0))
-    vorschlaege = []
+    def eintrag(tage, **extra):
+        fremd = sum(honorare_je_event.get(t.id, (0.0, 0))[0] for t in tage)
+        offen = sum(honorare_je_event.get(t.id, (0.0, 0))[1] for t in tage)
+        e = tage[0]
+        return {
+            "id": e.id, "wert": str(e.id), "datum": e.datum, "bis": tage[-1].datum,
+            "tage": len(tage), "tag_ids": [t.id for t in tage],
+            "kunde_firma": e.kunde_firma or e.anlass or "Event",
+            "summe": round(sum(material_je_event.get(t.id) or 0 for t in tage), 2),
+            "fremd": round(fremd, 2), "marke": e.marke, "offen": offen,
+            "kuenftig": tage[-1].datum > heute, "serie": False, "nur_tag": False,
+            **extra,
+        }
+
+    serien = {}
+    for e in kandidaten:
+        if e.serien_id:
+            serien.setdefault(e.serien_id, []).append(e)
+    vorschlaege, gesehen = [], set()
     for e in kandidaten:
         if e.id in schon_abgerechnet:
             continue
-        fremd, offen = honorare_je_event.get(e.id, (0.0, 0))
-        vorschlaege.append({
-            "id": e.id, "datum": e.datum,
-            "kunde_firma": e.kunde_firma or e.anlass or "Event",
-            "summe": round(material_je_event.get(e.id) or 0, 2),
-            "fremd": round(fremd, 2), "marke": e.marke, "offen": offen,
-            "kuenftig": e.datum > heute,
-        })
+        sid = e.serien_id if e.serien_id and len(serien[e.serien_id]) > 1 else None
+        if not sid:
+            vorschlaege.append(eintrag([e]))
+        elif sid not in gesehen:
+            gesehen.add(sid)
+            alle = sorted(serien[sid], key=lambda t: (t.datum, t.id))
+            frei = [t for t in alle if t.id not in schon_abgerechnet]
+            if len(frei) == len(alle):
+                vorschlaege.append(eintrag(frei, serie=True))
+                vorschlaege += [eintrag([t], nur_tag=True, wert=f"{t.id}-tag") for t in frei]
+            else:
+                # Ein Tag ist schon einzeln abgerechnet: die übrigen auch einzeln
+                vorschlaege += [eintrag([t]) for t in frei]
         if len(vorschlaege) >= 60:
             break
     return vorschlaege
@@ -215,17 +297,18 @@ def _event_vorschlaege(db, mfilter, aktuelle_rechnung: int = None):
 
 # ── Fremdleistungen: Aufschlüsselung je Dienstleister ─────────────────────────
 
-def _honorar_zeilen(db, event_id):
-    """Honorarzeilen eines Events, Teamleitung zuerst wäre hier egal – sortiert
-    nach Name, damit die Reihenfolge zwischen zwei Aufrufen stabil bleibt."""
-    if not event_id:
+def _honorar_zeilen(db, event_ids):
+    """Honorarzeilen der Termintage einer Rechnung, je Tag sortiert nach Name,
+    damit die Reihenfolge zwischen zwei Aufrufen stabil bleibt."""
+    if not event_ids:
         return []
-    from models import EventHonorar, Dienstleister
+    from models import Event, EventHonorar, Dienstleister
     return (db.query(EventHonorar)
-            .options(joinedload(EventHonorar.dienstleister))
+            .options(joinedload(EventHonorar.dienstleister), joinedload(EventHonorar.event))
             .join(Dienstleister, Dienstleister.id == EventHonorar.dienstleister_id)
-            .filter(EventHonorar.event_id == event_id)
-            .order_by(Dienstleister.vorname, Dienstleister.nachname).all())
+            .join(Event, Event.id == EventHonorar.event_id)
+            .filter(EventHonorar.event_id.in_(event_ids))
+            .order_by(Event.datum, Dienstleister.vorname, Dienstleister.nachname).all())
 
 
 @router.get("/{rid}/honorare", response_class=HTMLResponse)
@@ -235,9 +318,10 @@ def honorar_panel(rid: int, request: Request, db: Session = Depends(get_db),
     r = db.query(Rechnung).filter(Rechnung.id == rid).first()
     if not r:
         return HTMLResponse("", status_code=404)
-    zeilen = _honorar_zeilen(db, r.event_id)
+    tage = _abdeckung(db, r)
+    zeilen = _honorar_zeilen(db, tage)
     return templates.TemplateResponse("admin/_honorar_panel.html", tpl_context(
-        request, r=r, honorare=zeilen,
+        request, r=r, honorare=zeilen, mehrtaegig=len(tage) > 1,
         offen_honorare=sum(1 for h in zeilen if h.offen)))
 
 
@@ -280,13 +364,13 @@ def honorar_loeschen(hid: int, db: Session = Depends(get_db),
 
 
 def _fremdleistungen_nachziehen(db, event_id):
-    """Summe der Honorarzeilen in die Rechnung(en) dieses Events schreiben."""
+    """Summe der Honorarzeilen in die Rechnung(en) dieses Events schreiben –
+    bei einem mehrtägigen Event über alle Tage, die die Rechnung abdeckt."""
     if not event_id:
         return
     import honorare
-    neu = honorare.summe(db, event_id)
-    for r in db.query(Rechnung).filter(Rechnung.event_id == event_id).all():
-        r.fremdleistungen = neu
+    for r in _rechnungen_fuer_event(db, event_id):
+        r.fremdleistungen = round(sum(honorare.summe(db, eid) for eid in _abdeckung(db, r)), 2)
     db.commit()
 
 
@@ -294,8 +378,8 @@ def _zurueck(db, event_id) -> str:
     """Zurück in das Jahr der zugehörigen Rechnung (sonst laufendes Jahr).
     `offen` klappt das Panel gleich wieder auf – man trägt meist mehrere
     Beträge nacheinander ein."""
-    r = (db.query(Rechnung).filter(Rechnung.event_id == event_id).first()
-         if event_id else None)
+    treffer = _rechnungen_fuer_event(db, event_id) if event_id else []
+    r = treffer[0] if treffer else None
     jahr = r.datum.year if r and r.datum else date.today().year
     ziel = f"/admin/buchhaltung?jahr={jahr}"
     return f"{ziel}&offen={r.id}" if r else ziel
@@ -318,9 +402,14 @@ def _apply_form(r: Rechnung, datum: str, kunde: str, rgnr: str,
     r.fremdleistungen = parse_float(fremdleistungen)
     r.materialkosten = parse_float(materialkosten)
     r.notiz = notiz.strip() or None
-    # "" = Zuordnung unverändert lassen · "0" = Zuordnung entfernen · sonst setzen
-    if str(event_id).strip().isdigit():
-        r.event_id = int(event_id) or None
+    # "" = Zuordnung unverändert lassen · "0" = Zuordnung entfernen · sonst setzen;
+    # „<id>-tag" = nur dieser Tag eines mehrtägigen Events
+    wert = str(event_id).strip()
+    nur_tag = wert.endswith("-tag")
+    wert = wert.removesuffix("-tag")
+    if wert.isdigit():
+        r.event_id = int(wert) or None
+        r.nur_tag = nur_tag
 
 
 @router.post("/neu")
@@ -364,8 +453,10 @@ def buchhaltung_edit_form(rid: int, request: Request,
     from models import Event
     zugeordnet = (db.query(Event).filter(Event.id == r.event_id).first()
                   if r.event_id else None)
+    tage = (db.query(Event).filter(Event.id.in_(_abdeckung(db, r)))
+            .order_by(Event.datum).all() if zugeordnet else [])
     return templates.TemplateResponse("admin/buchhaltung_edit.html",
-        tpl_context(request, r=r, zugeordnet=zugeordnet,
+        tpl_context(request, r=r, zugeordnet=zugeordnet, zugeordnet_tage=tage,
                     event_vorschlaege=_event_vorschlaege(db, admin_marke(db, user), rid)))
 
 
@@ -394,7 +485,7 @@ def buchhaltung_edit_save(
     # als ein von Hand getippter Sammelbetrag – Summe daraus übernehmen.
     if r.event_id:
         from models import EventHonorar
-        if db.query(EventHonorar).filter(EventHonorar.event_id == r.event_id).first():
+        if db.query(EventHonorar).filter(EventHonorar.event_id.in_(_abdeckung(db, r))).first():
             _fremdleistungen_nachziehen(db, r.event_id)
     return RedirectResponse(f"/admin/buchhaltung?jahr={r.datum.year}", status_code=303)
 

@@ -324,7 +324,10 @@ def test_auswahl_sortiert_zuletzt_gelaufene_zuerst(admin, db):
     make_event(datum=date.today() - timedelta(days=2), kunde_firma="Gestern GmbH")
     make_event(datum=date.today() + timedelta(days=40), kunde_firma="Bald GmbH")
     v = _event_vorschlaege(db, "beide")
-    daten = [e["datum"] for e in v]
+    # Mehrtägige Events: der Serien-Eintrag steht beim letzten gelaufenen Tag (sonst
+    # beim ersten kommenden); die Einzeltage darunter zählen für die Reihenfolge nicht
+    heute = date.today()
+    daten = [e["bis"] if e["bis"] <= heute else e["datum"] for e in v if not e["nur_tag"]]
     vergangen = [d for d in daten if d <= date.today()]
     kuenftig = [d for d in daten if d > date.today()]
     assert vergangen == sorted(vergangen, reverse=True)   # jüngstes zuerst

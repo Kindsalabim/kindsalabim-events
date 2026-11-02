@@ -1,0 +1,10 @@
+{# Beschriftung eines Events in „Aus Event übernehmen" / „Zugehöriges Event".
+   Mehrtägiges Event: erst die ganze Serie, darunter eingerückt die einzelnen Tage. #}
+{%- if e.serie -%}
+{{ e.datum | de_date }} bis {{ e.bis | de_date }} · {{ e.kunde_firma }} · alle {{ e.tage }} Tage
+{%- elif e.nur_tag -%}
+&nbsp;&nbsp;&nbsp;&nbsp;nur {{ e.datum | de_date }} (Tag einzeln abrechnen)
+{%- else -%}
+{{ e.datum | de_date }} · {{ e.kunde_firma }}
+{%- endif -%}
+{% if e.kuenftig %} (noch nicht gelaufen){% endif %}{% if e.fremd %} · Fremdl. {{ e.fremd | de_euro }} €{% if e.offen %} ({{ e.offen }} Rg. offen){% endif %}{% endif %}{% if e.summe %} · Material {{ e.summe | de_euro }} €{% endif %}
