@@ -115,3 +115,15 @@ def test_erinnerung_auch_bei_abweichender_firmierung_ohne_mail(db):
     m = _meldungen("Nur Adresse GmbH")
     assert len(m) == 1
     assert "Nur Adresse Holding SE" in m[0].text and "45127 Essen" in m[0].text
+
+
+def test_abschluss_karte_zeigt_rechnungsangaben(admin):
+    # Aykut 04.11.2026: Hinweis direkt neben „Als gestellt markieren", nicht nur per Glocke
+    kid = _make_kunde(firma="Hinweis Karte AG", rechnung_email="buchhaltung@hk.example")
+    eid = make_event(datum=date.today() - timedelta(days=1), kunde_id=kid,
+                     kunde_firma="Hinweis Karte AG", cl_rechnung_firma="HK Holding SE")
+    html = admin.get(f"/admin/events/{eid}").text
+    assert "Besondere Rechnungsangaben" in html
+    assert "mailto:buchhaltung@hk.example" in html and "HK Holding SE" in html
+    ohne = make_event(datum=date.today() - timedelta(days=1), kunde_firma="Normal GmbH")
+    assert "Besondere Rechnungsangaben" not in admin.get(f"/admin/events/{ohne}").text

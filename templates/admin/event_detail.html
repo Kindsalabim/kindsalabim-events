@@ -1205,6 +1205,16 @@
     {% set serie_n = serie_events|length if serie_events else 0 %}
     <div>
       <p class="text-xs text-gray-500 mb-2">Rechnung</p>
+      {# Gleiche Quellen wie die Glocken-Erinnerung (cron.py): Kartei vor Checkliste #}
+      {% set re_mail = ((ev.kunde.rechnung_email if ev.kunde else None) or ev.cl_rechnung_email or '')|trim %}
+      {% set re_anschrift = [ev.cl_rechnung_firma, ev.cl_rechnung_strasse, ev.cl_rechnung_plz_ort] | select | map('trim') | select | join(', ') %}
+      {% if re_mail or re_anschrift %}
+      <div class="text-xs rounded-lg px-3 py-2 mb-2" style="background:var(--c-amber-bg);color:var(--ink-2);">
+        <span class="font-semibold">Besondere Rechnungsangaben:</span>
+        {% if re_anschrift %}Rechnung an {{ re_anschrift }}.{% endif %}
+        {% if re_mail %}Rechnung per Mail an <a href="mailto:{{ re_mail }}" class="underline">{{ re_mail }}</a> schicken.{% endif %}
+      </div>
+      {% endif %}
       {% if ev.rechnung_gestellt %}
         <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ Rechnung gestellt</span>
         <form method="post" action="/admin/events/{{ ev.id }}/rechnung-gestellt" class="inline">
