@@ -76,6 +76,30 @@ def test_briefing_pdf_teamleitung_mit_sparte_bleibt_lesbar():
     assert "(Kinderschminken)" in txt   # Zusatz darf nicht wegfallen
 
 
+def test_briefing_pdf_ansprechpartner_nummer_ueberlappt_nicht_den_namen():
+    # Aykut 06.11.2026: Ein-Personen-Einsatz, langes Label „Ansprechpartner vor Ort:"
+    # plus langer Name → Telefonnummer wurde über den Namen gedruckt. Jetzt eigene Zeile.
+    from factories import briefing_event_ns
+    import pypdf
+    import briefing_pdf as bp
+    ev = briefing_event_ns(teamleiter_id=1)
+    team = [SimpleNamespace(id=1, vorname="Kübra", nachname="Karakaya-Mustermann",
+                            telefon="+49 172 5587913", email="k@example.com",
+                            kuenstler_sparte="")]
+    zeile = ("team", "Kübra Karakaya-Mustermann", "+49 172 5587913", True, None)
+    inhalt_w = (bp.A4[0] - 2 * 15 * bp.mm - 6 * bp.mm) / 2 - 8 * bp.mm
+    label_allein, name_x, tel_passt, _ = bp._team_layout(zeile, inhalt_w, "Ansprechpartner vor Ort")
+    assert tel_passt is False
+    w = name_x + bp.stringWidth(zeile[1], "Helvetica-Bold", 10)
+    assert w <= inhalt_w                                     # Name bleibt in der Karte
+    assert bp._team_layout(("team", "Ali Oz", "0170 1", True, None), inhalt_w)[2] is True
+    pdf = build_briefing_pdf(ev, team, [])
+    zeilen = [z.strip() for p in pypdf.PdfReader(io.BytesIO(pdf)).pages
+              for z in (p.extract_text() or "").splitlines()]
+    assert any(z.endswith("Kübra Karakaya-Mustermann") for z in zeilen)
+    assert "+49 172 5587913" in zeilen                       # eigene Zeile, unverstümmelt
+
+
 def test_briefing_pdf_enthaelt_team_und_externe():
     ev = SimpleNamespace(marke="Kindsalabim", anlass="Fest", kunde_firma="X", datum=date(2026, 8, 1),
                          startzeit="14:00", endzeit="18:00", veranstaltungsort="Markt 1, 45127 Essen",

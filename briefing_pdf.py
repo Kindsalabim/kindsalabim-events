@@ -94,22 +94,33 @@ def _label_breite(label: str) -> float:
     return stringWidth(f"{label}:", "Helvetica-Bold", 10) + 3 * mm
 
 
-def _team_zusatz_passt(zeile, inhalt_w, label="Teamleitung") -> bool:
-    """True, wenn der graue Zusatz („(Kinderschminken)"/„(extern)") noch zwischen
-    Name und rechtsbündige Telefonnummer passt – sonst bekommt er eine eigene Zeile
-    (statt in die Nummer zu laufen, z. B. Teamleitung mit Künstler-Sparte)."""
+def _team_layout(zeile, inhalt_w, label="Teamleitung"):
+    """(label_allein, name_x, tel_passt, zusatz_passt) einer Team-Zeile, damit nichts
+    übereinander gedruckt wird (z. B. „Ansprechpartner vor Ort:" mit langem Namen):
+    - Passt der Name nicht hinter das Label, steht das Label allein und der Name
+      beginnt in der nächsten Zeile ganz links (name_x = Einzug des Namens).
+    - Passt die rechtsbündige Telefonnummer nicht mehr neben den Namen, kommt sie
+      in eine eigene Zeile unter den Namen.
+    - Der graue Zusatz („(Kinderschminken)"/„(extern)") steht hinter dem Namen,
+      wenn er in den freien Platz passt, sonst ebenfalls in einer eigenen Zeile."""
     _, name, tel, is_tl, zusatz = zeile
-    if not zusatz:
-        return True
     tel_txt = _clean(tel).strip() or "–"
     fnt = "Helvetica-Bold" if is_tl else "Helvetica"
-    links = ((_label_breite(label) + stringWidth(name, "Helvetica-Bold", 10)) if is_tl
-             else stringWidth(name, "Helvetica", 9.5)) + 2.5 * mm
-    frei = inhalt_w - stringWidth(tel_txt, fnt, 9.5) - 2.5 * mm - links
-    return stringWidth(str(zusatz), "Helvetica", 8) <= frei
+    name_w = (stringWidth(name, "Helvetica-Bold", 10) if is_tl
+              else stringWidth(name, "Helvetica", 9.5))
+    name_x = _label_breite(label) if is_tl else 0
+    label_allein = bool(is_tl) and name_x + name_w > inhalt_w
+    if label_allein:
+        name_x = 0
+    links = name_x + name_w + 2.5 * mm
+    tel_w = stringWidth(tel_txt, fnt, 9.5) + 2.5 * mm
+    tel_passt = links + tel_w <= inhalt_w
+    frei = inhalt_w - links - (tel_w if tel_passt else 0)
+    zusatz_passt = not zusatz or stringWidth(str(zusatz), "Helvetica", 8) <= frei
+    return label_allein, name_x, tel_passt, zusatz_passt
 
 
-def _zeilen_hoehe(zeile, inhalt_w):
+def _zeilen_hoehe(zeile, inhalt_w, rolle_label="Teamleitung"):
     typ = zeile[0]
     if typ == "kv":
         n = len(_wrap(zeile[2], "Helvetica-Bold" if zeile[3] else "Helvetica", 9.5,
@@ -129,7 +140,8 @@ def _zeilen_hoehe(zeile, inhalt_w):
                                  inhalt_w - _HINWEIS_EINZUG) or [""])
         return n * _LH + 1.6 * mm
     if typ == "team":
-        n = 1 if _team_zusatz_passt(zeile, inhalt_w) else 2
+        label_allein, _, tel_passt, zusatz_passt = _team_layout(zeile, inhalt_w, rolle_label)
+        n = 1 + label_allein + (not tel_passt) + (not zusatz_passt)
         return n * _LH + 1.6 * mm
     if typ == "punkt":
         n = len(simpleSplit(str(zeile[1]), "Helvetica", 9.5, inhalt_w - _PUNKT_EINZUG) or [""])
@@ -137,11 +149,11 @@ def _zeilen_hoehe(zeile, inhalt_w):
     return _LH
 
 
-def _karte_hoehe(karte, karten_w):
+def _karte_hoehe(karte, karten_w, rolle_label="Teamleitung"):
     inhalt_w = karten_w - 8 * mm
     h = 13.5 * mm                                # Titel + Linie + Abstand zur 1. Zeile
     for z in karte["zeilen"]:
-        h += _zeilen_hoehe(z, inhalt_w)
+        h += _zeilen_hoehe(z, inhalt_w, rolle_label)
     return h + 2.5 * mm                          # Innenabstand unten
 
 
@@ -269,15 +281,17 @@ class _Seite:
             return y - 1.6 * mm
         if typ == "team":
             _, name, tel, is_tl, zusatz = zeile
+            label = getattr(self, "rolle_label", "Teamleitung")
+            label_allein, name_x, tel_passt, passt = _team_layout(zeile, inhalt_w, label)
             if is_tl:
-                label = getattr(self, "rolle_label", "Teamleitung")
-                lb = _label_breite(label)
                 c.setFont("Helvetica-Bold", 10)
                 c.setFillColorRGB(*ROT)
                 c.drawString(x, y, f"{label}:")
                 c.setFillColorRGB(*INK)
-                c.drawString(x + lb, y, name)
-                cursor = x + lb + c.stringWidth(name, "Helvetica-Bold", 10) + 2.5 * mm
+                if label_allein:
+                    y -= _LH                     # Name passt nicht hinter das Label
+                c.drawString(x + name_x, y, name)
+                cursor = x + name_x + c.stringWidth(name, "Helvetica-Bold", 10) + 2.5 * mm
             else:
                 c.setFont("Helvetica", 9.5)
                 c.setFillColorRGB(*INK)
@@ -285,15 +299,18 @@ class _Seite:
                 cursor = x + c.stringWidth(name, "Helvetica", 9.5) + 2.5 * mm
             tel_txt = _clean(tel).strip() or "–"
             fnt = "Helvetica-Bold" if is_tl else "Helvetica"
-            passt = _team_zusatz_passt(zeile, inhalt_w,
-                                       getattr(self, "rolle_label", "Teamleitung"))
             if zusatz and passt:
                 c.setFont("Helvetica", 8)
                 c.setFillColorRGB(*GRAU)
                 c.drawString(cursor, y, str(zusatz))
             c.setFillColorRGB(*INK)
             c.setFont(fnt, 9.5)
-            c.drawRightString(x + inhalt_w, y, tel_txt)
+            if tel_passt:
+                c.drawRightString(x + inhalt_w, y, tel_txt)
+            else:
+                # Neben Label + Name ist kein Platz → Nummer unter den Namen
+                y -= _LH
+                c.drawString(x + name_x, y, tel_txt)
             if zusatz and not passt:
                 # Zwischen Name und Nummer ist kein Platz → eigene Zeile darunter
                 y -= _LH
@@ -324,7 +341,7 @@ class _Seite:
         bricht bei Platzmangel auf eine neue Seite um."""
         c = self.c
         w = (self.W - 2 * self.marge) if voll else self.karten_w
-        h = _karte_hoehe(karte, w)
+        h = _karte_hoehe(karte, w, getattr(self, "rolle_label", "Teamleitung"))
         top = min(self.col_y) if voll else self.col_y[spalte]
         if top - h < self.fuss_h:
             self.seite_abschliessen()
