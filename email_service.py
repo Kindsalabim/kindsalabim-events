@@ -960,15 +960,21 @@ def _budget_row(budget):
 
 
 def _einsatzzeit_rows(event, anfrage) -> str:
-    """Zeitzeilen der Anfrage-Mail: Hat die Person eine eigene Aktionszeit, steht sie
-    zuerst – die Veranstaltungszeit bleibt als Rahmen darunter."""
+    """Zeitzeilen der Anfrage-Mail: immer die Aktionszeit; hat die Person ein eigenes
+    Zeitfenster, steht darunter „Deine Einsatzzeit" (Aykut 12.11.2026)."""
+    zeilen = _info_row('Aktionszeit', f"{event.startzeit} – {event.endzeit} Uhr")
     von = getattr(anfrage, "einsatz_von", None) if anfrage else None
-    if not von:
-        return _info_row('Uhrzeit', f"{event.startzeit} – {event.endzeit} Uhr")
-    bis = getattr(anfrage, "einsatz_bis", None)
-    deine = f"{von} – {bis} Uhr" if bis else f"ab {von} Uhr"
-    return (_info_row('Deine Aktionszeit', deine)
-            + _info_row('Veranstaltung', f"{event.startzeit} – {event.endzeit} Uhr"))
+    if von:
+        bis = getattr(anfrage, "einsatz_bis", None)
+        zeilen += _info_row('Deine Einsatzzeit', f"{von} – {bis} Uhr" if bis else f"ab {von} Uhr")
+    return zeilen
+
+
+def _teamgroesse_row(event) -> str:
+    """Teamgröße in der Anfrage – leer, wenn im Event kein Bedarf hinterlegt ist."""
+    from besetzung import team_text
+    txt = team_text(event)
+    return _info_row('Team', txt) if txt else ""
 
 
 def _ankunft_row(event, anfrage) -> str:
@@ -1015,6 +1021,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
         {_ankunft_row(event, anfrage)}
         {_info_row('Ort', anfrage_ort(event.veranstaltungsort, rolle))}
         {_info_row('Produkte', event.produkte)}
+        {_teamgroesse_row(event)}
         {_budget_row(budget)}
       </table>
     </div>
@@ -1053,18 +1060,18 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     for i, ev in enumerate(events):
         a = anfragen[i] if anfragen and i < len(anfragen) else None
         von = getattr(a, "einsatz_von", None) if a else None
+        zeit = f"Aktionszeit {ev.startzeit} – {ev.endzeit} Uhr" if ev.startzeit and ev.endzeit else ""
         if von:
             bis = getattr(a, "einsatz_bis", None)
-            zeit = f"deine Aktionszeit {von} – {bis} Uhr" if bis else f"deine Aktionszeit ab {von} Uhr"
-        else:
-            zeit = f"{ev.startzeit} – {ev.endzeit} Uhr" if ev.startzeit and ev.endzeit else ""
+            deine = f"Deine Einsatzzeit {von} – {bis} Uhr" if bis else f"Deine Einsatzzeit ab {von} Uhr"
+            zeit = f"{zeit}\n{deine}" if zeit else deine
         ank = _ankunft.ankunft_anfrage(ev, a)
         ank_html = (f'<br><span style="color:{_ROT};font-weight:700;">Ankunft: {_esc(ank)}</span>'
                     if ank else "")
         tage_rows += f"""
     <tr>
       <td style="padding:8px 16px 8px 0;font-size:14px;color:#6b7280;white-space:nowrap;vertical-align:top;">{de_date(ev.datum)}</td>
-      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{_esc(zeit) or '–'}{ank_html}</td>
+      <td style="padding:8px 0;font-size:14px;color:#111827;font-weight:500;">{_esc(zeit).replace(chr(10), '<br>') or '–'}{ank_html}</td>
     </tr>"""
 
     content = f"""
@@ -1080,6 +1087,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
         {_info_row('Anlass', leit.anlass)}
         {_info_row('Ort', anfrage_ort(leit.veranstaltungsort, rolle))}
         {_info_row('Produkte', leit.produkte)}
+        {_teamgroesse_row(leit)}
         {(_info_row('Budget je Tag', f"{de_euro(budget)} € pauschal (inkl. Fahrtkosten)") if budget else "")}
       </table>
     </div>

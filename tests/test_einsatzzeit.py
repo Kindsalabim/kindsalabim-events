@@ -47,7 +47,7 @@ def test_anfrage_mail_nennt_die_eigene_aktionszeit(admin, mails):
     from models import Dienstleister
     adresse = reload(Dienstleister, did).email
     [(_, _betreff, html)] = [m for m in mails if m[0] == adresse]
-    assert "Deine Aktionszeit" in html and "15:00 – 16:00 Uhr" in html
+    assert "Deine Einsatzzeit" in html and "15:00 – 16:00 Uhr" in html
     assert "12:00 – 18:00 Uhr" in html          # Rahmen der Veranstaltung bleibt sichtbar
     a = [x for x in _anfragen(eid) if x.dienstleister_id == did][0]
     assert (a.einsatz_von, a.einsatz_bis) == ("15:00", "16:00")
@@ -61,7 +61,7 @@ def test_anfrage_ohne_eigene_zeit_bleibt_wie_bisher(admin, mails):
     from models import Dienstleister
     adresse = reload(Dienstleister, did).email
     [(_, _betreff, html)] = [m for m in mails if m[0] == adresse]
-    assert "Deine Aktionszeit" not in html
+    assert "Deine Einsatzzeit" not in html
     assert "12:00 – 18:00 Uhr" in html
 
 
@@ -99,7 +99,7 @@ def test_portal_zeigt_aktionszeit_und_budget_beim_einsatz(client):
                  einsatz_von="15:00", einsatz_bis="16:00")
     portal_login(client, did)
     html = client.get("/portal").text
-    assert "Deine Aktionszeit: 15:00–16:00 Uhr" in html
+    assert "Deine Einsatzzeit: 15:00–16:00 Uhr" in html
     assert "Budget: 300,00 € pauschal" in html      # vorher nur bei offenen Anfragen sichtbar
 
 
@@ -109,7 +109,7 @@ def test_portal_ohne_eigene_zeit_zeigt_keine_zusatzzeile(client):
     make_anfrage(eid, did, status="Ja", rolle="Teamer")
     portal_login(client, did)
     html = client.get("/portal").text
-    assert "Deine Aktionszeit" not in html
+    assert "Deine Einsatzzeit" not in html
 
 
 # ── Briefing-PDF ─────────────────────────────────────────────────────────────
@@ -125,3 +125,32 @@ def test_briefing_pdf_nennt_die_aktionszeit():
     ohne = build_briefing_pdf(ev, team, [], rollen={1: "Künstler"})
     assert len(mit) > 1000 and len(ohne) > 1000
     assert mit != ohne
+
+
+# ── Aktionszeit + Teamgröße (Aykut 12.11.2026) ──────────────────────────────────
+
+def test_teamgroesse_text():
+    from besetzung import team_text
+    assert team_text(SimpleNamespace(anzahl_teamer=0, anzahl_kuenstler=0)) == ""
+    assert team_text(SimpleNamespace(anzahl_teamer=0, anzahl_kuenstler=1)) == "Du bist allein im Einsatz."
+    assert team_text(SimpleNamespace(anzahl_teamer=2, anzahl_kuenstler=1)) == \
+        "3 Personen im Einsatz: 2 Teamer und 1 Künstler (du bist mitgezählt)"
+
+
+def test_anfrage_zeigt_aktionszeit_einsatzzeit_und_team(admin, mails, client):
+    eid = make_event(datum=TAG, startzeit="12:00", endzeit="18:00", kunde_firma="Stadtfest",
+                     produkte="Zaubershow, Glitzertattoos", anzahl_teamer=2, anzahl_kuenstler=1)
+    did = make_dienstleister(vorname="Zauber", rolle="Künstler", kuenstler_sparte="Showact")
+    admin.post(f"/admin/events/{eid}/anfragen",
+               data={"dienstleister_ids": [str(did)], "rolle": "Künstler",
+                     "einsatz_von": "15:00", "einsatz_bis": "16:00"})
+    from models import Dienstleister
+    d = reload(Dienstleister, did)
+    [(_, _b, html)] = [m for m in mails if m[0] == d.email]
+    assert "Aktionszeit" in html and "12:00 – 18:00 Uhr" in html
+    assert "Deine Einsatzzeit" in html and "15:00 – 16:00 Uhr" in html
+    assert "3 Personen im Einsatz: 2 Teamer und 1 Künstler" in html
+    portal_login(client, did)
+    seite = client.get("/portal").text
+    assert "Aktionszeit: 12:00–18:00 Uhr" in seite and "Deine Einsatzzeit: 15:00–16:00 Uhr" in seite
+    assert "3 Personen im Einsatz" in seite

@@ -37,6 +37,21 @@ def plaetze_frei(db, ev, rolle: str):
     return max(0, bedarf - zusagen)
 
 
+def team_text(ev) -> str:
+    """Teamgröße für Anfrage-Mail und Portal (Aykut 12.11.2026: sonst kommt oft die
+    Rückfrage „Bin ich da alleine im Einsatz?"). Leer, wenn kein Bedarf hinterlegt ist."""
+    teamer = getattr(ev, "anzahl_teamer", 0) or 0
+    kuenstler = getattr(ev, "anzahl_kuenstler", 0) or 0
+    gesamt = teamer + kuenstler
+    if gesamt <= 0:
+        return ""
+    if gesamt == 1:
+        return "Du bist allein im Einsatz."
+    teile = [t for t in (f"{teamer} Teamer" if teamer else "",
+                         f"{kuenstler} Künstler" if kuenstler else "") if t]
+    return f"{gesamt} Personen im Einsatz: {' und '.join(teile)} (du bist mitgezählt)"
+
+
 def ist_verspaetet(a, heute=None) -> bool:
     """Antwort nach Fristablauf? (Status oder Frist-Datum verraten es)"""
     heute = heute or date.today()

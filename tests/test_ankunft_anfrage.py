@@ -97,7 +97,7 @@ def test_serien_anfrage_mit_eigener_aktionszeit():
     anfr = [_a(einsatz_von="15:00", einsatz_bis="16:00")] * 2
     html = _gesendet(email_service.send_serie_anfrage, _dl(), tage, "http://t",
                      rolle="Teamer", anfragen=anfr)
-    assert "deine Aktionszeit 15:00" in html and "Ankunft: 14:00 Uhr" in html
+    assert "Deine Einsatzzeit 15:00" in html and "Ankunft: 14:00 Uhr" in html
 
 
 # ── Ankunft im Portal ────────────────────────────────────────────────────────
