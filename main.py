@@ -207,6 +207,10 @@ def run_migrations():
     add_column("events", "cl_rechnung_plz_ort", "VARCHAR")
     add_column("events", "vorkasse_erinnert", "BOOLEAN DEFAULT 0")
     add_column("events", "rechnung_mail_erinnert", "BOOLEAN DEFAULT 0")
+    add_column("events", "cl_ort_gleich", "BOOLEAN")      # bewusst ohne Default: None = alt
+    add_column("events", "cl_ort_name", "VARCHAR")
+    add_column("events", "cl_ort_strasse", "VARCHAR")
+    add_column("events", "cl_ort_plz_ort", "VARCHAR")
     add_column("kunden", "rechnung_email", "VARCHAR")
     add_column("reservierungen", "startzeit", "VARCHAR")
     add_column("reservierungen", "endzeit", "VARCHAR")

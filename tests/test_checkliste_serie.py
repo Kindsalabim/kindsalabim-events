@@ -55,6 +55,7 @@ def test_antworten_landen_auf_allen_tagen(admin, client):
     tok = reload(Event, ids[0]).checklist_token
     daten = {"ansprechpartner_name": "Erika Muster", "ansprechpartner_mobil": "0170 1",
              "firma_name": "Messe Essen", "strasse": "Norbertstr. 2", "plz_ort": "45131 Essen",
+             "ort_gleich": "Ja",
              "verpflegung": "Ja", "teamkleidung": "Ja", "parkplatz": "Tor 3",
              "anlieferung_vortag": "Ja", "anlieferung_von": "16:00", "anlieferung_bis": "18:00",
              "abholung_folgetag": "Ja", "abholung_von": "08:00", "abholung_bis": "10:00"}
@@ -63,8 +64,8 @@ def test_antworten_landen_auf_allen_tagen(admin, client):
         daten[f"abbau_bis_{eid}"] = "20:00"
     # Am letzten Tag eine andere Adresse
     daten[f"andere_adresse_{ids[2]}"] = "Ja"
-    daten[f"strasse_{ids[2]}"] = "Gruga-Allee 1"
-    daten[f"plz_ort_{ids[2]}"] = "45131 Essen"
+    daten[f"ort_strasse_{ids[2]}"] = "Gruga-Allee 1"
+    daten[f"ort_plz_ort_{ids[2]}"] = "45131 Essen"
     r = client.post(f"/checklist/{tok}", data=daten)
     assert r.status_code == 200 and "Vielen Dank" in r.text
 
@@ -74,8 +75,10 @@ def test_antworten_landen_auf_allen_tagen(admin, client):
         assert ev.cl_ansprechpartner_name == "Erika Muster"  # gemeinsame Angaben überall
         assert ev.cl_parkplatz == "Tor 3"
         assert ev.cl_aufbau_von == f"0{8 + i}:00"            # Zeiten je Tag
-    assert tage[0].cl_strasse == tage[1].cl_strasse == "Norbertstr. 2"
-    assert tage[2].cl_strasse == "Gruga-Allee 1"             # abweichende Adresse
+    import veranstaltungsort
+    assert veranstaltungsort.anschrift(tage[0])[1] == veranstaltungsort.anschrift(tage[1])[1] == "Norbertstr. 2"
+    assert veranstaltungsort.anschrift(tage[2])[1] == "Gruga-Allee 1"   # anderer Ort an Tag 3
+    assert tage[2].cl_strasse == "Norbertstr. 2"             # Firmendaten bleiben
     # Vortag-Anlieferung nur am ersten, Folgetag-Abholung nur am letzten Tag
     assert tage[0].cl_anlieferung_vortag and not tage[1].cl_anlieferung_vortag
     assert tage[2].cl_abholung_folgetag and not tage[0].cl_abholung_folgetag
@@ -87,8 +90,9 @@ def test_ohne_haekchen_bleibt_die_gemeinsame_adresse(admin, client):
     tok = reload(Event, ids[0]).checklist_token
     client.post(f"/checklist/{tok}", data={
         "ansprechpartner_name": "X", "verpflegung": "Ja", "teamkleidung": "Ja",
-        "strasse": "Hauptstr. 1", f"strasse_{ids[1]}": "Ignoriert 9"})   # kein Häkchen
-    assert reload(Event, ids[1]).cl_strasse == "Hauptstr. 1"
+        "ort_strasse": "Hauptstr. 1", "ort_plz_ort": "45127 Essen",
+        f"ort_strasse_{ids[1]}": "Ignoriert 9"})                        # kein Häkchen
+    assert reload(Event, ids[1]).cl_ort_strasse == "Hauptstr. 1"
 
 
 def test_link_gilt_bis_30_tage_nach_dem_letzten_tag(client):

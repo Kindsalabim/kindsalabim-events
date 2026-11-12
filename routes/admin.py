@@ -46,6 +46,8 @@ templates.env.globals["sparten"] = SPARTEN
 templates.env.globals["sparte_icon"] = SPARTE_ICON
 import ankunft as _ankunft
 templates.env.globals["ankunft_anzeige"] = _ankunft.ankunft_anzeige
+import veranstaltungsort as _veranstaltungsort
+templates.env.globals["veranstaltungsort_anschrift"] = _veranstaltungsort.anschrift
 templates.env.globals["treffpunkt_anzeige"] = _ankunft.treffpunkt_anzeige
 templates.env.globals["weitere_ap_liste"] = weitere_ap_liste
 
@@ -2332,11 +2334,15 @@ def briefing_edit(request: Request, event_id: int, uebernehmen: int = 0,
     vor = {
         "ansprechpartner_name":  ev.cl_ansprechpartner_name  or ev.vor_ort_name or ev.kunde_kontakt or "",
         "ansprechpartner_mobil": ev.cl_ansprechpartner_mobil or ev.vor_ort_telefon or ev.kunde_telefon or "",
-        # Bei Firmenkunden ist der Auftraggeber oft nicht der Ort (Agentur bucht für
-        # Toys"R"Us) → nur bei Privatkunden vorbelegen (Name an der Klingel)
-        "firma_name":            ev.cl_firma_name or (ev.kunde_firma if ev.privatkunde else "") or "",
-        "strasse":               ev.cl_strasse  or strasse_def.strip(),
-        "plz_ort":               ev.cl_plz_ort  or plz_ort_def.strip(),
+        "firma_name":            ev.cl_firma_name or ev.kunde_firma or "",
+        "strasse":               ev.cl_strasse or "",
+        "plz_ort":               ev.cl_plz_ort or "",
+        # Veranstaltungsort: alte Events (cl_ort_gleich None) mit ausgefüllter Anschrift
+        # hatten dort schon den Ort → „gleich"; sonst aus dem Event-Feld Veranstaltungsort
+        "ort_gleich":  ev.cl_ort_gleich if ev.cl_ort_gleich is not None else bool(ev.cl_strasse),
+        "ort_name":    ev.cl_ort_name or "",
+        "ort_strasse": ev.cl_ort_strasse or ("" if ev.cl_ort_gleich else strasse_def.strip()),
+        "ort_plz_ort": ev.cl_ort_plz_ort or ("" if ev.cl_ort_gleich else plz_ort_def.strip()),
         "aufbauort":   ev.cl_aufbauort  or (ev.outdoor_indoor or ""),
         "verpflegung": ev.cl_verpflegung or "",
         "teamkleidung": ev.cl_teamkleidung or ("Ja" if ev.teamkleidung else ""),
@@ -2351,13 +2357,17 @@ def briefing_edit(request: Request, event_id: int, uebernehmen: int = 0,
             ("ansprechpartner_name", "cl_ansprechpartner_name"),
             ("ansprechpartner_mobil", "cl_ansprechpartner_mobil"),
             ("firma_name", "cl_firma_name"), ("strasse", "cl_strasse"),
-            ("plz_ort", "cl_plz_ort"), ("aufbauort", "cl_aufbauort"),
+            ("plz_ort", "cl_plz_ort"), ("ort_name", "cl_ort_name"),
+            ("ort_strasse", "cl_ort_strasse"), ("ort_plz_ort", "cl_ort_plz_ort"),
+            ("aufbauort", "cl_aufbauort"),
             ("verpflegung", "cl_verpflegung"), ("teamkleidung", "cl_teamkleidung"),
             ("parkplatz", "cl_parkplatz"), ("weitere_details", "cl_weitere_details"),
         ]:
             wert = getattr(quelle, feld, None)
             if wert:
                 vor[ziel] = wert
+        if quelle.cl_ort_gleich is not None:
+            vor["ort_gleich"] = quelle.cl_ort_gleich
     return templates.TemplateResponse("admin/briefing_edit.html", tpl_context(
         request, ev=ev, vor=vor, quelle=quelle, uebernommen=uebernommen))
 
@@ -2367,6 +2377,8 @@ def briefing_edit_save(
     request: Request, event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
     ansprechpartner_name: str = Form(""), ansprechpartner_mobil: str = Form(""),
     firma_name: str = Form(""), strasse: str = Form(""), plz_ort: str = Form(""),
+    ort_gleich: str = Form(""), ort_name: str = Form(""), ort_strasse: str = Form(""),
+    ort_plz_ort: str = Form(""),
     aufbauort: list = Form([]), verpflegung: str = Form(""),
     teamkleidung: str = Form(""), parkplatz: str = Form(""),
     weitere_details: str = Form(""),
@@ -2378,6 +2390,8 @@ def briefing_edit_save(
     ev.cl_firma_name            = firma_name
     ev.cl_strasse               = strasse
     ev.cl_plz_ort               = plz_ort
+    from routes.checklist import ort_speichern
+    ort_speichern(ev, ort_gleich == "Ja", ort_name, ort_strasse, ort_plz_ort)
     # Auf-/Abbauzeiten (cl_aufbau_*/cl_abbau_*) bleiben unangetastet – sie gehören der
     # Kunden-Checkliste; das Briefing nutzt sie nicht mehr.
     ev.cl_aufbauort             = ", ".join(aufbauort)

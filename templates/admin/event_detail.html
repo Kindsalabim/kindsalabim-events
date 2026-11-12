@@ -445,9 +445,11 @@
     {% endmacro %}
     {{ cl_row('Ansprechpartner', ev.cl_ansprechpartner_name) }}
     {{ cl_row('Mobil', ev.cl_ansprechpartner_mobil) }}
-    {{ cl_row('Veranstaltungsort', ev.cl_firma_name) }}
+    {{ cl_row('Firma / Name', ev.cl_firma_name) }}
     {{ cl_row('Straße', ev.cl_strasse) }}
     {{ cl_row('PLZ / Ort', ev.cl_plz_ort) }}
+    {% if ev.cl_ort_gleich %}{{ cl_row('Veranstaltungsort', 'gleich wie Firmendaten') }}
+    {% elif ev.cl_ort_gleich is not none %}{{ cl_row('Veranstaltungsort', [ev.cl_ort_name, ev.cl_ort_strasse, ev.cl_ort_plz_ort] | select | join(', ')) }}{% endif %}
     {{ cl_row('Aufbau von', ev.cl_aufbau_von) }}
     {{ cl_row('Aufbau bis', ev.cl_aufbau_bis) }}
     {{ cl_row('Abbau von', ev.cl_abbau_von) }}
@@ -547,7 +549,7 @@
       {% for a in anfragen %}
       <tr style="border-bottom: 1px solid #f9fafb;">
         <td class="py-3 font-medium text-gray-800">
-          {{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}
+          <a href="/admin/dienstleister/{{ a.dienstleister_id }}" target="_blank" rel="noopener" class="hover:underline" title="Profil öffnen (neuer Tab)">{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}</a>
           {% if a.dienstleister.logistiker %}<span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}
           {% if a.dienstleister_id == ev.teamleiter_id %}<span class="inline-flex items-center gap-1 ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">★ Teamleiter</span>{% endif %}
           {% if a.notiz %}<span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span>{% endif %}
@@ -1010,7 +1012,7 @@
     </div>
   </div>
   <p class="text-xs text-gray-500 mt-2">Geht an alle Dienstleister, die zugesagt haben – mit Team-Liste, Aufbauzeiten und allen Details. „Als PDF" lädt das Briefing zum Weitergeben herunter (z. B. an externe Agentur-Leute).</p>
-  {% if not ev.privatkunde and not (ev.cl_firma_name or '')|trim %}
+  {% if not ev.privatkunde and not veranstaltungsort_anschrift(ev)[0] %}
   <p class="text-xs rounded-lg px-3 py-2 mt-2" style="background:var(--c-amber-bg);color:var(--c-amber);">
     ⚠️ Im Briefing steht noch kein Veranstaltungsort (z. B. Toys"R"Us Essen), nur die Adresse.
     {% if not gesperrt %}<a href="/admin/events/{{ ev.id }}/checklist/edit" class="underline">Unter „Briefing bearbeiten“ eintragen</a>, damit das Team weiß, wo es klingeln muss.{% endif %}

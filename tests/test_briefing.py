@@ -152,12 +152,10 @@ def test_briefing_edit_vorbelegung_aus_event(admin):
                      kunde_telefon="0201 99", veranstaltungsort="Musterstr. 1, 45127 Essen",
                      checkliste_uebersprungen=True)
     h = admin.get(f"/admin/events/{eid}/checklist/edit").text
-    assert 'value="Frau Schmidt"' in h
-    assert 'value="Glasfaser GmbH"' not in h      # Firmenkunde ≠ Veranstaltungsort (12.11.2026)
-    assert 'value="Musterstr. 1"' in h and 'value="45127 Essen"' in h
-    privat = make_event(kunde_firma="Familie Weber", privatkunde=True,
-                        checkliste_uebersprungen=True)
-    assert 'value="Familie Weber"' in admin.get(f"/admin/events/{privat}/checklist/edit").text
+    assert 'value="Frau Schmidt"' in h and 'value="Glasfaser GmbH"' in h   # Firmendaten
+    # Veranstaltungsort aus dem Event-Feld vorbelegt, Haken „gleich" noch nicht gesetzt
+    assert 'name="ort_strasse" value="Musterstr. 1"' in h
+    assert 'name="ort_plz_ort" value="45127 Essen"' in h
 
 
 def test_briefing_agentur_steht_nicht_als_veranstaltungsort(admin, mails):
@@ -181,5 +179,55 @@ def test_briefing_agentur_steht_nicht_als_veranstaltungsort(admin, mails):
     # Warnung auf der Event-Seite bei Firmenkunden ohne Ortsnamen
     eid = make_event(kunde_firma="Fullservice Event GmbH")
     assert "noch kein Veranstaltungsort" in admin.get(f"/admin/events/{eid}").text
-    ok = make_event(kunde_firma="Fullservice Event GmbH", cl_firma_name='Toys"R"Us')
+    ok = make_event(kunde_firma="Fullservice Event GmbH", cl_ort_gleich=False,
+                    cl_ort_name='Toys"R"Us', cl_ort_strasse="Musterstraße 1")
     assert "noch kein Veranstaltungsort" not in admin.get(f"/admin/events/{ok}").text
+
+
+def test_checkliste_firmendaten_und_veranstaltungsort(client, admin):
+    # Aykut 12.11.2026: Firmendaten wie immer, darunter Veranstaltungsort mit Haken
+    # „Gleich wie Firmendaten" oder eigenen Angaben
+    from factories import briefing_event_ns
+    import pypdf
+    import veranstaltungsort
+    from models import Event
+    from datetime import timedelta
+    bald = date.today() + timedelta(days=14)
+    agentur = make_event(kunde_firma="Fullservice Event GmbH", datum=bald, kunde_email="a@x.test")
+    admin.post(f"/admin/events/{agentur}/checklist", follow_redirects=False)
+    tok = reload(Event, agentur).checklist_token
+    assert "Gleich wie Firmendaten" in client.get(f"/checklist/{tok}").text
+    client.post(f"/checklist/{tok}", data={
+        "ansprechpartner_name": "X", "verpflegung": "Ja", "teamkleidung": "Ja",
+        "firma_name": "Fullservice Event GmbH", "strasse": "Agenturweg 9", "plz_ort": "40210 Düsseldorf",
+        "ort_name": 'Toys"R"Us Essen', "ort_strasse": "Musterstraße 1", "ort_plz_ort": "45127 Essen"})
+    ev = reload(Event, agentur)
+    assert ev.cl_firma_name == "Fullservice Event GmbH" and ev.cl_ort_gleich is False
+    assert veranstaltungsort.anschrift(ev) == ('Toys"R"Us Essen', "Musterstraße 1", "45127 Essen")
+
+    firma = make_event(kunde_firma="Glasfaser GmbH", datum=bald, kunde_email="g@x.test")
+    admin.post(f"/admin/events/{firma}/checklist", follow_redirects=False)
+    tok = reload(Event, firma).checklist_token
+    client.post(f"/checklist/{tok}", data={
+        "ansprechpartner_name": "X", "verpflegung": "Ja", "teamkleidung": "Ja", "ort_gleich": "Ja",
+        "firma_name": "Glasfaser GmbH", "strasse": "Werkstr. 3", "plz_ort": "45127 Essen",
+        "ort_name": "wird verworfen"})
+    ev = reload(Event, firma)
+    assert ev.cl_ort_gleich is True and ev.cl_ort_name is None
+    assert veranstaltungsort.anschrift(ev) == ("Glasfaser GmbH", "Werkstr. 3", "45127 Essen")
+
+    # Altes Event (cl_ort_gleich leer): cl_* waren schon immer die Veranstaltungsanschrift
+    alt = briefing_event_ns(cl_firma_name="Kita Sonne", cl_strasse="Hauptstr. 5", cl_plz_ort="45127 Essen")
+    txt = "".join(p.extract_text() or "" for p in
+                  pypdf.PdfReader(io.BytesIO(build_briefing_pdf(alt, [], []))).pages)
+    assert "Kita Sonne" in txt and "Hauptstr. 5" in txt
+
+
+def test_event_seite_verlinkt_angefragte_dienstleister(admin, db):
+    # Aykut 12.11.2026: Kleidergröße & Co. direkt aus dem Event erreichbar
+    from models import Verfuegbarkeitsanfrage
+    eid = make_event()
+    did = make_dienstleister()
+    db.add(Verfuegbarkeitsanfrage(event_id=eid, dienstleister_id=did, status="Ja"))
+    db.commit()
+    assert f'href="/admin/dienstleister/{did}"' in admin.get(f"/admin/events/{eid}").text

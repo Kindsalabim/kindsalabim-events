@@ -54,11 +54,11 @@
       </div>
     </div>
 
-    <!-- Veranstaltungsanschrift -->
+    <!-- Firmendaten -->
     <div class="card p-6 space-y-4">
-      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Veranstaltungsanschrift</h2>
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Firmendaten</h2>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">Veranstaltungsort <span class="text-gray-400 font-normal">(wo das Team hinfährt, nicht der Auftraggeber, z. B. Toys"R"Us Essen)</span></label>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">Firma / Name</label>
         <input type="text" name="firma_name" value="{{ vor.firma_name }}" class="{{ tw }}">
       </div>
       <div class="grid grid-cols-2 gap-4">
@@ -69,6 +69,33 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">PLZ &amp; Ort</label>
           <input type="text" name="plz_ort" value="{{ vor.plz_ort }}" class="{{ tw }}">
+        </div>
+      </div>
+    </div>
+
+    <!-- Veranstaltungsort: dorthin fährt das Team (Briefing) -->
+    <div class="card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 pb-3" style="border-bottom: 1px solid #f3f4f6;">Veranstaltungsort</h2>
+      <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+        <input type="checkbox" name="ort_gleich" value="Ja" class="rounded" style="accent-color: var(--brand-primary);"
+               onchange="document.getElementById('ort-felder').style.display = this.checked ? 'none' : ''"
+               {% if vor.ort_gleich %}checked{% endif %}>
+        Gleich wie Firmendaten
+      </label>
+      <div id="ort-felder" class="space-y-4" {% if vor.ort_gleich %}style="display:none;"{% endif %}>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Name des Veranstaltungsorts <span class="text-gray-400 font-normal">(z. B. Toys"R"Us Essen)</span></label>
+          <input type="text" name="ort_name" value="{{ vor.ort_name }}" class="{{ tw }}">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Straße &amp; Hausnummer</label>
+            <input type="text" name="ort_strasse" value="{{ vor.ort_strasse }}" class="{{ tw }}">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">PLZ &amp; Ort</label>
+            <input type="text" name="ort_plz_ort" value="{{ vor.ort_plz_ort }}" class="{{ tw }}">
+          </div>
         </div>
       </div>
     </div>

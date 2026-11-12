@@ -96,6 +96,12 @@ class Event(Base):
     cl_rechnung_plz_ort = Column(String)
     cl_firma_name            = Column(String)
     cl_strasse               = Column(String)
+    # Veranstaltungsort, falls nicht gleich den Firmendaten (veranstaltungsort.py);
+    # cl_ort_gleich None = altes Event, dort sind cl_firma_name/cl_strasse/cl_plz_ort der Ort
+    cl_ort_gleich            = Column(Boolean)
+    cl_ort_name              = Column(String)
+    cl_ort_strasse           = Column(String)
+    cl_ort_plz_ort           = Column(String)
     cl_plz_ort               = Column(String)
     cl_aufbau_von            = Column(String)
     cl_aufbau_bis            = Column(String)

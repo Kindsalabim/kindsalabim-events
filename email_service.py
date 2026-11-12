@@ -1160,13 +1160,8 @@ def send_briefing(dienstleister_list, event, base_url: str, anhaenge=None, exter
         team_rows += _team_row(ext_name, e.telefon)
 
     # ── Veranstaltungsanschrift (Checkliste bevorzugt) ──
-    # Auftraggeber nur bei Privatkunden; bei Firmen ist er oft eine Agentur, nicht der Ort
-    an_firma = (_no_none(getattr(event, "cl_firma_name", ""))
-                or (_no_none(event.kunde_firma) if getattr(event, "privatkunde", False) else "")).strip()
-    an_strasse = _no_none(getattr(event, "cl_strasse", "")).strip()
-    an_plz_ort = _no_none(getattr(event, "cl_plz_ort", "")).strip()
-    if not an_strasse and not an_plz_ort:
-        an_plz_ort = _no_none(event.veranstaltungsort).strip()
+    import veranstaltungsort as _veranstaltungsort
+    an_firma, an_strasse, an_plz_ort = _veranstaltungsort.anschrift(event)
     adr = "<br>".join(_esc(x) for x in (an_firma, an_strasse, an_plz_ort) if x) or "–"
 
     # ── Ansprechpartner vor Ort: Checkliste (Kunde) → Vor-Ort-Felder → alter Buchungskontakt ──

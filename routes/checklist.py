@@ -75,6 +75,10 @@ def checklist_submit(
     firma_name:            str = Form(""),
     strasse:               str = Form(""),
     plz_ort:               str = Form(""),
+    ort_gleich:            str = Form(""),
+    ort_name:              str = Form(""),
+    ort_strasse:           str = Form(""),
+    ort_plz_ort:           str = Form(""),
     aufbau_von:            str = Form(""),
     aufbau_bis:            str = Form(""),
     abbau_von:             str = Form(""),
@@ -118,6 +122,7 @@ def checklist_submit(
             anlieferung_von, anlieferung_bis, abholung_folgetag, abholung_von,
             abholung_bis, aufbau_bedingungen, aufbauort, verpflegung, teamkleidung,
             parkplatz, weitere_details, foto_freigabe)
+        ort_speichern(tag, ort_gleich == "Ja", ort_name, ort_strasse, ort_plz_ort)
         if serie:
             _tag_speichern(tag, formular)
             # Vortag-Anlieferung gehört nur zum ersten, Folgetag-Abholung nur zum
@@ -159,16 +164,23 @@ def checklist_submit(
 
 
 def _tag_speichern(ev, formular):
-    """Felder je Termintag einer Serie: Auf-/Abbauzeit und, nur wenn angehakt, eine
-    abweichende Adresse. Ohne Häkchen gilt die gemeinsame Adresse von oben."""
+    """Felder je Termintag einer Serie: Auf-/Abbauzeit und, nur wenn angehakt, ein
+    abweichender Veranstaltungsort. Ohne Häkchen gilt der gemeinsame Ort von oben."""
     def feld(name):
         return (formular.get(f"{name}_{ev.id}") or "").strip()
     for name in ("aufbau_von", "aufbau_bis", "abbau_von", "abbau_bis"):
         setattr(ev, f"cl_{name}", feld(name))
-    if formular.get(f"andere_adresse_{ev.id}") == "Ja":
-        for name in ("firma_name", "strasse", "plz_ort"):
-            if feld(name):
-                setattr(ev, f"cl_{name}", feld(name))
+    if formular.get(f"andere_adresse_{ev.id}") == "Ja" and (feld("ort_strasse") or feld("ort_plz_ort")):
+        ort_speichern(ev, False, feld("ort_name"), feld("ort_strasse"), feld("ort_plz_ort"))
+
+
+def ort_speichern(ev, gleich: bool, name: str, strasse: str, plz_ort: str):
+    """Veranstaltungsort: Haken „gleich wie Firmendaten" oder eigene Angaben
+    (veranstaltungsort.py liest beides fürs Briefing)."""
+    ev.cl_ort_gleich = gleich
+    ev.cl_ort_name = None if gleich else ((name or "").strip() or None)
+    ev.cl_ort_strasse = None if gleich else ((strasse or "").strip() or None)
+    ev.cl_ort_plz_ort = None if gleich else ((plz_ort or "").strip() or None)
 
 
 def _antworten_speichern(db, ev, ansprechpartner_name, ansprechpartner_mobil,

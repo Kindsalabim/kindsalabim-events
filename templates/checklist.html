@@ -100,7 +100,7 @@
        damit der Kunde alles einmal prüft. -->
   <div id="cl-progress" class="card px-4 py-2.5 mb-4" style="position: sticky; top: .5rem; z-index: 10;">
     <div class="flex items-center justify-between mb-1.5">
-      <span id="cl-progress-text" class="text-sm font-semibold" style="color: var(--ink-2);">0 von 8 Abschnitten ausgefüllt</span>
+      <span id="cl-progress-text" class="text-sm font-semibold" style="color: var(--ink-2);">0 von 9 Abschnitten ausgefüllt</span>
       <span class="text-xs" style="color: var(--ink-3);">⏱ ca. 2 Minuten</span>
     </div>
     <div style="height: 6px; border-radius: 999px; background: var(--line); overflow: hidden;">
@@ -130,16 +130,13 @@
       </div>
     </div>
 
-    <!-- Veranstaltungsanschrift -->
+    <!-- Firmendaten -->
     <div class="card p-6">
-      <p class="section-title">Veranstaltungsanschrift</p>
-      {% if serie %}
-      <p class="text-sm -mt-2 mb-4" style="color: var(--ink-3);">Gilt für alle Termine. Ist es an einem Tag eine andere Adresse, können Sie das unten beim jeweiligen Tag angeben.</p>
-      {% endif %}
+      <p class="section-title">Firmendaten</p>
       <div class="space-y-4">
         <div class="field">
-          <label>Veranstaltungsort <span style="font-weight:400;color:var(--ink-3);">(Name des Geschäfts, der Kita oder der Familie, an dem unser Team klingelt)</span></label>
-          <input type="text" name="firma_name" value="{{ ev.cl_firma_name or '' }}" placeholder="z.B. Toys&quot;R&quot;Us Essen">
+          <label>Firma / Name</label>
+          <input type="text" name="firma_name" value="{{ ev.cl_firma_name or '' }}" placeholder="z.B. Mustermann GmbH">
         </div>
         <div class="field">
           <label>Straße &amp; Hausnummer</label>
@@ -148,6 +145,31 @@
         <div class="field">
           <label>PLZ &amp; Ort</label>
           <input type="text" name="plz_ort" value="{{ ev.cl_plz_ort or '' }}" placeholder="z.B. 45289 Essen">
+        </div>
+      </div>
+    </div>
+
+    <!-- Veranstaltungsort: gleich wie Firmendaten oder eigene Angaben (Aykut 12.11.2026) -->
+    {% set ort_gleich = ev.cl_ort_gleich %}
+    <div class="card p-6">
+      <p class="section-title">Veranstaltungsort</p>
+      <p class="text-sm -mt-2 mb-4" style="color: var(--ink-3);">Wo findet die Veranstaltung statt? Dorthin fährt unser Team.{% if serie %} Gilt für alle Termine. Ist es an einem Tag ein anderer Ort, können Sie das unten beim jeweiligen Tag angeben.{% endif %}</p>
+      <label class="flex items-center gap-2.5 text-sm cursor-pointer" style="color: var(--ink-2); font-weight: 600;">
+        <input type="checkbox" id="ort-gleich" name="ort_gleich" value="Ja" style="accent-color: var(--brand);" {% if ort_gleich %}checked{% endif %}>
+        Gleich wie Firmendaten
+      </label>
+      <div id="ort-felder" class="space-y-4 mt-4" {% if ort_gleich %}style="display:none;"{% endif %}>
+        <div class="field">
+          <label>Name des Veranstaltungsorts <span style="font-weight:400;color:var(--ink-3);">(z.B. Geschäft, Kita, Halle)</span></label>
+          <input type="text" name="ort_name" value="{{ ev.cl_ort_name or '' }}" placeholder="z.B. Toys&quot;R&quot;Us Essen" data-ort-pflicht>
+        </div>
+        <div class="field">
+          <label>Straße &amp; Hausnummer</label>
+          <input type="text" name="ort_strasse" value="{{ ev.cl_ort_strasse or '' }}" placeholder="z.B. Musterstraße 1" data-ort-pflicht>
+        </div>
+        <div class="field">
+          <label>PLZ &amp; Ort</label>
+          <input type="text" name="ort_plz_ort" value="{{ ev.cl_ort_plz_ort or '' }}" placeholder="z.B. 45127 Essen" data-ort-pflicht>
         </div>
       </div>
     </div>
@@ -181,25 +203,25 @@
               {{ time_select('abbau_bis_' ~ t.id, t.cl_abbau_bis) }}
             </div>
           </div>
-          {% set abweichend = t.cl_strasse and t.cl_strasse != ev.cl_strasse %}
+          {% set abweichend = t.cl_ort_strasse and t.cl_ort_strasse != ev.cl_ort_strasse %}
           <label class="flex items-center gap-2.5 text-sm cursor-pointer mt-3" style="color: var(--ink-2);">
             <input type="checkbox" name="andere_adresse_{{ t.id }}" value="Ja" style="accent-color: var(--brand);"
                    onchange="document.getElementById('adr-{{ t.id }}').style.display = this.checked ? '' : 'none'"
                    {% if abweichend %}checked{% endif %}>
-            An diesem Tag ist es eine andere Adresse
+            An diesem Tag ist es ein anderer Veranstaltungsort
           </label>
           <div id="adr-{{ t.id }}" class="space-y-3 mt-3" {% if not abweichend %}style="display:none;"{% endif %}>
             <div class="field">
-              <label>Veranstaltungsort</label>
-              <input type="text" name="firma_name_{{ t.id }}" value="{{ t.cl_firma_name or '' if abweichend else '' }}">
+              <label>Name des Veranstaltungsorts</label>
+              <input type="text" name="ort_name_{{ t.id }}" value="{{ t.cl_ort_name or '' if abweichend else '' }}">
             </div>
             <div class="field">
               <label>Straße &amp; Hausnummer</label>
-              <input type="text" name="strasse_{{ t.id }}" value="{{ t.cl_strasse or '' if abweichend else '' }}">
+              <input type="text" name="ort_strasse_{{ t.id }}" value="{{ t.cl_ort_strasse or '' if abweichend else '' }}">
             </div>
             <div class="field">
               <label>PLZ &amp; Ort</label>
-              <input type="text" name="plz_ort_{{ t.id }}" value="{{ t.cl_plz_ort or '' if abweichend else '' }}">
+              <input type="text" name="ort_plz_ort_{{ t.id }}" value="{{ t.cl_ort_plz_ort or '' if abweichend else '' }}">
             </div>
           </div>
         </div>
@@ -392,6 +414,11 @@
       if (!k.dataset.seen) return false;
       var name = k.querySelector('input[name=ansprechpartner_name]');
       if (name) return name.value.trim() !== '';
+      var gleich = k.querySelector('#ort-gleich');
+      if (gleich) {
+        return gleich.checked || Array.prototype.every.call(
+          k.querySelectorAll('[data-ort-pflicht]'), function (f) { return f.value.trim() !== ''; });
+      }
       if (k.querySelector('input[name=verpflegung]')) {
         return !!(k.querySelector('input[name=verpflegung]:checked') &&
                   k.querySelector('input[name=teamkleidung]:checked'));
@@ -423,6 +450,16 @@
     } else {
       karten.forEach(function (k) { k.dataset.seen = '1'; });   // alte Browser: nur Felder zählen
     }
+
+    // Veranstaltungsort: ohne Haken „Gleich wie Firmendaten" sind die Ort-Felder Pflicht
+    var gleich = document.getElementById('ort-gleich');
+    function ortUmschalten() {
+      if (!gleich) return;
+      document.getElementById('ort-felder').style.display = gleich.checked ? 'none' : '';
+      document.querySelectorAll('[data-ort-pflicht]').forEach(function (f) { f.required = !gleich.checked; });
+    }
+    if (gleich) gleich.addEventListener('change', ortUmschalten);
+    ortUmschalten();
 
     document.querySelectorAll('form input, form select, form textarea').forEach(function (el) {
       el.addEventListener('input', update);
