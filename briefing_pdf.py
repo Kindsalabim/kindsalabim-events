@@ -465,7 +465,10 @@ def build_briefing_pdf(ev, dienstleister, externe=None, regeln=None, rollen=None
                 "zeilen": [("text", _clean(ev.produkte) or "–")]}
 
     # ── Karten rechts ───────────────────────────────────────────────────────────
-    an_firma = (_clean(getattr(ev, "cl_firma_name", "")) or _clean(ev.kunde_firma)).strip()
+    # Ortsname aus der Checkliste; den Auftraggeber nur bei Privatkunden (Name an der
+    # Klingel). Bei Firmen ist er oft eine Agentur und nicht der Ort (Aykut 12.11.2026).
+    an_firma = (_clean(getattr(ev, "cl_firma_name", ""))
+                or (_clean(ev.kunde_firma) if getattr(ev, "privatkunde", False) else "")).strip()
     an_strasse = _clean(getattr(ev, "cl_strasse", "")).strip()
     an_plz_ort = _clean(getattr(ev, "cl_plz_ort", "")).strip()
     if not an_strasse and not an_plz_ort:

@@ -152,5 +152,34 @@ def test_briefing_edit_vorbelegung_aus_event(admin):
                      kunde_telefon="0201 99", veranstaltungsort="Musterstr. 1, 45127 Essen",
                      checkliste_uebersprungen=True)
     h = admin.get(f"/admin/events/{eid}/checklist/edit").text
-    assert 'value="Frau Schmidt"' in h and 'value="Glasfaser GmbH"' in h
+    assert 'value="Frau Schmidt"' in h
+    assert 'value="Glasfaser GmbH"' not in h      # Firmenkunde ≠ Veranstaltungsort (12.11.2026)
     assert 'value="Musterstr. 1"' in h and 'value="45127 Essen"' in h
+    privat = make_event(kunde_firma="Familie Weber", privatkunde=True,
+                        checkliste_uebersprungen=True)
+    assert 'value="Familie Weber"' in admin.get(f"/admin/events/{privat}/checklist/edit").text
+
+
+def test_briefing_agentur_steht_nicht_als_veranstaltungsort(admin, mails):
+    # Aykut 12.11.2026: Agentur bucht für Toys"R"Us → im Briefing stand die Agentur über
+    # der Adresse, Dienstleister wussten nicht, wohin. Auftraggeber nur bei Privatkunden.
+    from factories import briefing_event_ns
+    import pypdf
+    ev = briefing_event_ns(kunde_firma="Fullservice Event GmbH", cl_strasse="Musterstraße 1",
+                           cl_plz_ort="45127 Essen")
+    txt = "".join(p.extract_text() or "" for p in
+                  pypdf.PdfReader(io.BytesIO(build_briefing_pdf(ev, [], []))).pages)
+    assert "Musterstraße 1" in txt and "Fullservice Event GmbH" not in txt
+    ev.cl_firma_name = 'Toys"R"Us Essen'
+    txt = "".join(p.extract_text() or "" for p in
+                  pypdf.PdfReader(io.BytesIO(build_briefing_pdf(ev, [], []))).pages)
+    assert 'Toys"R"Us Essen' in txt
+    ev2 = briefing_event_ns(kunde_firma="Familie Weber", privatkunde=True)
+    txt = "".join(p.extract_text() or "" for p in
+                  pypdf.PdfReader(io.BytesIO(build_briefing_pdf(ev2, [], []))).pages)
+    assert "Familie Weber" in txt
+    # Warnung auf der Event-Seite bei Firmenkunden ohne Ortsnamen
+    eid = make_event(kunde_firma="Fullservice Event GmbH")
+    assert "noch kein Veranstaltungsort" in admin.get(f"/admin/events/{eid}").text
+    ok = make_event(kunde_firma="Fullservice Event GmbH", cl_firma_name='Toys"R"Us')
+    assert "noch kein Veranstaltungsort" not in admin.get(f"/admin/events/{ok}").text

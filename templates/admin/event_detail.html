@@ -445,7 +445,7 @@
     {% endmacro %}
     {{ cl_row('Ansprechpartner', ev.cl_ansprechpartner_name) }}
     {{ cl_row('Mobil', ev.cl_ansprechpartner_mobil) }}
-    {{ cl_row('Firma / Name', ev.cl_firma_name) }}
+    {{ cl_row('Veranstaltungsort', ev.cl_firma_name) }}
     {{ cl_row('Straße', ev.cl_strasse) }}
     {{ cl_row('PLZ / Ort', ev.cl_plz_ort) }}
     {{ cl_row('Aufbau von', ev.cl_aufbau_von) }}
@@ -1010,6 +1010,12 @@
     </div>
   </div>
   <p class="text-xs text-gray-500 mt-2">Geht an alle Dienstleister, die zugesagt haben – mit Team-Liste, Aufbauzeiten und allen Details. „Als PDF" lädt das Briefing zum Weitergeben herunter (z. B. an externe Agentur-Leute).</p>
+  {% if not ev.privatkunde and not (ev.cl_firma_name or '')|trim %}
+  <p class="text-xs rounded-lg px-3 py-2 mt-2" style="background:var(--c-amber-bg);color:var(--c-amber);">
+    ⚠️ Im Briefing steht noch kein Veranstaltungsort (z. B. Toys"R"Us Essen), nur die Adresse.
+    {% if not gesperrt %}<a href="/admin/events/{{ ev.id }}/checklist/edit" class="underline">Unter „Briefing bearbeiten“ eintragen</a>, damit das Team weiß, wo es klingeln muss.{% endif %}
+  </p>
+  {% endif %}
 
   <!-- Einmal-Teamer (extern) -->
   <div class="mt-4 pt-4" style="border-top:1px solid #f3f4f6;">

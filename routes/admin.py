@@ -2332,7 +2332,9 @@ def briefing_edit(request: Request, event_id: int, uebernehmen: int = 0,
     vor = {
         "ansprechpartner_name":  ev.cl_ansprechpartner_name  or ev.vor_ort_name or ev.kunde_kontakt or "",
         "ansprechpartner_mobil": ev.cl_ansprechpartner_mobil or ev.vor_ort_telefon or ev.kunde_telefon or "",
-        "firma_name":            ev.cl_firma_name or ev.kunde_firma or "",
+        # Bei Firmenkunden ist der Auftraggeber oft nicht der Ort (Agentur bucht für
+        # Toys"R"Us) → nur bei Privatkunden vorbelegen (Name an der Klingel)
+        "firma_name":            ev.cl_firma_name or (ev.kunde_firma if ev.privatkunde else "") or "",
         "strasse":               ev.cl_strasse  or strasse_def.strip(),
         "plz_ort":               ev.cl_plz_ort  or plz_ort_def.strip(),
         "aufbauort":   ev.cl_aufbauort  or (ev.outdoor_indoor or ""),

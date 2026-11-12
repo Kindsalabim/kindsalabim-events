@@ -138,8 +138,8 @@
       {% endif %}
       <div class="space-y-4">
         <div class="field">
-          <label>Firma / Name</label>
-          <input type="text" name="firma_name" value="{{ ev.cl_firma_name or '' }}" placeholder="z.B. Mustermann GmbH">
+          <label>Veranstaltungsort <span style="font-weight:400;color:var(--ink-3);">(Name des Geschäfts, der Kita oder der Familie, an dem unser Team klingelt)</span></label>
+          <input type="text" name="firma_name" value="{{ ev.cl_firma_name or '' }}" placeholder="z.B. Toys&quot;R&quot;Us Essen">
         </div>
         <div class="field">
           <label>Straße &amp; Hausnummer</label>
@@ -190,7 +190,7 @@
           </label>
           <div id="adr-{{ t.id }}" class="space-y-3 mt-3" {% if not abweichend %}style="display:none;"{% endif %}>
             <div class="field">
-              <label>Firma / Name</label>
+              <label>Veranstaltungsort</label>
               <input type="text" name="firma_name_{{ t.id }}" value="{{ t.cl_firma_name or '' if abweichend else '' }}">
             </div>
             <div class="field">
