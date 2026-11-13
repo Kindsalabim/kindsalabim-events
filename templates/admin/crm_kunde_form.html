@@ -55,6 +55,23 @@
           <input type="email" name="rechnung_email" value="{{ kunde.rechnung_email or '' if kunde else '' }}"
             class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
         </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">E-Rechnung <span class="text-gray-400 font-normal">(optional, nur wenn der Kunde eine verlangt)</span></label>
+          {% set gewaehlt = ((kunde.erechnung if kunde else '') or '').split(', ') %}
+          <div class="flex items-center gap-5 py-2">
+            {% for f in erechnung_formate %}
+            <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" name="erechnung" value="{{ f }}" class="rounded" style="accent-color: var(--brand-primary);" {% if f in gewaehlt %}checked{% endif %}>
+              {{ f }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Leitweg-ID <span class="text-gray-400 font-normal">(optional, nur bei öffentlichen Auftraggebern wie Stadt, Schule, städtische Kita)</span></label>
+          <input type="text" name="leitweg_id" value="{{ kunde.leitweg_id or '' if kunde else '' }}" placeholder="z. B. 05113000-12345-67"
+            class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+        </div>
       </div>
 
       <!-- Weitere Ansprechpartner (z. B. für die Planung) -->

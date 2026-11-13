@@ -84,6 +84,8 @@ class Event(Base):
     cl_ansprechpartner_name  = Column(String)
     cl_ansprechpartner_mobil = Column(String)
     cl_rechnung_email = Column(String)  # aus der Kunden-Checkliste: Mailadresse für den Rechnungsversand (NICHT fürs Briefing)
+    cl_erechnung      = Column(String)  # aus der Checkliste: „X-Rechnung" und/oder „ZUGFeRD" (choices.erechnung_wert)
+    cl_leitweg_id     = Column(String)  # aus der Checkliste: Leitweg-ID (oeffentliche Auftraggeber, X-Rechnung)
     cl_anlieferung_vortag = Column(Boolean, default=False)  # Anlieferung am Vortag möglich?
     cl_anlieferung_von    = Column(String)                   # HH:MM
     cl_anlieferung_bis    = Column(String)
@@ -614,6 +616,8 @@ class Kunde(Base):
     telefon       = Column(String)
     email         = Column(String)
     rechnung_email = Column(String)  # separate Rechnungs-Mailadresse (Erinnerung nach dem Event nutzt sie)
+    erechnung      = Column(String)  # gewünschtes E-Rechnungsformat: „X-Rechnung" und/oder „ZUGFeRD"
+    leitweg_id     = Column(String)  # Leitweg-ID oeffentlicher Auftraggeber (Pflicht fuer deren X-Rechnung)
     strasse       = Column(String)
     plz           = Column(String)
     ort           = Column(String)

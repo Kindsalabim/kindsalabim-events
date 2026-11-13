@@ -381,6 +381,22 @@
           <label>E-Mail-Adresse für den Rechnungsversand</label>
           <input type="email" name="rechnung_email" value="{{ ev.cl_rechnung_email or '' }}" placeholder="z.B. rechnung@firma.de">
         </div>
+        <div class="field">
+          <label>E-Rechnung <span style="font-weight:400;color:#9ca3af;">(optional, nur ankreuzen, wenn Sie eine E-Rechnung benötigen)</span></label>
+          <div class="flex gap-5 mt-1">
+            {% set gewaehlt = (ev.cl_erechnung or (ev.kunde.erechnung if ev.kunde else '') or '').split(', ') %}
+            {% for f in erechnung_formate %}
+            <label class="flex items-center gap-2 text-sm cursor-pointer" style="color: var(--ink-2); font-weight: 400;">
+              <input type="checkbox" name="erechnung" value="{{ f }}" style="accent-color: var(--brand);" {% if f in gewaehlt %}checked{% endif %}>
+              {{ f }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="field">
+          <label>Leitweg-ID <span style="font-weight:400;color:#9ca3af;">(nur bei öffentlichen Auftraggebern wie Stadt, Schule oder städtischer Kita)</span></label>
+          <input type="text" name="leitweg_id" value="{{ ev.cl_leitweg_id or (ev.kunde.leitweg_id if ev.kunde else '') or '' }}" placeholder="z.B. 05113000-12345-67">
+        </div>
       </div>
     </div>
 

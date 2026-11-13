@@ -467,6 +467,8 @@
     {{ cl_row('Rechnungsempfänger', ev.cl_rechnung_firma) }}
     {{ cl_row('Rechnungsadresse', [ev.cl_rechnung_strasse, ev.cl_rechnung_plz_ort] | select | join(', ')) }}
     {{ cl_row('Rechnungs-E-Mail', ev.cl_rechnung_email) }}
+    {{ cl_row('E-Rechnung', ev.cl_erechnung) }}
+    {{ cl_row('Leitweg-ID', ev.cl_leitweg_id) }}
   </div>
 </div>
 {% elif ev.checklist_token %}
@@ -1216,11 +1218,15 @@
       {# Gleiche Quellen wie die Glocken-Erinnerung (cron.py): Kartei vor Checkliste #}
       {% set re_mail = ((ev.kunde.rechnung_email if ev.kunde else None) or ev.cl_rechnung_email or '')|trim %}
       {% set re_anschrift = [ev.cl_rechnung_firma, ev.cl_rechnung_strasse, ev.cl_rechnung_plz_ort] | select | map('trim') | select | join(', ') %}
-      {% if re_mail or re_anschrift %}
+      {% set re_format = ((ev.kunde.erechnung if ev.kunde else None) or ev.cl_erechnung or '')|trim %}
+      {% set re_leitweg = ((ev.kunde.leitweg_id if ev.kunde else None) or ev.cl_leitweg_id or '')|trim %}
+      {% if re_mail or re_anschrift or re_format or re_leitweg %}
       <div class="text-xs rounded-lg px-3 py-2 mb-2" style="background:var(--c-amber-bg);color:var(--ink-2);">
         <span class="font-semibold">Besondere Rechnungsangaben:</span>
         {% if re_anschrift %}Rechnung an {{ re_anschrift }}.{% endif %}
         {% if re_mail %}Rechnung per Mail an <a href="mailto:{{ re_mail }}" class="underline">{{ re_mail }}</a> schicken.{% endif %}
+        {% if re_format %}Als E-Rechnung im Format {{ re_format }} erstellen.{% endif %}
+        {% if re_leitweg %}Leitweg-ID: <span class="font-semibold">{{ re_leitweg }}</span>.{% endif %}
       </div>
       {% endif %}
       {% if ev.rechnung_gestellt %}

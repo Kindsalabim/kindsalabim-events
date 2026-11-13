@@ -127,3 +127,38 @@ def test_abschluss_karte_zeigt_rechnungsangaben(admin):
     assert "mailto:buchhaltung@hk.example" in html and "HK Holding SE" in html
     ohne = make_event(datum=date.today() - timedelta(days=1), kunde_firma="Normal GmbH")
     assert "Besondere Rechnungsangaben" not in admin.get(f"/admin/events/{ohne}").text
+
+
+def test_erechnung_kartei_checkliste_und_hinweise(admin, client, db):
+    # Aykut 13.11.2026: E-Rechnungspflicht ab 2027 → X-Rechnung/ZUGFeRD optional ankreuzbar
+    from choices import erechnung_wert
+    assert erechnung_wert([]) is None
+    assert erechnung_wert(["ZUGFeRD", "X-Rechnung"]) == "X-Rechnung, ZUGFeRD"
+    # Kundenkartei: ankreuzen, speichern, wieder anzeigen
+    r = admin.post("/admin/crm/new", data={"firma": "ERechnung AG", "erechnung": ["ZUGFeRD"],
+                                           "leitweg_id": "05113000-12345-67"},
+                   follow_redirects=False)
+    kid = int(r.headers["location"].rstrip("/").split("/")[-1])
+    assert reload(Kunde, kid).erechnung == "ZUGFeRD"
+    assert reload(Kunde, kid).leitweg_id == "05113000-12345-67"
+    kartei = admin.get(f"/admin/crm/{kid}").text
+    assert "E-Rechnung: ZUGFeRD" in kartei and "Leitweg-ID: 05113000-12345-67" in kartei
+    # Checkliste: Auswahl am Event und in der Kartei; Hinweis + Glocke nach dem Event
+    eid = make_event(datum=date.today() + timedelta(days=10), kunde_id=kid,
+                     kunde_firma="ERechnung AG", kunde_email="k@er.example")
+    admin.post(f"/admin/events/{eid}/checklist", follow_redirects=False)
+    tok = reload(Event, eid).checklist_token
+    assert "X-Rechnung" in client.get(f"/checklist/{tok}").text
+    client.post(f"/checklist/{tok}", data={
+        "ansprechpartner_name": "X", "verpflegung": "Ja", "teamkleidung": "Ja", "ort_gleich": "Ja",
+        "erechnung": ["X-Rechnung", "ZUGFeRD"], "leitweg_id": "05113000-99999-11"})
+    assert reload(Event, eid).cl_erechnung == "X-Rechnung, ZUGFeRD"
+    assert reload(Kunde, kid).erechnung == "X-Rechnung, ZUGFeRD"
+    assert reload(Event, eid).cl_leitweg_id == reload(Kunde, kid).leitweg_id == "05113000-99999-11"
+    assert "Als E-Rechnung im Format X-Rechnung, ZUGFeRD erstellen" in admin.get(f"/admin/events/{eid}").text
+    vorbei = make_event(datum=date.today() - timedelta(days=1), kunde_id=kid,
+                        kunde_firma="ERechnung AG Glocke")
+    _run_rechnung_erinnerungen(db)
+    assert any("E-Rechnung im Format" in m.text and "Leitweg-ID: 05113000-99999-11" in m.text
+               for m in _meldungen("ERechnung AG Glocke"))
+    assert reload(Event, vorbei).rechnung_mail_erinnert is True

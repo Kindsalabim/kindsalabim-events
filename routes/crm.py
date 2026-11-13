@@ -18,12 +18,13 @@ from models import (Kunde, KundeTag, Event, KUNDE_STATUS,
 from auth import get_admin_user
 from rechte import nur_inhaber
 from config import get_config
-from choices import de_date, weitere_ap_liste, weitere_ap_json
+from choices import de_date, weitere_ap_liste, weitere_ap_json, erechnung_wert, ERECHNUNG_FORMATE
 
 router = APIRouter(prefix="/admin/crm")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
 templates.env.globals["weitere_ap_liste"] = weitere_ap_liste
+templates.env.globals["erechnung_formate"] = ERECHNUNG_FORMATE
 
 STATUS_LABEL = {
     "lead":     "Neuer Lead",
@@ -100,6 +101,7 @@ def _kunde_form_echo(raw, bestehend=None):
         id=getattr(bestehend, "id", None),
         firma=g("firma"), ansprechpartner=g("ansprechpartner"), branche=g("branche"),
         telefon=g("telefon"), email=g("email"), rechnung_email=g("rechnung_email"),
+        erechnung=erechnung_wert(raw.getlist("erechnung")), leitweg_id=g("leitweg_id"),
         strasse=g("strasse"), plz=g("plz"), ort=g("ort"), website=g("website"),
         pipeline_status=status if status in KUNDE_STATUS else "lead",
         marke=raw.get("marke") or "Kindsalabim",
@@ -128,6 +130,7 @@ def _apply_form(db, k: Kunde, f: dict):
     k.telefon = g("telefon") or None
     k.email = g("email") or None
     k.rechnung_email = g("rechnung_email") or None
+    k.leitweg_id = g("leitweg_id") or None
     k.strasse = g("strasse") or None
     k.plz = g("plz") or None
     k.ort = g("ort") or None
@@ -982,6 +985,7 @@ async def kunde_create(request: Request, db: Session = Depends(get_db), _=Depend
     k.weitere_ansprechpartner = weitere_ap_json(
         raw.getlist("kap_name"), raw.getlist("kap_telefon"), raw.getlist("kap_email"))
     _apply_form(db, k, form)
+    k.erechnung = erechnung_wert(raw.getlist("erechnung"))
     db.add(k); db.commit(); db.refresh(k)
     return RedirectResponse(f"/admin/crm/{k.id}", status_code=303)
 
@@ -1023,6 +1027,7 @@ async def kunde_update(request: Request, kid: int, db: Session = Depends(get_db)
     k.weitere_ansprechpartner = weitere_ap_json(
         raw.getlist("kap_name"), raw.getlist("kap_telefon"), raw.getlist("kap_email"))
     _apply_form(db, k, form)
+    k.erechnung = erechnung_wert(raw.getlist("erechnung"))
     db.commit()
     return RedirectResponse(f"/admin/crm/{kid}", status_code=303)
 

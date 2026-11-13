@@ -355,13 +355,21 @@ def _run_rechnung_erinnerungen(db: Session) -> int:
             (ev.cl_rechnung_firma or "").strip(),
             (ev.cl_rechnung_strasse or "").strip(),
             (ev.cl_rechnung_plz_ort or "").strip()) if x)
-        if not mail and not anschrift:
+        format_ = ((ev.kunde.erechnung if ev.kunde else None)
+                   or getattr(ev, "cl_erechnung", None) or "").strip()
+        leitweg = ((ev.kunde.leitweg_id if ev.kunde else None)
+                   or getattr(ev, "cl_leitweg_id", None) or "").strip()
+        if not mail and not anschrift and not format_ and not leitweg:
             continue
         teile = []
         if anschrift:
             teile.append(f"Rechnungsempfänger laut Kunde: {anschrift}.")
         if mail:
             teile.append(f"Versand an die Mailadresse {mail}.")
+        if format_:
+            teile.append(f"Als E-Rechnung im Format {format_} erstellen.")
+        if leitweg:
+            teile.append(f"Leitweg-ID: {leitweg}.")
         try:
             notify(db, "rechnung_erinnerung",
                    f"Rechnung mit speziellen Angaben: {ev.kunde_firma or ev.anlass or 'Event'}",

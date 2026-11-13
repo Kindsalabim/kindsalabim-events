@@ -23,6 +23,15 @@ def rechnung_anschrift(marke: str) -> dict:
     return RECHNUNGS_ANSCHRIFT.get(marke or "", RECHNUNGS_ANSCHRIFT["Kindsalabim"])
 
 
+# E-Rechnung (Pflicht für viele Unternehmen ab 01.01.2027, Aykut 13.11.2026): optional,
+# beides ankreuzbar; gespeichert als Text „X-Rechnung, ZUGFeRD", leer = keine Angabe
+ERECHNUNG_FORMATE = ["X-Rechnung", "ZUGFeRD"]
+
+
+def erechnung_wert(auswahl) -> str | None:
+    return ", ".join(f for f in ERECHNUNG_FORMATE if f in (auswahl or [])) or None
+
+
 # Künstler-Sparte (Dienstleister-Profil) → Anzeige-Label im Briefing.
 # "Sonstiges" bekommt bewusst kein Label (sagt dem Team nichts).
 SPARTE_BRIEFING = {

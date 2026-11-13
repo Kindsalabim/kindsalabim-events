@@ -8,12 +8,13 @@ from typing import Optional
 from database import get_db
 from models import Event
 from config import get_config
-from choices import ZEITEN, de_date
+from choices import ZEITEN, de_date, erechnung_wert, ERECHNUNG_FORMATE
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["de_date"] = de_date
 templates.env.globals["zeiten"] = ZEITEN
+templates.env.globals["erechnung_formate"] = ERECHNUNG_FORMATE
 
 # Der Kunden-Link gilt bis 30 Tage nach dem Event – danach ist er abgelaufen (Roadmap 2.4).
 CHECKLIST_ABLAUF_TAGE = 30
@@ -72,6 +73,8 @@ def checklist_submit(
     rechnung_firma:        str = Form(""),
     rechnung_strasse:      str = Form(""),
     rechnung_plz_ort:      str = Form(""),
+    erechnung:             list = Form([]),
+    leitweg_id:            str = Form(""),
     firma_name:            str = Form(""),
     strasse:               str = Form(""),
     plz_ort:               str = Form(""),
@@ -123,6 +126,14 @@ def checklist_submit(
             abholung_bis, aufbau_bedingungen, aufbauort, verpflegung, teamkleidung,
             parkplatz, weitere_details, foto_freigabe)
         ort_speichern(tag, ort_gleich == "Ja", ort_name, ort_strasse, ort_plz_ort)
+        # E-Rechnung (optional): am Event merken und, wenn angekreuzt, in die Kundenkartei
+        tag.cl_erechnung = erechnung_wert(erechnung)
+        tag.cl_leitweg_id = leitweg_id.strip() or None
+        if tag.kunde_id and tag.kunde:
+            if tag.cl_erechnung:
+                tag.kunde.erechnung = tag.cl_erechnung
+            if tag.cl_leitweg_id:
+                tag.kunde.leitweg_id = tag.cl_leitweg_id
         if serie:
             _tag_speichern(tag, formular)
             # Vortag-Anlieferung gehört nur zum ersten, Folgetag-Abholung nur zum
