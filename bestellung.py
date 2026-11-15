@@ -160,28 +160,32 @@ def build_bestellung_pdf(a, ev, d, verguetung: str, zusatz=None) -> bytes:
     if d.plz or d.stadt:
         empfaenger.append(f"{d.plz or ''} {d.stadt or ''}".strip())
 
-    # Logo + beschrifteter Rechnungs-Hinweis statt nur der kleinen Briefkopf-Zeile
-    # (Aykut 15.11.2026: Dienstleister verwechseln Knallfrosch/Kindsalabim beim
-    # Rechnungschreiben – das Logo ist der Marker, der am ehesten hängen bleibt).
+    # Echter Briefkopf statt kleiner grauer Zeile: Logo groß oben, farbige Linie darunter,
+    # dann erst der Rechnungshinweis (Aykut 15.11.2026, nach Rückmeldung 16.11.: das
+    # Mini-Logo in der Ecke fiel nicht auf – jetzt ist es der erste Blick aufs Dokument).
     try:
-        logo = Image(_LOGOS.get(ev.marke, _LOGOS["Kindsalabim"]), width=11 * mm, height=11 * mm,
-                     kind="proportional", hAlign="LEFT")
+        from reportlab.lib.utils import ImageReader
+        logo_pfad = _LOGOS.get(ev.marke, _LOGOS["Kindsalabim"])
+        iw, ih = ImageReader(logo_pfad).getSize()
+        logo_h = 17 * mm
+        logo = Image(logo_pfad, width=logo_h * iw / ih, height=logo_h, hAlign="LEFT")
     except Exception:
-        logo = Paragraph("", KLEIN)
-    kopf = Table([[logo, Paragraph(
-        f"<b>Rechnung bitte an:</b><br/>{firma}<br/>{_ANSCHRIFT}", KLEIN)]],
-        colWidths=[14 * mm, None])
-    kopf.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
+        logo = Paragraph(firma, H1)
+    linie = Table([[""]], colWidths=[166 * mm], rowHeights=[0.8 * mm])
+    linie.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), akzent)]))
+    rechnung_hinweis = ParagraphStyle("RHINWEIS", parent=P, fontSize=10,
+                                      backColor=colors.HexColor("#f3f6fa"),
+                                      borderPadding=8, spaceBefore=4)
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=22*mm, rightMargin=22*mm,
-                            topMargin=20*mm, bottomMargin=18*mm, title="Bestellung")
+                            topMargin=18*mm, bottomMargin=18*mm, title="Bestellung")
     story = [
-        kopf,
+        logo,
+        Spacer(1, 6),
+        linie,
+        Spacer(1, 8),
+        Paragraph(f"<b>Rechnung bitte an:</b> {firma}, {_ANSCHRIFT}", rechnung_hinweis),
         Spacer(1, 10),
         Paragraph("<br/>".join(empfaenger), P),
         Spacer(1, 8),
