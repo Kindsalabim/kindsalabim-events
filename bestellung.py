@@ -20,7 +20,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+
+from briefing_pdf import _LOGOS
 
 AGB_STAND = "03.03.2025"
 FAHRZEIT_SATZ = 10.0   # €/Std. Nettofahrzeit – wie in „Erläuterung zur Rechnungsstellung"
@@ -158,11 +160,28 @@ def build_bestellung_pdf(a, ev, d, verguetung: str, zusatz=None) -> bytes:
     if d.plz or d.stadt:
         empfaenger.append(f"{d.plz or ''} {d.stadt or ''}".strip())
 
+    # Logo + beschrifteter Rechnungs-Hinweis statt nur der kleinen Briefkopf-Zeile
+    # (Aykut 15.11.2026: Dienstleister verwechseln Knallfrosch/Kindsalabim beim
+    # Rechnungschreiben – das Logo ist der Marker, der am ehesten hängen bleibt).
+    try:
+        logo = Image(_LOGOS.get(ev.marke, _LOGOS["Kindsalabim"]), width=11 * mm, height=11 * mm,
+                     kind="proportional", hAlign="LEFT")
+    except Exception:
+        logo = Paragraph("", KLEIN)
+    kopf = Table([[logo, Paragraph(
+        f"<b>Rechnung bitte an:</b><br/>{firma}<br/>{_ANSCHRIFT}", KLEIN)]],
+        colWidths=[14 * mm, None])
+    kopf.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=22*mm, rightMargin=22*mm,
                             topMargin=20*mm, bottomMargin=18*mm, title="Bestellung")
     story = [
-        Paragraph(f"{firma} | {_ANSCHRIFT}", KLEIN),
+        kopf,
         Spacer(1, 10),
         Paragraph("<br/>".join(empfaenger), P),
         Spacer(1, 8),

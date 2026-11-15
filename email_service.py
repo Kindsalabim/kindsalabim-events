@@ -401,6 +401,10 @@ def send_bestellung(dienstleister, event, pdf: bytes, dateiname: str):
     is_kf = event.marke == "Knallfrosch"
     color = "#1a7a1a" if is_kf else "#003864"
     datum = event.datum.strftime("%d.%m.%Y")
+    # Rechnungsadresse explizit im Mailtext (Aykut 15.11.2026): Dienstleister arbeiten
+    # oft für beide Marken und verwechseln sonst Knallfrosch mit Kindsalabim.
+    ra = rechnung_anschrift(event.marke)
+    ra_zeile = ", ".join(ra["zeilen"])
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
@@ -411,6 +415,9 @@ def send_bestellung(dienstleister, event, pdf: bytes, dateiname: str):
     <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
       Abgerechnet wird wie immer deine tatsächlich erbrachte Leistung über deine Rechnung –
       die Bestellung dient der Übersicht und muss nicht unterschrieben werden.
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+      <strong>Deine Rechnung bitte an:</strong><br>{ra_zeile}
     </p>
     <p style="margin:0 0 16px;padding:12px 14px;background:#f3f6fa;border-radius:8px;
               font-size:14px;color:#374151;line-height:1.6;">

@@ -1,5 +1,6 @@
 """Prio-Paket Scheinselbstständigkeit II: Auto-Bestellung bei Zusage,
 Lieferantenbewertung (1–10) statt EP/5-Sterne, jährliche Scoring-Erinnerung."""
+import io
 from datetime import date, timedelta
 from types import SimpleNamespace
 
@@ -121,6 +122,29 @@ def test_bestellung_mail_beruhigt_wegen_mehraufwand(client, mails):
     html = next(m[2] for m in mails if m[1].startswith("Bestellung:"))
     assert "Kalkulationsgrundlage" in html
     assert "Rückfrage vorab brauchst du dafür nicht" in html
+
+
+def test_bestellung_mail_und_pdf_nennen_richtige_firma(client, mails):
+    # Aykut 15.11.2026: Dienstleister verwechseln Knallfrosch/Kindsalabim beim
+    # Rechnungschreiben – Firmierung + Logo jetzt explizit in Mail und PDF
+    import pypdf
+    from choices import rechnung_anschrift
+    did = make_dienstleister(stundensatz_teamer=20.0)
+    aid = make_anfrage(make_event(marke="Knallfrosch"), did, status="Ausstehend")
+    portal_login(client, did)
+    client.post(f"/portal/antwort/{aid}", data={"antwort": "Ja"}, follow_redirects=False)
+    html = next(m[2] for m in mails if m[1].startswith("Bestellung:"))
+    ra = rechnung_anschrift("Knallfrosch")
+    assert "Deine Rechnung bitte an" in html
+    assert all(z in html for z in ra["zeilen"])
+    assert "img" in html.lower() and "alt=\"Knallfrosch\"" in html
+
+    a, ev, d = _a_ns(), _ev_ns(marke="Knallfrosch"), _d_ns(st=20.0)
+    from bestellung import build_bestellung_pdf, verguetungs_positionen
+    haupt, zusatz = verguetungs_positionen(a, ev, d)
+    pdf = build_bestellung_pdf(a, ev, d, haupt, zusatz)
+    txt = "".join(p.extract_text() or "" for p in pypdf.PdfReader(io.BytesIO(pdf)).pages)
+    assert "Rechnung bitte an" in txt and "Knallfrosch Kinderevents" in txt
 
 
 # ── Auto-Bestellung: kompletter Zusage-Flow ───────────────────────────────────
