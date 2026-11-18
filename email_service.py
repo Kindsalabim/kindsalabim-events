@@ -992,11 +992,21 @@ def _einsatzzeit_rows(event, anfrage) -> str:
     return zeilen
 
 
+def _ort_fallback(event) -> str:
+    """PLZ+Ort des Veranstaltungsorts aus der Checkliste, als Fallback für die
+    maskierte Künstler-Ansicht (choices.plz_ort) – NICHT der Kunden-Hauptsitz,
+    der an einem ganz anderen Ort liegen kann (Aykut 18.11.2026)."""
+    import veranstaltungsort as _veranstaltungsort
+    return _veranstaltungsort.anschrift(event)[2]
+
+
 def _teamgroesse_row(event) -> str:
-    """Teamgröße in der Anfrage – leer, wenn im Event kein Bedarf hinterlegt ist."""
-    from besetzung import team_text
-    txt = team_text(event)
-    return _info_row('Team', txt) if txt else ""
+    """Teamgröße direkt unter den Aktionen – leer, wenn im Event kein Bedarf hinterlegt
+    ist (Aykut 18.11.2026: kompakte Zahl statt ganzem Satz, beugt der Rückfrage
+    „Bin ich da alleine im Einsatz?" vor)."""
+    from besetzung import team_anzahl
+    n = team_anzahl(event)
+    return _info_row('Teamer/Künstler', str(n)) if n else ""
 
 
 def _ankunft_row(event, anfrage) -> str:
@@ -1031,8 +1041,9 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
     content = f"""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
-      wir würden dich gerne für folgendes Event anfragen. Klick auf den Button – du bist
-      sofort in deinem Portal und kannst deine Verfügbarkeit bestätigen.
+      wir würden dich gerne für folgendes Event anfragen. Klick auf den Button: Du landest
+      direkt in deinem Portal und kannst uns sagen, ob es bei dir passt oder nicht.
+      Bitte antworte auch, wenn du keine Zeit hast.
     </p>
 
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
@@ -1041,8 +1052,8 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
         {_info_row('Datum', de_date(event.datum))}
         {_einsatzzeit_rows(event, anfrage)}
         {_ankunft_row(event, anfrage)}
-        {_info_row('Ort', anfrage_ort(event.veranstaltungsort, rolle))}
-        {_info_row('Produkte', event.produkte)}
+        {_info_row('Ort', anfrage_ort(event.veranstaltungsort, rolle, _ort_fallback(event)))}
+        {_info_row('Aktionen', event.produkte)}
         {_teamgroesse_row(event)}
         {_budget_row(budget)}
       </table>
@@ -1101,15 +1112,15 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
       wir haben ein <strong>mehrtägiges Event</strong> und würden dich gerne anfragen.
-      Klick auf den Button – in deinem Portal kannst du für <strong>jeden Tag einzeln</strong>
+      Klick auf den Button: In deinem Portal kannst du für <strong>jeden Tag einzeln</strong>
       zu- oder absagen.
     </p>
 
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
       <table cellpadding="0" cellspacing="0" width="100%">
         {_info_row('Anlass', leit.anlass)}
-        {_info_row('Ort', anfrage_ort(leit.veranstaltungsort, rolle))}
-        {_info_row('Produkte', leit.produkte)}
+        {_info_row('Ort', anfrage_ort(leit.veranstaltungsort, rolle, _ort_fallback(leit)))}
+        {_info_row('Aktionen', leit.produkte)}
         {_teamgroesse_row(leit)}
         {(_info_row('Budget je Tag', f"{de_euro(budget)} € pauschal (inkl. Fahrtkosten)") if budget else "")}
       </table>

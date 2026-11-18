@@ -133,6 +133,7 @@ def build_bestellung_pdf(a, ev, d, verguetung: str, zusatz=None) -> bytes:
                            textColor=colors.HexColor("#6b7280"))
 
     from choices import anfrage_ort
+    import veranstaltungsort as _veranstaltungsort
     leistung = ("Künstlerische Leistung" + (f" ({d.kuenstler_sparte})" if d.kuenstler_sparte else "")
                 if a.rolle_anfrage == "Künstler" else "Eventbetreuung als Teamer:in")
     if a.als_logistiker:
@@ -140,7 +141,8 @@ def build_bestellung_pdf(a, ev, d, verguetung: str, zusatz=None) -> bytes:
     zeilen = [
         ["Projekt", f"{ev.anlass or 'Event'} ({ev.marke})"],
         ["Datum / Zeit", f"{ev.datum.strftime('%d.%m.%Y')} · {ev.startzeit}–{ev.endzeit} Uhr"],
-        ["Einsatzort", anfrage_ort(ev.veranstaltungsort, a.rolle_anfrage) or "—"],
+        ["Einsatzort", anfrage_ort(ev.veranstaltungsort, a.rolle_anfrage,
+                                   _veranstaltungsort.anschrift(ev)[2]) or "—"],
         ["Leistung", leistung],
         ["Vergütung", verguetung],
     ]

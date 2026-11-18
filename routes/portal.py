@@ -20,8 +20,11 @@ templates.env.globals["anfrage_ort"] = anfrage_ort
 templates.env.filters["de_euro"] = de_euro
 import ankunft as _ankunft
 templates.env.globals["ankunft_anfrage"] = _ankunft.ankunft_anfrage
-from besetzung import team_text as _team_text
+from besetzung import team_text as _team_text, team_anzahl as _team_anzahl
 templates.env.globals["team_text"] = _team_text
+templates.env.globals["team_anzahl"] = _team_anzahl
+import veranstaltungsort as _veranstaltungsort
+templates.env.globals["ort_fallback"] = lambda ev: _veranstaltungsort.anschrift(ev)[2]
 
 def tpl_context(request: Request, **kwargs):
     return {"request": request, "cfg": get_config(), **kwargs}

@@ -180,25 +180,34 @@ def regeln_abschnitte(text: str, marke: str = "") -> list:
     return abschnitte
 
 
-def anfrage_ort(ort: str, rolle: str = "Künstler") -> str:
+def anfrage_ort(ort: str, rolle: str = "Künstler", ort_fallback: str = None) -> str:
     """Ortsangabe in der Verfügbarkeitsanfrage (Mail + Portal): Künstler sehen nur
     PLZ/Ort (Kundenschutz), Teamer die volle Adresse – sie können sich so besser auf
-    den Job einstellen (Aykut, 22.07.2026). Default konservativ = maskiert."""
+    den Job einstellen (Aykut, 22.07.2026). Default konservativ = maskiert.
+    `ort_fallback` ist die strukturierte PLZ+Ort-Angabe des VERANSTALTUNGSORTS aus der
+    Checkliste (veranstaltungsort.anschrift) – NICHT der Kunden-Hauptsitz, der ganz
+    woanders liegen kann (Aykut 18.11.2026, Korrektur). Nur genutzt, wenn die freie
+    Adresse selbst keine fünfstellige PLZ enthält."""
     if (rolle or "Künstler") == "Künstler":
-        return plz_ort(ort)
+        return plz_ort(ort, ort_fallback)
     return (ort or "").strip()
 
 
-def plz_ort(ort: str) -> str:
+def plz_ort(ort: str, ort_fallback: str = None) -> str:
     """Nur PLZ + Ort aus einer Adresse (Straße/Hausnummer entfernt) – für die Anfrage-
-    Ansicht, in der Dienstleister den Kunden noch nicht vollständig sehen sollen."""
+    Ansicht, in der Dienstleister den Kunden noch nicht vollständig sehen sollen.
+    Ohne erkennbare PLZ in der Adresse: PLZ aus `ort_fallback` (PLZ+Ort des
+    Veranstaltungsorts laut Checkliste) übernehmen, falls dort vorhanden."""
     if not ort:
-        return ""
+        return (ort_fallback or "").strip()
     m = re.search(r"\d{5}.*", ort)
     if m:
         return m.group(0).strip().rstrip(",").strip()
-    # Fallback ohne PLZ: letztes Segment (vermutlich der Ort)
-    return ort.split(",")[-1].strip()
+    # Fallback ohne PLZ in der Adresse selbst: letztes Segment (vermutlich der Ort),
+    # möglichst mit der PLZ aus der Checkliste des Veranstaltungsorts ergänzt.
+    stadt = ort.split(",")[-1].strip()
+    fm = re.search(r"\d{5}.*", ort_fallback or "")
+    return fm.group(0).strip() if fm else stadt
 
 
 def de_date(d) -> str:

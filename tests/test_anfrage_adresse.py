@@ -57,3 +57,44 @@ def test_serie_mail_folgt_der_rolle():
     assert "Musterstraße 12" in html
     html = _gesendet(email_service.send_serie_anfrage, _dl(), tage, "http://t")
     assert "Musterstraße 12" not in html   # Default bleibt maskiert
+
+
+def test_plz_fallback_kommt_vom_veranstaltungsort_nicht_vom_kunden(admin, db):
+    # Aykut 18.11.2026, Korrektur: Agentur (Hauptsitz Düsseldorf) bucht fuer Essen -
+    # die PLZ im Kuenstler-Ort darf NICHT vom Kundenhauptsitz stammen.
+    from models import Kunde, Event
+    from factories import make_event, reload
+    k = Kunde(firma="Fullservice Event GmbH", plz="40210", ort="Düsseldorf")
+    db.add(k); db.commit()
+    eid = make_event(kunde_id=k.id, kunde_firma="Fullservice Event GmbH",
+                     veranstaltungsort="Spielstraße 1, Essen",   # keine PLZ in der Adresse
+                     cl_ort_gleich=False, cl_ort_strasse="Spielstraße 1",
+                     cl_ort_plz_ort="45127 Essen")
+    ev = reload(Event, eid)
+    assert anfrage_ort(ev.veranstaltungsort, "Künstler",
+                       __import__("veranstaltungsort").anschrift(ev)[2]) == "45127 Essen"
+
+
+def test_ohne_checkliste_bleibt_nur_der_ort_ohne_plz(admin, db):
+    from models import Event
+    from factories import make_event, reload
+    eid = make_event(veranstaltungsort="Spielstraße 1, Essen")
+    ev = reload(Event, eid)
+    import veranstaltungsort
+    assert anfrage_ort(ev.veranstaltungsort, "Künstler", veranstaltungsort.anschrift(ev)[2]) == "Essen"
+
+
+def test_anfrage_text_ohne_gedankenstrich_und_bittet_um_antwort_auch_ohne_zeit():
+    # Aykut 18.11.2026: "- du bist sofort..." klang nach "nur klicken, wenn verfuegbar" ->
+    # Teamer ohne Kapazitaet reagierten gar nicht. Ausserdem keine Gedankenstriche.
+    html = _gesendet(email_service.send_verfuegbarkeitsanfrage,
+                     _dl(), _ev(), 1, "http://t", rolle="Teamer")
+    intro = html.split("Hallo Max")[1].split("</p>")[0]
+    assert "–" not in intro and "—" not in intro and " - " not in intro
+    assert "auch, wenn du keine Zeit hast" in html
+
+
+def test_aktionen_statt_produkte_label():
+    html = _gesendet(email_service.send_verfuegbarkeitsanfrage,
+                     _dl(), _ev(produkte="Zaubershow"), 1, "http://t", rolle="Teamer")
+    assert ">Aktionen<" in html and ">Produkte<" not in html

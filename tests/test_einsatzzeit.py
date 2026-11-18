@@ -149,8 +149,8 @@ def test_anfrage_zeigt_aktionszeit_einsatzzeit_und_team(admin, mails, client):
     [(_, _b, html)] = [m for m in mails if m[0] == d.email]
     assert "Aktionszeit" in html and "12:00 – 18:00 Uhr" in html
     assert "Deine Einsatzzeit" in html and "15:00 – 16:00 Uhr" in html
-    assert "3 Personen im Einsatz: 2 Teamer und 1 Künstler" in html
+    assert "Teamer/Künstler" in html and ">3<" in html
     portal_login(client, did)
     seite = client.get("/portal").text
     assert "Aktionszeit: 12:00–18:00 Uhr" in seite and "Deine Einsatzzeit: 15:00–16:00 Uhr" in seite
-    assert "3 Personen im Einsatz" in seite
+    assert "Teamer/Künstler: 3" in seite

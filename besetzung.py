@@ -52,6 +52,12 @@ def team_text(ev) -> str:
     return f"{gesamt} Personen im Einsatz: {' und '.join(teile)} (du bist mitgezählt)"
 
 
+def team_anzahl(ev) -> int:
+    """Geplante Teamgröße als reine Zahl (Teamer + Künstler zusammen), für die
+    kompakte Zeile „Teamer/Künstler:" unter den Aktionen. 0 = kein Bedarf hinterlegt."""
+    return (getattr(ev, "anzahl_teamer", 0) or 0) + (getattr(ev, "anzahl_kuenstler", 0) or 0)
+
+
 def ist_verspaetet(a, heute=None) -> bool:
     """Antwort nach Fristablauf? (Status oder Frist-Datum verraten es)"""
     heute = heute or date.today()
