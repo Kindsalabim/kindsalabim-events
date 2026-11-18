@@ -204,6 +204,20 @@ def _info_row_rot(label: str, value: str) -> str:
     </tr>"""
 
 
+def _notiz_block(notiz) -> str:
+    """Freitext-Hinweis zu EINER Anfrage (Aykut 18.11.2026): z. B. Aufteilung „2 Std.
+    Kinderschminken, 2 Std. Glitzertattoos" – eigener Kasten statt Tabellenzeile, weil
+    der Text mehrzeilig sein kann und auffallen soll. Leer = kein Kasten."""
+    txt = _no_none(notiz).strip()
+    if not txt:
+        return ""
+    return f"""
+    <div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:20px;">
+      <p style="margin:0;font-size:13px;font-weight:700;color:#92400e;">Hinweis für diesen Einsatz</p>
+      <p style="margin:4px 0 0;font-size:14px;color:#78350f;line-height:1.5;">{_esc(txt).replace(chr(10), "<br>")}</p>
+    </div>"""
+
+
 def _kontakt_row(label: str, name: str, telefon: str, hinweis: str,
                  betont: bool = False) -> str:
     """Kontakt mit Rangfolge: Label, Name · Telefon, darunter die kleine Erklärzeile.
@@ -596,6 +610,7 @@ def send_anfrage_geaendert(dienstleister, event, anfrage, neue_bestellung: bool 
         {_info_row('Material-Logistik', 'ja, du holst Material im Lager ab' if anfrage.als_logistiker else 'nein, du musst nicht ins Lager')}
       </table>
     </div>
+    {_notiz_block(getattr(anfrage, "notiz", None))}
     <a href="https://kindsalabim-events.onrender.com/portal"
        style="display:inline-block;background:{color};color:#ffffff;text-decoration:none;
               padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">
@@ -1032,6 +1047,7 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
         {_budget_row(budget)}
       </table>
     </div>
+    {_notiz_block(getattr(anfrage, "notiz", None))}
     {logistik_block}
 
     <a href="{portal_url}"
@@ -1098,6 +1114,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
         {(_info_row('Budget je Tag', f"{de_euro(budget)} € pauschal (inkl. Fahrtkosten)") if budget else "")}
       </table>
     </div>
+    {_notiz_block(getattr(anfragen[0], "notiz", None) if anfragen else None)}
 
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:28px;">
       <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Termine ({len(events)})</p>

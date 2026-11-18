@@ -147,3 +147,50 @@ def test_fenster_ist_vorausgefuellt(admin, db):
     assert 'value="Künstler" checked' in dialog
     assert 'value="180,00"' in dialog
     assert 'name="als_logistiker" value="true" checked' in dialog
+
+
+def test_hinweis_wird_in_anfrage_gesetzt_und_portal_mail_angezeigt(admin, db, mails):
+    # Aykut 18.11.2026: Künstlerin für 2 Std. Kinderschminken + 2 Std. Glitzertattoos
+    # angefragt – das Event listet beide Produkte, aber nicht die Zeitaufteilung.
+    did = make_dienstleister(vorname="Lena", rolle="Künstler")
+    eid = make_event(produkte="Kinderschminken, Glitzertattoos")
+    r = admin.post(f"/admin/events/{eid}/anfragen", data={
+        "dienstleister_ids": [str(did)], "rolle": "Künstler",
+        "notiz": "2 Std. Kinderschminken, 2 Std. Glitzertattoos"}, follow_redirects=False)
+    assert r.status_code == 303
+    a = db.query(Verfuegbarkeitsanfrage).filter_by(event_id=eid, dienstleister_id=did).one()
+    assert a.notiz == "2 Std. Kinderschminken, 2 Std. Glitzertattoos"
+    [(_, _b, html)] = _an(mails, did)
+    assert "Hinweis für diesen Einsatz" in html
+    assert "2 Std. Kinderschminken, 2 Std. Glitzertattoos" in html
+
+    from factories import portal_login
+    client = admin
+    portal_login(client, did)
+    seite = client.get("/portal").text
+    assert "Hinweis für dich:" in seite and "2 Std. Kinderschminken" in seite
+
+
+def test_hinweis_nachtraeglich_aendern_und_informieren(admin, db, mails):
+    did = make_dienstleister(vorname="Mara")
+    eid = make_event()
+    aid = make_anfrage(eid, did, status="Ausstehend", rolle="Teamer")
+    _aendern(admin, eid, aid, rolle="Teamer", notiz="Bitte Spielzelt selbst aufbauen",
+             benachrichtigen="true")
+    assert reload(Verfuegbarkeitsanfrage, aid).notiz == "Bitte Spielzelt selbst aufbauen"
+    [(_, _b, html)] = _an(mails, did)
+    assert "Bitte Spielzelt selbst aufbauen" in html
+
+
+def test_direkt_eingetragen_ohne_mail_zeigt_keinen_internen_marker_im_portal(admin, db):
+    # Der Audit-Hinweis "Manuell als zugesagt eingetragen" ist nur fuers Buero,
+    # darf dem Dienstleister im Portal nicht als "Hinweis fuer dich" angezeigt werden.
+    did = make_dienstleister(vorname="Theo")
+    eid = make_event()
+    admin.post(f"/admin/events/{eid}/anfragen", data={
+        "dienstleister_ids": [str(did)], "rolle": "Teamer", "direkt": "1"},
+        follow_redirects=False)
+    from factories import portal_login
+    portal_login(admin, did)
+    seite = admin.get("/portal").text
+    assert "Manuell als zugesagt eingetragen" not in seite

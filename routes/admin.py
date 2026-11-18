@@ -1754,6 +1754,7 @@ def send_anfragen(
     direkt: bool = Form(False),
     budget: str = Form(""),
     einsatz_von: str = Form(""), einsatz_bis: str = Form(""),
+    notiz: str = Form(""),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -1762,6 +1763,10 @@ def send_anfragen(
     if not dienstleister_ids:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
     logi_ids = {int(x) for x in logistiker_ids}  # als Logistiker (Materialtransport) angefragt
+    # Freitext-Hinweis für genau diese Anfrage (Aykut 18.11.2026): z. B. Aufteilung
+    # "2 Std. Kinderschminken, 2 Std. Glitzertattoos" – landet im notiz-Feld, sichtbar
+    # in Mail/Portal, nicht nur intern wie bisher.
+    notiz_val = notiz.strip() or None
     # Künstler-Budget (pauschal, netto, inkl. Fahrtkosten) – leer/ungültig = keine Angabe.
     budget_val = None
     b = (budget or "").strip().replace("€", "").replace(",", ".").strip()
@@ -1806,7 +1811,7 @@ def send_anfragen(
                     event_id=ze.id, dienstleister_id=did,
                     rolle_anfrage=rolle, status="Ja", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
-                    notiz="Manuell als zugesagt eingetragen (ohne Mail)",
+                    notiz=notiz_val or "Manuell als zugesagt eingetragen (ohne Mail)",
                     budget=budget_val,
                     einsatz_von=einsatz_von.strip() or None,
                     einsatz_bis=einsatz_bis.strip() or None,
@@ -1836,6 +1841,7 @@ def send_anfragen(
                     budget=budget_val,
                     einsatz_von=einsatz_von.strip() or None,
                     einsatz_bis=einsatz_bis.strip() or None,
+                    notiz=notiz_val,
                 )
                 db.add(a); db.flush()  # a.id für die Antwort-Links verfügbar machen
                 neue.append((ze, a))
@@ -2004,6 +2010,7 @@ def anfrage_aendern(
     rolle: str = Form("Teamer"), budget: str = Form(""),
     als_logistiker: bool = Form(False), benachrichtigen: bool = Form(False),
     einsatz_von: str = Form(""), einsatz_bis: str = Form(""),
+    notiz: str = Form(""),
 ):
     """Rolle, Budget und Logistik einer verschickten Anfrage nachträglich anpassen
     (z. B. als Teamerin + Logistikerin angefragt, eingesetzt als Kinderschminkerin).
@@ -2031,14 +2038,15 @@ def anfrage_aendern(
             neues_budget = round(float(b), 2) if b else None
         except ValueError:
             neues_budget = a.budget          # unlesbar: bisherigen Wert behalten
-    vorher = (a.rolle_anfrage, a.budget, bool(a.als_logistiker), a.einsatz_von, a.einsatz_bis)
+    neue_notiz = notiz.strip() or None
+    vorher = (a.rolle_anfrage, a.budget, bool(a.als_logistiker), a.einsatz_von, a.einsatz_bis, a.notiz)
     nachher = (neue_rolle, neues_budget, bool(als_logistiker),
-               einsatz_von.strip() or None, einsatz_bis.strip() or None)
+               einsatz_von.strip() or None, einsatz_bis.strip() or None, neue_notiz)
     if vorher == nachher:
         return RedirectResponse(ziel + "#wf-team", status_code=303)
 
     (a.rolle_anfrage, a.budget, a.als_logistiker,
-     a.einsatz_von, a.einsatz_bis) = nachher
+     a.einsatz_von, a.einsatz_bis, a.notiz) = nachher
     if ev and not als_logistiker and ev.logistiker_id == a.dienstleister_id:
         ev.logistiker_id = None
 

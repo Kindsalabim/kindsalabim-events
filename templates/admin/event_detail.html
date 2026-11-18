@@ -639,6 +639,11 @@
                        value="{{ (a.budget | de_euro) if a.budget else '' }}"
                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Hinweis für {{ a.dienstleister.vorname }} <span class="text-gray-400 font-normal">(optional, z. B. Aufteilung der Zeit auf mehrere Aktionen)</span></label>
+                <textarea name="notiz" rows="2" placeholder="z. B. 2 Std. Kinderschminken, 2 Std. Glitzertattoos"
+                          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">{{ a.notiz or '' }}</textarea>
+              </div>
               <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" name="als_logistiker" value="true" {% if a.als_logistiker %}checked{% endif %}>
                 Holt Material im Lager ab (Logistik)
@@ -950,6 +955,11 @@
             {{ time_select('einsatz_bis', '', 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
             <span class="text-xs text-gray-500">nur wenn die Person nicht die ganze Zeit da ist (Event {{ ev.startzeit }}–{{ ev.endzeit }} Uhr)</span>
           </div>
+        </div>
+        <div class="mb-3">
+          <label class="block text-xs font-medium text-gray-600 mb-1.5">Hinweis für diese Anfrage <span class="text-gray-400 font-normal">(optional, steht in Mail und Portal – z. B. Aufteilung der Zeit auf mehrere Aktionen)</span></label>
+          <textarea name="notiz" rows="2" placeholder="z. B. 2 Std. Kinderschminken, 2 Std. Glitzertattoos"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring"></textarea>
         </div>
         <button type="submit" class="btn-primary text-xs px-4 py-2">Anfragen senden</button>
       </form>
