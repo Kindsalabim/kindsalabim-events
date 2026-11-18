@@ -561,8 +561,11 @@ def dashboard(request: Request, db: Session = Depends(get_db), user=Depends(get_
         checkliste_offen = bool(ev.checklist_token and not ev.cl_eingereicht_am)
         urgent = 0 <= days_until <= 14
         # Monate vorher ist ein offenes Briefing normal – erst in der letzten Woche
-        # ist es ein Versäumnis (zweimal passiert, 09/2026).
-        briefing_offen = (0 <= days_until <= BRIEFING_HINWEIS_TAGE
+        # ist es ein Versäumnis (zweimal passiert, 09/2026). Ohne zugesagten
+        # Dienstleister gibt es niemanden zu briefen (Aykut macht die Show z. B.
+        # selbst, Mülheim an der Ruhr 22.11.2026).
+        hat_dienstleister = bool(ja_map.get(ev.id)) or bool(ext_map.get(ev.id))
+        briefing_offen = (hat_dienstleister and 0 <= days_until <= BRIEFING_HINWEIS_TAGE
                           and not ev.briefing_verfuegbar)
         offene_rueckmeldungen += pending
         if checkliste_offen:
