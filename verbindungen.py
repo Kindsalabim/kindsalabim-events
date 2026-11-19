@@ -22,13 +22,16 @@ SCHNITTSTELLEN = {
     "assistent.angebot":  ("Assistent meldet: Angebot verschickt", "ein"),
     "assistent.sperren":  ("Assistent meldet: bitte keine Mails mehr", "ein"),
     "assistent.ab":       ("Assistent meldet: Auftragsbestätigung verschickt", "ein"),
+    "assistent.reservierung": ("Assistent meldet: Angebot mit Mr.-Magic-Programm verschickt", "ein"),
     "assistent.entwurf":  ("Events-App übergibt Kontakt an den Assistenten", "aus"),
     "social.quickpost":   ("Events-App schickt Eventfoto an die Social-App", "aus"),
 }
 
 # Eingehende Aufrufe des Assistenten (für die Middleware in main.py). Der Schlüssel ist
 # der letzte Pfadteil: /admin/crm/api/vertrieb/gesendet → assistent.gesendet,
-# /admin/crm/api/buchung/ab → assistent.ab.
+# /admin/crm/api/buchung/ab → assistent.ab. Ausnahme /admin/crm/api/reservierung/angebot:
+# der letzte Pfadteil „angebot“ kollidiert sonst mit /admin/crm/api/vertrieb/angebot,
+# die Middleware behandelt diesen einen Pfad deshalb gesondert.
 EINGANG_PRAEFIX = "/admin/crm/api/"
 
 _STATUS_TEXT = {

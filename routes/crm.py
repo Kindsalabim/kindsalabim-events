@@ -806,6 +806,93 @@ async def api_ab_verschickt(request: Request, background_tasks: BackgroundTasks,
     return {"ok": True, "ergebnis": "vorlage"}
 
 
+@router.post("/api/reservierung/angebot")
+async def api_reservierung_angebot(request: Request, background_tasks: BackgroundTasks,
+                                   db: Session = Depends(get_db)):
+    """Der Assistent meldet: Ein Angebot mit Mr.-Magic-Programm ist an einen
+    Geschäftskunden raus. Ohne Reservierung droht eine Doppelbuchung (Aykut
+    19.11.2026, Fall Sevenich) – die Events-App legt sie deshalb selbst an, genau wie
+    beim Knopf „Reservierung speichern":
+
+    - am Tag schon ein passendes Event (gleiche Regeln wie 1.1a: Adresse, Firmen-Domain,
+      Firmenname) → nichts tun, "schon_gebucht";
+    - am Tag schon eine passende Reservierung → nichts tun, "schon_reserviert";
+    - sonst → neue Reservierung mit Kalendereintrag, "angelegt"."""
+    import vertrieb
+    from models import Reservierung
+    from routes.admin import _RES_ARTEN
+    if not _assistent_erlaubt(request):
+        raise HTTPException(401)
+    d = await request.json()
+
+    def _datum(feld, label):
+        try:
+            return date.fromisoformat(str(d.get(feld) or "")[:10])
+        except ValueError:
+            raise HTTPException(422, f"{label} fehlt oder ist kein ISO-Datum (YYYY-MM-DD).")
+
+    def _zeit(feld, label):
+        wert = str(d.get(feld) or "").strip()
+        try:
+            datetime.strptime(wert, "%H:%M")
+        except ValueError:
+            raise HTTPException(422, f"{label} fehlt oder ist unlesbar (HH:MM).")
+        return wert
+
+    tag = _datum("datum", "datum")
+    if tag < date.today():
+        raise HTTPException(422, "Das Datum liegt in der Vergangenheit.")
+    startzeit = _zeit("startzeit", "startzeit")
+    endzeit = _zeit("endzeit", "endzeit")
+    frist = _datum("frist", "frist")
+
+    nr = str(d.get("ag_nummer") or "").strip()
+    mail = str(d.get("empfaenger") or "").strip().lower()
+    firma = str(d.get("firma") or "").strip()
+    kontakt = str(d.get("kontakt") or "").strip()
+    ort = str(d.get("ort") or "").strip()
+    domain = vertrieb.domain_von(mail)
+    if vertrieb.ist_freemail(domain):
+        domain = ""
+
+    def passt(email_feld, firma_feld) -> bool:
+        """Gleiche Regeln wie bei der AB-Meldung (1.1a): Adresse, sonst Firmen-Domain
+        (keine Freemailer), sonst Firmenname."""
+        e = (email_feld or "").strip().lower()
+        if mail and e == mail:
+            return True
+        if domain and e.endswith("@" + domain):
+            return True
+        if firma and vertrieb.normalisieren(firma_feld) == vertrieb.normalisieren(firma):
+            return True
+        return False
+
+    if any(passt(ev.kunde_email, ev.kunde_firma)
+          for ev in db.query(Event).filter(Event.datum == tag).all()):
+        return {"ergebnis": "schon_gebucht"}
+    if any(passt(r.kunde_email, r.kunde_firma)
+          for r in db.query(Reservierung).filter(Reservierung.datum == tag).all()):
+        return {"ergebnis": "schon_reserviert"}
+
+    art = _RES_ARTEN.get(str(d.get("art") or "").strip().upper()) or "Z"
+    marke = str(d.get("marke") or "").strip().capitalize()
+    marke = marke if marke in ("Kindsalabim", "Knallfrosch") else "Kindsalabim"
+    r = Reservierung(
+        datum=tag, kunde_firma=firma or kontakt or mail or ort or "Unbekannt",
+        kunde_kontakt=kontakt or None, kunde_telefon=str(d.get("telefon") or "").strip() or None,
+        kunde_email=mail or None, startzeit=startzeit, endzeit=endzeit, art=art,
+        anlass=str(d.get("anlass") or "").strip() or None,
+        veranstaltungsort=ort or None, marke=marke, frist=frist,
+        notiz=(f"Angebot {nr}" if nr else None),
+        erstellt_am=datetime.now().isoformat(timespec="seconds"),
+    )
+    db.add(r)
+    db.commit(); db.refresh(r)
+    import calendar_service
+    background_tasks.add_task(calendar_service.sync_reservierung_async, r.id)
+    return {"ergebnis": "angelegt", "reservierung_id": r.id, "frist": frist.isoformat()}
+
+
 @router.post("/akquise/sperre")
 def akquise_sperre(ebene: str = Form("adresse"), wert: str = Form(""),
                    grund: str = Form("widerspruch"), notiz: str = Form(""),
