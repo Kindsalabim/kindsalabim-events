@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{{ cfg.app_name }}{% endblock %}</title>
+  <link rel="icon" href="/static/img/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
   {# Tailwind als fertige Datei statt Play-CDN: der lud 407 KB JavaScript und erzeugte
      das CSS bei JEDEM Seitenaufruf im Browser (und warnt selbst davor, ihn produktiv
      einzusetzen). Die Datei wird mit doku/build_tailwind.py neu erzeugt – nötig, wenn
