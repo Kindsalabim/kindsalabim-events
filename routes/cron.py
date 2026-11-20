@@ -599,19 +599,19 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
             db.rollback()
             print(f"Erinnerung fehlgeschlagen für {a.dienstleister.email}: {e}")
 
-    # Material-Bestell-Erinnerung: bis 3 Wochen vor Event, wenn Materialtransport nötig und
-    # noch nicht bestellt. Fenster + eigenes Flag (material_erinnerung_gesendet) statt exaktem
-    # Stichtag ohne Flag – sonst Doppelversand bei Doppel-Aufruf bzw. Totalausfall bei Cron-
-    # Lücke. (Review K2)
+    # Material-Bestell-Erinnerung: bis 3 Wochen vor Event, wenn eine Bestellung nötig ist
+    # (Event.bestellung_noetig: Mitnahme angehakt, Material-Aktion gebucht oder Hand-Schalter)
+    # und noch nicht bestellt. Fenster + eigenes Flag (material_erinnerung_gesendet) statt
+    # exaktem Stichtag ohne Flag – sonst Doppelversand bei Doppel-Aufruf bzw. Totalausfall
+    # bei Cron-Lücke. (Review K2)
     in_3_wochen = today + timedelta(weeks=3)
-    material_events = db.query(Event).filter(
+    material_events = [ev for ev in db.query(Event).filter(
         Event.datum >= today,
         Event.datum <= in_3_wochen,
-        Event.material_mitnahme == True,
         Event.material_bestellt == False,
         Event.material_erinnerung_gesendet == False,
         Event.status.notin_(["Abgesagt", "Abgeschlossen"]),
-    ).all()
+    ).all() if ev.bestellung_noetig]
     material_count = 0
     from email_service import send_material_erinnerung
     cfg = get_config()

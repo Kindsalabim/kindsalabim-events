@@ -1218,7 +1218,7 @@ def _workflow_steps(ev, anfragen, externe_n=None):
     elif anfragen:                team = ("doing", "angefragt")
     else:                         team = ("todo", "offen")
 
-    if ev.zaubershow_event or not ev.material_mitnahme:  bestellungen = ("na", "nicht nötig")
+    if not ev.bestellung_noetig:  bestellungen = ("na", "nicht nötig")
     elif ev.material_bestellt:    bestellungen = ("done", "bestellt")
     else:                         bestellungen = ("todo", "offen")
 
@@ -1230,7 +1230,7 @@ def _workflow_steps(ev, anfragen, externe_n=None):
     steps = [
         {"key": "checkliste",   "label": "Checkliste",    "short": "Checkliste", "target": "wf-checkliste", "state": checkliste[0],   "tag": checkliste[1]},
         {"key": "team",         "label": "Verfügbarkeit", "short": "Team",       "target": "wf-team",       "state": team[0],         "tag": team[1], "open_anfragen": True},
-        {"key": "bestellungen", "label": "Bestellungen",  "short": "Bestellung", "target": "wf-material",   "state": bestellungen[0], "tag": bestellungen[1]},
+        {"key": "bestellungen", "label": "Bestellungen",  "short": "Bestellung", "target": "bestellungen",   "state": bestellungen[0], "tag": bestellungen[1]},
         {"key": "briefing",     "label": "Briefing",      "short": "Briefing",   "target": "wf-briefing",   "state": briefing[0],     "tag": briefing[1]},
         {"key": "abschluss",    "label": "Abschluss",     "short": "Abschluss",  "target": "wf-abschluss",  "state": abschluss[0],    "tag": abschluss[1]},
     ]
@@ -1745,8 +1745,8 @@ def auto_status(ev, db) -> str:
     logistiker_ok = (not ev.material_mitnahme) or bool(ev.logistiker_id) or any(
         a.dienstleister.logistiker for a in confirmed if a.dienstleister)
 
-    # Material: wenn Mitnahme nötig, muss es auch bestellt sein
-    material_ok = (not ev.material_mitnahme) or ev.material_bestellt
+    # Material: wenn eine Bestellung nötig ist, muss sie auch erledigt sein
+    material_ok = (not ev.bestellung_noetig) or ev.material_bestellt
 
     checkliste_ok = bool(ev.cl_eingereicht_am or ev.checkliste_uebersprungen or ev.zaubershow_event)
     if teamer_ok and kuenstler_ok and logistiker_ok and material_ok and checkliste_ok:
@@ -1899,7 +1899,22 @@ def toggle_material_bestellt(
     db.commit()
     ev.status = auto_status(ev, db)
     db.commit()
-    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+    return RedirectResponse(f"/admin/events/{event_id}#bestellungen", status_code=303)
+
+
+@router.post("/events/{event_id}/bestellung-manuell")
+def set_bestellung_manuell(
+    event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    wert: str = Form(""),
+):
+    """Hand-Schalter „Bestellung nötig für dieses Event“: ja / nein / "" (= Automatik)."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    ev.bestellung_manuell = wert if wert in ("ja", "nein") else None
+    db.commit()
+    ev.status = auto_status(ev, db)
+    db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}#bestellungen", status_code=303)
 
 @router.post("/events/{event_id}/rechnung-gestellt")
 def toggle_rechnung_gestellt(

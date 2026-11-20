@@ -773,8 +773,8 @@ def send_material_erinnerung(event, admin_email: str):
     content = f"""
     <p style="margin:0 0 16px;font-size:16px;color:#111827;">📦 Material-Erinnerung</p>
     <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-      <strong>{_gross(wann)}</strong> findet folgendes Event statt, bei dem eine
-      <strong>Bastelaktion</strong> gebucht wurde. Bitte Material rechtzeitig bestellen!
+      <strong>{_gross(wann)}</strong> findet folgendes Event statt, für das
+      <strong>Material bestellt</strong> werden muss. Bitte rechtzeitig bestellen!
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
       <table cellpadding="0" cellspacing="0" width="100%">

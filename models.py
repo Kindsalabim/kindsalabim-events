@@ -4,6 +4,11 @@ from sqlalchemy import Column, Integer, String, Text, Date, Time, ForeignKey, Bo
 from sqlalchemy.orm import relationship, backref
 from database import Base
 
+# Gebuchte Aktionen, für die Material bestellt werden muss (Aykut 21.11.2026).
+# Bewusst NICHT: Bunter Bastelspaß, Bastelspaß Weihnachten, Glitzertattoos.
+BESTELL_AKTIONEN = ("Bastelaktion", "Buttonmaschine", "Prickeln",
+                    "Knusperhäuschen", "Lebkuchenherzen", "Fotoaktion")
+
 class Event(Base):
     __tablename__ = "events"
 
@@ -37,6 +42,9 @@ class Event(Base):
     teamkleidung = Column(Boolean, default=True)     # Legacy: kommt jetzt aus der Checkliste (cl_teamkleidung)
     material_mitnahme = Column(Boolean, default=False)  # Materialtransport nötig? steuert Logistik-Bedarf + 3-Wochen-Erinnerung
     material_bestellt = Column(Boolean, default=False)  # Material wurde bestellt – Bedingung für "Planung fertig"
+    # Hand-Schalter für den Bestellbedarf: None = automatisch (siehe bestellung_noetig),
+    # "ja" = Sonderfall (z. B. Extra-Deko), "nein" = trotz Material-Aktion keine Bestellung.
+    bestellung_manuell = Column(String)
     # Logistik / Materialtransport
     material_info = Column(Text)                         # Admin-Hinweis zur Menge/zum Transport (für Logistiker sichtbar)
     transporter_angeboten = Column(Boolean, default=False)  # Firmen-Transporter steht für dieses Event zur Verfügung
@@ -70,6 +78,29 @@ class Event(Base):
         unvollständig und sorgt für Rückfragen). Status-Fallback deckt Events ab,
         deren Briefing vor Einführung des Zeitstempels verschickt wurde."""
         return bool(self.briefing_gesendet_am) or self.status in ("Briefing gesendet", "Abgeschlossen")
+
+    @property
+    def bestellung_grund_auto(self):
+        """Warum automatisch eine Bestellung nötig ist (Text) – oder None.
+        Regel mit Aykut 21.11.2026: Material-Mitnahme angehakt ODER eine Material-Aktion gebucht."""
+        if self.zaubershow_event:
+            return None
+        gebucht = [p.strip() for p in (self.produkte or "").split(",") if p.strip()]
+        treffer = [p for p in gebucht if p in BESTELL_AKTIONEN]
+        if treffer:
+            return ", ".join(treffer) + " gebucht"
+        if self.material_mitnahme:
+            return "Material-Mitnahme angehakt"
+        return None
+
+    @property
+    def bestellung_noetig(self):
+        """Muss für dieses Event Material bestellt werden? Der Hand-Schalter schlägt die Automatik."""
+        if self.bestellung_manuell == "ja":
+            return True
+        if self.bestellung_manuell == "nein":
+            return False
+        return self.bestellung_grund_auto is not None
 
     # Eventbericht (vom Teamleiter nach dem Event im Portal ausgefüllt)
     bericht_eingereicht_am = Column(String)
