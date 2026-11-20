@@ -722,26 +722,24 @@
   {% if confirmed %}
   <form method="post" action="/admin/events/{{ ev.id }}/teamleiter" class="flex flex-wrap items-center gap-2 mb-5 pb-5" style="border-bottom: 1px solid #f3f4f6;">
     <label class="text-xs font-medium text-gray-500">Teamleiter</label>
-    <select name="teamleiter_id" class="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5" style="accent-color: var(--brand-primary);">
+    <select name="teamleiter_id" onchange="this.form.submit()" class="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5" style="accent-color: var(--brand-primary);">
       <option value="">– keiner –</option>
       {% for a in confirmed %}
       <option value="{{ a.dienstleister_id }}" {% if a.dienstleister_id == ev.teamleiter_id %}selected{% endif %}>{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}</option>
       {% endfor %}
     </select>
-    <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Speichern</button>
   </form>
   {% if needs_material %}
   {% set tlabel = {'eigenes_auto':'eigenes Auto','transporter':'unser Transporter','ohne':'⚠ kann NICHT mitnehmen'} %}
   <div class="mb-5 pb-5" style="border-bottom: 1px solid #f3f4f6;">
     <form method="post" action="/admin/events/{{ ev.id }}/logistiker" class="flex flex-wrap items-center gap-2">
       <label class="text-xs font-medium text-gray-500">🚚 Logistiker (Material)</label>
-      <select name="logistiker_id" class="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5">
+      <select name="logistiker_id" onchange="this.form.submit()" class="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5">
         <option value="">– keiner –</option>
         {% for a in confirmed %}
         <option value="{{ a.dienstleister_id }}" {% if a.dienstleister_id == ev.logistiker_id %}selected{% endif %}>{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}{% if a.als_logistiker and a.logistik_transport %} – {{ tlabel.get(a.logistik_transport, '') }}{% endif %}</option>
         {% endfor %}
       </select>
-      <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Speichern</button>
     </form>
     {% if ev.logistiker_id %}
     {% set la = confirmed | selectattr('dienstleister_id', 'equalto', ev.logistiker_id) | list | first %}
