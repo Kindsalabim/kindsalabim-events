@@ -98,7 +98,7 @@ def test_checkliste_speichert_abweichende_rechnungsadresse(client, db):
     ev = reload(Event, eid)
     assert ev.cl_rechnung_firma == "Signatur Holding GmbH & Co. KG"
     assert ev.cl_rechnung_strasse == "Rechnungsweg 1"
-    # Anzeige im Event unter Kunden-Angaben
+    # Anzeige im Event (Abschluss → „Besondere Rechnungsangaben“)
     from conftest import create_token  # admin-Client bauen wie in conftest
     client.cookies.set("admin_token", create_token({"sub": "a@b.de", "role": "admin"}, expires_minutes=60))
     h = client.get(f"/admin/events/{eid}").text

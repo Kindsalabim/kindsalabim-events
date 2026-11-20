@@ -216,17 +216,23 @@
 {% endif %}
 
 <!-- Info Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+{# Beide Karten aufklappbar (Aykut 21.11.2026): zu zeigen sie nur Überschrift + eine
+   Zusammenfassungszeile; offen/zu merkt sich der Browser (localStorage, siehe Skript unten). #}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 items-start">
 
   <!-- Event Details -->
-  <div class="card p-5">
-    <div class="flex items-center gap-2 mb-4">
-      <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  <details class="card p-5 klapp-karte" data-merk="ev-details">
+    <summary class="klapp-kopf">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <h2 class="text-sm font-semibold text-gray-700">Veranstaltungsdetails</h2>
+        <svg class="klapp-pfeil ml-auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
-      <h2 class="text-sm font-semibold text-gray-700">Veranstaltungsdetails</h2>
-    </div>
-    <dl class="space-y-2.5 text-sm">
+      <p class="klapp-zusammenfassung">{{ ev.datum | de_date }} · {{ ev.startzeit }}–{{ ev.endzeit }} Uhr{% if ev.veranstaltungsort %} · {{ ev.veranstaltungsort }}{% endif %}</p>
+    </summary>
+    <dl class="space-y-2.5 text-sm mt-4">
       <div class="flex gap-3">
         <dt class="text-gray-500 w-28 shrink-0">Datum</dt>
         <dd class="text-gray-900 font-medium">{{ ev.datum | de_date }}</dd>
@@ -285,31 +291,40 @@
       </div>
       {% endif %}
     </dl>
-    <p class="text-xs text-gray-500 mt-3">Aufbau, Parkplatz, Indoor/Outdoor, Verpflegung &amp; Teamkleidung füllt der Kunde in der Checkliste aus – siehe Kunden-Angaben unten. Logistiker zuweisen unten bei den Verfügbarkeitsanfragen.</p>
-  </div>
-
-  <!-- Kunde -->
-  <div class="card p-5">
-    <div class="flex items-center gap-2 mb-4">
-      <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    {% if ev.produkte %}
+    <div class="mt-4 pt-4" style="border-top: 1px solid #f3f4f6;">
+      <p class="text-xs text-gray-500 mb-2">Gebuchte Aktionen</p>
+      <div class="flex flex-wrap gap-1.5">
+        {% for produkt in ev.produkte.split(',') %}
+        <span class="text-xs px-2.5 py-1 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">{{ produkt.strip() }}</span>
+        {% endfor %}
       </div>
-      <h2 class="text-sm font-semibold text-gray-700">Kunde</h2>
-      {% if ev.privatkunde %}
-      <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);"
-            title="Privatkunde: Rechnung 14 Tage vor dem Event verschicken (Vorkasse) – die App erinnert automatisch">Privatkunde · Vorkasse</span>
-      {% endif %}
-      {% if ev.kunde %}
-      <a href="/admin/crm/{{ ev.kunde.id }}" class="ml-auto text-xs font-semibold text-gray-500 hover:text-gray-600 inline-flex items-center gap-1">
-        Kundenprofil
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </a>
-      {% endif %}
     </div>
-    <dl class="space-y-2.5 text-sm">
+    {% endif %}
+    <p class="text-xs text-gray-500 mt-3">Aufbau, Parkplatz, Indoor/Outdoor, Verpflegung &amp; Teamkleidung füllt der Kunde in der Checkliste aus – siehe Briefing → „Angaben aus der Checkliste“. Logistiker zuweisen unten bei den Verfügbarkeitsanfragen.</p>
+  </details>
+
+  <!-- Kunde (Buchungskontakt – bewusst getrennt von den Vor-Ort-Angaben der Checkliste) -->
+  <details class="card p-5 klapp-karte" data-merk="ev-kunde">
+    <summary class="klapp-kopf">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h2 class="text-sm font-semibold text-gray-700">Kunde</h2>
+        {% if ev.privatkunde %}
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:var(--c-amber-bg);color:var(--c-amber);"
+              title="Privatkunde: Rechnung 14 Tage vor dem Event verschicken (Vorkasse) – die App erinnert automatisch">Privatkunde · Vorkasse</span>
+        {% endif %}
+        <svg class="klapp-pfeil ml-auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <p class="klapp-zusammenfassung">{{ [ev.kunde_kontakt, ev.kunde_telefon] | select | join(' · ') or ev.kunde_firma }}{% if not ab_urls %} · <span style="color:var(--c-amber);">keine Auftragsbestätigung</span>{% endif %}</p>
+    </summary>
+    <dl class="space-y-2.5 text-sm mt-4">
       <div class="flex gap-3">
         <dt class="text-gray-500 w-28 shrink-0">Firma</dt>
-        <dd class="text-gray-900 font-medium">{{ ev.kunde_firma }}</dd>
+        <dd class="text-gray-900 font-medium">{{ ev.kunde_firma }}
+          {% if ev.kunde %}<a href="/admin/crm/{{ ev.kunde.id }}" class="ml-1.5 text-xs font-semibold text-gray-500 hover:text-gray-600 whitespace-nowrap">Kundenprofil →</a>{% endif %}</dd>
       </div>
       {% if ev.kunde_adresse %}
       <div class="flex gap-3">
@@ -330,113 +345,59 @@
         <dd class="text-gray-800">{{ ev.kunde_email or '–' }}</dd>
       </div>
     </dl>
-    {% if ev.produkte %}
+
+    <!-- Auftragsbestätigung (früher eigene Karte) -->
     <div class="mt-4 pt-4" style="border-top: 1px solid #f3f4f6;">
-      <p class="text-xs text-gray-500 mb-2">Gebuchte Produkte</p>
-      <div class="flex flex-wrap gap-1.5">
-        {% for produkt in ev.produkte.split(',') %}
-        <span class="text-xs px-2.5 py-1 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">{{ produkt.strip() }}</span>
+      <p class="text-xs text-gray-500 mb-2">Auftragsbestätigung</p>
+      {% if ab_urls %}
+      <ul class="mb-2 space-y-1.5">
+        {% for datei, url in ab_urls %}
+        <li class="flex items-center gap-2 text-sm py-1.5 px-2.5 rounded-lg" style="background: #f9fafb;">
+          {% if url %}
+          <a href="{{ url }}" target="_blank" rel="noopener" class="flex-1 truncate font-medium text-gray-700 hover:underline">{{ datei.filename }}</a>
+          {% else %}
+          <span class="flex-1 truncate text-gray-500">{{ datei.filename }}</span>
+          {% endif %}
+          <form method="post" action="/admin/events/{{ ev.id }}/auftragsbestaetigung/{{ datei.id }}/delete"
+                onsubmit="return confirm('Auftragsbestätigung löschen?')">
+            <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors" title="löschen">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </form>
+        </li>
         {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-<!-- Bestellungen / Materialkosten -->
-<div class="card p-5 mt-5 mb-5" id="bestellungen" style="scroll-margin-top:1rem;">
-  <div class="flex items-center gap-2 mb-1">
-    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-    </div>
-    <h2 class="text-sm font-semibold text-gray-700">Bestellungen</h2>
-    <span class="ml-1 text-xs text-gray-500">Materialkosten – die Summe wird beim Eintragen der Rechnung in der Buchhaltung vorgeschlagen</span>
-  </div>
-
-  {# Bestellbedarf: Regel in Event.bestellung_noetig (Mitnahme / Material-Aktion / Hand-Schalter) #}
-  {% set grund_auto = ev.bestellung_grund_auto %}
-  <div class="mt-3 flex items-center justify-between gap-3 flex-wrap p-3 rounded-lg" style="background:#f9fafb;">
-    {% if ev.bestellung_noetig %}
-    <p class="text-sm" style="color:var(--ink-1);">
-      <strong>Bestellung nötig</strong>
-      <span class="text-gray-500">· {{ 'von Hand festgelegt' if ev.bestellung_manuell == 'ja' else grund_auto }}</span>
-    </p>
-    <div class="flex items-center gap-2">
-      {% if ev.material_bestellt %}
-      <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ Bestellt</span>
-      <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
-        <input type="hidden" name="bestellt" value="0">
-        <button class="text-xs text-gray-500 hover:text-gray-600 underline">rückgängig</button>
-      </form>
-      {% else %}
-      <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
-        <input type="hidden" name="bestellt" value="1">
-        <button class="btn-primary text-xs px-4 py-2">Als bestellt markieren</button>
-      </form>
+      </ul>
       {% endif %}
-    </div>
-    {% else %}
-    <p class="text-sm text-gray-500">
-      Keine Bestellung nötig
-      {% if ev.bestellung_manuell == 'nein' %}<span class="text-gray-400">· von Hand festgelegt</span>{% endif %}
-    </p>
-    {% endif %}
-  </div>
-  {% if not gesperrt %}
-  <form method="post" action="/admin/events/{{ ev.id }}/bestellung-manuell" class="mt-1.5 text-right">
-    {% if ev.bestellung_manuell %}
-    <input type="hidden" name="wert" value="">
-    <button class="text-xs text-gray-500 hover:text-gray-600 underline">Automatik wiederherstellen</button>
-    {% elif grund_auto %}
-    <input type="hidden" name="wert" value="nein">
-    <button class="text-xs text-gray-500 hover:text-gray-600 underline">Für dieses Event keine Bestellung nötig</button>
-    {% else %}
-    <input type="hidden" name="wert" value="ja">
-    <button class="text-xs text-gray-500 hover:text-gray-600 underline">Bestellung nötig für dieses Event</button>
-    {% endif %}
-  </form>
-  {% endif %}
-
-  {% if ev.bestellungen %}
-  <ul class="mt-4 mb-2 space-y-1.5">
-    {% for b in ev.bestellungen %}
-    <li class="flex items-center gap-3 text-sm py-2 px-3 rounded-lg" style="background: #f9fafb;">
-      <span class="flex-1 min-w-0 text-gray-700">{{ b.bezeichnung }}</span>
-      <span class="shrink-0 font-medium text-gray-800">{{ (b.betrag or 0) | de_euro }} €</span>
-      {% if not gesperrt %}
-      <form method="post" action="/admin/events/{{ ev.id }}/bestellungen/{{ b.id }}/delete"
-            onsubmit="return confirm('Bestellung „{{ b.bezeichnung }}“ entfernen?')">
-        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+      <form method="post" action="/admin/events/{{ ev.id }}/auftragsbestaetigung" enctype="multipart/form-data">
+        <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-medium" style="color: var(--brand-primary);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          {% if ab_urls %}Weitere hochladen{% else %}Auftragsbestätigung hochladen{% endif %}
+          <input type="file" name="file" accept="image/*,application/pdf" class="hidden" onchange="this.closest('form').submit()">
+        </label>
+        <span class="text-xs text-gray-400 ml-1">PDF, JPG, PNG · max. 20 MB</span>
       </form>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  <p class="text-sm font-semibold text-right mb-3" style="color:var(--ink-1);">
-    Materialkosten gesamt: {{ ev.bestellungen | map(attribute='betrag') | select | sum | de_euro }} €
-  </p>
-  {% else %}
-  <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Bestellungen eingetragen – jede Bestellung hier kurz erfassen, dann entfällt später das Zusammensuchen der Belege.</p>
-  {% endif %}
-
-  {% if not gesperrt %}
-  <form method="post" action="/admin/events/{{ ev.id }}/bestellungen" class="flex flex-wrap items-end gap-3">
-    <div class="flex-1 min-w-[200px]">
-      <label class="block text-xs text-gray-500 mb-1">Bezeichnung</label>
-      <input type="text" name="bezeichnung" required placeholder="z. B. Baker Ross Bastelsets, Bestellung 12.08."
-             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
     </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Betrag (€)</label>
-      <input type="text" name="betrag" inputmode="decimal" placeholder="0,00"
-             class="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
-    </div>
-    <button class="btn-secondary text-xs px-4 py-2">+ Hinzufügen</button>
-  </form>
-  {% endif %}
+  </details>
 </div>
+<style>
+  .klapp-kopf{list-style:none;cursor:pointer;}
+  .klapp-kopf::-webkit-details-marker{display:none;}
+  .klapp-pfeil{color:var(--ink-4, #9ca3af);transition:transform .15s;flex-shrink:0;}
+  .klapp-karte[open] .klapp-pfeil{transform:rotate(180deg);}
+  .klapp-zusammenfassung{margin-top:.5rem;font-size:.8125rem;color:var(--ink-3, #6b7280);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .klapp-karte[open] .klapp-zusammenfassung{display:none;}
+</style>
+<script>
+  // Offen/zu je Karte im Browser merken (nur Komfort – ohne Speicher bleiben sie zu).
+  document.querySelectorAll('details[data-merk]').forEach(function (d) {
+    var k = 'klapp:' + d.dataset.merk;
+    try { if (localStorage.getItem(k) === '1') d.open = true; } catch (e) {}
+    d.addEventListener('toggle', function () {
+      try { localStorage.setItem(k, d.open ? '1' : '0'); } catch (e) {}
+    });
+  });
+</script>
 
 <!-- Kunden-Angaben (Checkliste) -->
 <div id="wf-checkliste" style="scroll-margin-top:1rem;">
@@ -448,54 +409,18 @@
   {% endif %}
 </div>
 {% elif ev.cl_eingereicht_am %}
-<div class="card p-5 mb-5">
-  <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-    <h2 class="text-sm font-semibold text-gray-700">Kunden-Angaben
-      <span class="ml-2 text-xs font-normal text-gray-500">eingereicht {{ ev.cl_eingereicht_am }}</span>
-    </h2>
-    <div class="flex items-center gap-3">
-      {% if ev.checklist_token %}
-      <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="text-xs font-medium" style="color: var(--brand-primary);">Formular ansehen →</a>
-      {% endif %}
-      {% if not gesperrt and ev.kunde_email %}
-      <form method="post" action="/admin/events/{{ ev.id }}/checklist"
-            onsubmit="return confirm('Checklisten-Mail erneut an den Kunden senden? Er kann seine Angaben dann erneut ausfüllen.')">
-        {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
-        <button type="submit" class="text-xs font-medium" style="color: var(--brand-primary);">↻ erneut senden</button>
-      </form>
-      {% endif %}
-    </div>
-  </div>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
-    {% macro cl_row(label, val) %}
-    {% if val %}<div class="flex gap-3"><dt class="text-gray-500 w-40 shrink-0">{{ label }}</dt><dd class="text-gray-800">{{ val }}</dd></div>{% endif %}
-    {% endmacro %}
-    {{ cl_row('Ansprechpartner', ev.cl_ansprechpartner_name) }}
-    {{ cl_row('Mobil', ev.cl_ansprechpartner_mobil) }}
-    {{ cl_row('Firma / Name', ev.cl_firma_name) }}
-    {{ cl_row('Straße', ev.cl_strasse) }}
-    {{ cl_row('PLZ / Ort', ev.cl_plz_ort) }}
-    {% if ev.cl_ort_gleich %}{{ cl_row('Veranstaltungsort', 'gleich wie Firmendaten') }}
-    {% elif ev.cl_ort_gleich is not none %}{{ cl_row('Veranstaltungsort', [ev.cl_ort_name, ev.cl_ort_strasse, ev.cl_ort_plz_ort] | select | join(', ')) }}{% endif %}
-    {{ cl_row('Aufbau von', ev.cl_aufbau_von) }}
-    {{ cl_row('Aufbau bis', ev.cl_aufbau_bis) }}
-    {{ cl_row('Abbau von', ev.cl_abbau_von) }}
-    {{ cl_row('Abbau bis', ev.cl_abbau_bis) }}
-    {% set anl = 'möglich' %}{% if ev.cl_anlieferung_von %}{% set anl = anl ~ ' (' ~ ev.cl_anlieferung_von ~ '–' ~ (ev.cl_anlieferung_bis or '…') ~ ' Uhr)' %}{% endif %}
-    {{ cl_row('Anlieferung am Vortag', anl if ev.cl_anlieferung_vortag else '') }}
-    {% set abh = 'möglich' %}{% if ev.cl_abholung_von %}{% set abh = abh ~ ' (' ~ ev.cl_abholung_von ~ '–' ~ (ev.cl_abholung_bis or '…') ~ ' Uhr)' %}{% endif %}
-    {{ cl_row('Abholung Folgetag/Montag', abh if ev.cl_abholung_folgetag else '') }}
-    {{ cl_row('Auf-/Abbau-Bedingungen', ev.cl_aufbau_bedingungen) }}
-    {{ cl_row('Aufbauort', ev.cl_aufbauort) }}
-    {{ cl_row('Verpflegung', ev.cl_verpflegung) }}
-    {{ cl_row('Teamkleidung', ev.cl_teamkleidung) }}
-    {{ cl_row('Parkplatz', ev.cl_parkplatz) }}
-    {{ cl_row('Weitere Details', ev.cl_weitere_details) }}
-    {{ cl_row('Rechnungsempfänger', ev.cl_rechnung_firma) }}
-    {{ cl_row('Rechnungsadresse', [ev.cl_rechnung_strasse, ev.cl_rechnung_plz_ort] | select | join(', ')) }}
-    {{ cl_row('Rechnungs-E-Mail', ev.cl_rechnung_email) }}
-    {{ cl_row('E-Rechnung', ev.cl_erechnung) }}
-    {{ cl_row('Leitweg-ID', ev.cl_leitweg_id) }}
+{# Schlanke Statuszeile – die Antworten selbst stehen aufklappbar in der Briefing-Karte. #}
+<div class="card p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
+  <p class="text-sm" style="color:var(--ink-1);"><span style="color:var(--c-success);">✓</span> Checkliste eingegangen <span class="text-gray-500">am {{ ev.cl_eingereicht_am }}</span></p>
+  <div class="flex items-center gap-3">
+    <a href="#cl-angaben" onclick="var d=document.getElementById('cl-angaben'); if(d){d.open=true;}" class="text-xs font-medium" style="color: var(--brand-primary);">Angaben ansehen ↓</a>
+    {% if not gesperrt and ev.kunde_email %}
+    <form method="post" action="/admin/events/{{ ev.id }}/checklist"
+          onsubmit="return confirm('Checklisten-Mail erneut an den Kunden senden? Er kann seine Angaben dann erneut ausfüllen.')">
+      {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
+      <button type="submit" class="text-xs font-medium" style="color: var(--brand-primary);">↻ erneut senden</button>
+    </form>
+    {% endif %}
   </div>
 </div>
 {% elif ev.checklist_token %}
@@ -1025,6 +950,102 @@
   {% endif %}
 </div>
 
+
+<!-- Bestellungen / Materialkosten -->
+<div class="card p-5 mt-5 mb-5" id="bestellungen" style="scroll-margin-top:1rem;">
+  <div class="flex items-center gap-2 mb-1">
+    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    </div>
+    <h2 class="text-sm font-semibold text-gray-700">Bestellungen</h2>
+    <span class="ml-1 text-xs text-gray-500">Materialkosten – die Summe wird beim Eintragen der Rechnung in der Buchhaltung vorgeschlagen</span>
+  </div>
+
+  {# Bestellbedarf: Regel in Event.bestellung_noetig (Mitnahme / Material-Aktion / Hand-Schalter) #}
+  {% set grund_auto = ev.bestellung_grund_auto %}
+  <div class="mt-3 flex items-center justify-between gap-3 flex-wrap p-3 rounded-lg" style="background:#f9fafb;">
+    {% if ev.bestellung_noetig %}
+    <p class="text-sm" style="color:var(--ink-1);">
+      <strong>Bestellung nötig</strong>
+      <span class="text-gray-500">· {{ 'von Hand festgelegt' if ev.bestellung_manuell == 'ja' else grund_auto }}</span>
+    </p>
+    <div class="flex items-center gap-2">
+      {% if ev.material_bestellt %}
+      <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full" style="background:var(--c-success-bg);color:var(--c-success);">✓ Bestellt</span>
+      <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
+        <input type="hidden" name="bestellt" value="0">
+        <button class="text-xs text-gray-500 hover:text-gray-600 underline">rückgängig</button>
+      </form>
+      {% else %}
+      <form method="post" action="/admin/events/{{ ev.id }}/material-bestellt" class="inline">
+        <input type="hidden" name="bestellt" value="1">
+        <button class="btn-primary text-xs px-4 py-2">Als bestellt markieren</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-500">
+      Keine Bestellung nötig
+      {% if ev.bestellung_manuell == 'nein' %}<span class="text-gray-400">· von Hand festgelegt</span>{% endif %}
+    </p>
+    {% endif %}
+  </div>
+  {% if not gesperrt %}
+  <form method="post" action="/admin/events/{{ ev.id }}/bestellung-manuell" class="mt-1.5 text-right">
+    {% if ev.bestellung_manuell %}
+    <input type="hidden" name="wert" value="">
+    <button class="text-xs text-gray-500 hover:text-gray-600 underline">Automatik wiederherstellen</button>
+    {% elif grund_auto %}
+    <input type="hidden" name="wert" value="nein">
+    <button class="text-xs text-gray-500 hover:text-gray-600 underline">Für dieses Event keine Bestellung nötig</button>
+    {% else %}
+    <input type="hidden" name="wert" value="ja">
+    <button class="text-xs text-gray-500 hover:text-gray-600 underline">Bestellung nötig für dieses Event</button>
+    {% endif %}
+  </form>
+  {% endif %}
+
+  {% if ev.bestellungen %}
+  <ul class="mt-4 mb-2 space-y-1.5">
+    {% for b in ev.bestellungen %}
+    <li class="flex items-center gap-3 text-sm py-2 px-3 rounded-lg" style="background: #f9fafb;">
+      <span class="flex-1 min-w-0 text-gray-700">{{ b.bezeichnung }}</span>
+      <span class="shrink-0 font-medium text-gray-800">{{ (b.betrag or 0) | de_euro }} €</span>
+      {% if not gesperrt %}
+      <form method="post" action="/admin/events/{{ ev.id }}/bestellungen/{{ b.id }}/delete"
+            onsubmit="return confirm('Bestellung „{{ b.bezeichnung }}“ entfernen?')">
+        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="text-sm font-semibold text-right mb-3" style="color:var(--ink-1);">
+    Materialkosten gesamt: {{ ev.bestellungen | map(attribute='betrag') | select | sum | de_euro }} €
+  </p>
+  {% else %}
+  <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Bestellungen eingetragen – jede Bestellung hier kurz erfassen, dann entfällt später das Zusammensuchen der Belege.</p>
+  {% endif %}
+
+  {% if not gesperrt %}
+  <form method="post" action="/admin/events/{{ ev.id }}/bestellungen" class="flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-xs text-gray-500 mb-1">Bezeichnung</label>
+      <input type="text" name="bezeichnung" required placeholder="z. B. Baker Ross Bastelsets, Bestellung 12.08."
+             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Betrag (€)</label>
+      <input type="text" name="betrag" inputmode="decimal" placeholder="0,00"
+             class="w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring">
+    </div>
+    <button class="btn-secondary text-xs px-4 py-2">+ Hinzufügen</button>
+  </form>
+  {% endif %}
+</div>
+
 <!-- Briefing -->
 <div class="card p-5 mt-5" id="wf-briefing" style="scroll-margin-top:1rem;">
   <div class="flex items-center justify-between gap-3 flex-wrap">
@@ -1056,6 +1077,78 @@
   </p>
   {% endif %}
 
+  {% if ev.cl_eingereicht_am %}
+  <!-- Angaben aus der Kunden-Checkliste (Vor-Ort-Daten; Rechnungsangaben stehen im Abschluss) -->
+  <details id="cl-angaben" class="klapp-karte mt-4 pt-4" style="border-top:1px solid #f3f4f6;scroll-margin-top:1rem;">
+    <summary class="klapp-kopf flex items-center gap-2">
+      <span class="text-xs font-semibold text-gray-600">Angaben aus der Checkliste</span>
+      <span class="text-xs text-gray-400">eingereicht {{ ev.cl_eingereicht_am }}</span>
+      <svg class="klapp-pfeil ml-auto" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </summary>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm mt-3">
+      {% macro cl_row(label, val) %}
+      {% if val %}<div class="flex gap-3"><dt class="text-gray-500 w-40 shrink-0">{{ label }}</dt><dd class="text-gray-800">{{ val }}</dd></div>{% endif %}
+      {% endmacro %}
+      {{ cl_row('Ansprechpartner vor Ort', ev.cl_ansprechpartner_name) }}
+      {{ cl_row('Mobil', ev.cl_ansprechpartner_mobil) }}
+      {{ cl_row('Firma / Name', ev.cl_firma_name) }}
+      {{ cl_row('Straße', ev.cl_strasse) }}
+      {{ cl_row('PLZ / Ort', ev.cl_plz_ort) }}
+      {% if ev.cl_ort_gleich %}{{ cl_row('Veranstaltungsort', 'gleich wie Firmendaten') }}
+      {% elif ev.cl_ort_gleich is not none %}{{ cl_row('Veranstaltungsort', [ev.cl_ort_name, ev.cl_ort_strasse, ev.cl_ort_plz_ort] | select | join(', ')) }}{% endif %}
+      {{ cl_row('Aufbau von', ev.cl_aufbau_von) }}
+      {{ cl_row('Aufbau bis', ev.cl_aufbau_bis) }}
+      {{ cl_row('Abbau von', ev.cl_abbau_von) }}
+      {{ cl_row('Abbau bis', ev.cl_abbau_bis) }}
+      {% set anl = 'möglich' %}{% if ev.cl_anlieferung_von %}{% set anl = anl ~ ' (' ~ ev.cl_anlieferung_von ~ '–' ~ (ev.cl_anlieferung_bis or '…') ~ ' Uhr)' %}{% endif %}
+      {{ cl_row('Anlieferung am Vortag', anl if ev.cl_anlieferung_vortag else '') }}
+      {% set abh = 'möglich' %}{% if ev.cl_abholung_von %}{% set abh = abh ~ ' (' ~ ev.cl_abholung_von ~ '–' ~ (ev.cl_abholung_bis or '…') ~ ' Uhr)' %}{% endif %}
+      {{ cl_row('Abholung Folgetag/Montag', abh if ev.cl_abholung_folgetag else '') }}
+      {{ cl_row('Auf-/Abbau-Bedingungen', ev.cl_aufbau_bedingungen) }}
+      {{ cl_row('Aufbauort', ev.cl_aufbauort) }}
+      {{ cl_row('Verpflegung', ev.cl_verpflegung) }}
+      {{ cl_row('Teamkleidung', ev.cl_teamkleidung) }}
+      {{ cl_row('Parkplatz', ev.cl_parkplatz) }}
+      {{ cl_row('Weitere Details', ev.cl_weitere_details) }}
+    </div>
+    {% if ev.checklist_token %}
+    <a href="/checklist/{{ ev.checklist_token }}" target="_blank" class="inline-block mt-3 text-xs font-medium" style="color: var(--brand-primary);">Ausgefülltes Formular ansehen →</a>
+    {% endif %}
+  </details>
+  {% endif %}
+
+  <!-- Planungsdateien (früher eigene Karte) -->
+  <div class="mt-4 pt-4" style="border-top:1px solid #f3f4f6;">
+    <p class="text-xs font-semibold text-gray-600 mb-2">Planungsdateien <span class="text-gray-400 font-normal">– werden als Anhang im Briefing mitgeschickt</span></p>
+    {% if planungs_urls %}
+    <ul class="mb-2 space-y-1.5">
+      {% for datei, url in planungs_urls %}
+      <li class="flex items-center gap-2 text-sm py-1.5 px-2.5 rounded-lg" style="background: #f9fafb;">
+        {% if url %}
+        <a href="{{ url }}" target="_blank" rel="noopener" class="flex-1 truncate font-medium text-gray-700 hover:underline">{{ datei.filename }}</a>
+        {% else %}
+        <span class="flex-1 truncate text-gray-500">{{ datei.filename }}</span>
+        {% endif %}
+        <form method="post" action="/admin/events/{{ ev.id }}/dateien/{{ datei.id }}/delete"
+              onsubmit="return confirm('Datei löschen?')">
+          <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors" title="löschen">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <form method="post" action="/admin/events/{{ ev.id }}/dateien" enctype="multipart/form-data">
+      <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-medium" style="color: var(--brand-primary);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+        Datei hochladen
+        <input type="file" name="file" accept="image/*,application/pdf" class="hidden" onchange="this.closest('form').submit()">
+      </label>
+      <span class="text-xs text-gray-400 ml-1">PDF, JPG, PNG · max. 20 MB</span>
+    </form>
+  </div>
+
   <!-- Einmal-Teamer (extern) -->
   <div class="mt-4 pt-4" style="border-top:1px solid #f3f4f6;">
     <p class="text-xs font-semibold text-gray-600 mb-2">Einmal-Teamer (extern) <span class="text-gray-400 font-normal">– z. B. Agentur-Personal; erscheint in der Team-Liste des Briefings</span></p>
@@ -1083,98 +1176,6 @@
     </form>
     {% endif %}
   </div>
-</div>
-
-<!-- Auftragsbestätigung -->
-<div class="card p-5 mt-5">
-  <div class="flex items-center gap-2 mb-1">
-    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--c-green-bg);">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
-    </div>
-    <h2 class="text-sm font-semibold text-gray-700">Auftragsbestätigung</h2>
-    <span class="ml-1 text-xs text-gray-500">die bestätigte Buchung des Kunden</span>
-  </div>
-
-  {% if ab_urls %}
-  <ul class="mt-4 mb-4 space-y-1.5">
-    {% for datei, url in ab_urls %}
-    <li class="flex items-center gap-3 text-sm py-2 px-3 rounded-lg" style="background: #f9fafb;">
-      {% if datei.filename.lower().endswith('.pdf') %}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--c-danger)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      {% else %}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      {% endif %}
-      {% if url %}
-      <a href="{{ url }}" target="_blank" rel="noopener" class="flex-1 truncate font-medium text-gray-700 hover:underline">{{ datei.filename }}</a>
-      {% else %}
-      <span class="flex-1 truncate text-gray-500">{{ datei.filename }}</span>
-      {% endif %}
-      <form method="post" action="/admin/events/{{ ev.id }}/auftragsbestaetigung/{{ datei.id }}/delete"
-            onsubmit="return confirm('Auftragsbestätigung löschen?')">
-        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </form>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="text-xs text-gray-500 mt-3 mb-3">Noch keine Auftragsbestätigung hinterlegt.</p>
-  {% endif %}
-
-  <form method="post" action="/admin/events/{{ ev.id }}/auftragsbestaetigung" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
-    <label class="flex items-center gap-2 cursor-pointer btn-secondary text-sm px-4 py-2">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-      {% if ab_urls %}Weitere hochladen{% else %}Auftragsbestätigung hochladen{% endif %}
-      <input type="file" name="file" accept="image/*,application/pdf" class="hidden" onchange="this.closest('form').submit()">
-    </label>
-    <span class="text-xs text-gray-500">PDF, JPG, PNG · max. 20 MB</span>
-  </form>
-</div>
-
-<!-- Planungsdateien -->
-<div class="card p-5 mt-5">
-  <div class="flex items-center gap-2 mb-1">
-    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--brand-primary-light);">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-    </div>
-    <h2 class="text-sm font-semibold text-gray-700">Planungsdateien</h2>
-    <span class="ml-1 text-xs text-gray-500">werden als Anhang im Briefing mitgeschickt</span>
-  </div>
-
-  {% if planungs_urls %}
-  <ul class="mt-4 mb-4 space-y-1.5">
-    {% for datei, url in planungs_urls %}
-    <li class="flex items-center gap-3 text-sm py-2 px-3 rounded-lg" style="background: #f9fafb;">
-      {% if datei.filename.lower().endswith('.pdf') %}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--c-danger)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      {% else %}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      {% endif %}
-      {% if url %}
-      <a href="{{ url }}" target="_blank" rel="noopener" class="flex-1 truncate font-medium text-gray-700 hover:underline">{{ datei.filename }}</a>
-      {% else %}
-      <span class="flex-1 truncate text-gray-500">{{ datei.filename }}</span>
-      {% endif %}
-      <form method="post" action="/admin/events/{{ ev.id }}/dateien/{{ datei.id }}/delete"
-            onsubmit="return confirm('Datei löschen?')">
-        <button type="submit" class="text-gray-300 hover:text-red-600 transition-colors">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </form>
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-
-  <form method="post" action="/admin/events/{{ ev.id }}/dateien" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3 {% if planungs_urls %}mt-2{% endif %}">
-    <label class="flex items-center gap-2 cursor-pointer btn-secondary text-sm px-4 py-2">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-      Datei hochladen
-      <input type="file" name="file" accept="image/*,application/pdf" class="hidden" onchange="this.closest('form').submit()">
-    </label>
-    <span class="text-xs text-gray-500">PDF, JPG, PNG · max. 20 MB</span>
-  </form>
 </div>
 
 <!-- Abschluss -->
