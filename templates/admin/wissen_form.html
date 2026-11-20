@@ -12,7 +12,7 @@
   <h1 class="text-xl font-bold text-gray-900">{{ 'Seite bearbeiten' if a else 'Neue Seite' }}</h1>
 </div>
 
-<form method="post" action="{% if a %}/admin/wissen/{{ a.id }}/edit{% else %}/admin/wissen/new{% endif %}" class="space-y-5 max-w-3xl" onsubmit="document.getElementById('inhalt').value = quill.root.innerHTML;">
+<form method="post" action="{% if a %}/admin/wissen/{{ a.id }}/edit{% else %}/admin/wissen/new{% endif %}" class="space-y-5 max-w-3xl" onsubmit="inhaltUebernehmen();">
 
   <div class="card p-6 space-y-4">
     <div>
@@ -80,6 +80,9 @@
     <div id="editor" style="min-height:280px;"></div>
     <textarea name="inhalt" id="inhalt" class="hidden">{{ (a.inhalt if a else '') }}</textarea>
     <p class="text-xs text-gray-500 mt-2">Formatieren wie in Word: Überschriften, Fett/Kursiv/Unterstrichen, Farbe, Listen, Bilder.</p>
+    {% if a and a.inhalt and '<table' in a.inhalt %}
+    <p class="text-xs mt-2" style="color:var(--c-warning, #b45309);">Diese Seite enthält eine Tabelle. Der Editor kann Tabellen nur vereinfacht darstellen (z.&nbsp;B. ohne Kopfzeile). Wenn du den Text nicht änderst, bleibt die Seite beim Speichern unverändert.</p>
+    {% endif %}
   </div>
 
   <div class="flex items-center gap-3">
@@ -137,8 +140,21 @@ const quill = new Quill('#editor', {
     }
   }
 });
-// Bestehenden Inhalt laden
-quill.root.innerHTML = document.getElementById('inhalt').value;
+// Bestehenden Inhalt laden. NICHT per root.innerHTML: Quill 2 löscht dabei
+// <ul>-Aufzählungen komplett (Confluence-Import). convert() übersetzt sauber.
+const inhaltOriginal = document.getElementById('inhalt').value;
+quill.setContents(quill.clipboard.convert({ html: inhaltOriginal }), 'silent');
+
+// Nur wenn wirklich im Text gearbeitet wurde, den Inhalt neu schreiben –
+// sonst bleibt das Original 1:1 (z. B. nur Titel/Sichtbarkeit geändert).
+let inhaltGeaendert = false;
+quill.on('text-change', (delta, alt, quelle) => { if (quelle === 'user') inhaltGeaendert = true; });
+function inhaltUebernehmen() {
+  if (!inhaltGeaendert) return;
+  // getSemanticHTML liefert echte <ul>/<ol> statt Quills interner Listen;
+  // Quill 2.0.x macht dabei aus jedem Leerzeichen ein &nbsp; → zurückdrehen.
+  document.getElementById('inhalt').value = quill.getSemanticHTML().replace(/&nbsp;/g, ' ');
+}
 
 // Cover-Upload
 document.getElementById('cover-file').addEventListener('change', function () {
