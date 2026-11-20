@@ -551,6 +551,15 @@ def dashboard(request: Request, db: Session = Depends(get_db), user=Depends(get_
             Verfuegbarkeitsanfrage.event_id).all():
         pending_map[eid] = cnt
 
+    # Anfragen je Event für die Workflow-Mini-Leiste auf der Dashboard-Karte (Aykut
+    # 20.11.2026, ersetzt den einzelnen Status-Badge) – eine Bulk-Query statt N+1,
+    # _workflow_steps() unten braucht pro Event die volle Liste (nicht nur die Zusagen).
+    anfragen_je_event = {}
+    for a in db.query(Verfuegbarkeitsanfrage).options(
+            joinedload(Verfuegbarkeitsanfrage.dienstleister)).filter(
+            Verfuegbarkeitsanfrage.event_id.in_([e.id for e in upcoming])).all():
+        anfragen_je_event.setdefault(a.event_id, []).append(a)
+
     upcoming_data = []
     offene_rueckmeldungen = 0
     offene_checklisten = 0
@@ -573,7 +582,9 @@ def dashboard(request: Request, db: Session = Depends(get_db), user=Depends(get_
         upcoming_data.append({"ev": ev, "fehlende_teamer": ft, "fehlende_kuenstler": fk,
                               "days_until": days_until, "pending": pending,
                               "checkliste_offen": checkliste_offen, "urgent": urgent,
-                              "briefing_offen": briefing_offen})
+                              "briefing_offen": briefing_offen,
+                              "workflow": _workflow_steps(ev, anfragen_je_event.get(ev.id, []),
+                                                          externe_n=ext_map.get(ev.id, 0))})
 
     # Vergangene, aber noch nicht abgeschlossene Events aus der Hauptliste ausgruppieren
     # (sie machen sie sonst unübersichtlich) → eigene eingeklappte Gruppe oben im Dashboard.
@@ -1180,11 +1191,16 @@ def event_create(
         background_tasks.add_task(calendar_service.sync_event_async, sib.id)
     return RedirectResponse(f"/admin/events/{ev.id}", status_code=303)
 
-def _workflow_steps(ev, anfragen):
-    """Berechnet die 5 Workflow-Stufen samt Status für die Chevron-Leiste im Event-Detail.
-    state: 'done' (grün/erledigt) · 'doing' (in Arbeit, grau) · 'todo' (offen, grau) · 'na' (nicht nötig)."""
+def _workflow_steps(ev, anfragen, externe_n=None):
+    """Berechnet die 5 Workflow-Stufen samt Status für die Chevron-Leiste im Event-Detail
+    (und die Mini-Variante auf der Dashboard-Karte).
+    state: 'done' (grün/erledigt) · 'doing' (in Arbeit, grau) · 'todo' (offen, grau) · 'na' (nicht nötig).
+    externe_n: Anzahl externer Teamer – wenn nicht mitgegeben (Event-Detail, 1 Event),
+    aus ev.externe_teamer gelesen; im Dashboard-Massenaufruf wird die schon vorhandene
+    Aggregat-Zahl übergeben, um eine Query pro Karte (N+1) zu vermeiden."""
     confirmed = [a for a in anfragen if a.status == "Ja"]
-    externe_n = len(ev.externe_teamer or [])
+    if externe_n is None:
+        externe_n = len(ev.externe_teamer or [])
     teamer_ok    = (sum(1 for a in confirmed if a.rolle_anfrage == "Teamer") + externe_n) >= ev.anzahl_teamer
     kuenstler_ok = sum(1 for a in confirmed if a.rolle_anfrage == "Künstler") >= ev.anzahl_kuenstler
     logistiker_ok = (not ev.material_mitnahme) or bool(ev.logistiker_id) or any(
@@ -1212,11 +1228,11 @@ def _workflow_steps(ev, anfragen):
     abschluss = ("done", "abgeschlossen") if ev.status == "Abgeschlossen" else ("todo", "offen")
 
     steps = [
-        {"key": "checkliste",   "label": "Checkliste",    "target": "wf-checkliste", "state": checkliste[0],   "tag": checkliste[1]},
-        {"key": "team",         "label": "Verfügbarkeit", "target": "wf-team",       "state": team[0],         "tag": team[1], "open_anfragen": True},
-        {"key": "bestellungen", "label": "Bestellungen",  "target": "wf-material",   "state": bestellungen[0], "tag": bestellungen[1]},
-        {"key": "briefing",     "label": "Briefing",      "target": "wf-briefing",   "state": briefing[0],     "tag": briefing[1]},
-        {"key": "abschluss",    "label": "Abschluss",     "target": "wf-abschluss",  "state": abschluss[0],    "tag": abschluss[1]},
+        {"key": "checkliste",   "label": "Checkliste",    "short": "Checkliste", "target": "wf-checkliste", "state": checkliste[0],   "tag": checkliste[1]},
+        {"key": "team",         "label": "Verfügbarkeit", "short": "Team",       "target": "wf-team",       "state": team[0],         "tag": team[1], "open_anfragen": True},
+        {"key": "bestellungen", "label": "Bestellungen",  "short": "Bestellung", "target": "wf-material",   "state": bestellungen[0], "tag": bestellungen[1]},
+        {"key": "briefing",     "label": "Briefing",      "short": "Briefing",   "target": "wf-briefing",   "state": briefing[0],     "tag": briefing[1]},
+        {"key": "abschluss",    "label": "Abschluss",     "short": "Abschluss",  "target": "wf-abschluss",  "state": abschluss[0],    "tag": abschluss[1]},
     ]
     aktiv_idx = next((i for i, s in enumerate(steps) if s["state"] in ("todo", "doing")), len(steps) - 1)
     for i, s in enumerate(steps):

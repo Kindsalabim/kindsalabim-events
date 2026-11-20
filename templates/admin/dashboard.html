@@ -161,10 +161,14 @@
          data-checkliste="{{ 1 if item.checkliste_offen else 0 }}"
          data-urgent="{{ 1 if item.urgent else 0 }}">
 
-        <!-- Datums-Badge mit Markenfarbe -->
-        <div class="date-badge {% if is_kf %}date-badge-kf{% endif %}">
-          <span class="d">{% if ev.datum %}{{ ev.datum.day }}{% else %}–{% endif %}</span>
-          <span class="m">{{ ev.datum | de_month }}</span>
+        <!-- Datums-Badge mit Markenfarbe + Marken-Kürzel -->
+        <div class="flex flex-col items-center gap-1 shrink-0">
+          <div class="date-badge {% if is_kf %}date-badge-kf{% endif %}">
+            <span class="d">{% if ev.datum %}{{ ev.datum.day }}{% else %}–{% endif %}</span>
+            <span class="m">{{ ev.datum | de_month }}</span>
+          </div>
+          <span class="text-xs font-bold" style="color:{% if is_kf %}var(--kf){% else %}var(--c-sky){% endif %};"
+                title="{% if is_kf %}Knallfrosch{% else %}Kindsalabim{% endif %}">{% if is_kf %}KF{% else %}KS{% endif %}</span>
         </div>
 
         <!-- Event-Infos -->
@@ -173,12 +177,15 @@
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-semibold" style="color:var(--ink-1);">{{ ev.kunde_firma or ev.anlass }}</span>
-                {% if is_kf %}<span class="brand-tag-knallfrosch">Knallfrosch</span>
-                {% else %}<span class="brand-tag-kindsalabim">Kindsalabim</span>{% endif %}
-                {{ status_badge(ev.status) }}
+                {% if ev.kunde_firma and ev.anlass %}<span class="text-xs" style="color:var(--ink-4);">· {{ ev.anlass }}</span>{% endif %}
                 {% if ev.serien_id and serien_count.get(ev.serien_id, 0) > 1 %}<span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background:var(--brand-primary-light);color:var(--brand-primary);" title="Teil eines mehrtägigen Events">🔗 Serie · {{ serien_count.get(ev.serien_id) }} Tage</span>{% endif %}
               </div>
-              <p class="text-xs mt-1" style="color:var(--ink-3);">{{ ev.veranstaltungsort }}{% if ev.anlass %} · {{ ev.anlass }}{% endif %}</p>
+              <div class="wf-mini-bar mt-1.5">
+                {% for s in item.workflow %}
+                <span class="wf-mini {% if loop.first %}wf-mini-first{% endif %} {% if s.state == 'done' %}wf-mini-done{% elif s.state == 'na' %}wf-mini-na{% endif %}"
+                      title="{{ s.label }}: {{ s.tag }}">{{ s.short }}</span>
+                {% endfor %}
+              </div>
               <div class="flex items-center gap-3 mt-2 flex-wrap">
                 <span class="text-xs" style="color:var(--ink-4);">{{ ev.startzeit }}–{{ ev.endzeit }} Uhr</span>
                 <span class="text-xs flex items-center gap-1 {% if ft > 0 %}text-red-600 font-semibold{% endif %}" style="{% if ft == 0 %}color:var(--ink-4);{% endif %}">
@@ -345,6 +352,16 @@
     text-transform:uppercase;color:var(--ink-4);white-space:nowrap;}
   .month-divider::after{content:"";flex:1;height:1px;background:var(--line);}
   .month-divider:first-child{padding-top:0;}
+
+  /* Workflow-Mini-Leiste auf der Dashboard-Karte (Chevron-Look wie im Event-Detail,
+     nur kompakter) – nowrap + horizontales Scrollen statt Umbruch in eine 3. Zeile. */
+  .wf-mini-bar{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .wf-mini{flex-shrink:0;font-size:0.6875rem;font-weight:600;line-height:1;white-space:nowrap;
+    padding:4px 9px 4px 12px;background:#e5e7eb;color:#6b7280;
+    clip-path:polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%);}
+  .wf-mini.wf-mini-first{padding-left:8px;clip-path:polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%);}
+  .wf-mini-done{background:var(--c-success-bg);color:var(--c-success);}
+  .wf-mini-na{background:#f3f4f6;color:#9ca3af;font-style:italic;}
 </style>
 <script>
 (function(){
