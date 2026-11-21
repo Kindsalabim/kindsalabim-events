@@ -44,7 +44,8 @@ def test_vorschlag_box_bei_luecke(admin):
     assert r.status_code == 200
     assert "Team noch nicht komplett" in r.text
     assert "Vorschlag Teamer" in r.text          # Kasten + konkreter 1-Klick-Vorschlag
-    assert "anfragen</button>" in r.text          # der ✓-anfragen-Button ist da
+    # Klick öffnet das Anfrage-Formular vorbefüllt (kein Sofort-Versand mehr, 21.11.2026)
+    assert "vorschlagWaehlen('Teamer'" in r.text
 
 
 def test_keine_box_wenn_team_komplett(admin):

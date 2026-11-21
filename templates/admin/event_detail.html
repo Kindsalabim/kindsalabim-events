@@ -440,11 +440,11 @@
     <div class="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
       {% if v %}
       <span style="color: var(--ink-2);"><strong>Vorschlag {{ rolle }}:</strong> {{ v.vorname }} {{ v.nachname }}<span style="color: var(--ink-4);">{% if v.stadt %} · {{ v.stadt }}{% endif %}{% if v.rang_distanz_km is not none %} · {{ v.rang_distanz_km|round(0)|int }} km{% endif %}{% if v.lieferantenbewertung %} · ★ {{ v.lieferantenbewertung }}/10{% endif %}</span></span>
-      <form method="post" action="/admin/events/{{ ev.id }}/anfragen" class="inline">
-        <input type="hidden" name="rolle" value="{{ rolle }}">
-        <input type="hidden" name="dienstleister_ids" value="{{ v.id }}">
-        <button type="submit" class="btn-primary text-xs px-3 py-1.5">✓ {{ v.vorname }} anfragen</button>
-      </form>
+      {# Kein Sofort-Versand mehr (Aykut 21.11.2026): der Klick öffnet das normale
+         Anfrage-Formular mit der Person angehakt – dort Budget, Hinweis, Serien-Tage. #}
+      <button type="button" class="underline font-medium" style="color: var(--brand-primary);"
+              onclick="if (window.vorschlagWaehlen) vorschlagWaehlen('{{ rolle }}', {{ v.id }})">{{ v.vorname }} anfragen …</button>
+      <span style="color: var(--ink-4);">·</span>
       {% else %}
       <span style="color: var(--ink-3);">Kein freier {{ rolle }}-Vorschlag verfügbar.</span>
       {% endif %}
@@ -765,7 +765,7 @@
 
       {% set sparte_icons = sparte_icon %}
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
-      <form method="post" action="/admin/events/{{ ev.id }}/anfragen"
+      <form method="post" action="/admin/events/{{ ev.id }}/anfragen" data-rolle="{{ rolle }}"
             onsubmit="if (this.querySelectorAll('input[name=dienstleister_ids]:checked').length === 0) { alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'); return false; } var b=this.querySelector('button[type=submit]'); setTimeout(function(){ b.disabled=true; b.textContent='Wird gesendet …'; }, 0); return true;">
         <input type="hidden" name="rolle" value="{{ rolle }}">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
@@ -889,6 +889,25 @@
         .sparte-chip.chip-active{background:var(--brand-primary-light);border-color:var(--brand-primary);color:var(--brand-primary);font-weight:600;}
       </style>
       <script>
+        // KI-Vorschlag „… anfragen“: Formular öffnen, Person anhaken, hinscrollen.
+        // Abgeschickt wird erst mit „Anfragen senden“ – nach Budget/Hinweis/Serie.
+        function vorschlagWaehlen(rolle, id){
+          var det = document.getElementById('dl-anfragen');
+          if (!det) return;
+          det.open = true;
+          var form = det.querySelector('form[data-rolle="' + rolle + '"]');
+          if (!form) return;
+          var suche = form.querySelector('.dl-suche'); if (suche) suche.value = '';
+          var alle = form.querySelector('.sparte-chip[data-sparte=""]');
+          if (alle) { filterSparte(alle); } else { applyDlFilter(form); }
+          var cb = form.querySelector('input[name=dienstleister_ids][value="' + id + '"]');
+          if (!cb || cb.disabled) { form.scrollIntoView({behavior:'smooth', block:'start'}); return; }
+          cb.checked = true;
+          var karte = cb.closest('.dl-pick');
+          karte.style.outline = '2px solid var(--brand-primary)';
+          // kurz warten: beim Öffnen lädt die Landkarte und verschiebt die Seite noch
+          setTimeout(function(){ karte.scrollIntoView({behavior:'smooth', block:'center'}); }, 400);
+        }
         function setBudget(btn, val){
           var inp = btn.closest('form').querySelector('input[name=budget]');
           if (inp) inp.value = val;
