@@ -318,7 +318,7 @@
         {% endif %}
         <svg class="klapp-pfeil ml-auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
-      <p class="klapp-zusammenfassung">{{ [ev.kunde_kontakt, ev.kunde_telefon] | select | join(' · ') or ev.kunde_firma }}</p>
+      <p class="klapp-zusammenfassung"><span class="font-medium" style="color:var(--ink-1);">{{ ev.kunde_firma }}</span>{% for t in [ev.kunde_kontakt, ev.kunde_telefon] | select %} · {{ t }}{% endfor %}</p>
     </summary>
     <dl class="space-y-2.5 text-sm mt-4">
       <div class="flex gap-3">
