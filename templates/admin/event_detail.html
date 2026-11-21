@@ -863,11 +863,12 @@
             </label>
             <label class="flex items-center gap-2.5 cursor-pointer">
               <input type="checkbox" class="rounded" style="accent-color: var(--brand-primary);"
-                     onchange="this.closest('div.flex').parentElement.querySelector('[data-einsatzzeit]').hidden = !this.checked;">
+                     onchange="var z=this.closest('div.flex').parentElement.querySelector('[data-einsatzzeit]'); z.style.display = this.checked ? '' : 'none'; if (!this.checked) z.querySelectorAll('select').forEach(function(s){ s.value=''; });">
               <span class="text-gray-700">Gesonderte Aktionszeit angeben</span>
             </label>
           </div>
-          <div data-einsatzzeit hidden class="flex items-center gap-2 mt-2.5 pt-2.5" style="border-top:1px solid #f0f0f0;">
+          {# display:none statt hidden-Attribut: die Klasse „flex“ hätte hidden überstimmt #}
+          <div data-einsatzzeit class="flex items-center gap-2 mt-2.5 pt-2.5" style="border-top:1px solid #f0f0f0;display:none;">
             {{ time_select('einsatz_von', '', 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
             <span class="text-sm text-gray-400">bis</span>
             {{ time_select('einsatz_bis', '', 'border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus-ring') }}
