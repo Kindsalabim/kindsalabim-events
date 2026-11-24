@@ -116,6 +116,9 @@
 .prose-wissen h3{font-size:1rem;font-weight:600;margin:.5em 0 .2em}
 .prose-wissen p{margin:.5em 0;line-height:1.65;color:#374151}
 .prose-wissen ul,.prose-wissen ol{margin:.5em 0;padding-left:1.4em}
+.prose-wissen ul{list-style:disc}.prose-wissen ol{list-style:decimal}
+/* ältere Quill-Seiten speichern Aufzählungen als <ol><li data-list="bullet"> */
+.prose-wissen li[data-list="bullet"]{list-style:disc}.prose-wissen li[data-list="ordered"]{list-style:decimal}
 .prose-wissen li{margin:.2em 0;color:#374151}
 .prose-wissen a{color:var(--brand-primary);text-decoration:underline;word-break:break-word}
 .prose-wissen code{background:#f1f5f9;padding:.1em .3em;border-radius:4px;font-size:.85em}

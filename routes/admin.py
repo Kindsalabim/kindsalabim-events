@@ -1229,7 +1229,7 @@ def _workflow_steps(ev, anfragen, externe_n=None):
 
     steps = [
         {"key": "checkliste",   "label": "Checkliste",    "short": "Checkliste", "target": "wf-checkliste", "state": checkliste[0],   "tag": checkliste[1]},
-        {"key": "team",         "label": "Verfügbarkeit", "short": "Team",       "target": "wf-team",       "state": team[0],         "tag": team[1], "open_anfragen": True},
+        {"key": "team",         "label": "Team",         "short": "Team",       "target": "wf-team",       "state": team[0],         "tag": team[1], "open_anfragen": True},
         {"key": "bestellungen", "label": "Bestellungen",  "short": "Bestellung", "target": "bestellungen",   "state": bestellungen[0], "tag": bestellungen[1]},
         {"key": "briefing",     "label": "Briefing",      "short": "Briefing",   "target": "wf-briefing",   "state": briefing[0],     "tag": briefing[1]},
         {"key": "abschluss",    "label": "Abschluss",     "short": "Abschluss",  "target": "wf-abschluss",  "state": abschluss[0],    "tag": abschluss[1]},
@@ -1238,6 +1238,26 @@ def _workflow_steps(ev, anfragen, externe_n=None):
     for i, s in enumerate(steps):
         s["active"] = (i == aktiv_idx)
     return steps
+
+
+def _briefing_luecken(ev, anfragen) -> list:
+    """Was vor dem Briefing noch fehlt – für die Rückfrage am Knopf „Briefing senden“
+    (Aykut 21.11.2026: „Es fehlt noch 1 Teamer – trotzdem senden?“, auch offene Bestellung)."""
+    zu = [a for a in anfragen if a.status == "Ja"]
+    luecken = []
+    if not ev.zaubershow_event:
+        t = ev.anzahl_teamer - sum(1 for a in zu if a.rolle_anfrage == "Teamer") - len(ev.externe_teamer or [])
+        k = ev.anzahl_kuenstler - sum(1 for a in zu if a.rolle_anfrage == "Künstler")
+        if t > 0:
+            luecken.append(f"Es fehlt noch {t} Teamer.")
+        if k > 0:
+            luecken.append(f"Es fehlt noch {k} Künstler.")
+        if ev.material_mitnahme and not ev.logistiker_id and not any(
+                a.dienstleister.logistiker for a in zu if a.dienstleister):
+            luecken.append("Es ist noch kein Logistiker eingeteilt.")
+    if ev.bestellung_noetig and not ev.material_bestellt:
+        luecken.append("Die Bestellung ist noch offen.")
+    return luecken
 
 
 @router.get("/events/{event_id}", response_class=HTMLResponse)
@@ -1447,7 +1467,8 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
                     fehlend_teamer=fehlend_teamer, fehlend_kuenstler=fehlend_kuenstler,
                     vorschlag_teamer=vorschlag_teamer, vorschlag_kuenstler=vorschlag_kuenstler,
                     ab_vorhanden=ab_vorhanden, ab_budget_vorschlaege=ab_budget_vorschlaege,
-                    workflow=workflow))
+                    workflow=workflow,
+                    briefing_luecken=_briefing_luecken(ev, anfragen)))
 
 
 @router.post("/events/{event_id}/serie/add")
