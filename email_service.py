@@ -1082,13 +1082,22 @@ def send_verfuegbarkeitsanfrage(dienstleister, event, anfrage_id: int, base_url:
 def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = "",
                        budget=None, rolle: str = "Künstler", anfragen=None):
     """Kombinierte Anfrage für ein mehrtägiges Event (mehrere Termintage).
-    Eine Mail listet alle Tage; der Dienstleister kann im Portal jeden Tag einzeln zusagen.
+    Eine Mail listet alle Tage; der Dienstleister kann im Portal jeden Tag einzeln zusagen –
+    außer bei „nur komplett“ (anfragen mit komplett_gruppe): dann eine Antwort für alle Tage.
     `anfragen` (gleiche Reihenfolge wie `events`) liefert die eigene Aktionszeit je Tag."""
     import ankunft as _ankunft
     cfg = get_config()
     leit = events[0]
     color = _brand_color(leit.marke)
     portal_url = magic_url or f"{base_url}/portal/login"
+
+    # Serie „nur komplett“ (Aykut 24.11.2026): nur eine Antwort für alle Tage
+    komplett = bool(anfragen and getattr(anfragen[0], "komplett_gruppe", None))
+    wahl_text = (f"Klick auf den Button: In deinem Portal sagst du für <strong>alle {len(events)} Tage "
+                 f"zusammen</strong> zu oder ab. Wir suchen eine Person für alle Tage."
+                 if komplett else
+                 "Klick auf den Button: In deinem Portal kannst du für <strong>jeden Tag einzeln</strong> "
+                 "zu- oder absagen.")
 
     tage_rows = ""
     for i, ev in enumerate(events):
@@ -1112,8 +1121,7 @@ def send_serie_anfrage(dienstleister, events, base_url: str, magic_url: str = ""
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hallo {dienstleister.vorname},</p>
     <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6;">
       wir haben ein <strong>mehrtägiges Event</strong> und würden dich gerne anfragen.
-      Klick auf den Button: In deinem Portal kannst du für <strong>jeden Tag einzeln</strong>
-      zu- oder absagen.
+      {wahl_text}
     </p>
 
     <div style="background:#f9fafb;border-radius:8px;padding:20px 24px;margin-bottom:20px;">

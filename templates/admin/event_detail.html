@@ -819,17 +819,11 @@
       {% set sparte_icons = sparte_icon %}
       {% for rolle, ranked in [('Teamer', ranked_teamer), ('Künstler', ranked_kuenstler)] %}
       <form method="post" action="/admin/events/{{ ev.id }}/anfragen" data-rolle="{{ rolle }}"
-            onsubmit="if (this.querySelectorAll('input[name=dienstleister_ids]:checked').length === 0) { alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'); return false; } var b=this.querySelector('button[type=submit]'); setTimeout(function(){ b.disabled=true; b.textContent='Wird gesendet …'; }, 0); return true;">
+            onsubmit="if (this.querySelectorAll('input[name=dienstleister_ids]:checked').length === 0) { alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'); return false; } var b=(event && event.submitter) || this.querySelector('button[type=submit]'), alle=this.querySelectorAll('button[type=submit]'); setTimeout(function(){ alle.forEach(function(x){ x.disabled=true; }); b.textContent='Wird gesendet …'; }, 0); return true;">
         <input type="hidden" name="rolle" value="{{ rolle }}">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
         {% if rolle == 'Künstler' %}<input type="hidden" name="aktion" value="">{% endif %}
         <h4 class="text-sm font-medium text-gray-700 mb-3" data-titel>{{ rolle }} anfragen</h4>
-        {% if serie_events and serie_events|length > 1 %}
-        <label class="flex items-start gap-2.5 cursor-pointer mb-3 text-sm p-2.5 rounded-lg" style="background:var(--brand-primary-light);">
-          <input type="checkbox" name="serie" value="1" checked class="mt-0.5 rounded" style="accent-color: var(--brand-primary);">
-          <span class="text-gray-700">Für alle <strong>{{ serie_events|length }} Termine</strong> der Serie anfragen <span class="text-gray-500">(eine Mail; Dienstleister kann pro Tag einzeln zusagen)</span></span>
-        </label>
-        {% endif %}
         {% if rolle == 'Künstler' %}
         {% set sparten_present = ranked | selectattr('kuenstler_sparte') | map(attribute='kuenstler_sparte') | join(', ') %}
         {% if sparten_present %}
@@ -919,7 +913,7 @@
             </label>
             <label class="flex items-center gap-2.5 cursor-pointer">
               <input type="checkbox" name="direkt" value="1" class="rounded" style="accent-color: var(--brand-primary);"
-                     onchange="this.closest('form').querySelector('button[type=submit]').textContent = this.checked ? 'Als zugesagt eintragen' : 'Anfragen senden';">
+                     onchange="var d=this.checked; this.closest('form').querySelectorAll('button[type=submit]').forEach(function(b){ b.textContent = d ? b.dataset.direkt : b.dataset.normal; });">
               <span class="text-gray-700">Ohne Mail – als <strong>bereits zugesagt</strong> eintragen</span>
             </label>
           </div>
@@ -936,7 +930,26 @@
           <textarea name="notiz" rows="2" placeholder="z. B. 2 Std. Kinderschminken, 2 Std. Glitzertattoos"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus-ring"></textarea>
         </div>
-        <button type="submit" class="btn-primary text-xs px-4 py-2">Anfragen senden</button>
+        {% if serie_events and serie_events|length > 1 %}
+        {# Serie: zwei gleich große Knöpfe statt Häkchen oben – entschieden wird beim Klick (Aykut 24.11.2026).
+           Nur der Knopf „alle Termine“ schickt serie=1 mit. #}
+        {% set wt = ['Mo','Di','Mi','Do','Fr','Sa','So'] %}
+        {% set dieser = wt[ev.datum.weekday()] ~ ' ' ~ ev.datum.strftime('%d.%m.') %}
+        {% set n = serie_events|length %}
+        {% if n <= 3 %}
+          {% set ns = namespace(t=[]) %}{% for se in serie_events %}{% set ns.t = ns.t + [wt[se.datum.weekday()] ~ ' ' ~ se.datum.strftime('%d.%m.')] %}{% endfor %}
+          {% set alle_txt = ns.t | join(' + ') %}
+        {% else %}{% set alle_txt = serie_events[0].datum.strftime('%d.%m.') ~ '–' ~ serie_events[-1].datum.strftime('%d.%m.') %}{% endif %}
+        <div class="flex flex-wrap gap-2">
+          <button type="submit" class="btn-primary text-xs px-4 py-2"
+                  data-normal="Nur für diesen Termin anfragen ({{ dieser }})" data-direkt="Nur für diesen Termin eintragen ({{ dieser }})">Nur für diesen Termin anfragen ({{ dieser }})</button>
+          <button type="submit" name="serie" value="1" class="btn-primary text-xs px-4 py-2"
+                  data-normal="Für alle {{ n }} Termine anfragen ({{ alle_txt }})" data-direkt="Für alle {{ n }} Termine eintragen ({{ alle_txt }})">Für alle {{ n }} Termine anfragen ({{ alle_txt }})</button>
+        </div>
+        <p class="text-xs text-gray-500 mt-1.5">Bei „alle Termine“ geht eine Mail raus; {% if ev.serie_komplett %}die Person kann nur für alle Tage zusammen zu- oder absagen.{% else %}die Person kann pro Tag einzeln zusagen.{% endif %}</p>
+        {% else %}
+        <button type="submit" class="btn-primary text-xs px-4 py-2" data-normal="Anfragen senden" data-direkt="Als zugesagt eintragen">Anfragen senden</button>
+        {% endif %}
       </form>
       {% endfor %}
 
@@ -1410,6 +1423,14 @@
       {% endif %}
     {% endfor %}
   </div>
+  {# Nur komplett vergeben: gilt für alle Termine der Serie, nur für neue Anfragen (Aykut 24.11.2026) #}
+  <form method="post" action="/admin/events/{{ ev.id }}/serie-komplett" class="mt-3">
+    <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+      <input type="checkbox" name="wert" value="1" {% if ev.serie_komplett %}checked{% endif %} {% if gesperrt %}disabled{% endif %}
+             class="rounded" style="accent-color: var(--brand-primary);" onchange="this.form.submit()">
+      Nur komplett vergeben <span class="text-gray-500">(alle Tage dieselbe Person)</span>
+    </label>
+  </form>
   {% endif %}
   {% if not gesperrt %}
   <details class="{% if serie_events and serie_events|length > 1 %}mt-3{% endif %}">

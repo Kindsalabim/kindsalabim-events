@@ -185,10 +185,20 @@ def portal_dashboard(request: Request, db: Session = Depends(get_db),
     anfragen = sorted(anfragen_raw, key=parse_date)
 
     # Frist-Tage berechnen und ans Template übergeben
+    # Serie „nur komplett“: alle Tage einer Gruppe als EINE Karte (frühester Tag vorne),
+    # beantwortet wird einmal für alle (portal_antwort).
     anfragen_data = []
+    gruppen = {}
     for a in anfragen:
-        dl = days_left(a)
-        anfragen_data.append({"anfrage": a, "days_left": dl})
+        if a.komplett_gruppe:
+            if a.komplett_gruppe in gruppen:
+                gruppen[a.komplett_gruppe]["gruppe_tage"].append(a)
+                continue
+            item = {"anfrage": a, "days_left": days_left(a), "gruppe_tage": [a]}
+            gruppen[a.komplett_gruppe] = item
+            anfragen_data.append(item)
+        else:
+            anfragen_data.append({"anfrage": a, "days_left": days_left(a), "gruppe_tage": []})
 
     confirmed = db.query(Verfuegbarkeitsanfrage).options(_mit_event).filter(
         Verfuegbarkeitsanfrage.dienstleister_id == did,
@@ -243,77 +253,101 @@ def portal_antwort(anfrage_id: int, background_tasks: BackgroundTasks,
     # kann kein Job angenommen werden. Absagen bleibt jederzeit möglich.
     if a and antwort == "Ja" and a.dienstleister and not a.dienstleister.unterlagen_ok:
         return RedirectResponse("/portal?unterlagen_fehlen=1", status_code=303)
+    # Serie „nur komplett“ (Aykut 24.11.2026): eine Antwort gilt für alle Tage der Gruppe
+    gruppe = [a]
+    if a and a.komplett_gruppe:
+        gruppe = db.query(Verfuegbarkeitsanfrage).filter(
+            Verfuegbarkeitsanfrage.komplett_gruppe == a.komplett_gruppe,
+            Verfuegbarkeitsanfrage.dienstleister_id == did,
+            Verfuegbarkeitsanfrage.status.in_(["Ausstehend", "Abgelaufen"])).all() or [a]
     # Platzvergabe-Regeln (besetzung.py): volles Team, verspätete Zusage, Warteliste
     glueck = False
     if a and antwort == "Ja":
         from besetzung import zusage_pruefen, auf_warteliste
-        urteil = zusage_pruefen(db, a)
-        if urteil in ("voll", "zu_spaet"):
-            return RedirectResponse(f"/portal?besetzt={urteil}", status_code=303)
-        if urteil == "warteliste":
-            auf_warteliste(db, a)
-            return RedirectResponse("/portal?warteliste=1", status_code=303)
-        glueck = (urteil == "glueck")
+        if len(gruppe) > 1:
+            # Komplett: nur wenn an JEDEM Tag ein Platz frei ist – sonst gar keine Zusage
+            # (keine Warteliste für einzelne Tage, das würde die Serie wieder zerteilen).
+            urteile = [zusage_pruefen(db, x) for x in gruppe]
+            schlecht = [u for u in urteile if u not in ("ok", "glueck")]
+            if schlecht:
+                u = "zu_spaet" if any(x in ("zu_spaet", "warteliste") for x in schlecht) else "voll"
+                return RedirectResponse(f"/portal?besetzt={u}", status_code=303)
+            glueck = "glueck" in urteile
+        else:
+            urteil = zusage_pruefen(db, a)
+            if urteil in ("voll", "zu_spaet"):
+                return RedirectResponse(f"/portal?besetzt={urteil}", status_code=303)
+            if urteil == "warteliste":
+                auf_warteliste(db, a)
+                return RedirectResponse("/portal?warteliste=1", status_code=303)
+            glueck = (urteil == "glueck")
     if a and antwort in ("Ja", "Nein"):
-        a.status = antwort
-        a.notiz = notiz.strip() or None
-        from routes.admin import auto_status
-        ev = a.event
-        # Logistiker-Transportart festhalten und Event-Logistiker setzen/lösen
-        transport_text = ""
-        if a.als_logistiker and antwort == "Ja" and transport:
-            a.logistik_transport = transport
-            if transport == "eigenes_auto":
-                ev.logistiker_id = a.dienstleister_id
-                transport_text = " · 🚚 Material mit eigenem Auto"
-            elif transport == "transporter":
-                ev.logistiker_id = a.dienstleister_id
-                transport_text = " · 🚚 Material mit unserem Transporter"
-            else:  # ohne
-                if ev.logistiker_id == a.dienstleister_id:
-                    ev.logistiker_id = None
-                transport_text = " · ⚠ kann das Material NICHT mitnehmen"
-        elif antwort == "Nein" and ev.logistiker_id == a.dienstleister_id:
-            ev.logistiker_id = None
-        db.commit()
-        ev.status = auto_status(ev, db)
-        # Glocke: Zu-/Absage auf eine Verfügbarkeitsanfrage
-        from notifications import notify
-        d = a.dienstleister
-        name = f"{d.vorname} {d.nachname}" if d else "Ein Dienstleister"
-        datum = ev.datum.strftime("%d.%m.%Y")
-        if antwort == "Ja":
-            notify(db, "dl_zusage", f"Zusage: {name}",
-                   f"{name} hat für {ev.anlass} am {datum} zugesagt.{transport_text}",
-                   f"/admin/events/{ev.id}", marke=ev.marke)
-        else:
-            from routes.admin import vorschlag_ersatz, ersatz_label
-            v = vorschlag_ersatz(ev, db, a.rolle_anfrage)
-            vorschlag = f" Vorschlag: {ersatz_label(v)}." if v else ""
-            notify(db, "dl_absage", f"Absage auf Anfrage: {name}",
-                   f"{name} hat die Anfrage für {ev.anlass} am {datum} abgelehnt.{vorschlag}",
-                   f"/admin/events/{ev.id}", marke=ev.marke)
-        db.commit()
-        # Auto-Bestellung bei Zusage (Scheinselbstständigkeits-Vorsorge) – im Hintergrund,
-        # idempotent, mit Datenpflege-Sicherung (siehe bestellung.py)
-        if antwort == "Ja":
-            from bestellung import bestellung_erzeugen_async
-            background_tasks.add_task(bestellung_erzeugen_async, a.id)
-            # Erwartetes Honorar als offener Posten – die Rechnung des Dienstleisters
-            # kommt später, die Buchhaltung soll trotzdem sofort eine Zahl haben.
-            from honorare import honorar_anlegen
-            honorar_anlegen(db, a)
-            db.commit()
-        else:
-            from honorare import honorar_entfernen
-            honorar_entfernen(db, a)
-            db.commit()
-            # Platz wieder frei → Wartende (verspätete Zusagen) automatisch nachrücken
-            from besetzung import warteliste_nachruecken
-            background_tasks.add_task(_nachruecken_async, ev.id, a.rolle_anfrage)
+        for x in gruppe:
+            _antwort_anwenden(db, x, antwort, notiz, transport, background_tasks)
     if glueck:
         return RedirectResponse("/portal?glueck=1", status_code=303)
     return RedirectResponse("/portal", status_code=303)
+
+
+def _antwort_anwenden(db, a, antwort, notiz, transport, background_tasks):
+    """Zu-/Absage auf genau eine Anfrage anwenden (Status, Logistik, Glocke, Honorar,
+    Nachrücken) – bei einer Serie „nur komplett“ einmal je Tag."""
+    a.status = antwort
+    a.notiz = notiz.strip() or None
+    from routes.admin import auto_status
+    ev = a.event
+    # Logistiker-Transportart festhalten und Event-Logistiker setzen/lösen
+    transport_text = ""
+    if a.als_logistiker and antwort == "Ja" and transport:
+        a.logistik_transport = transport
+        if transport == "eigenes_auto":
+            ev.logistiker_id = a.dienstleister_id
+            transport_text = " · 🚚 Material mit eigenem Auto"
+        elif transport == "transporter":
+            ev.logistiker_id = a.dienstleister_id
+            transport_text = " · 🚚 Material mit unserem Transporter"
+        else:  # ohne
+            if ev.logistiker_id == a.dienstleister_id:
+                ev.logistiker_id = None
+            transport_text = " · ⚠ kann das Material NICHT mitnehmen"
+    elif antwort == "Nein" and ev.logistiker_id == a.dienstleister_id:
+        ev.logistiker_id = None
+    db.commit()
+    ev.status = auto_status(ev, db)
+    # Glocke: Zu-/Absage auf eine Verfügbarkeitsanfrage
+    from notifications import notify
+    d = a.dienstleister
+    name = f"{d.vorname} {d.nachname}" if d else "Ein Dienstleister"
+    datum = ev.datum.strftime("%d.%m.%Y")
+    if antwort == "Ja":
+        notify(db, "dl_zusage", f"Zusage: {name}",
+               f"{name} hat für {ev.anlass} am {datum} zugesagt.{transport_text}",
+               f"/admin/events/{ev.id}", marke=ev.marke)
+    else:
+        from routes.admin import vorschlag_ersatz, ersatz_label
+        v = vorschlag_ersatz(ev, db, a.rolle_anfrage)
+        vorschlag = f" Vorschlag: {ersatz_label(v)}." if v else ""
+        notify(db, "dl_absage", f"Absage auf Anfrage: {name}",
+               f"{name} hat die Anfrage für {ev.anlass} am {datum} abgelehnt.{vorschlag}",
+               f"/admin/events/{ev.id}", marke=ev.marke)
+    db.commit()
+    # Auto-Bestellung bei Zusage (Scheinselbstständigkeits-Vorsorge) – im Hintergrund,
+    # idempotent, mit Datenpflege-Sicherung (siehe bestellung.py)
+    if antwort == "Ja":
+        from bestellung import bestellung_erzeugen_async
+        background_tasks.add_task(bestellung_erzeugen_async, a.id)
+        # Erwartetes Honorar als offener Posten – die Rechnung des Dienstleisters
+        # kommt später, die Buchhaltung soll trotzdem sofort eine Zahl haben.
+        from honorare import honorar_anlegen
+        honorar_anlegen(db, a)
+        db.commit()
+    else:
+        from honorare import honorar_entfernen
+        honorar_entfernen(db, a)
+        db.commit()
+        # Platz wieder frei → Wartende (verspätete Zusagen) automatisch nachrücken
+        from besetzung import warteliste_nachruecken
+        background_tasks.add_task(_nachruecken_async, ev.id, a.rolle_anfrage)
 
 
 def _nachruecken_async(event_id: int, rolle: str):
@@ -467,10 +501,19 @@ def portal_verlaengern(anfrage_id: int, db: Session = Depends(get_db),
     ).first()
     if a:
         # Frist um 2 Tage verlängern (eine abgelaufene Anfrage wird damit reaktiviert)
-        a.status = "Ausstehend"
+        # Serie „nur komplett“: alle Tage der Gruppe bekommen dieselbe neue Frist
+        tage = [a]
+        if a.komplett_gruppe:
+            tage = db.query(Verfuegbarkeitsanfrage).filter(
+                Verfuegbarkeitsanfrage.komplett_gruppe == a.komplett_gruppe,
+                Verfuegbarkeitsanfrage.dienstleister_id == did,
+                Verfuegbarkeitsanfrage.status.in_(["Ausstehend", "Abgelaufen"])).all() or [a]
         frist = a.frist_datum or date.today()
-        a.frist_datum = max(frist, date.today()) + timedelta(days=2)
-        a.frist_verlaengert = True
+        neue_frist = max(frist, date.today()) + timedelta(days=2)
+        for x in tage:
+            x.status = "Ausstehend"
+            x.frist_datum = neue_frist
+            x.frist_verlaengert = True
         d, ev = a.dienstleister, a.event
         # Glocke + Verlauf IMMER (nachvollziehbar, auch wenn die Mail untergeht);
         # die Mail zusätzlich, abschaltbar und fehlertolerant – ein Resend-Ausfall

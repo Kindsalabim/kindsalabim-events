@@ -1890,10 +1890,15 @@ def send_anfragen(
             token = create_magic_token(d, db)
             magic_url = f"{base_url}/portal/auth/{token}"
             neue = []
+            # Serie „nur komplett“ (Aykut 24.11.2026): alle Tage dieser Anfrage bekommen
+            # einen gemeinsamen Schlüssel – die Person sagt im Portal einmal für alle zu/ab.
+            import uuid as _uuid
+            gruppe = _uuid.uuid4().hex if (ev.serie_komplett and len(offene_tage) > 1) else None
             for ze in offene_tage:
                 a = Verfuegbarkeitsanfrage(
                     event_id=ze.id, dienstleister_id=did,
                     rolle_anfrage=rolle, aktion=aktion_val, status="Ausstehend", als_logistiker=(did in logi_ids),
+                    komplett_gruppe=gruppe,
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     frist_datum=date.today() + timedelta(days=ANFRAGE_FRIST_TAGE),
                     budget=budget_val,
@@ -1926,6 +1931,25 @@ def send_anfragen(
             f"/admin/events/{event_id}?gesendet={gesendet}&mailfehler={fehler}",
             status_code=303)
     return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
+@router.post("/events/{event_id}/serie-komplett")
+def set_serie_komplett(
+    event_id: int, db: Session = Depends(get_db), _=Depends(get_admin_user),
+    wert: str = Form(""),
+):
+    """Schalter „Nur komplett vergeben“ an der Termin-Serie – gilt für alle Termine
+    der Serie und nur für Anfragen, die ab jetzt rausgehen (Aykut 24.11.2026)."""
+    ev = db.query(Event).filter(Event.id == event_id).first()
+    if not ev: raise HTTPException(404)
+    an = (wert == "1")
+    if ev.serien_id:
+        for se in db.query(Event).filter(Event.serien_id == ev.serien_id).all():
+            se.serie_komplett = an
+    else:
+        ev.serie_komplett = an
+    db.commit()
+    return RedirectResponse(f"/admin/events/{event_id}", status_code=303)
+
 
 @router.post("/events/{event_id}/material-bestellt")
 def toggle_material_bestellt(

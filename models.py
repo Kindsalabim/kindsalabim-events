@@ -67,6 +67,7 @@ class Event(Base):
     show_endzeit = Column(String)
     show_kalender_event_id = Column(String)
     serien_id = Column(String, nullable=True, index=True)  # mehrtägiges Event: gemeinsamer Token aller Termintage (None = einzelner Tag)
+    serie_komplett = Column(Boolean, default=False)  # Serie nur komplett vergeben: alle Tage dieselbe Person (Aykut 24.11.2026); steht auf jedem Termin der Serie
     rechnung_gestellt = Column(Boolean, default=False)  # Bedingung für "Abgeschlossen"
     teamleiter_mail_gesendet = Column(Boolean, default=False)  # Info-Mail an Kunden (1 Woche vorher) versendet?
     bericht_erinnerung_am = Column(String)  # ISO-Datetime der letzten Bericht-Erinnerung an den Teamleiter (None = nie)
@@ -376,6 +377,9 @@ class Verfuegbarkeitsanfrage(Base):
     # kommt aus dem Anfrage-Link unter der Aktions-Überschrift (Aykut 24.11.2026).
     # None = alt/unbekannt → Zuordnung über das Profil (choices.kuenstler_gruppen).
     aktion = Column(String)
+    # Gemeinsamer Schlüssel der Tage einer Serien-Anfrage „nur komplett“: Zu-/Absage gilt
+    # für alle Anfragen mit derselben Gruppe (routes/portal.py). None = Tage einzeln.
+    komplett_gruppe = Column(String, index=True)
     status = Column(String, default="Ausstehend")      # Ausstehend, Ja, Nein
     notiz = Column(Text)
     erstellt_am = Column(String)
