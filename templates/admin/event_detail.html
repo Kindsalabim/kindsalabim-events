@@ -92,7 +92,8 @@
     var el = document.getElementById(id);
     if(!el){ return; }            // kein Ziel → normaler Anker-Sprung
     e.preventDefault();
-    if(openAnfragen){ var d = el.querySelector('details'); if(d){ d.open = true; } }
+    // openAnfragen: früher klappte das den Sammel-Bereich auf; seit 24.11.2026 öffnen die
+    // Links je Teamer/Künstler-Bereich – der Sprung zur Team-Karte reicht.
     el.scrollIntoView({behavior:'smooth', block:'start'});
   }
 </script>
@@ -449,37 +450,26 @@
       <span style="color: var(--ink-3);">Kein freier {{ rolle }}-Vorschlag verfügbar.</span>
       {% endif %}
       <button type="button" class="underline" style="color: var(--brand-primary);"
-              onclick="var d=document.getElementById('dl-anfragen'); if(d){d.open=true; d.scrollIntoView({behavior:'smooth', block:'center'});}">anderen wählen</button>
+              onclick="if (window.anfrageOeffnen) anfrageOeffnen('{{ rolle }}', '', '')">anderen wählen</button>
     </div>
     {% endif %}
     {% endfor %}
   </div>
   {% endif %}
 
-  {% if anfragen %}
-  <table class="w-full text-sm mb-5">
-    <thead>
-      <tr style="border-bottom: 1px solid #f3f4f6;">
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Rolle</th>
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Rückmeldung</th>
-        <th class="pb-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Frist</th>
-        <th class="pb-2.5"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for a in anfragen %}
-      <tr style="border-bottom: 1px solid #f9fafb;">
-        <td class="py-3 font-medium text-gray-800">
+  {# Eine Anfrage-Zeile (Name | Rückmeldung | Frist | Symbole) – Inhalt unverändert aus
+     der früheren 5-Spalten-Tabelle, nur ohne die Spalte „Rolle“ (steht jetzt in der Überschrift). #}
+  {% macro anfrage_zeile(a) %}
+  <div class="anf-zeile">
+    <div class="anf-name font-medium text-gray-800">
           <a href="/admin/dienstleister/{{ a.dienstleister_id }}" target="_blank" rel="noopener" class="hover:underline" title="Profil öffnen (neuer Tab)">{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}</a>
           {% if a.dienstleister.logistiker %}<span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}
           {% if a.dienstleister_id == ev.teamleiter_id %}<span class="inline-flex items-center gap-1 ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">★ Teamleiter</span>{% endif %}
           {% if a.notiz %}<span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span>{% endif %}
           {% if a.budget %}<span class="block text-xs font-medium mt-0.5" style="color: var(--brand-primary);">💶 Budget: {{ a.budget | de_euro }} € pauschal</span>{% endif %}
           {% if a.bestellung_am %}<span class="block text-xs mt-0.5" style="color: var(--ink-4);">📄 Bestellung {{ a.bestellung_am[:10] }}{% if a.bestellung_r2_key %} · <a href="/admin/anfragen/{{ a.id }}/bestellung" target="_blank" rel="noopener" class="underline" style="color: var(--brand-primary);">ansehen</a>{% endif %}</span>{% endif %}
-        </td>
-        <td class="py-3 text-gray-500">{{ a.rolle_anfrage }}</td>
-        <td class="py-3">
+    </div>
+    <div class="anf-status">
           {% if a.status == 'Ja' %}
             {# Farbe je Antwort eindeutig: grün = zugesagt, rot = abgesagt, grau = wartet noch #}
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:var(--c-green-bg);color:var(--c-green);">
@@ -504,8 +494,8 @@
           {% else %}
             <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full" style="background:#f1f5f9;color:#475569;">Ausstehend</span>
           {% endif %}
-        </td>
-        <td class="py-3 text-xs">
+    </div>
+    <div class="anf-frist text-xs">
           {% if a.frist_datum %}
             {% if a.status == 'Ausstehend' %}
               <span class="{% if a.frist_verlaengert %}text-blue-500{% else %}text-gray-500{% endif %}">
@@ -517,8 +507,8 @@
           {% else %}
             <span class="text-gray-300">–</span>
           {% endif %}
-        </td>
-        <td class="py-3 text-right whitespace-nowrap">
+    </div>
+    <div class="anf-symbole text-right whitespace-nowrap">
           {% if a.status in ['Ausstehend', 'Ja', 'Abgelaufen'] %}
           {% set bedarf = ev.anzahl_kuenstler if a.rolle_anfrage == 'Künstler' else ev.anzahl_teamer %}
           <button type="button" class="p-1.5 rounded-lg hover:bg-gray-100 transition" title="Anfrage ändern (Rolle, Budget, Logistik)"
@@ -631,12 +621,68 @@
               </svg>
             </button>
           </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    </div>
+  </div>
+  {% endmacro %}
+
+  {% macro anfrage_liste(liste) %}
+  {% set offen = liste | rejectattr('status', 'equalto', 'Nein') | list %}
+  {% set absagen = liste | selectattr('status', 'equalto', 'Nein') | list %}
+  {% for a in offen %}{{ anfrage_zeile(a) }}{% endfor %}
+  {% if absagen %}
+  <details class="anf-absagen">
+    <summary>▸ {{ absagen | length }} Absage{% if absagen | length != 1 %}n{% endif %} anzeigen</summary>
+    {% for a in absagen %}{{ anfrage_zeile(a) }}{% endfor %}
+  </details>
   {% endif %}
+  {% endmacro %}
+
+  <div class="grid grid-cols-1 md:grid-cols-2 mb-5" style="column-gap:2rem;row-gap:1.75rem;">
+    <!-- Teamer -->
+    <div>
+      <h3 class="anf-kopf">Teamer <span>{{ ev.anzahl_teamer }} benötigt</span></h3>
+      {% if teamer_anfragen %}{{ anfrage_liste(teamer_anfragen) }}
+      {% else %}<p class="text-xs text-gray-400 py-2">Noch keine Teamer angefragt.</p>{% endif %}
+      {% if not gesperrt %}
+      <button type="button" class="anf-link" onclick="anfrageOeffnen('Teamer', '', '')">+ Teamer anfragen</button>
+      {% endif %}
+    </div>
+    <!-- Künstler – je gebuchter Aktion eine kleine Überschrift -->
+    <div>
+      <h3 class="anf-kopf">Künstler <span>{{ ev.anzahl_kuenstler }} benötigt</span></h3>
+      {% set k_gruppen = kuenstler_gruppen if kuenstler_gruppen else ([(none, [])] if not aktion_sparten else []) %}
+      {% set gezeigt = k_gruppen | map('first') | list %}
+      {% for aktion in aktion_sparten %}{% if aktion not in gezeigt %}{% set _ = k_gruppen.append((aktion, [])) %}{% endif %}{% endfor %}
+      {% for aktion, liste in k_gruppen %}
+      <div class="{% if not loop.first %}mt-4{% endif %}">
+        {% if aktion %}<h4 class="anf-aktion">{{ aktion }}</h4>{% endif %}
+        {% if liste %}{{ anfrage_liste(liste) }}
+        {% else %}<p class="text-xs text-gray-400 py-1.5">Noch niemand angefragt.</p>{% endif %}
+        {% if not gesperrt and aktion != 'ohne Zuordnung' %}
+        <button type="button" class="anf-link"
+                onclick="anfrageOeffnen('Künstler', '{{ aktion or '' }}', '{{ (aktion_sparten.get(aktion) or []) | join(',') }}')">+ Künstler{% if aktion %} für {{ aktion }}{% endif %} anfragen</button>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <style>
+    .anf-kopf{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2,#374151);
+      padding-bottom:.5rem;border-bottom:1px solid #f3f4f6;margin-bottom:.25rem;}
+    .anf-kopf span{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-4,#9ca3af);margin-left:.35rem;}
+    .anf-aktion{font-size:.75rem;font-weight:500;color:var(--ink-4,#9ca3af);margin:.25rem 0 .1rem;}
+    .anf-zeile{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:.75rem;align-items:center;
+      padding:.6rem 0;border-bottom:1px solid #f9fafb;font-size:.875rem;}
+    @media (max-width: 640px){
+      .anf-zeile{grid-template-columns:auto auto minmax(0,1fr);row-gap:.35rem;}
+      .anf-name{grid-column:1 / -1;}
+    }
+    .anf-absagen > summary{list-style:none;cursor:pointer;font-size:.75rem;color:var(--ink-4,#9ca3af);padding:.45rem 0;}
+    .anf-absagen > summary::-webkit-details-marker{display:none;}
+    .anf-absagen[open] > summary{color:var(--ink-3,#6b7280);}
+    .anf-link{font-size:.75rem;font-weight:500;color:var(--brand-primary);margin-top:.4rem;}
+    .anf-link:hover{text-decoration:underline;}
+  </style>
 
   {% set confirmed = anfragen | selectattr('status', 'equalto', 'Ja') | list %}
   {% if confirmed %}
@@ -682,11 +728,14 @@
 
   <!-- Neue Anfragen -->
   {% if not gesperrt %}
-  <details id="dl-anfragen" class="{% if not anfragen %}open{% endif %}">
-    <summary class="text-sm font-medium cursor-pointer select-none hover:opacity-80 transition-opacity" style="color: var(--brand-primary);">
-      + Verfügbarkeitsanfragen senden
-    </summary>
+  {# Geöffnet wird nur noch über die Links „+ Teamer anfragen“ / „+ Künstler für … anfragen“
+     (anfrageOeffnen) – dann ist nur die passende Liste sichtbar (Aykut 24.11.2026). #}
+  <details id="dl-anfragen">
+    <summary style="display:none;">Verfügbarkeitsanfragen</summary>
     <div class="mt-4 space-y-5 pt-4" style="border-top: 1px solid #f3f4f6;">
+      <div class="flex justify-end -mt-2">
+        <button type="button" class="text-xs text-gray-500 hover:underline" onclick="document.getElementById('dl-anfragen').open=false;">× schließen</button>
+      </div>
 
       {% if karte_data.event or karte_data.dienstleister %}
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -769,7 +818,8 @@
             onsubmit="if (this.querySelectorAll('input[name=dienstleister_ids]:checked').length === 0) { alert('Bitte zuerst mindestens einen {{ rolle }} auswählen.'); return false; } var b=this.querySelector('button[type=submit]'); setTimeout(function(){ b.disabled=true; b.textContent='Wird gesendet …'; }, 0); return true;">
         <input type="hidden" name="rolle" value="{{ rolle }}">
         {% if entsperrt_mode %}<input type="hidden" name="entsperrt" value="1">{% endif %}
-        <h4 class="text-sm font-medium text-gray-700 mb-3">{{ rolle }} anfragen</h4>
+        {% if rolle == 'Künstler' %}<input type="hidden" name="aktion" value="">{% endif %}
+        <h4 class="text-sm font-medium text-gray-700 mb-3" data-titel>{{ rolle }} anfragen</h4>
         {% if serie_events and serie_events|length > 1 %}
         <label class="flex items-start gap-2.5 cursor-pointer mb-3 text-sm p-2.5 rounded-lg" style="background:var(--brand-primary-light);">
           <input type="checkbox" name="serie" value="1" checked class="mt-0.5 rounded" style="accent-color: var(--brand-primary);">
@@ -857,14 +907,16 @@
         <div class="mb-3 p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-sm">
           <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
             <label class="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" class="rounded" style="accent-color: var(--brand-primary);"
+                     onchange="var z=this.closest('div.flex').parentElement.querySelector('[data-einsatzzeit]'); z.style.display = this.checked ? '' : 'none'; if (!this.checked) z.querySelectorAll('select').forEach(function(s){ s.value=''; });">
+              <span class="text-gray-700 inline-flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--ink-3);"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Gesonderte Aktionszeit angeben</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer">
               <input type="checkbox" name="direkt" value="1" class="rounded" style="accent-color: var(--brand-primary);"
                      onchange="this.closest('form').querySelector('button[type=submit]').textContent = this.checked ? 'Als zugesagt eintragen' : 'Anfragen senden';">
               <span class="text-gray-700">Ohne Mail – als <strong>bereits zugesagt</strong> eintragen</span>
-            </label>
-            <label class="flex items-center gap-2.5 cursor-pointer">
-              <input type="checkbox" class="rounded" style="accent-color: var(--brand-primary);"
-                     onchange="var z=this.closest('div.flex').parentElement.querySelector('[data-einsatzzeit]'); z.style.display = this.checked ? '' : 'none'; if (!this.checked) z.querySelectorAll('select').forEach(function(s){ s.value=''; });">
-              <span class="text-gray-700">Gesonderte Aktionszeit angeben</span>
             </label>
           </div>
           {# display:none statt hidden-Attribut: die Klasse „flex“ hätte hidden überstimmt #}
@@ -892,23 +944,43 @@
       <script>
         // KI-Vorschlag „… anfragen“: Formular öffnen, Person anhaken, hinscrollen.
         // Abgeschickt wird erst mit „Anfragen senden“ – nach Budget/Hinweis/Serie.
-        function vorschlagWaehlen(rolle, id){
+        // Anfrage-Fenster für genau eine Liste öffnen (Teamer ODER Künstler für eine Aktion).
+        // aktion → verstecktes Feld (wird mit der Anfrage gespeichert), sparten → Filter vorwählen.
+        function anfrageOeffnen(rolle, aktion, sparten, personId){
           var det = document.getElementById('dl-anfragen');
-          if (!det) return;
+          if (!det) return null;
           det.open = true;
-          var form = det.querySelector('form[data-rolle="' + rolle + '"]');
-          if (!form) return;
+          var form = null;
+          det.querySelectorAll('form[data-rolle]').forEach(function(f){
+            var passt = f.dataset.rolle === rolle;
+            f.style.display = passt ? '' : 'none';
+            if (passt) form = f;
+          });
+          if (!form) return null;
+          var feld = form.querySelector('input[name=aktion]'); if (feld) feld.value = aktion || '';
+          var titel = form.querySelector('[data-titel]');
+          if (titel) titel.textContent = rolle + (aktion ? ' für ' + aktion : '') + ' anfragen';
           var suche = form.querySelector('.dl-suche'); if (suche) suche.value = '';
-          var alle = form.querySelector('.sparte-chip[data-sparte=""]');
-          if (alle) { filterSparte(alle); } else { applyDlFilter(form); }
-          var cb = form.querySelector('input[name=dienstleister_ids][value="' + id + '"]');
-          if (!cb || cb.disabled) { form.scrollIntoView({behavior:'smooth', block:'start'}); return; }
-          cb.checked = true;
-          var karte = cb.closest('.dl-pick');
-          karte.style.outline = '2px solid var(--brand-primary)';
+          var liste = (sparten || '').split(',').filter(Boolean);
+          var chip = liste.length === 1 ? form.querySelector('.sparte-chip[data-sparte="' + liste[0] + '"]') : null;
+          chip = chip || form.querySelector('.sparte-chip[data-sparte=""]');
+          if (chip) { filterSparte(chip); } else { applyDlFilter(form); }
+          var ziel = form;
+          if (personId) {
+            var cb = form.querySelector('input[name=dienstleister_ids][value="' + personId + '"]');
+            if (cb && !cb.disabled) {
+              cb.checked = true;
+              ziel = cb.closest('.dl-pick');
+              ziel.style.display = '';
+              ziel.style.outline = '2px solid var(--brand-primary)';
+            }
+          }
           // kurz warten: beim Öffnen lädt die Landkarte und verschiebt die Seite noch
-          setTimeout(function(){ karte.scrollIntoView({behavior:'smooth', block:'center'}); }, 400);
+          setTimeout(function(){ ziel.scrollIntoView({behavior:'smooth', block: personId ? 'center' : 'start'}); }, 400);
+          return form;
         }
+        // KI-Vorschlag „… anfragen“: passende Liste öffnen, Person anhaken, hinscrollen.
+        function vorschlagWaehlen(rolle, id){ anfrageOeffnen(rolle, '', '', id); }
         function setBudget(btn, val){
           var inp = btn.closest('form').querySelector('input[name=budget]');
           if (inp) inp.value = val;

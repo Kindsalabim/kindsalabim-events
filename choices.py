@@ -126,6 +126,52 @@ def benoetigte_sparten(produkte) -> set:
     return out
 
 
+def kuenstler_aktionen(produkte) -> list:
+    """Gebuchte Aktionen, für die Künstler gebraucht werden – in Buchungs-Reihenfolge."""
+    out = []
+    for p in (produkte or "").split(","):
+        p = p.strip()
+        if p in PRODUKT_SPARTE and p not in out:
+            out.append(p)
+    return out
+
+
+# Anzeige-Reihenfolge im Team-Bereich: Zusagen oben, Offenes darunter, Absagen zuletzt.
+_STATUS_RANG = {"Ja": 0, "Ausstehend": 1, "Abgelaufen": 2, "Nein": 3}
+
+
+def nach_status(anfragen) -> list:
+    return sorted(anfragen, key=lambda a: _STATUS_RANG.get(a.status, 1))
+
+
+def kuenstler_gruppen(produkte, anfragen) -> list:
+    """Künstler-Anfragen je gebuchter Aktion (Aykut 24.11.2026) als
+    [(aktion | None, [anfragen])]. Zuordnung: gespeicherte Aktion der Anfrage →
+    bei nur einer Künstler-Aktion diese → sonst eindeutige Profil-Sparte. Was nicht
+    eindeutig ist, landet in der Gruppe "ohne Zuordnung" – die App rät nicht.
+    Ohne gebuchte Künstler-Aktion: eine Gruppe (None) mit allen Künstlern."""
+    kue = [a for a in anfragen if a.rolle_anfrage == "Künstler"]
+    aktionen = kuenstler_aktionen(produkte)
+    if not aktionen:
+        return [(None, nach_status(kue))] if kue else []
+    gruppen = {x: [] for x in aktionen}
+    ohne = []
+    for a in kue:
+        if a.aktion in gruppen:
+            gruppen[a.aktion].append(a)
+            continue
+        if len(aktionen) == 1:
+            gruppen[aktionen[0]].append(a)
+            continue
+        sp = set(sparten_liste(a.dienstleister))
+        passend = [x for x in aktionen if sp & PRODUKT_SPARTE[x]]
+        (gruppen[passend[0]] if len(passend) == 1 else ohne).append(a)
+    out = [(x, nach_status(gruppen[x])) for x in aktionen]
+    if ohne:
+        out.append(("ohne Zuordnung", nach_status(ohne)))
+    return out
+
+
 def kuenstler_passt(dienstleister, benoetigt) -> bool:
     """Passt eine der Profil-Sparten zu (mindestens) einer benötigten Sparte?
     Ohne benötigte Sparte passt jeder (kein Filter)."""

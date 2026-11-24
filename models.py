@@ -372,6 +372,10 @@ class Verfuegbarkeitsanfrage(Base):
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
     dienstleister_id = Column(Integer, ForeignKey("dienstleister.id"), nullable=False)
     rolle_anfrage = Column(String, default="Teamer")   # Teamer oder Künstler
+    # Für welche gebuchte Aktion ein Künstler angefragt ist (z. B. "Kinderschminken") –
+    # kommt aus dem Anfrage-Link unter der Aktions-Überschrift (Aykut 24.11.2026).
+    # None = alt/unbekannt → Zuordnung über das Profil (choices.kuenstler_gruppen).
+    aktion = Column(String)
     status = Column(String, default="Ausstehend")      # Ausstehend, Ja, Nein
     notiz = Column(Text)
     erstellt_am = Column(String)

@@ -1423,9 +1423,16 @@ def event_detail(request: Request, event_id: int, db: Session = Depends(get_db),
     from reservierung_abgleich import passende_reservierungen
     doppel_reservierungen = passende_reservierungen(db, ev)
     import calendar_service
+    # Team-Bereich zweigeteilt (24.11.2026): Teamer links, Künstler je gebuchter Aktion rechts
+    from choices import nach_status, kuenstler_gruppen, kuenstler_aktionen as _k_aktionen
+    teamer_anfragen = nach_status([a for a in anfragen if a.rolle_anfrage != "Künstler"])
+    aktion_sparten = {x: sorted(PRODUKT_SPARTE[x]) for x in _k_aktionen(ev.produkte)}
 
     return templates.TemplateResponse("admin/event_detail.html",
         tpl_context(request, ev=ev, anfragen=anfragen, anfragen_ids=anfragen_ids,
+                    teamer_anfragen=teamer_anfragen,
+                    kuenstler_gruppen=kuenstler_gruppen(ev.produkte, anfragen),
+                    aktion_sparten=aktion_sparten,
                     doppel_reservierungen=doppel_reservierungen,
                     social_warnung=social_warnung(db, ev),
                     show_eigener_eintrag=calendar_service.zaubershow_eigener_eintrag(ev),
@@ -1774,6 +1781,7 @@ def send_anfragen(
     budget: str = Form(""),
     einsatz_von: str = Form(""), einsatz_bis: str = Form(""),
     notiz: str = Form(""),
+    aktion: str = Form(""),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
@@ -1781,6 +1789,16 @@ def send_anfragen(
         return RedirectResponse(f"/admin/events/{event_id}?error=gesperrt", status_code=303)
     if not dienstleister_ids:
         return RedirectResponse(f"/admin/events/{event_id}?error=keine_auswahl", status_code=303)
+    # Für welche Aktion (nur Künstler): aus dem Link unter der Aktions-Überschrift; ist
+    # nur eine Künstler-Aktion gebucht, steht sie fest. Unbekanntes wird nicht gespeichert.
+    from choices import kuenstler_aktionen
+    aktion_val = None
+    if rolle == "Künstler":
+        gebuchte = kuenstler_aktionen(ev.produkte)
+        if aktion.strip() in gebuchte:
+            aktion_val = aktion.strip()
+        elif len(gebuchte) == 1:
+            aktion_val = gebuchte[0]
     logi_ids = {int(x) for x in logistiker_ids}  # als Logistiker (Materialtransport) angefragt
     # Freitext-Hinweis für genau diese Anfrage (Aykut 18.11.2026): z. B. Aufteilung
     # "2 Std. Kinderschminken, 2 Std. Glitzertattoos" – landet im notiz-Feld, sichtbar
@@ -1828,7 +1846,7 @@ def send_anfragen(
             for ze in offene_tage:
                 neu_a = Verfuegbarkeitsanfrage(
                     event_id=ze.id, dienstleister_id=did,
-                    rolle_anfrage=rolle, status="Ja", als_logistiker=(did in logi_ids),
+                    rolle_anfrage=rolle, aktion=aktion_val, status="Ja", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     notiz=notiz_val or "Manuell als zugesagt eingetragen (ohne Mail)",
                     budget=budget_val,
@@ -1854,7 +1872,7 @@ def send_anfragen(
             for ze in offene_tage:
                 a = Verfuegbarkeitsanfrage(
                     event_id=ze.id, dienstleister_id=did,
-                    rolle_anfrage=rolle, status="Ausstehend", als_logistiker=(did in logi_ids),
+                    rolle_anfrage=rolle, aktion=aktion_val, status="Ausstehend", als_logistiker=(did in logi_ids),
                     erstellt_am=datetime.now().strftime("%d.%m.%Y %H:%M"),
                     frist_datum=date.today() + timedelta(days=ANFRAGE_FRIST_TAGE),
                     budget=budget_val,

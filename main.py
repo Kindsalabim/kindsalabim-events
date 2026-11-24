@@ -172,6 +172,7 @@ def run_migrations():
     add_column("events", "bericht_erinnerung_am", "VARCHAR")
     add_column("events", "briefing_gesendet_am", "VARCHAR")
     add_column("events", "bestellung_manuell", "VARCHAR")
+    add_column("verfuegbarkeitsanfragen", "aktion", "VARCHAR")
     add_column("events", "bericht_kinder", "VARCHAR")
     add_column("events", "checkliste_uebersprungen", "BOOLEAN DEFAULT 0")
     add_column("events", "zaubershow_event", "BOOLEAN DEFAULT 0")
