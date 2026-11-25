@@ -648,7 +648,7 @@
       {% if teamer_anfragen %}{{ anfrage_liste(teamer_anfragen) }}
       {% else %}<p class="text-xs text-gray-400 py-2">Noch keine Teamer angefragt.</p>{% endif %}
       {% if not gesperrt %}
-      <button type="button" class="anf-link" onclick="anfrageOeffnen('Teamer', '', '')">+ Teamer anfragen</button>
+      <button type="button" class="btn-primary anf-link" onclick="anfrageOeffnen('Teamer', '', '')">+ Teamer anfragen</button>
       {% endif %}
     </div>
     <!-- Künstler – je gebuchter Aktion eine kleine Überschrift -->
@@ -663,7 +663,7 @@
         {% if liste %}{{ anfrage_liste(liste) }}
         {% else %}<p class="text-xs text-gray-400 py-1.5">Noch niemand angefragt.</p>{% endif %}
         {% if not gesperrt and aktion != 'ohne Zuordnung' %}
-        <button type="button" class="anf-link"
+        <button type="button" class="btn-primary anf-link"
                 onclick="anfrageOeffnen('Künstler', '{{ aktion or '' }}', '{{ (aktion_sparten.get(aktion) or []) | join(',') }}')">+ Künstler{% if aktion %} für {{ aktion }}{% endif %} anfragen</button>
         {% endif %}
       </div>
@@ -684,8 +684,7 @@
     .anf-absagen > summary{list-style:none;cursor:pointer;font-size:.75rem;color:var(--ink-4,#9ca3af);padding:.45rem 0;}
     .anf-absagen > summary::-webkit-details-marker{display:none;}
     .anf-absagen[open] > summary{color:var(--ink-3,#6b7280);}
-    .anf-link{font-size:.75rem;font-weight:500;color:var(--brand-primary);margin-top:.4rem;}
-    .anf-link:hover{text-decoration:underline;}
+    .anf-link{display:inline-block;font-size:.75rem;padding:.45rem .9rem;margin-top:.6rem;}
   </style>
 
   {% set confirmed = anfragen | selectattr('status', 'equalto', 'Ja') | list %}
