@@ -84,3 +84,18 @@ def test_crm_kunde_speichert_weitere_ansprechpartner(admin):
     h2 = admin.get(f"/admin/crm/{kid}/edit").text
     assert 'name="kap_name" value="Petra Plan"' in h2
     assert "weitere Ansprechpartner hinzufügen" in h2
+
+
+def test_briefing_bearbeiten_zeigt_und_speichert_weitere(admin):
+    # Aykut 25.11.2026: zweiter Ansprechpartner auch unter „Briefing bearbeiten“
+    eid = make_event(weitere_ansprechpartner=json.dumps([{"name": "Ida Alt", "telefon": "0151 1"}]))
+    h = admin.get(f"/admin/events/{eid}/checklist/edit").text
+    assert "weiteren Ansprechpartner hinzufügen" in h
+    assert 'value="Ida Alt"' in h
+    admin.post(f"/admin/events/{eid}/checklist/edit", data={
+        "ansprechpartner_name": "Haupt", "wap_name": ["Ida Alt", "Max Neu"],
+        "wap_telefon": ["0151 1", "0160 2"]})
+    assert [a["name"] for a in weitere_ap_liste(reload(Event, eid))] == ["Ida Alt", "Max Neu"]
+    # alle Zeilen entfernt → Liste leer
+    admin.post(f"/admin/events/{eid}/checklist/edit", data={"ansprechpartner_name": "Haupt"})
+    assert weitere_ap_liste(reload(Event, eid)) == []

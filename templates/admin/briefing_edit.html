@@ -52,6 +52,36 @@
           <input type="text" name="ansprechpartner_mobil" value="{{ vor.ansprechpartner_mobil }}" class="{{ tw }}">
         </div>
       </div>
+      {# Weitere Ansprechpartner: dasselbe Feld wie im Event-Formular (Aykut 25.11.2026) #}
+      <div id="extra-ansprechpartner" class="space-y-2">
+        {% for ap in weitere_ap_liste(ev) %}
+        <div class="grid grid-cols-2 gap-4 extra-ap-row">
+          <input type="text" name="wap_name" value="{{ ap.name }}" placeholder="Name" class="{{ tw }}">
+          <div class="flex gap-2 items-center">
+            <input type="tel" name="wap_telefon" value="{{ ap.telefon }}" inputmode="tel" placeholder="Mobil-Nr." class="{{ tw }}">
+            <button type="button" onclick="this.closest('.extra-ap-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Ansprechpartner entfernen">&times;</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="addAnsprechpartner()" class="text-sm font-medium" style="color:var(--brand-primary);">+ weiteren Ansprechpartner hinzufügen</button>
+      <template id="ap-template">
+        <div class="grid grid-cols-2 gap-4 extra-ap-row">
+          <input type="text" name="wap_name" placeholder="Name" class="{{ tw }}">
+          <div class="flex gap-2 items-center">
+            <input type="tel" name="wap_telefon" inputmode="tel" placeholder="Mobil-Nr." class="{{ tw }}">
+            <button type="button" onclick="this.closest('.extra-ap-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Ansprechpartner entfernen">&times;</button>
+          </div>
+        </div>
+      </template>
+      <script>
+        function addAnsprechpartner(){
+          var node = document.getElementById('ap-template').content.cloneNode(true);
+          document.getElementById('extra-ansprechpartner').appendChild(node);
+          var felder = document.querySelectorAll('#extra-ansprechpartner input[name=wap_name]');
+          felder[felder.length - 1].focus();
+        }
+      </script>
     </div>
 
     <!-- Firmendaten -->

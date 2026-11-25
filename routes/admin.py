@@ -2487,11 +2487,14 @@ def briefing_edit_save(
     aufbauort: list = Form([]), verpflegung: str = Form(""),
     teamkleidung: str = Form(""), parkplatz: str = Form(""),
     weitere_details: str = Form(""),
+    wap_name: list = Form([]), wap_telefon: list = Form([]),
 ):
     ev = db.query(Event).filter(Event.id == event_id).first()
     if not ev: raise HTTPException(404)
     ev.cl_ansprechpartner_name  = ansprechpartner_name
     ev.cl_ansprechpartner_mobil = ansprechpartner_mobil
+    # Weitere Ansprechpartner: dasselbe Feld wie im Event-Formular (Aykut 25.11.2026)
+    ev.weitere_ansprechpartner  = weitere_ap_json(wap_name, wap_telefon)
     ev.cl_firma_name            = firma_name
     ev.cl_strasse               = strasse
     ev.cl_plz_ort               = plz_ort
