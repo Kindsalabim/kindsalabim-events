@@ -76,10 +76,8 @@ def portal_magic_auth(token: str, next: str = "", db: Session = Depends(get_db))
     d = verify_magic_token(token, db)
     if not d:
         return RedirectResponse("/portal/login?error=1", status_code=303)
-    # Token einmalig entwerten
-    d.magic_token = None
-    d.magic_token_expires = None
-    db.commit()
+    # Token bleibt bis zum Ablauf gültig (kein Einmal-Link mehr): Handy + Laptop, zweiter
+    # Klick und Link-Vorschau von Mailprogrammen dürfen den Login nicht kaputt machen.
     # 30-Tage-Session
     session_token = create_token(
         {"sub": str(d.id), "role": "dienstleister"},

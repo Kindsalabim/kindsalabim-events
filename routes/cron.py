@@ -142,8 +142,8 @@ def _run_bericht_erinnerungen(db: Session) -> int:
             except ValueError:
                 pass
         try:
-            # Hat der Teamleiter mehrere offene Berichte, würde ein zweiter create_magic_token
-            # den ersten Link entwerten → pro Teamleiter nur EINEN Token je Lauf erzeugen.
+            # Pro Teamleiter nur EINEN Token je Lauf (create_magic_token verwendet einen
+            # gültigen Token ohnehin weiter; der Cache spart nur Commits).
             if tl.id not in token_cache:
                 token_cache[tl.id] = create_magic_token(tl, db)
             magic_url = f"{_APP_BASE}/portal/auth/{token_cache[tl.id]}?next=/portal/bericht/{ev.id}"

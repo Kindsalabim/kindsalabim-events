@@ -77,9 +77,20 @@ def admin_sitzung_gueltig(payload: dict) -> bool:
         db.close()
 
 def create_magic_token(dienstleister, db) -> str:
-    """Generiert einen Magic-Link-Token (36h gültig) und speichert ihn."""
-    token = secrets.token_urlsafe(32)
-    expires = (datetime.utcnow() + timedelta(hours=36)).isoformat()
+    """Gibt einen Magic-Link-Token zurück (36h ab jetzt gültig) und speichert ihn.
+    Ist noch ein gültiger Token da, wird er weiterverwendet und nur verlängert – sonst
+    entwertet jede neue Mail den Link der vorigen (Lara Lenuweit, 25.11.2026: zwei
+    Anfragen, alter Link auf dem Handy → „Link abgelaufen“)."""
+    jetzt = datetime.utcnow()
+    token = dienstleister.magic_token
+    try:
+        gueltig = bool(token and dienstleister.magic_token_expires
+                       and jetzt < datetime.fromisoformat(dienstleister.magic_token_expires))
+    except ValueError:
+        gueltig = False
+    if not gueltig:
+        token = secrets.token_urlsafe(32)
+    expires = (jetzt + timedelta(hours=36)).isoformat()
     dienstleister.magic_token = token
     dienstleister.magic_token_expires = expires
     db.commit()
