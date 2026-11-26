@@ -2423,6 +2423,20 @@ def _letztes_briefing_event(db: Session, ev: Event):
     return q.order_by(Event.datum.desc()).first()
 
 
+def _alte_checkliste_als_ort(vor: dict, quelle, firma: str):
+    """Checklisten von vor dem 12.11.2026 (cl_ort_gleich leer) hatten nur einen Block
+    „Veranstaltungsort“, gespeichert in cl_firma_name/cl_strasse/cl_plz_ort. Im Formular
+    gehört das unter „Veranstaltungsort“, nicht unter „Firmendaten“ mit Haken „gleich“
+    (Aykut 26.11.2026). Firmendaten = Firma aus dem Event, wie bei neuen Events."""
+    if quelle.cl_ort_gleich is not None:
+        return
+    alt = [quelle.cl_firma_name or "", quelle.cl_strasse or "", quelle.cl_plz_ort or ""]
+    if not any(alt):
+        return
+    vor.update(firma_name=firma or "", strasse="", plz_ort="", ort_gleich=False,
+               ort_name=alt[0], ort_strasse=alt[1], ort_plz_ort=alt[2])
+
+
 @router.get("/events/{event_id}/checklist/edit", response_class=HTMLResponse)
 def briefing_edit(request: Request, event_id: int, uebernehmen: int = 0,
                   db: Session = Depends(get_db), _=Depends(get_admin_user)):
@@ -2454,6 +2468,7 @@ def briefing_edit(request: Request, event_id: int, uebernehmen: int = 0,
         "parkplatz":   ev.cl_parkplatz or (ev.parkplatz or ""),
         "weitere_details": ev.cl_weitere_details or "",
     }
+    _alte_checkliste_als_ort(vor, ev, ev.kunde_firma)
     quelle = _letztes_briefing_event(db, ev)
     uebernommen = bool(uebernehmen and quelle)
     if uebernommen:
@@ -2473,6 +2488,8 @@ def briefing_edit(request: Request, event_id: int, uebernehmen: int = 0,
                 vor[ziel] = wert
         if quelle.cl_ort_gleich is not None:
             vor["ort_gleich"] = quelle.cl_ort_gleich
+        else:
+            _alte_checkliste_als_ort(vor, quelle, ev.kunde_firma)
     return templates.TemplateResponse("admin/briefing_edit.html", tpl_context(
         request, ev=ev, vor=vor, quelle=quelle, uebernommen=uebernommen))
 

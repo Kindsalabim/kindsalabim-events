@@ -716,7 +716,7 @@ def send_bericht_erinnerung(dienstleister, event, magic_url: str, team_groesse: 
 
 
 def send_teamleiter_info(event):
-    """Info-Mail an den Kunden ~1 Woche vor dem Event: nennt den Teamleiter
+    """Info-Mail an den Kunden ~14 Tage vor dem Event: nennt den Teamleiter
     als Ansprechpartner am Veranstaltungstag (Name + Telefon)."""
     cfg = get_config()
     color = _brand_color(event.marke)

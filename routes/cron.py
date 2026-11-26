@@ -71,11 +71,11 @@ def _run_einsatz_erinnerungen(db: Session) -> dict:
 
 
 def _run_teamleiter_infos(db: Session) -> int:
-    """Info-Mail an Kunden ~1 Woche vor dem Event mit dem Teamleiter als Ansprechpartner.
+    """Info-Mail an Kunden ~14 Tage vor dem Event (Aykut 26.11.2026, vorher 7) mit dem Teamleiter als Ansprechpartner.
     Nur wenn Teamleiter gesetzt, Kunden-E-Mail vorhanden und noch nicht gesendet."""
     heute = _heute()
-    bis = heute + timedelta(days=7)
-    # Fenster [heute, heute+7] statt exaktem Stichtag – ein ausgefallener Cron-Tag
+    bis = heute + timedelta(days=14)
+    # Fenster [heute, heute+14] statt exaktem Stichtag – ein ausgefallener Cron-Tag
     # holt die Info nach; das Flag verhindert Doppelversand. (Review K1)
     events = db.query(Event).filter(
         Event.datum >= heute,
@@ -654,7 +654,7 @@ def send_erinnerungen(request: Request, secret: str = "", db: Session = Depends(
     # da der separate Render-Cron nie angelegt wurde.
     einsatz = _run_einsatz_erinnerungen(db)
 
-    # Teamleiter-Info-Mail an Kunden (1 Woche vorher)
+    # Teamleiter-Info-Mail an Kunden (14 Tage vorher)
     teamleiter_mails = _run_teamleiter_infos(db)
 
     # Bericht-Erinnerung an Teamleiter (ab 2h nach Event-Ende, dann alle 3 Tage)
