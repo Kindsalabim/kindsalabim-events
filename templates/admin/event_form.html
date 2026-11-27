@@ -19,6 +19,19 @@
   <div class="rounded-lg px-4 py-3 mb-5 text-sm" style="background: var(--c-amber-bg); color: var(--c-amber);">{{ vorlage_hinweis }}</div>
   {% endif %}
 
+  {% if not (event and event.id) %}
+  {# AB hochladen → Formular vorausfüllen (Aykut 26.11.2026); gespeichert wird nichts #}
+  <form method="post" action="/admin/events/new/aus-ab" enctype="multipart/form-data"
+        class="card p-4 mb-4 flex items-center gap-3 flex-wrap">
+    <span class="text-sm font-medium text-gray-700">Aus Auftragsbestätigung ausfüllen</span>
+    <input type="file" name="ab" accept="application/pdf,.pdf" required class="text-sm"
+           onchange="if (this.files.length) { this.form.querySelector('button').textContent = 'Wird ausgelesen …'; this.form.submit(); }">
+    <button type="submit" class="txt-link-ab">Auslesen</button>
+    <span class="text-xs text-gray-500 w-full">PDF aus Lexoffice wählen – Firma, Adresse, Termine, Aktionen und Anzahl Teamer/Künstler werden eingetragen.</span>
+  </form>
+  <style>.txt-link-ab{font-size:.875rem;font-weight:500;color:var(--brand-primary);background:none;border:0;cursor:pointer;}</style>
+  {% endif %}
+
   <form method="post" action="{% if event and event.id %}/admin/events/{{ event.id }}/edit{% else %}/admin/events/new{% endif %}" class="space-y-4"
         onsubmit="return checkEventForm(this);">
     {% if entsperrt %}<input type="hidden" name="entsperrt" value="1">{% endif %}
@@ -89,23 +102,36 @@
         <label class="block text-sm font-medium text-gray-700 mb-1.5 mt-2">
           Weitere Aktionstage <span class="text-gray-400 font-normal">(optional – gleicher Auftrag an mehreren Tagen, auch Wochen oder Monate auseinander)</span>
         </label>
-        <div id="extra-termine" class="space-y-2"></div>
+        {# Eine Zeile je weiterem Tag; Teamer/Künstler je Tag optional – leer = wie oben
+           (Aykut 26.11.2026: aus der AB kommen die Zahlen je Tag) #}
+        {% macro termin_zeile(t={}) %}
+        <div class="extra-termin-row">
+          <div class="grid grid-cols-3 gap-4 items-end">
+            <div>
+              <input type="date" name="extra_datum" value="{{ t.datum or '' }}" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
+            </div>
+            <div>{{ time_select('extra_startzeit', t.start or '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
+            <div class="flex gap-2 items-center">
+              <div class="flex-1">{{ time_select('extra_endzeit', t.ende or '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
+              <button type="button" onclick="this.closest('.extra-termin-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Termin entfernen">&times;</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-500" style="margin-top:.35rem;">
+            Teamer <input type="number" name="extra_teamer" min="0" value="{{ t.teamer if t.teamer is defined and t.teamer is not none else '' }}" placeholder="wie oben"
+                          class="border border-gray-200 rounded-lg text-sm focus-ring" style="width:5.5rem;padding:.3rem .5rem;">
+            <span style="margin-left:.5rem;">Künstler</span> <input type="number" name="extra_kuenstler" min="0" value="{{ t.kuenstler if t.kuenstler is defined and t.kuenstler is not none else '' }}" placeholder="wie oben"
+                          class="border border-gray-200 rounded-lg text-sm focus-ring" style="width:5.5rem;padding:.3rem .5rem;">
+          </div>
+        </div>
+        {% endmacro %}
+        <div id="extra-termine" class="space-y-2">
+          {% for t in vorlage_tage|default([]) %}{{ termin_zeile(t) }}{% endfor %}
+        </div>
         <button type="button" onclick="addTermin()" class="mt-2 text-sm font-medium" style="color:var(--brand-primary);">+ weiteren Termin hinzufügen</button>
         <p class="text-xs text-gray-500 mt-1.5">Jeder Tag wird als eigener, verknüpfter Termin angelegt (gleiche Kunden-/Ortdaten, eigener Kalendereintrag). Ohne eigene Uhrzeit gilt die oben gewählte. Tage müssen nicht zusammenhängen.</p>
       </div>
 
-      <template id="termin-template">
-        <div class="grid grid-cols-3 gap-4 items-end extra-termin-row">
-          <div>
-            <input type="date" name="extra_datum" class="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus-ring">
-          </div>
-          <div>{{ time_select('extra_startzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
-          <div class="flex gap-2 items-center">
-            <div class="flex-1">{{ time_select('extra_endzeit', '', 'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus-ring') }}</div>
-            <button type="button" onclick="this.closest('.extra-termin-row').remove()" class="text-gray-400 hover:text-red-600 px-1.5 text-lg leading-none" title="Termin entfernen">&times;</button>
-          </div>
-        </div>
-      </template>
+      <template id="termin-template">{{ termin_zeile() }}</template>
       <script>
         function addTermin(){
           var t = document.getElementById('termin-template');

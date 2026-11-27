@@ -1035,6 +1035,52 @@ def event_new(request: Request, db: Session = Depends(get_db), _=Depends(get_adm
                                      "prüfen und dann speichern.") if vorlage else None))
 
 
+@router.post("/events/new/aus-ab", response_class=HTMLResponse)
+async def event_new_aus_ab(request: Request, db: Session = Depends(get_db),
+                           _=Depends(get_admin_user)):
+    """AB hochladen → „Neues Event“ vorausgefüllt (Aykut 26.11.2026). Gespeichert wird
+    nichts, auch die Datei nicht: Aykut prüft das Formular und speichert selbst."""
+    from ab_vorfuellen import auslesen
+    from choices import PRODUKT_SPARTE
+    form = await request.form()
+    datei = form.get("ab")
+    kunden = db.query(Kunde).order_by(func.lower(Kunde.firma)).all()
+    try:
+        inhalt = await datei.read() if datei and hasattr(datei, "read") else b""
+        erg = auslesen(inhalt, PRODUKTE_LIST, set(PRODUKT_SPARTE)) if inhalt else None
+    except Exception as e:
+        print(f"[AB-VORFUELLEN] Lesen fehlgeschlagen: {type(e).__name__}: {e}")
+        erg = None
+    if not erg:
+        return templates.TemplateResponse("admin/event_form.html",
+            tpl_context(request, event=None, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
+                        kunden=kunden, error="Die Datei ließ sich nicht auslesen. Bitte eine "
+                        "Auftragsbestätigung als PDF aus Lexoffice wählen."))
+    tage = erg.get("tage") or []
+    erster = tage[0] if tage else {}
+    zeiten = set(ZEITEN)
+    zeit = lambda z: z if z in zeiten else ""
+    vorlage = _event_form_echo(
+        None, erster.get("datum", ""), erg.get("anlass", ""), zeit(erster.get("start", "")),
+        zeit(erster.get("ende", "")), erg.get("kunde_adresse", ""), erg.get("kunde_firma", ""),
+        "", "", "", erg.get("produkte", []), erg.get("anzahl_teamer", 0),
+        erg.get("anzahl_kuenstler", 0), "", False, erg.get("marke", "Kindsalabim"), "Gebucht",
+        kunde_adresse=erg.get("kunde_adresse", ""))
+    weitere = [{"datum": t["datum"], "start": zeit(t["start"]), "ende": zeit(t["ende"]),
+                "teamer": t.get("teamer"), "kuenstler": t.get("kuenstler")}
+               for t in tage[1:]]
+    hinweis = (f"Vorausgefüllt aus {erg.get('ab_nummer') or 'der Auftragsbestätigung'}. Bitte "
+               "prüfen und dann speichern. Die Firmenadresse ist die Rechnungsadresse: Findet das "
+               "Event woanders statt, „Andere Veranstaltungsadresse“ ankreuzen.")
+    if len(tage) > 1:
+        hinweis += f" {len(tage)} Termintage erkannt, die weiteren stehen unter „Weitere Aktionstage“."
+    for h in erg.get("hinweise", []):
+        hinweis += f" {h}"
+    return templates.TemplateResponse("admin/event_form.html",
+        tpl_context(request, event=vorlage, produkte_list=PRODUKTE_LIST, anlass_list=ANLASS_LIST,
+                    kunden=kunden, error=None, vorlage_hinweis=hinweis, vorlage_tage=weitere))
+
+
 @router.get("/events/{event_id}/kopieren", response_class=HTMLResponse)
 def event_kopieren(event_id: int, request: Request, db: Session = Depends(get_db),
                    _=Depends(get_admin_user)):
@@ -1127,6 +1173,7 @@ def event_create(
     marke: str = Form("Kindsalabim"), crm_verknuepfen: bool = Form(False),
     extra_datum: list = Form([]), extra_startzeit: list = Form([]),
     extra_endzeit: list = Form([]),
+    extra_teamer: list = Form([]), extra_kuenstler: list = Form([]),
 ):
     produkte = _mit_freitext(produkte, produkte_freitext)
     material_info = material_info_text.strip() if material_info_choice == "Sonstige" else material_info_choice
@@ -1181,8 +1228,20 @@ def event_create(
     geschwister = []
     if extra_tage:
         ev.serien_id = secrets.token_hex(8)
-        for (d, sz, ez) in extra_tage:
+        # Teamer/Künstler je weiterem Tag (leer = wie der erste Tag), gleiche Reihenfolge
+        # wie extra_tage: _parse_extra_tage überspringt nur Zeilen ohne Datum.
+        def _zahl(liste, i):
+            w = (liste[i] if i < len(liste) else "") or ""
+            return int(w) if str(w).strip().isdigit() else None
+        anzahlen = [(_zahl(extra_teamer, i), _zahl(extra_kuenstler, i))
+                    for i, ds in enumerate(extra_datum) if (ds or "").strip()]
+        for k, (d, sz, ez) in enumerate(extra_tage):
             sib = _neues_geschwister_event(ev, d, sz, ez, ev.serien_id)
+            t_n, k_n = anzahlen[k] if k < len(anzahlen) else (None, None)
+            if t_n is not None:
+                sib.anzahl_teamer = t_n
+            if k_n is not None:
+                sib.anzahl_kuenstler = k_n
             db.add(sib); geschwister.append(sib)
         db.commit()
     import calendar_service

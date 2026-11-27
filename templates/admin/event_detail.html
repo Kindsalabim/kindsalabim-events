@@ -469,7 +469,8 @@
           <a href="/admin/dienstleister/{{ a.dienstleister_id }}" target="_blank" rel="noopener" class="hover:underline" title="Profil öffnen (neuer Tab)">{{ a.dienstleister.vorname }} {{ a.dienstleister.nachname }}</a>
           {% if a.dienstleister.logistiker %}<span title="Logistiker – Materialabholung möglich">🚚</span>{% endif %}
           {% if a.dienstleister_id == ev.teamleiter_id %}<span class="inline-flex items-center gap-1 ml-1.5 text-xs font-medium px-2 py-0.5 rounded-full" style="background: var(--brand-primary-light); color: var(--brand-primary);">★ Teamleiter</span>{% endif %}
-          {% if a.notiz %}<span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span>{% endif %}
+          {# Kommentar eingeklappt, sonst wird die Übersicht lang (Aykut 26.11.2026) #}
+          {% if a.notiz %}<details class="anf-kommentar"><summary>Kommentar</summary><span class="block text-xs font-normal italic mt-0.5" style="color: var(--ink-4);">„{{ a.notiz }}“</span></details>{% endif %}
           {% if a.budget %}<span class="block text-xs font-medium mt-0.5" style="color: var(--brand-primary);">💶 Budget: {{ a.budget | de_euro }} € pauschal</span>{% endif %}
           {% if a.bestellung_am %}<span class="block text-xs mt-0.5" style="color: var(--ink-4);">📄 Bestellung {{ a.bestellung_am[:10] }}{% if a.bestellung_r2_key %} · <a href="/admin/anfragen/{{ a.id }}/bestellung" target="_blank" rel="noopener" class="underline" style="color: var(--brand-primary);">ansehen</a>{% endif %}</span>{% endif %}
     </div>
@@ -684,6 +685,9 @@
     .anf-absagen > summary{list-style:none;cursor:pointer;font-size:.75rem;color:var(--ink-4,#9ca3af);padding:.45rem 0;}
     .anf-absagen > summary::-webkit-details-marker{display:none;}
     .anf-absagen[open] > summary{color:var(--ink-3,#6b7280);}
+    .anf-kommentar > summary{list-style:none;cursor:pointer;display:inline;font-size:.75rem;font-weight:400;
+      color:var(--ink-3,#6b7280);text-decoration:underline;}
+    .anf-kommentar > summary::-webkit-details-marker{display:none;}
     .anf-link{display:inline-block;font-size:.75rem;padding:.45rem .9rem;margin-top:.6rem;}
   </style>
 

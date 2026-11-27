@@ -11,7 +11,15 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     Dashboard
   </a>
-  <h1 class="text-2xl font-bold text-gray-900">Reservierungen</h1>
+  {# Knopf oben rechts wie „Neues Event“ (Aykut 26.11.2026); öffnet das Formular unten #}
+  <div class="flex items-center justify-between gap-3">
+    <h1 class="text-2xl font-bold text-gray-900">Reservierungen</h1>
+    <a href="#neue-reservierung" class="btn-primary shrink-0"
+       onclick="var d=document.getElementById('neue-reservierung'); d.open=true; d.scrollIntoView({behavior:'smooth', block:'start'}); return false;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Neue Reservierung
+    </a>
+  </div>
   <p class="text-sm text-gray-500 mt-0.5">Unverbindliche Termin-Holds – getrennt von den festen Buchungen. Werden zur Buchung umgewandelt oder freigegeben.</p>
 </div>
 
@@ -105,8 +113,8 @@
 </details>
 
 <!-- Neue Reservierung -->
-<details class="card p-5 mb-6" {% if kopie %}open{% endif %}>
-  <summary class="text-sm font-semibold cursor-pointer select-none" style="color: var(--brand-primary);">+ Neue Reservierung</summary>
+<details id="neue-reservierung" class="card p-5 mb-6" {% if kopie %}open{% endif %}>
+  <summary class="text-sm font-semibold cursor-pointer select-none text-gray-700">Neue Reservierung</summary>
   <form method="post" action="/admin/reservierungen/new" class="mt-4 pt-4 space-y-4" style="border-top:1px solid #f3f4f6;">
     {% if vorlage %}
     <div class="text-xs font-medium px-3 py-2 rounded-lg" style="background:var(--c-amber-bg);color:var(--c-amber);">
