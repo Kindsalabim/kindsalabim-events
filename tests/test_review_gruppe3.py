@@ -41,7 +41,7 @@ def _render_anfrage(dl, ev):
     import email_service
     captured = {}
     orig = email_service._deliver
-    email_service._deliver = lambda to, subject, html, anhaenge=None: captured.setdefault("html", html)
+    email_service._deliver = lambda to, subject, html, anhaenge=None, marke=None: captured.setdefault("html", html)
     try:
         email_service.send_verfuegbarkeitsanfrage(dl, ev, 1, "http://t", magic_url="http://t/m")
     finally:

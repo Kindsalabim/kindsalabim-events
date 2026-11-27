@@ -24,7 +24,7 @@ def _dl():
 def _gesendet(fn, *args, **kw):
     captured = {}
     orig = email_service._deliver
-    email_service._deliver = lambda to, subject, html, anhaenge=None: captured.setdefault("html", html)
+    email_service._deliver = lambda to, subject, html, anhaenge=None, marke=None: captured.setdefault("html", html)
     try:
         fn(*args, **kw)
     finally:

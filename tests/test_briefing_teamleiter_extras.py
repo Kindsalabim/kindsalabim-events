@@ -7,7 +7,7 @@ from factories import briefing_event_ns, briefing_dl_ns
 def _sende(event, empfaenger):
     mails = []
     orig = email_service._deliver
-    email_service._deliver = lambda to, subject, html, anhaenge=None: mails.append(
+    email_service._deliver = lambda to, subject, html, anhaenge=None, marke=None: mails.append(
         {"to": to, "html": html, "anhaenge": [a[0] for a in (anhaenge or [])]})
     try:
         email_service.send_briefing(empfaenger, event, "http://t")

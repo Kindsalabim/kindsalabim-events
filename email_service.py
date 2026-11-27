@@ -41,9 +41,23 @@ except ImportError:
     KS_W = KS_H = KF_W = KF_H = 0
 
 
-def _deliver(to: str, subject: str, html: str, attachments=None):
+def _absender(cfg: dict, marke: str | None) -> tuple[str, str | None]:
+    """(From, Reply-To) je Marke. Knallfrosch-Kunden dürfen nichts von Kindsalabim
+    sehen (Aykut 27.11.2026): Name „Knallfrosch Kinderevents“, Antworten an das
+    Knallfrosch-Postfach. Die From-Adresse wechselt erst auf die Knallfrosch-Domain,
+    wenn `mail_from_knallfrosch` gesetzt ist (Domain muss in Resend verifiziert sein,
+    sonst lehnt Resend jede Mail ab)."""
+    if marke == "Knallfrosch":
+        adresse = cfg.get("mail_from_knallfrosch") or cfg["mail_from"]
+        return (f"Knallfrosch Kinderevents <{adresse}>",
+                cfg.get("mail_reply_to_knallfrosch") or "info@knallfrosch-kinderevents.de")
+    return (f'{cfg.get("company_name", "Kindsalabim")} <{cfg["mail_from"]}>',
+            cfg.get("mail_reply_to"))
+
+
+def _deliver(to: str, subject: str, html: str, attachments=None, marke: str | None = None):
     """Verschickt eine E-Mail über die Resend HTTP-API (Render blockt ausgehendes SMTP).
-    attachments: optionale Liste von (dateiname, bytes)."""
+    attachments: optionale Liste von (dateiname, bytes). marke: Absender je Marke."""
     cfg = get_config()
     api_key = cfg.get("resend_api_key")
     if not api_key:
@@ -51,14 +65,14 @@ def _deliver(to: str, subject: str, html: str, attachments=None):
         print(f"[MOCK E-MAIL] An: {to} | Betreff: {subject}{info}")
         return
 
+    absender, reply_to = _absender(cfg, marke)
     payload = {
-        "from": f'{cfg.get("company_name", "Kindsalabim")} <{cfg["mail_from"]}>',
+        "from": absender,
         "to": [to],
         "subject": subject,
         "html": html,
         "text": _html_to_text(html),
     }
-    reply_to = cfg.get("mail_reply_to")
     if reply_to:
         payload["reply_to"] = reply_to
     if attachments:
@@ -88,8 +102,8 @@ def _deliver(to: str, subject: str, html: str, attachments=None):
         raise RuntimeError(f"Resend HTTP {e.code}: {body}") from None
 
 
-def _send(to: str, subject: str, body_html: str):
-    _deliver(to, subject, body_html)
+def _send(to: str, subject: str, body_html: str, marke: str | None = None):
+    _deliver(to, subject, body_html, marke=marke)
 
 # Alias für die Test-Route
 send_email = _send
@@ -748,7 +762,7 @@ def send_teamleiter_info(event):
     </p>"""
     _send(event.kunde_email,
           f"Ihr Ansprechpartner für {event.anlass} am {de_date(event.datum)}",
-          _wrap(content, color, cfg))
+          _wrap(content, color, cfg), marke=event.marke)
 
 
 def send_frist_verlaengerung(dienstleister, event, admin_email: str):
@@ -919,7 +933,7 @@ def send_checklist_email(event, base_url: str, serie=None):
                    f"ab {de_date(serie[0].datum)}")
     else:
         subject = f"Checkliste: {event.anlass} am {de_date(event.datum)} – bitte ausfüllen"
-    _send(event.kunde_email, subject, _wrap(content, color, cfg))
+    _send(event.kunde_email, subject, _wrap(content, color, cfg), marke=event.marke)
 
 
 def send_checklist_notification(event, admin_email: str, base_url: str):

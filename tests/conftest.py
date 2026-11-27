@@ -34,7 +34,7 @@ import routes.fotos as fotos_routes  # noqa: E402
 # ── Externe Effekte hart abschalten ──────────────────────────────────────────
 calendar_service._service = lambda: None          # Kalender = No-op
 _MAILS = []
-email_service._deliver = lambda to, subject, html, anhaenge=None: _MAILS.append((to, subject, html))
+email_service._deliver = lambda to, subject, html, anhaenge=None, marke=None: _MAILS.append((to, subject, html))
 _UPLOADS = []
 fotos_routes._upload = lambda data, event_id, filename, content_type, typ, db: _UPLOADS.append(filename)
 # _r2_put (Gewerbeschein, Bestellungs-Archiv) ebenfalls hart mocken – die lokale

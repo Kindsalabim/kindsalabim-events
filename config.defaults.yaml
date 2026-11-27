@@ -18,6 +18,12 @@ admin_email: "a.malca@kindsalabim.de"
 mail_from: "info@kindsalabim-events.de"
 mail_reply_to: "info@kindsalabim.de"
 
+# Knallfrosch-Kundenmails (Checkliste, Teamleiter-Info): eigener Name + Antwortadresse.
+# mail_from_knallfrosch erst eintragen, wenn knallfrosch-kinderevents.de in Resend
+# verifiziert ist (DNS bei All-Inkl) – vorher lehnt Resend die Mails ab. Leer = mail_from.
+mail_from_knallfrosch: ""
+mail_reply_to_knallfrosch: "info@knallfrosch-kinderevents.de"
+
 smtp_port: 465
 
 # Google-Kalender-Sync (App → Kalender). Das Service-Account-JSON kommt als
